@@ -28,7 +28,7 @@ def run(args: argparse.Namespace) -> int:
                 "--resume, --output and --device apply only to --local; use training resume for managed tasks"
             )
         json_output(
-            client(args).call("start-training", {**spec, "targetWorkerId": args.worker})
+            client(args).call("start-training-run", {**spec, "targetWorkerId": args.worker})
         )
         return 0
     if args.worker:
@@ -105,15 +105,15 @@ def remote(args: argparse.Namespace) -> int:
     if args.training_command == "workers":
         operation, arguments = "list-training-workers", {}
     elif args.training_command == "list":
-        operation, arguments = "list-training", {"model": args.model}
+        operation, arguments = "list-training-runs", {"model": args.model}
     elif args.training_command == "get":
-        operation, arguments = "get-training", {"runId": args.run}
+        operation, arguments = "get-training-run", {"runId": args.run}
     else:
         control: dict[str, Any] = {"action": args.training_command}
         if args.training_command == "resume":
             control.update(targetWorkerId=args.worker, restart=args.restart)
         operation, arguments = (
-            "control-training",
+            "control-training-run",
             {
                 "dataset": args.dataset,
                 "runId": args.run,

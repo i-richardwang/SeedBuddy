@@ -108,6 +108,18 @@ its cell empty, and a day out of the analysis carries why in place of its
 number: the name of the event that took it out, or else the word for
 unclear.
 
+## What an agent reads
+
+An agent reads the experiment as a sheet (`domain/experiments/sheet.ts`): the
+design, and a cell for every unit on every observation. Each cell is resolved
+here, by the same functions the grid and the spreadsheet use: the reading the
+analysis counts and who stood behind it, why the day is out of the analysis if
+it is, and under them the photograph and the entered count the reading came
+from. An agent therefore never ranks readings or applies the exclusion rules
+itself, and a change to either changes what every reader sees at once. The
+workbench grid is a different view: it also shows what the workbench is still
+doing with a photograph, which the sheet does not.
+
 ## What takes a unit out of the analysis
 
 A unit out of the analysis on a day contributes to no treatment summary that

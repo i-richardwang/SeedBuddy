@@ -146,9 +146,9 @@ A Worker retains a finished bundle in its attempt directory if publication fails
 
 ### HTTP and MCP
 
-The existing experiments MCP endpoint exposes `list-training-workers`, `start-training`, `get-training`, `list-training`, `control-training`, `list-model-versions`, `prepare-model-upload`, `register-model-upload`, and `use-model-version`. These are the same operations exposed through `POST /api/agent/<operation>`; schema discovery remains `GET /api/agent/operations`.
+The existing experiments MCP endpoint exposes `list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload`, and `use-model-version`. These are the same operations exposed through `POST /api/agent/<operation>`; schema discovery remains `GET /api/agent/operations`.
 
-`start-training` returns a task immediately; MCP does not execute a long GPU computation. To import local files, the CLI calls `prepare-model-upload`, PUTs raw weights to the returned upload path using its API key, then calls `register-model-upload`. An MCP client can prepare and register uploads but cannot read a user's local filesystem on its own. Weight transfers use HTTP, never base64 inside an MCP tool call.
+`start-training-run` returns a task immediately; MCP does not execute a long GPU computation. To import local files, the CLI calls `prepare-model-upload`, PUTs raw weights to the returned upload path using its API key, then calls `register-model-upload`. An MCP client can prepare and register uploads but cannot read a user's local filesystem on its own. Weight transfers use HTTP, never base64 inside an MCP tool call.
 
 ### Deployment
 

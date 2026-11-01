@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { command, query } from "./definition";
 import { inferenceTargetSchema } from "../../domain/inference/assignments";
 import { inferenceTaskSchema } from "../../domain/inference/tasks";
@@ -21,9 +22,6 @@ export const inferenceOperations = [
     output: z.null(),
     destructive: true,
     transactional: false,
-    handler: async (target) => {
-      await retryInferenceTask(target);
-      return null;
-    },
+    handler: (target) => retryInferenceTask(target),
   }),
 ];

@@ -1,8 +1,8 @@
 # Agent API
 
-The agent interface lets an AI agent maintain experiment records: design, observation dates, culture events, image entry, and which photographs are unclear. It exposes the workbench domain layer directly, so every request is validated by the same schemas and rejected by the same invariants as the workbench UI.
+The agent interface lets an AI agent keep an experiment's records: its design, the observations made of it, the photographs and hand counts that give each unit its number on each day, and the culture events and unclear marks that take a unit out of the analysis. It exposes the workbench domain layer directly, so every request is validated by the same schemas and rejected by the same invariants as the workbench UI, and what an agent reads back is resolved by the same functions that fill the grid and the exported spreadsheet.
 
-One operation registry (`web/src/server/agent/operations.ts`) defines the interface. The HTTP surface and the MCP tool list are both projections of it; an operation name is part of the public contract.
+One operation registry (`web/src/server/agent/operations.ts`) defines the interface, assembled from one file per subject under `web/src/server/agent/`. The HTTP surface and the MCP tool list are both projections of it; an operation name is part of the public contract.
 
 ## Authentication
 
@@ -22,14 +22,14 @@ The MCP surface also opens to MCP clients the account approves through OAuth: se
 | --------------------------- | --------------------------------------------------------------------------------------------- |
 | `GET /api/agent/operations` | Describe every operation: query/command kind, destructive flag, and input/output JSON Schemas |
 | `POST /api/agent/<name>`    | Call one operation with its JSON input                                                        |
-| `POST /api/agent/images`    | Store image bytes; the response is the digest assignment expects                              |
+| `POST /api/agent/images`    | Store image bytes; the response is the digest a photograph is matched to its unit by          |
 
 Every result is validated against the operation's published output schema before it leaves the workbench; for commands this validation must succeed before the transaction commits, so the discovery document is the contract on both sides of a call. A successful call answers `{"result": ...}`. A failed call answers `{"error":{"code":"...","message":"..."}}`; HTTP maps the protocol-neutral code to the status describing what the agent can do about it:
 
 - `400` — the input does not satisfy the operation's schema; the message names the offending fields.
 - `401` — the request presents no live API key with the experiment records scope.
 - `404` — the operation or the addressed record does not exist.
-- `409` — a domain rule rejected the request, such as deleting an observation that has images.
+- `409` — a domain rule rejected the request, such as deleting an observation that holds records, or entering a count that leaves out a class the day counts; the message says which rule.
 - `500` — a workbench defect; the body carries no detail, and the cause is in the server log.
 
 ```http
@@ -103,37 +103,52 @@ Connect with:
 claude mcp add --transport http vitroflow-experiments https://<workbench>/api/experiments/mcp
 ```
 
-Image bytes do not travel through MCP. Upload them to `POST /api/agent/images` and pass the returned digest to `assign-images-to-observation`.
+Image bytes do not travel through MCP. Upload them to `POST /api/agent/images` and pass the returned digest to `create-observation` or `assign-images-to-observation`.
 
-## Data-entry workflow
+## Design and records
 
-Entering one round of observation photos:
+An experiment is a design and the records taken against it. The design is its treatments, their units, and its observations: `create-experiment` lays out the first treatments, `create-treatment` and `add-replicates` extend them, `update-unit` and `move-units` correct a unit's code or treatment while it keeps its identity and records, and `update-*` corrects any entry. A record is a photograph matched to a unit on an observation, a count entered by hand for it, or a culture event. A record keeps its unit, treatment, and observation from being deleted, so `delete-experiment`, `delete-treatment`, `delete-unit`, and `delete-observation` answer 409 for an entry that holds any; the experiment's last treatment and a treatment's last replicate stay in any case.
 
-1. `get-experiment` reads the experiment grid: treatments, units with their codes, and existing observations.
-2. `create-observation` adds the observation date, unless the grid already holds it. Its `countedClasses` names which of the model's classes the day's count sums, every class when omitted; a germination trial's later days count `["germinated"]`.
-3. `POST /api/agent/images` stores each photo and returns its digest.
-4. `assign-images-to-observation` attaches the digests to units in that observation, keeping each source filename for traceability. A cell that already has an image is given the new one. Filenames may suggest unit codes, but the unit id in the assignment is authoritative.
-5. A photograph that cannot be read clearly, a fogged lid or a dish out of focus, is marked unclear by digest with `mark-image-unclear` (`{"digest":"…"}`), or in the same step as its assignment by giving the entry `"unclear": true`. The mark belongs to the image wherever it is observed. Whether it counts is each experiment's `countsUnclear`, false unless `create-experiment` or `update-experiment` sets it: where it is false, the unit leaves the analysis on every day, since the mark says the dish's record cannot be trusted, so the spreadsheet and day comparisons leave the unit out, while the photograph is still read and shown; where it is true, the number is used as it stands. A day with no photograph excludes nothing: the unit only has no number that day. Datasets train on an unclear photograph like any other. `mark-image-unclear` answers `marked: false` when the photograph was already marked and `clear-image-unclear` answers `cleared: false` when there was no mark, so both are safe to repeat; an assignment never clears a mark. None of these reads anything again.
-6. `record-culture-event` records contamination or loss observed while photographing. Contaminated, discarded, and missing exclude the unit from analysis from that observation on; nonviable and harvested keep it included. `remove-culture-event` erases an event recorded by mistake.
+## The sheet
 
-Analysis needs no request: assigned images are queued for the current version of their observation's model automatically, and `retry-observation-image-analysis` requeues one that failed. A trained version is a candidate until a person makes it current on the model's page; agents do not choose versions. A model with no current version queues nothing; its images wait for a reviewer, and `create-model` names such a model in the first place.
+`get-experiment` reads the experiment's sheet, and `get-unit` one unit's row of it. The sheet is the design and a cell for every unit on every observation, each cell resolved as the analysis reads it (see [readings](readings.md)):
+
+- `reading` is the count the day uses for the unit and its `source`: `manual` for a count a person entered, else `review`, `proposal`, or `detection` for the best reading its photograph has. It is null while the cell has no number: no photograph or count yet, a photograph not yet read, or a count that left a class the day counts unanswered.
+- `exclusion` says why the day stays out of the analysis, or is null when it is in: an `event` names the culture event that took the unit out, and `unclear` says a photograph of the unit was marked unclear in an experiment that does not count such photographs. A reading may be present on an excluded day; the analysis does not use it, and a sheet exported from the workbench writes the reason in its place.
+- `image` is the photograph behind the cell: its observation image `id`, which datasets add it by; its `digest`, which marks and dataset removal address it by; its analysis `state`; the three tallies it may carry; and whether it is `unclear`.
+- `manual` is the count a person entered: its `tally` by class and when it was recorded.
+
+A cell with neither reading nor exclusion has nothing yet. An agent reads numbers from the sheet; it never ranks a photograph's readings against an entered count or applies the exclusion rules itself.
+
+## Entering a day
+
+A day enters as an observation and the records taken on it, by either or both of two ways: photographs the workbench reads, and counts a person took at the bench.
+
+1. `get-experiment` reads the sheet: treatments, units with their codes, and the observations already made.
+2. `create-observation` adds the observation date, the recognition task its photographs are read for, and `countedClasses`, the classes the day's count sums, every class when omitted; a germination trial's later days count `["germinated"]`. When the photographs are already uploaded, `images` matches them to their units in the same step, so the day and its photographs enter together or not at all; omit it to plan a day first.
+3. `POST /api/agent/images` stores each photo and returns its digest. `assign-images-to-observation` matches digests to units in an observation that already exists, keeping each source filename for traceability; a unit already photographed that day is given the new one. Filenames may suggest unit codes, but the unit id in the assignment is authoritative.
+4. `enter-manual-readings` enters the counts people took by hand on one observation, a tally per unit naming every class the day counts, such as the germinated seedlings counted while transplanting a dish that was never photographed. A unit's entered count outranks every reading of its photograph, so a dish counted at the bench reads by that count whatever the photograph says; a tally of `null` withdraws it. A class the day counts and the tally does not name is unanswered, not zero, and the call is refused, so an agent gives every class. A unit that left the bench before the observation cannot be counted.
+5. A photograph that cannot be read clearly, a fogged lid or a dish out of focus, is marked unclear by digest with `mark-image-unclear` (`{"digest":"…"}`), or in the same step as its matching by giving the entry `"unclear": true`. The mark belongs to the image wherever it is observed. Whether it counts is each experiment's `countsUnclear`, false unless `create-experiment` or `update-experiment` sets it: where it is false, the unit leaves the analysis on every day, since the mark says the dish's record cannot be trusted, so the sheet marks every cell of the unit excluded, while the photograph is still read and shown; where it is true, the number is used as it stands. A day with no photograph excludes nothing: the unit only has no number that day, unless a count was entered for it. Datasets train on an unclear photograph like any other. `mark-image-unclear` answers `marked: false` when the photograph was already marked and `clear-image-unclear` answers `cleared: false` when there was no mark, so both are safe to repeat; a matching never clears a mark. None of these reads anything again.
+6. `record-culture-events` records one event on the units it happened to at an observation. Contaminated, discarded, and missing take a unit out of the analysis from that observation on; nonviable and harvested keep it in, and discarded, harvested, and missing take it off the bench afterwards, so no later day of it can be photographed or counted. `delete-culture-event` erases an event recorded by mistake.
+
+Analysis needs no request: matched photographs are queued for the current version of their observation's model automatically, and `retry-observation-image-analysis` requeues one that failed. A trained version is a candidate until a person makes it current on the model's page; agents do not choose versions. A model with no current version queues nothing; its photographs wait for a reviewer, and `create-model` names such a model in the first place.
 
 ## Training-set workflow
 
-Images that a reviewer has annotated become training material once they belong to a dataset for their observation's model:
+Photographs that a reviewer has annotated become training material once they belong to a dataset for their observation's model:
 
-1. `get-experiment` reads the grid; each unit's image cell carries the observation image id that names it.
+1. `get-experiment` reads the sheet; each cell's `image` carries the observation image `id` that names the photograph.
 2. `list-datasets` shows the datasets for a model by id and name, with how many images each holds and how many are reviewed. Training uses only reviewed images.
 3. `create-dataset` names a new, empty dataset for a model. The name is unique whatever its case and stays filename-safe, because transfer and `vitroctl` data roots know a dataset by name; `update-dataset` renames it later without touching its images, splits, snapshots, or runs. Every other dataset tool addresses the dataset by its id.
 4. `add-images-to-dataset` adds observation images to a dataset. One call takes images observed for the dataset's model; images already in the dataset are counted as `existing`, so repeating a call is safe.
-5. `get-dataset` lists a dataset's images by digest, each with whether it is reviewed, whether a person marked it `unclear`, and its training split; the digests match the image cells of `get-experiment`.
+5. `get-dataset` lists a dataset's images by digest, each with whether it is reviewed, whether a person marked it `unclear`, and its training split; the digests match the photographs in the sheet's cells.
 6. `remove-images-from-dataset` takes images out by digest, for example a blurred photo or a unit found contaminated. The images and their reviews remain, and snapshots already taken keep what they froze; digests not in the dataset are counted as `absent`, so repeating a call is safe.
 
 The train/validation split is not chosen here: a training snapshot gives each reviewed image a split it keeps from then on.
 
 ## Transactions
 
-A command runs in one database transaction: it either changes the record as a whole or leaves it untouched. Image upload only stages immutable content by digest; assigning that content to an observation is the command that changes the record.
+A command runs in one database transaction: it either changes the record as a whole or leaves it untouched. A call that enters several units' counts, records an event on several units, moves several units, or creates a day with its photographs therefore lands whole or not at all. Image upload only stages immutable content by digest; matching that content to an observation is the command that changes the record.
 
 ## Inference task control
 

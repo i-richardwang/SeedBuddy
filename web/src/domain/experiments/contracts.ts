@@ -31,7 +31,7 @@ export const unitSchema = z.strictObject({
 
 export type Unit = z.infer<typeof unitSchema>;
 
-const observationImageCellSchema = z.strictObject({
+export const observationImageCellSchema = z.strictObject({
   id: observationImageIdSchema,
   unit: unitIdSchema,
   observation: observationIdSchema,

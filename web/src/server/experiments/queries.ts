@@ -27,6 +27,12 @@ import {
   imageReview,
   observationCells,
 } from "../../domain/experiments/readings";
+import {
+  experimentSheet,
+  unitRow,
+  type ExperimentSheet,
+  type UnitRow,
+} from "../../domain/experiments/sheet";
 import type {
   Experiment,
   ImageAnalysisState,
@@ -192,6 +198,26 @@ export function readExperimentGrid(
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(experimentId, db);
     return experiment ? readGrid(experiment, db) : null;
+  });
+}
+
+/** The experiment as an agent reads it: every cell resolved to its reading. */
+export function readExperimentSheet(
+  experimentId: string,
+): Promise<ExperimentSheet | null> {
+  return snapshot(async (db) => {
+    const experiment = await readExperimentRecord(experimentId, db);
+    return experiment ? experimentSheet(await readGrid(experiment, db)) : null;
+  });
+}
+
+/** One unit's row of the sheet, or nothing when experiment or unit is unknown. */
+export function readUnitRow(ref: UnitRef): Promise<UnitRow | null> {
+  return snapshot(async (db) => {
+    const experiment = await readExperimentRecord(ref.experiment, db);
+    return experiment
+      ? unitRow(await readGrid(experiment, db), ref.unit)
+      : null;
   });
 }
 

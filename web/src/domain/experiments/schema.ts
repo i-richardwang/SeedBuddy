@@ -431,9 +431,12 @@ export const observationImageAssignmentSchema = z.strictObject({
   images: z.array(unitPhotoSchema).min(1, "No images to assign"),
 });
 
-/** A new observation day with the photographs taken on it, each matched to its unit. */
+/**
+ * A new observation day with the photographs taken on it, each matched to its
+ * unit; a day may be planned before any are taken.
+ */
 export const observationRecordSchema = observationRequestSchema.extend({
-  images: z.array(unitPhotoSchema),
+  images: z.array(unitPhotoSchema).default([]),
 });
 
 export type ObservationRecord = z.infer<typeof observationRecordSchema>;
