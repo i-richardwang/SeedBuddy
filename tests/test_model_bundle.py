@@ -138,7 +138,7 @@ def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
     spec.write_text(json.dumps({"dataset": "dataset-id", "recipe": recipe}))
     assert main(["training", "run", "--spec", str(spec), "--worker", "local-gpu"]) == 0
     assert operations[-1] == (
-        "start-training",
+        "start-training-run",
         {"dataset": "dataset-id", "recipe": recipe, "targetWorkerId": "local-gpu"},
     )
     assert main(["training", "workers"]) == 0

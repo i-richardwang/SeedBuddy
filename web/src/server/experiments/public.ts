@@ -31,5 +31,7 @@ export {
   listExperimentNames,
   listExperiments,
   readExperimentGrid,
+  readExperimentSheet,
   readUnit,
+  readUnitRow,
 } from "./queries";

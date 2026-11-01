@@ -1,4 +1,4 @@
-import type { ReviewSource } from "../annotation/schema";
+import { REVIEW_SOURCES, type ReviewSource } from "../annotation/schema";
 import { countClasses, sameClasses, type Tally } from "../models/classes";
 import { UnknownClassError } from "../models/errors";
 import type { ImageReview, ObservationImageCell } from "./contracts";
@@ -8,7 +8,9 @@ import type { ExperimentObservation, ManualReading } from "./schema";
  * Who stood behind a unit's number: a person who counted the dish itself
  * and entered the count, or one of the readings of its photograph.
  */
-export type ReadingSource = ReviewSource | "manual";
+export const READING_SOURCES = [...REVIEW_SOURCES, "manual"] as const;
+
+export type ReadingSource = (typeof READING_SOURCES)[number];
 
 /** What a unit read on a day: the individuals found, and who stood behind the number. */
 export interface Reading {

@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { query, command } from "./definition";
+
+import { command, query } from "./definition";
 import { resourceIdSchema } from "../../domain/identifiers/schema";
 import { modelRefSchema } from "../../domain/models/schema";
 import { datasetRefSchema } from "../../domain/datasets/schema";
@@ -31,7 +32,7 @@ export const trainingOperations = [
     handler: () => trainingWorkerOptions(),
   }),
   command({
-    name: "start-training",
+    name: "start-training-run",
     description:
       "Freeze reviewed dataset contents and queue training on an optional target worker; returns immediately with a run id. Supply the complete immutable recipe.",
     destructive: false,
@@ -45,7 +46,7 @@ export const trainingOperations = [
       createTrainingRun(dataset, recipe, targetWorkerId),
   }),
   query({
-    name: "get-training",
+    name: "get-training-run",
     description:
       "Read training state, current execution identity and epoch metrics",
     input: z.strictObject({ runId: resourceIdSchema }),
@@ -69,15 +70,17 @@ export const trainingOperations = [
     },
   }),
   query({
-    name: "list-training",
+    name: "list-training-runs",
     description: "List up to 100 recent training runs for a model",
     input: modelRefSchema,
     output: z.array(trainingRunSchema),
     handler: async ({ model }) =>
-      (await listTrainingRunSummaries({ modelId: model })).map((r) => r.run),
+      (await listTrainingRunSummaries({ modelId: model })).map(
+        (summary) => summary.run,
+      ),
   }),
   command({
-    name: "control-training",
+    name: "control-training-run",
     description:
       "Pause, cancel or resume a training run using the observed attempt number; resume can assign another worker or explicitly restart",
     destructive: true,

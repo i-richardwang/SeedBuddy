@@ -1,12 +1,18 @@
 import { describe, expect, test } from "bun:test";
 
 import type { Dataset } from "../../domain/datasets/schema";
-import type { ExperimentGrid } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/contracts";
 import type {
   CultureEvent,
   Experiment,
   ExperimentObservation,
+  ManualReading,
 } from "../../domain/experiments/schema";
+import type {
+  ExperimentSheet,
+  SheetCell,
+  UnitRow,
+} from "../../domain/experiments/sheet";
 import { type AgentCallResult, executeAgentOperation } from "./execution";
 import { agentOperations, describeAgentOperations } from "./operations";
 import { storeAnnotation } from "../annotations/documents";
@@ -31,6 +37,24 @@ function failure(result: AgentCallResult): {
   return { code: result.code, message: result.message };
 }
 
+async function readSheet(experiment: string): Promise<ExperimentSheet> {
+  return output(
+    await executeAgentOperation("get-experiment", { experiment }),
+  ) as ExperimentSheet;
+}
+
+function cellOf(
+  sheet: Pick<ExperimentSheet, "cells">,
+  unit: string,
+  observation: string,
+): SheetCell {
+  const cell = sheet.cells.find(
+    (item) => item.unit === unit && item.observation === observation,
+  );
+  if (!cell) throw new Error(`No cell for ${unit} on ${observation}`);
+  return cell;
+}
+
 describe("agent operations", () => {
   test("every operation describes itself with schemas and behavior hints", () => {
     const described = describeAgentOperations();
@@ -47,53 +71,55 @@ describe("agent operations", () => {
 
   test("behavior hints classify every operation explicitly", () => {
     const readOnly = new Set([
-      "get-inference-task",
-      "list-model-versions",
-      "list-training",
-      "list-training-workers",
-      "get-training",
       "list-experiments",
-      "list-models",
       "get-experiment",
       "get-unit",
       "list-datasets",
       "get-dataset",
+      "list-models",
+      "list-model-versions",
+      "list-training-workers",
+      "list-training-runs",
+      "get-training-run",
+      "get-inference-task",
     ]);
     const additive = new Set([
-      "prepare-model-upload",
-      "register-model-upload",
-      "start-training",
       "create-experiment",
       "create-treatment",
       "add-replicates",
-      "record-culture-event",
       "create-observation",
-      "create-model",
       "assign-images-to-observation",
+      "record-culture-events",
       "create-dataset",
       "add-images-to-dataset",
+      "create-model",
+      "prepare-model-upload",
+      "register-model-upload",
+      "start-training-run",
     ]);
     const destructive = new Set([
-      "retry-inference-task",
-      "use-model-version",
-      "control-training",
       "update-experiment",
       "delete-experiment",
       "update-treatment",
       "delete-treatment",
       "update-unit",
+      "move-units",
       "delete-unit",
-      "remove-culture-event",
       "update-observation",
       "delete-observation",
       "unassign-observation-image",
       "retry-observation-image-analysis",
       "mark-image-unclear",
       "clear-image-unclear",
-      "update-model-annotation",
-      "delete-model",
+      "enter-manual-readings",
+      "delete-culture-event",
       "update-dataset",
       "remove-images-from-dataset",
+      "update-model-annotation",
+      "delete-model",
+      "use-model-version",
+      "control-training-run",
+      "retry-inference-task",
     ]);
     expect([...readOnly, ...additive, ...destructive].sort()).toEqual(
       [...agentOperations.keys()].sort(),
@@ -137,13 +163,20 @@ describe("agent operations", () => {
     ) as ExperimentObservation;
     expect(observation.observedOn).toBe("2026-08-15");
 
-    const grid = output(
-      await executeAgentOperation("get-experiment", {
-        experiment: experiment.id,
-      }),
-    ) as ExperimentGrid;
-    expect(grid.treatments.map(({ name }) => name)).toContain("T1");
-    expect(grid.units).toHaveLength(2);
+    const sheet = await readSheet(experiment.id);
+    expect(sheet.treatments.map(({ name }) => name)).toContain("T1");
+    expect(sheet.units).toHaveLength(2);
+    // A cell for every unit on the one day, with nothing in it yet.
+    expect(sheet.cells).toHaveLength(2);
+    expect(
+      sheet.cells.every((cell) => cell.observation === observation.id),
+    ).toBe(true);
+    expect(sheet.cells[0]).toMatchObject({
+      reading: null,
+      exclusion: null,
+      image: null,
+      manual: null,
+    });
 
     const summaries = output(
       await executeAgentOperation("list-experiments", {}),
@@ -153,48 +186,218 @@ describe("agent operations", () => {
     );
   });
 
-  test("a culture event is recorded against its unit and observation", async () => {
+  test("culture events are recorded on units together, and the sheet says what they take out", async () => {
     const version = await baselineVersion();
     const experiment = output(
       await executeAgentOperation("create-experiment", {
         name: "Culture events",
         inoculatedOn: "2026-08-01",
-        treatments: [{ name: "T1", replicates: 2 }],
+        treatments: [{ name: "T1", replicates: 3 }],
       }),
     ) as Experiment;
-    const observation = output(
+    const first = output(
       await executeAgentOperation("create-observation", {
         experiment: experiment.id,
         observedOn: "2026-08-10",
         modelId: version.modelId,
       }),
     ) as ExperimentObservation;
-    const grid = output(
-      await executeAgentOperation("get-experiment", {
+    const second = output(
+      await executeAgentOperation("create-observation", {
         experiment: experiment.id,
+        observedOn: "2026-08-20",
+        modelId: version.modelId,
       }),
-    ) as ExperimentGrid;
-    const [first, second] = grid.units;
+    ) as ExperimentObservation;
+    const [lost, kept, spare] = (await readSheet(experiment.id)).units;
 
     const contaminated = output(
-      await executeAgentOperation("record-culture-event", {
+      await executeAgentOperation("record-culture-events", {
         experiment: experiment.id,
-        unit: first!.id,
-        observation: observation.id,
+        units: [lost!.id, spare!.id],
+        observation: first.id,
         type: "contaminated",
       }),
-    ) as CultureEvent;
-    expect(contaminated.type).toBe("contaminated");
-
-    const harvested = output(
-      await executeAgentOperation("record-culture-event", {
+    ) as CultureEvent[];
+    expect(contaminated.map(({ type }) => type)).toEqual([
+      "contaminated",
+      "contaminated",
+    ]);
+    const [harvested] = output(
+      await executeAgentOperation("record-culture-events", {
         experiment: experiment.id,
-        unit: second!.id,
-        observation: observation.id,
+        units: [kept!.id],
+        observation: first.id,
         type: "harvested",
       }),
-    ) as CultureEvent;
-    expect(harvested.observation).toBe(observation.id);
+    ) as CultureEvent[];
+    expect(harvested!.observation).toBe(first.id);
+
+    const sheet = await readSheet(experiment.id);
+    expect(cellOf(sheet, lost!.id, first.id).exclusion).toEqual({
+      reason: "event",
+      event: contaminated[0],
+    });
+    expect(cellOf(sheet, lost!.id, second.id).exclusion).toMatchObject({
+      reason: "event",
+    });
+    // Harvesting keeps the day it was recorded on and takes the unit off the bench after.
+    expect(cellOf(sheet, kept!.id, first.id).exclusion).toBeNull();
+    expect(cellOf(sheet, kept!.id, second.id).exclusion).toEqual({
+      reason: "event",
+      event: harvested,
+    });
+
+    output(
+      await executeAgentOperation("delete-culture-event", {
+        experiment: experiment.id,
+        event: contaminated[1]!.id,
+      }),
+    );
+    expect(
+      cellOf(await readSheet(experiment.id), spare!.id, first.id).exclusion,
+    ).toBeNull();
+    // A unit with a record stays, and so does its observation.
+    expect(
+      failure(
+        await executeAgentOperation("delete-observation", {
+          experiment: experiment.id,
+          observation: first.id,
+        }),
+      ).code,
+    ).toBe("conflict");
+  });
+
+  test("counts taken by hand enter a day, outrank its photographs, and withdraw", async () => {
+    const version = await baselineVersion();
+    const experiment = output(
+      await executeAgentOperation("create-experiment", {
+        name: "Counted at the bench",
+        inoculatedOn: "2026-08-01",
+        treatments: [{ name: "T1", replicates: 2 }],
+      }),
+    ) as Experiment;
+    const [photo] = await storeTexts(["agent-counted"]);
+    const { units } = await readSheet(experiment.id);
+    const [photographed, counted] = units;
+    // The day is created with the one photograph taken on it.
+    const observation = output(
+      await executeAgentOperation("create-observation", {
+        experiment: experiment.id,
+        observedOn: "2026-08-15",
+        modelId: version.modelId,
+        countedClasses: ["germinated"],
+        images: [
+          { unit: photographed!.id, digest: photo, filename: "dish-1.jpg" },
+        ],
+      }),
+    ) as ExperimentObservation;
+    expect(observation.hasRecords).toBe(true);
+    let sheet = await readSheet(experiment.id);
+    expect(cellOf(sheet, photographed!.id, observation.id).image).toMatchObject(
+      { digest: photo, filename: "dish-1.jpg" },
+    );
+    expect(cellOf(sheet, counted!.id, observation.id)).toMatchObject({
+      reading: null,
+      image: null,
+      manual: null,
+    });
+
+    const entered = output(
+      await executeAgentOperation("enter-manual-readings", {
+        experiment: experiment.id,
+        observation: observation.id,
+        readings: [
+          { unit: photographed!.id, tally: { germinated: 9 } },
+          { unit: counted!.id, tally: { germinated: 7 } },
+        ],
+      }),
+    ) as ManualReading[];
+    expect(entered.map(({ unit, tally }) => ({ unit, tally }))).toEqual([
+      { unit: photographed!.id, tally: { germinated: 9 } },
+      { unit: counted!.id, tally: { germinated: 7 } },
+    ]);
+
+    sheet = await readSheet(experiment.id);
+    expect(cellOf(sheet, photographed!.id, observation.id)).toMatchObject({
+      reading: { count: 9, source: "manual" },
+      image: { digest: photo },
+      manual: { tally: { germinated: 9 } },
+    });
+    expect(cellOf(sheet, counted!.id, observation.id)).toMatchObject({
+      reading: { count: 7, source: "manual" },
+      exclusion: null,
+      image: null,
+      manual: { tally: { germinated: 7 } },
+    });
+
+    const row = output(
+      await executeAgentOperation("get-unit", {
+        experiment: experiment.id,
+        unit: counted!.id,
+      }),
+    ) as UnitRow;
+    expect(row.unit.id).toBe(counted!.id);
+    expect(row.treatment.name).toBe("T1");
+    expect(row.cells).toHaveLength(1);
+    expect(row.cells[0]!.reading).toEqual({ count: 7, source: "manual" });
+
+    // A class the day counts must be given; a class the model lacks is refused.
+    expect(
+      failure(
+        await executeAgentOperation("enter-manual-readings", {
+          experiment: experiment.id,
+          observation: observation.id,
+          readings: [{ unit: counted!.id, tally: { shoots: 1 } }],
+        }),
+      ).code,
+    ).toBe("conflict");
+
+    output(
+      await executeAgentOperation("enter-manual-readings", {
+        experiment: experiment.id,
+        observation: observation.id,
+        readings: [{ unit: counted!.id, tally: null }],
+      }),
+    );
+    expect(
+      cellOf(await readSheet(experiment.id), counted!.id, observation.id),
+    ).toMatchObject({ reading: null, manual: null });
+    expect(
+      failure(
+        await executeAgentOperation("get-unit", {
+          experiment: experiment.id,
+          unit: crypto.randomUUID(),
+        }),
+      ).code,
+    ).toBe("not_found");
+  });
+
+  test("units move to another treatment together, keeping their codes", async () => {
+    const experiment = output(
+      await executeAgentOperation("create-experiment", {
+        name: "Moved units",
+        inoculatedOn: "2026-08-01",
+        treatments: [
+          { name: "A", replicates: 3 },
+          { name: "B", replicates: 1 },
+        ],
+      }),
+    ) as Experiment;
+    const sheet = await readSheet(experiment.id);
+    const b = sheet.treatments.find(({ name }) => name === "B")!;
+    const fromA = sheet.units.filter(({ treatment }) => treatment !== b.id);
+    const moved = output(
+      await executeAgentOperation("move-units", {
+        experiment: experiment.id,
+        units: fromA.slice(0, 2).map(({ id }) => id),
+        treatment: b.id,
+      }),
+    ) as Unit[];
+    expect(moved.map(({ treatment }) => treatment)).toEqual([b.id, b.id]);
+    expect(moved.map(({ code }) => code)).toEqual(
+      fromA.slice(0, 2).map(({ code }) => code),
+    );
   });
 
   test("a photograph is marked unclear by digest, or as it is assigned", async () => {
@@ -213,11 +416,7 @@ describe("agent operations", () => {
         modelId: version.modelId,
       }),
     ) as ExperimentObservation;
-    const { units } = output(
-      await executeAgentOperation("get-experiment", {
-        experiment: experiment.id,
-      }),
-    ) as ExperimentGrid;
+    const { units } = await readSheet(experiment.id);
     const [fogged, blurred] = await storeTexts(["agent-fogged", "agent-blur"]);
     output(
       await executeAgentOperation("assign-images-to-observation", {
@@ -236,13 +435,9 @@ describe("agent operations", () => {
     );
     const cells = async () =>
       new Map(
-        (
-          output(
-            await executeAgentOperation("get-experiment", {
-              experiment: experiment.id,
-            }),
-          ) as ExperimentGrid
-        ).images.map((image) => [image.digest, image.unclear]),
+        (await readSheet(experiment.id)).cells.flatMap((cell) =>
+          cell.image ? [[cell.image.digest, cell.image.unclear] as const] : [],
+        ),
       );
     expect((await cells()).get(fogged!)).toBe(true);
     expect((await cells()).get(blurred!)).toBe(false);

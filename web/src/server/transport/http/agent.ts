@@ -68,7 +68,7 @@ export function handleAgentInterface(): Response {
   return Response.json({
     call: "POST /api/agent/<name> with the operation's JSON input",
     upload:
-      "POST image bytes to /api/agent/images to obtain the digest assign-images-to-observation expects",
+      "POST image bytes to /api/agent/images to obtain the digest create-observation and assign-images-to-observation expect",
     operations: describeAgentOperations(),
   });
 }
