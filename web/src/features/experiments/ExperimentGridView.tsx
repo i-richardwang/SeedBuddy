@@ -74,6 +74,7 @@ export function ExperimentGridView({
     units,
     observations,
     images,
+    manualReadings,
     models,
     datasets,
   } = data;
@@ -84,11 +85,13 @@ export function ExperimentGridView({
   const waiting = images.some((image) => image.state === "pending");
   useRouteRefresh(5000, waiting);
 
-  const cells = observationCells(images);
+  const cells = observationCells(images, manualReadings);
   const ordinals = observationOrdinals(observations);
   const placed = placedPhotos(data);
   const hasRecords =
-    images.length > 0 || units.some((unit) => unit.events.length > 0);
+    images.length > 0 ||
+    manualReadings.length > 0 ||
+    units.some((unit) => unit.events.length > 0);
   const treatmentOf = new Map(treatments.map((item) => [item.id, item]));
   // A treatment's units stay together, in the design's order.
   const rows = treatments.flatMap((item) =>
@@ -186,6 +189,10 @@ export function ExperimentGridView({
                   images={images.filter(
                     (image) => image.observation === observation.id,
                   )}
+                  manualReadings={manualReadings.filter(
+                    (reading) => reading.observation === observation.id,
+                  )}
+                  treatments={treatments}
                   placed={placed}
                   models={models}
                   datasets={datasets
@@ -230,7 +237,7 @@ export function ExperimentGridView({
                 {observations.map((observation) => (
                   <TableCell key={observation.id}>
                     <UnitDayCount
-                      image={cells.get(cellKey(unit.id, observation.id))}
+                      cell={cells.get(cellKey(unit.id, observation.id))}
                       observation={observation}
                       exclusion={exclusion(observation)}
                       link={(content) => (

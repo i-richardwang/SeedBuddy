@@ -60,7 +60,10 @@ async function rejectSameDay(
 }
 
 /** An observation asks a question the registry holds a model for. */
-async function requireModel(modelId: string, tx: Executor): Promise<Model> {
+export async function requireModel(
+  modelId: string,
+  tx: Executor,
+): Promise<Model> {
   const model = await readModel(modelId, tx);
   if (!model) throw new ModelNotFoundError(`Unknown model: ${modelId}`);
   return model;
@@ -149,7 +152,7 @@ export async function deleteObservation(
     );
     if (observation.hasRecords) {
       throw new ObservationRejectedError(
-        "An observation with images or culture events cannot be deleted",
+        "An observation with images, counts or culture events cannot be deleted",
       );
     }
     const [row] = await tx

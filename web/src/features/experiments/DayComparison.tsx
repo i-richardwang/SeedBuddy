@@ -144,7 +144,7 @@ export function DayCountsSection({
             label={observationLabel(day.observation)}
           >
             <UnitDayCount
-              image={day.image}
+              cell={day}
               observation={day.observation}
               exclusion={exclusion(day.observation)}
             />

@@ -6,6 +6,7 @@ import { inTransaction, type Executor } from "../infra/db/client";
 import { isUniqueViolation } from "../infra/db/errors";
 import {
   experimentCultureEvents,
+  experimentManualReadings,
   experimentObservationImages,
   experimentObservations,
   experimentTreatments,
@@ -133,7 +134,7 @@ export async function deleteExperiment(
     await lockExperiment(experiment, tx);
     if (await hasRecords(experiment, null, tx)) {
       throw new ExperimentHasRecordsError(
-        "An experiment with images or culture events cannot be deleted",
+        "An experiment with images, counts or culture events cannot be deleted",
       );
     }
     const [row] = await tx
@@ -149,7 +150,7 @@ export async function deleteExperiment(
 type RecordScope = { treatment: string } | { unit: string } | null;
 
 /**
- * Whether images or culture events were recorded: on the whole experiment,
+ * Whether images, counts or culture events were recorded: on the whole experiment,
  * on one treatment's units, or on one unit.
  */
 async function hasRecords(
@@ -160,6 +161,7 @@ async function hasRecords(
   const inScope = (
     unitId:
       | typeof experimentObservationImages.unitId
+      | typeof experimentManualReadings.unitId
       | typeof experimentCultureEvents.unitId,
   ) => {
     if (scope === null) return undefined;
@@ -188,6 +190,17 @@ async function hasRecords(
     )
     .limit(1);
   if (image) return true;
+  const [manual] = await tx
+    .select({ unitId: experimentManualReadings.unitId })
+    .from(experimentManualReadings)
+    .where(
+      and(
+        eq(experimentManualReadings.experimentId, experimentId),
+        inScope(experimentManualReadings.unitId),
+      ),
+    )
+    .limit(1);
+  if (manual) return true;
   const [event] = await tx
     .select({ id: experimentCultureEvents.id })
     .from(experimentCultureEvents)
@@ -334,7 +347,7 @@ export async function deleteTreatment(
     }
     if (await hasRecords(experimentId, { treatment: treatmentId }, tx)) {
       throw new TreatmentRejectedError(
-        "A treatment whose units have images or culture events cannot be deleted",
+        "A treatment whose units have images, counts or culture events cannot be deleted",
       );
     }
     const [row] = await tx
@@ -430,7 +443,7 @@ export async function deleteUnit(
     }
     if (await hasRecords(experimentId, { unit: unitId }, tx)) {
       throw new UnitRejectedError(
-        "A unit with images or culture events cannot be deleted",
+        "A unit with images, counts or culture events cannot be deleted",
       );
     }
     await tx.delete(experimentUnits).where(atUnit(experimentId, unitId));

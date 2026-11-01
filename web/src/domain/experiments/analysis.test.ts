@@ -65,6 +65,7 @@ function photographed(
   return days.map((observation) => ({
     observation,
     image: photograph(observation, unclearOn.includes(observation)),
+    manual: null,
   }));
 }
 

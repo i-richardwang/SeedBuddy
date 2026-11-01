@@ -57,6 +57,13 @@
       "when": 1793522469959,
       "tag": "0007_local_training",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793526822079,
+      "tag": "0008_manual_readings",
+      "breakpoints": true
     }
   ]
 }

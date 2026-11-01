@@ -39,13 +39,39 @@ recognizes unless it names fewer, and it always counts at least one.
 
 ## Where the numbers come from
 
+What an experiment needs of a unit on a day is a number: how many
+individuals of each class it held. A photograph is one way to get it, and
+the usual one; a person counting the dish at the bench is another. Where the
+number came from is kept beside it, and the analysis reads the number.
+
+**A cell** is one unit on one day. It holds the photograph taken of the unit
+that day, if one was, and the count a person entered for it, if one was;
+it exists once it has either. One unit has at most one photograph and one
+entered count per day.
+
 Every photograph yields a tally: how many instances of each class the reading
 found. An image can hold three readings, and they rank: a reviewer's
 review outranks an AI agent's proposal, which outranks the detector's
-result. A unit's tally is the best reading its photograph has. A proposal
-counts because an agent that sees the photograph reads it better than the
-detector, but it is still a machine's reading; only a review marks the
-image reviewed, and the grid shows the difference.
+result. A proposal counts because an agent that sees the photograph reads it
+better than the detector, but it is still a machine's reading; only a review
+marks the image reviewed, and the grid shows the difference.
+
+**A count entered by hand** is a tally too, kept by class, for a day that was
+not photographed or a dish that was counted at the bench, such as when its
+seedlings were moved. It is entered for a whole observation at a time, a row
+per unit and a field per class the day counts. It outranks every reading of
+the day's photograph: it is a person's deliberate statement about that cell,
+and the grid marks it as entered by hand so the difference stays visible. A
+unit removed from the bench before the observation can no more be counted
+than photographed, and a count is a record like a photograph: it keeps its
+observation and unit from being deleted, and holds the unit on the bench
+through the day it was counted on.
+
+A photograph's tally leaves out a class it found none of, and that class
+counts zero. A person's count may not: a class the day counts and the count
+never gave is unanswered, not zero, so the count must give every class the
+day counts, and if the day later comes to count a class the count did not
+give, the cell reads from its photograph instead, or has no number.
 
 **A count** is how many instances of the classes its day counts a unit's
 reading found. The tally keeps every class whatever the day counts, so changing
@@ -56,9 +82,12 @@ the classes recounts the same readings, and nothing is read again.
 A row is a unit, beside the treatment it belongs to. A column is the day. Under
 the date it names the model only when the days do not all read for the same
 one, and the classes it counts only when they are fewer than its model
-recognizes. A cell shows the unit's count. A day out of the analysis is struck
-through, and an unclear photograph carries a small mark whether or not it
-counts, so a unit struck through for one shows which. Hovering says why.
+recognizes. A cell shows the unit's count. A count a person stands behind,
+by reviewing the photograph or by entering it, is shown plain, one nobody
+has reviewed yet provisional, and one entered by hand carries a small mark.
+A day out of the analysis is struck through, and an unclear photograph
+carries a small mark whether or not it counts, so a unit struck through for
+one shows which. Hovering says why.
 
 ## What the spreadsheet carries
 
@@ -70,13 +99,14 @@ observation heads the column of counts it read, one row per unit. Under its date
 a day names its model, and the classes it counts when they are fewer than the
 model recognizes.
 
-Quantities stay quantities and days stay days. A count is a number, and a day is
-the day a spreadsheet counts rather than the text of one, so whatever opens the
-file can sort, chart and compute on it. The sheet records what the dish did
-rather than what the workbench is doing: a reading still to come, or a day with
-no photograph, leaves its cell empty, and a day out of the analysis carries why
-in place of its number: the name of the event that took it out, or else the
-word for unclear.
+Quantities stay quantities and days stay days. A count is a number whoever
+stood behind it, and a day is the day a spreadsheet counts rather than the
+text of one, so whatever opens the file can sort, chart and compute on it.
+The sheet records what the dish did rather than what the workbench is doing:
+a reading still to come, or a day with neither photograph nor count, leaves
+its cell empty, and a day out of the analysis carries why in place of its
+number: the name of the event that took it out, or else the word for
+unclear.
 
 ## What takes a unit out of the analysis
 
@@ -102,8 +132,8 @@ event takes out names the event. Where unclear photographs count, the number
 is used as it stands. Either way the photograph is still read and shown, and
 datasets train on it.
 
-A day with no photograph takes nothing out: the unit has no number that day,
-and its other days count as they are.
+A day with neither photograph nor entered count takes nothing out: the unit
+has no number that day, and its other days count as they are.
 
 Marking, clearing, recording an event or changing the setting reads nothing
 again; it only changes what counts.

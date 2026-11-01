@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 import type { ObservationImageCell } from "./contracts";
-import type { ExperimentObservation } from "./schema";
+import type { ExperimentObservation, ManualReading } from "./schema";
 import { UnknownClassError } from "../models/errors";
 import {
+  cellReading,
   countChange,
   imageReading,
   observationCells,
@@ -50,6 +51,19 @@ function observation(
   };
 }
 
+function counted(
+  unit: string,
+  observation: string,
+  tally: ManualReading["tally"],
+): ManualReading {
+  return {
+    unit,
+    observation,
+    tally,
+    recordedAt: "2026-09-08T00:00:00.000Z",
+  };
+}
+
 /** What a reading looks like when nobody has reviewed the detection behind it. */
 const unreviewed = (count: number) => ({
   count,
@@ -60,21 +74,27 @@ describe("what a grid reads", () => {
   const day0 = observation(1);
 
   test("a day that names every class counts the whole tally", () => {
-    const cells = observationCells([
-      cell("dish", day0.id, {
-        detectionTally: { ungerminated: 12, germinated: 8 },
-      }),
-    ]);
+    const cells = observationCells(
+      [
+        cell("dish", day0.id, {
+          detectionTally: { ungerminated: 12, germinated: 8 },
+        }),
+      ],
+      [],
+    );
     expect(unitReading(cells, "dish", day0)).toEqual(unreviewed(20));
   });
 
   test("a later day counts only the classes it names", () => {
     const day7 = observation(2, ["germinated"]);
-    const cells = observationCells([
-      cell("dish", day7.id, {
-        annotationTally: { ungerminated: 3, germinated: 15 },
-      }),
-    ]);
+    const cells = observationCells(
+      [
+        cell("dish", day7.id, {
+          annotationTally: { ungerminated: 3, germinated: 15 },
+        }),
+      ],
+      [],
+    );
     expect(unitReading(cells, "dish", day7)).toEqual({
       count: 15,
       source: "review",
@@ -82,13 +102,16 @@ describe("what a grid reads", () => {
   });
 
   test("a review replaces the AI's suggestion and the detection under it", () => {
-    const cells = observationCells([
-      cell("dish", day0.id, {
-        detectionTally: { ungerminated: 19 },
-        proposalTally: { ungerminated: 21 },
-        annotationTally: { ungerminated: 20 },
-      }),
-    ]);
+    const cells = observationCells(
+      [
+        cell("dish", day0.id, {
+          detectionTally: { ungerminated: 19 },
+          proposalTally: { ungerminated: 21 },
+          annotationTally: { ungerminated: 20 },
+        }),
+      ],
+      [],
+    );
     expect(unitReading(cells, "dish", day0)).toEqual({
       count: 20,
       source: "review",
@@ -96,12 +119,15 @@ describe("what a grid reads", () => {
   });
 
   test("an AI suggestion reads before the detection", () => {
-    const cells = observationCells([
-      cell("dish", day0.id, {
-        detectionTally: { ungerminated: 19 },
-        proposalTally: { ungerminated: 21 },
-      }),
-    ]);
+    const cells = observationCells(
+      [
+        cell("dish", day0.id, {
+          detectionTally: { ungerminated: 19 },
+          proposalTally: { ungerminated: 21 },
+        }),
+      ],
+      [],
+    );
     expect(unitReading(cells, "dish", day0)).toEqual({
       count: 21,
       source: "proposal",
@@ -109,9 +135,75 @@ describe("what a grid reads", () => {
   });
 
   test("a photograph not yet counted, or none, reads nothing", () => {
-    const cells = observationCells([cell("dish", day0.id)]);
+    const cells = observationCells([cell("dish", day0.id)], []);
     expect(unitReading(cells, "dish", day0)).toBeNull();
     expect(unitReading(cells, "other", day0)).toBeNull();
+  });
+});
+
+describe("what a count entered by hand reads", () => {
+  const day0 = observation(1);
+  const day7 = observation(2, ["germinated"]);
+
+  test("a unit counted by hand reads that count, with no photograph at all", () => {
+    const cells = observationCells(
+      [],
+      [counted("dish", day7.id, { germinated: 14 })],
+    );
+    expect(unitReading(cells, "dish", day7)).toEqual({
+      count: 14,
+      source: "manual",
+    });
+  });
+
+  test("a person's count outranks every reading of the photograph", () => {
+    const cells = observationCells(
+      [
+        cell("dish", day0.id, {
+          detectionTally: { ungerminated: 19 },
+          proposalTally: { ungerminated: 21 },
+          annotationTally: { ungerminated: 20 },
+        }),
+      ],
+      [counted("dish", day0.id, { ungerminated: 18, germinated: 0 })],
+    );
+    expect(unitReading(cells, "dish", day0)).toEqual({
+      count: 18,
+      source: "manual",
+    });
+    expect(cells.get("dish:observation-1")?.image).not.toBeNull();
+  });
+
+  test("the classes the day counts, out of all the count names", () => {
+    const cells = observationCells(
+      [],
+      [counted("dish", day7.id, { ungerminated: 3, germinated: 14 })],
+    );
+    expect(unitReading(cells, "dish", day7)).toEqual({
+      count: 14,
+      source: "manual",
+    });
+  });
+
+  test("a class the day counts and the count never gave is unanswered, not zero", () => {
+    const cells = observationCells(
+      [],
+      [counted("dish", day0.id, { germinated: 14 })],
+    );
+    expect(unitReading(cells, "dish", day0)).toBeNull();
+  });
+
+  test("where the count is unanswered, the photograph reads instead", () => {
+    const cells = observationCells(
+      [cell("dish", day0.id, { detectionTally: { ungerminated: 19 } })],
+      [counted("dish", day0.id, { germinated: 14 })],
+    );
+    expect(unitReading(cells, "dish", day0)).toEqual(unreviewed(19));
+  });
+
+  test("a cell nobody photographed or counted reads nothing", () => {
+    expect(cellReading(null, day7)).toBeNull();
+    expect(cellReading({ image: null, manual: null }, day7)).toBeNull();
   });
 });
 
@@ -148,14 +240,14 @@ describe("how a unit's count changed between two days", () => {
   test("the later count less the earlier, whoever read each", () => {
     expect(
       countChange(
-        { observation: day0, image: before },
-        { observation: day7, image: after },
+        { observation: day0, image: before, manual: null },
+        { observation: day7, image: after, manual: null },
       ),
     ).toBe(13);
     expect(
       countChange(
-        { observation: day7, image: after },
-        { observation: day0, image: before },
+        { observation: day7, image: after, manual: null },
+        { observation: day0, image: before, manual: null },
       ),
     ).toBe(-13);
   });
@@ -163,8 +255,8 @@ describe("how a unit's count changed between two days", () => {
   test("nothing when the days count different classes", () => {
     expect(
       countChange(
-        { observation: observation(1), image: before },
-        { observation: day7, image: after },
+        { observation: observation(1), image: before, manual: null },
+        { observation: day7, image: after, manual: null },
       ),
     ).toBeNull();
   });
@@ -172,10 +264,11 @@ describe("how a unit's count changed between two days", () => {
   test("nothing when the days read with different models", () => {
     expect(
       countChange(
-        { observation: day0, image: before },
+        { observation: day0, image: before, manual: null },
         {
           observation: observation(2, ["germinated"], "shoot-detector"),
           image: after,
+          manual: null,
         },
       ),
     ).toBeNull();
@@ -184,10 +277,23 @@ describe("how a unit's count changed between two days", () => {
   test("nothing while either day has no reading", () => {
     expect(
       countChange(
-        { observation: day0, image: null },
-        { observation: day7, image: after },
+        { observation: day0, image: null, manual: null },
+        { observation: day7, image: after, manual: null },
       ),
     ).toBeNull();
+  });
+
+  test("a day counted by hand changes from one read from a photograph", () => {
+    expect(
+      countChange(
+        { observation: day0, image: before, manual: null },
+        {
+          observation: day7,
+          image: null,
+          manual: counted("dish", day7.id, { germinated: 17 }),
+        },
+      ),
+    ).toBe(15);
   });
 });
 

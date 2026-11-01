@@ -39,6 +39,7 @@ import {
   type TreatmentFactor,
 } from "../../../domain/experiments/schema";
 import type { DetectionResult } from "../../../domain/detection/schema";
+import type { Tally } from "../../../domain/models/classes";
 import type { RuntimeDescriptor } from "../../../domain/inference/schema";
 import type {
   ModelAnnotation,
@@ -963,6 +964,48 @@ export const experimentObservationImages = pgTable(
       table.imageId,
     ),
     index("experiment_observation_images_image_idx").on(table.imageId),
+  ],
+);
+
+/**
+ * A count a person entered for a unit on an observation: what they counted
+ * at the bench, whether or not the dish was photographed. It is kept by
+ * class, like the tally a photograph yields, so the day counts it over the
+ * classes it names. A unit has one such count per observation, and it
+ * outranks every reading of the day's photograph.
+ */
+export const experimentManualReadings = pgTable(
+  "experiment_manual_readings",
+  {
+    experimentId: uuid("experiment_id").notNull(),
+    unitId: uuid("unit_id").notNull(),
+    observationId: uuid("observation_id").notNull(),
+    tally: jsonb("tally").$type<Tally>().notNull(),
+    recordedAt: instant("recorded_at"),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.experimentId, table.unitId, table.observationId],
+    }),
+    foreignKey({
+      columns: [table.experimentId, table.unitId],
+      foreignColumns: [experimentUnits.experimentId, experimentUnits.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.experimentId, table.observationId],
+      foreignColumns: [
+        experimentObservations.experimentId,
+        experimentObservations.id,
+      ],
+    }).onDelete("cascade"),
+    index("experiment_manual_readings_observation_idx").on(
+      table.experimentId,
+      table.observationId,
+    ),
+    check(
+      "experiment_manual_readings_tally_check",
+      sql`jsonb_typeof(${table.tally}) = 'object'`,
+    ),
   ],
 );
 

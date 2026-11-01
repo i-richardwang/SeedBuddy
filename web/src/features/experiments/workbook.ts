@@ -57,7 +57,8 @@ export function experimentWorkbookFilename(experiment: Experiment): string {
 /**
  * The grid as a spreadsheet: a row per unit with its design repeated, the
  * days across the top, and every count left as a number for whatever charts or
- * computes on it.
+ * computes on it. A count is a count whoever stood behind it, read from the
+ * photograph or entered by hand.
  *
  * The sheet records what the dish did rather than what the workbench is doing.
  * A reading still waiting, or one that failed, leaves its cell empty; a unit an
@@ -69,9 +70,16 @@ export function experimentWorkbook(
   source: ExperimentWorkbookSource,
   exportedOn: CalendarDay,
 ): Workbook {
-  const { experiment, treatments, units, observations, images, models } =
-    source;
-  const cells = observationCells(images);
+  const {
+    experiment,
+    treatments,
+    units,
+    observations,
+    images,
+    manualReadings,
+    models,
+  } = source;
+  const cells = observationCells(images, manualReadings);
   const ordinals = observationOrdinals(observations);
   const days = observations.map((observation): Day => ({
     observation,

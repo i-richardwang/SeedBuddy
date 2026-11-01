@@ -12,6 +12,7 @@ import {
   experimentObservationSchema,
   experimentSchema,
   imageAnalysisStateSchema,
+  manualReadingSchema,
   observationIdSchema,
   observationImageIdSchema,
   observationImageRefSchema,
@@ -53,11 +54,16 @@ export const experimentGridSchema = z.strictObject({
   units: z.array(unitSchema),
   observations: z.array(experimentObservationSchema),
   images: z.array(observationImageCellSchema),
+  /** The counts people entered by hand, each in the cell of its unit and observation. */
+  manualReadings: z.array(manualReadingSchema),
 });
 
 export type ExperimentGrid = z.infer<typeof experimentGridSchema>;
 
-/** A unit's photograph of one day, with its size so it can be framed beside another. */
+/**
+ * A unit's day: its photograph of the day, with its size so it can be framed
+ * beside another, and the count a person entered for it, if either.
+ */
 const unitObservationSchema = z.strictObject({
   observation: experimentObservationSchema,
   image: observationImageCellSchema
@@ -66,6 +72,7 @@ const unitObservationSchema = z.strictObject({
       height: z.number().int().positive(),
     })
     .nullable(),
+  manual: manualReadingSchema.nullable(),
 });
 
 /** A unit as the series steps through it: enough to name it and its treatment. */

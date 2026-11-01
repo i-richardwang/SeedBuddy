@@ -135,6 +135,7 @@ function trial(overrides: Partial<ExperimentWorkbookSource> = {}) {
         image("A1", ROOTED.id, { rooted: 15 }),
         image("A2", ROOTED.id, { rooted: 10 }),
       ],
+      manualReadings: [],
       models: [SEEDS, ROOTS],
       ...overrides,
     },
@@ -308,6 +309,36 @@ describe("the experiment workbook", () => {
     expect(first?.slice(3)).toEqual([
       { kind: "blank" },
       { kind: "count", count: 15 },
+    ]);
+  });
+
+  test("a count entered by hand is a count like any other", () => {
+    const [first, second] = readings(
+      trial({
+        images: [image("A1", ROOTED.id, { rooted: 15 })],
+        manualReadings: [
+          {
+            unit: "A1",
+            observation: SOWN.id,
+            tally: { ungerminated: 18, germinated: 0 },
+            recordedAt: "2026-09-01T00:00:00.000Z",
+          },
+          {
+            unit: "A2",
+            observation: ROOTED.id,
+            tally: { rooted: 9 },
+            recordedAt: "2026-09-15T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(first?.slice(3)).toEqual([
+      { kind: "count", count: 18 },
+      { kind: "count", count: 15 },
+    ]);
+    expect(second?.slice(3)).toEqual([
+      { kind: "blank" },
+      { kind: "count", count: 9 },
     ]);
   });
 

@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { inTransaction, type Executor } from "../infra/db/client";
 import {
   experimentCultureEvents,
+  experimentManualReadings,
   experimentObservationImages,
 } from "../infra/db/schema";
 import {
@@ -73,19 +74,30 @@ export async function recordCultureEvent(
       );
     }
     if (cultureEventIsTerminal(type)) {
-      const imageObservations = await tx
-        .select({ observation: experimentObservationImages.observationId })
-        .from(experimentObservationImages)
-        .where(
-          and(
-            eq(experimentObservationImages.experimentId, experimentId),
-            eq(experimentObservationImages.unitId, unitId),
+      const [imageObservations, manualObservations] = await Promise.all([
+        tx
+          .select({ observation: experimentObservationImages.observationId })
+          .from(experimentObservationImages)
+          .where(
+            and(
+              eq(experimentObservationImages.experimentId, experimentId),
+              eq(experimentObservationImages.unitId, unitId),
+            ),
           ),
-        );
+        tx
+          .select({ observation: experimentManualReadings.observationId })
+          .from(experimentManualReadings)
+          .where(
+            and(
+              eq(experimentManualReadings.experimentId, experimentId),
+              eq(experimentManualReadings.unitId, unitId),
+            ),
+          ),
+      ]);
       const hasLaterRecord =
-        imageObservations.some(
-          (image) =>
-            observationOrdinal(ordinals, image.observation) >
+        [...imageObservations, ...manualObservations].some(
+          (record) =>
+            observationOrdinal(ordinals, record.observation) >
             observation.ordinal,
         ) ||
         unit.events.some(

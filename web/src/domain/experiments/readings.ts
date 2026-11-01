@@ -2,12 +2,18 @@ import type { ReviewSource } from "../annotation/schema";
 import { countClasses, sameClasses, type Tally } from "../models/classes";
 import { UnknownClassError } from "../models/errors";
 import type { ImageReview, ObservationImageCell } from "./contracts";
-import type { ExperimentObservation } from "./schema";
+import type { ExperimentObservation, ManualReading } from "./schema";
+
+/**
+ * Who stood behind a unit's number: a person who counted the dish itself
+ * and entered the count, or one of the readings of its photograph.
+ */
+export type ReadingSource = ReviewSource | "manual";
 
 /** What a unit read on a day: the individuals found, and who stood behind the number. */
 export interface Reading {
   count: number;
-  source: ReviewSource;
+  source: ReadingSource;
 }
 
 /**
@@ -32,15 +38,34 @@ export function cellKey(unit: string, observation: string): string {
   return `${unit}:${observation}`;
 }
 
-/** An experiment's images, each in the cell of its unit and observation. */
-export type ObservationCells = ReadonlyMap<string, ObservationImageCell>;
+/**
+ * One unit on one day: the photograph taken of it, and the count a person
+ * entered for it. A cell exists once it has either; a number comes from
+ * whichever it has, and from the person's when it has both.
+ */
+export interface UnitCell {
+  image: ObservationImageCell | null;
+  manual: ManualReading | null;
+}
+
+const EMPTY_CELL: UnitCell = { image: null, manual: null };
+
+/** An experiment's cells, by unit and observation. */
+export type ObservationCells = ReadonlyMap<string, UnitCell>;
 
 export function observationCells(
   images: readonly ObservationImageCell[],
+  manualReadings: readonly ManualReading[],
 ): ObservationCells {
-  return new Map(
-    images.map((image) => [cellKey(image.unit, image.observation), image]),
-  );
+  const cells = new Map<string, UnitCell>();
+  for (const image of images) {
+    cells.set(cellKey(image.unit, image.observation), { image, manual: null });
+  }
+  for (const manual of manualReadings) {
+    const key = cellKey(manual.unit, manual.observation);
+    cells.set(key, { image: cells.get(key)?.image ?? null, manual });
+  }
+  return cells;
 }
 
 /** A photograph is reviewed once a person has stored its boxes. */
@@ -49,11 +74,11 @@ export function imageReview(image: ObservationImageCell): ImageReview {
 }
 
 /**
- * The tally a cell reads by, and whose it is. A reviewer's annotation
+ * The tally a photograph reads by, and whose it is. A reviewer's annotation
  * outranks an agent's proposal, which outranks the detection; an image still
  * waiting or failed reads by nothing.
  */
-function cellReading(
+function imageTally(
   image: ObservationImageCell | null | undefined,
 ): { tally: Tally; source: ReviewSource } | null {
   if (!image) return null;
@@ -77,7 +102,7 @@ export function imageReading(
   image: ObservationImageCell | null | undefined,
   observation: Pick<ExperimentObservation, "countedClasses">,
 ): Reading | null {
-  const reading = cellReading(image);
+  const reading = imageTally(image);
   return reading
     ? {
         count: countClasses(reading.tally, observation.countedClasses),
@@ -86,19 +111,55 @@ export function imageReading(
     : null;
 }
 
-/** What a unit read on a day, or nothing while its image has no reading. */
+/**
+ * What a person's count reads over the classes the day counts. A photograph's
+ * tally leaves out the classes it found none of, but a person counts only
+ * what they are asked, so a class the day counts and the count never gave
+ * is not zero: it is unanswered, and the day has no number from it.
+ */
+function manualReading(
+  manual: ManualReading | null,
+  observation: Pick<ExperimentObservation, "countedClasses">,
+): Reading | null {
+  if (!manual) return null;
+  const answered = observation.countedClasses.every((name) =>
+    Object.hasOwn(manual.tally, name),
+  );
+  return answered
+    ? {
+        count: countClasses(manual.tally, observation.countedClasses),
+        source: "manual",
+      }
+    : null;
+}
+
+/**
+ * What a cell reads, counting the classes its day counts: the count a person
+ * entered when there is one, else what its photograph reads, else nothing.
+ */
+export function cellReading(
+  cell: UnitCell | null | undefined,
+  observation: Pick<ExperimentObservation, "countedClasses">,
+): Reading | null {
+  if (!cell) return null;
+  return (
+    manualReading(cell.manual, observation) ??
+    imageReading(cell.image, observation)
+  );
+}
+
+/** What a unit read on a day, or nothing while its cell has no reading. */
 export function unitReading(
   cells: ObservationCells,
   unit: string,
   observation: ExperimentObservation,
 ): Reading | null {
-  return imageReading(cells.get(cellKey(unit, observation.id)), observation);
+  return cellReading(cells.get(cellKey(unit, observation.id)), observation);
 }
 
-/** A unit's day: the observation and the unit's photograph of it, if any. */
-export interface UnitDay {
+/** A unit's day: the observation, and the unit's cell of it. */
+export interface UnitDay extends UnitCell {
   observation: ExperimentObservation;
-  image: ObservationImageCell | null;
 }
 
 /** A unit's days in the experiment's order. */
@@ -109,7 +170,7 @@ export function unitDays(
 ): UnitDay[] {
   return observations.map((observation) => ({
     observation,
-    image: cells.get(cellKey(unit, observation.id)) ?? null,
+    ...(cells.get(cellKey(unit, observation.id)) ?? EMPTY_CELL),
   }));
 }
 
@@ -123,7 +184,7 @@ export function countChange(from: UnitDay, to: UnitDay): number | null {
     from.observation.modelId === to.observation.modelId &&
     sameClasses(from.observation.countedClasses, to.observation.countedClasses);
   if (!alike) return null;
-  const before = imageReading(from.image, from.observation);
-  const after = imageReading(to.image, to.observation);
+  const before = cellReading(from, from.observation);
+  const after = cellReading(to, to.observation);
   return before && after ? after.count - before.count : null;
 }
