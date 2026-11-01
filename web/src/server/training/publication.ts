@@ -10,6 +10,7 @@ import {
   TrainingRunNotFoundError,
 } from "../../domain/training/errors";
 import {
+  readModelVersion,
   prepareModelUpload,
   uploadModelWeights,
   registerUploadedModel,
@@ -20,13 +21,13 @@ import {
   requireOwnedRunningRun,
   transitionTrainingRun,
 } from "./runs";
+import { readTrainingArtifactParts } from "./artifacts";
 import { readDatasetSnapshot } from "./snapshots";
 
 /** Training owns execution; the model registry owns its delivered artifact. */
 export async function publishTrainingArtifact(
   runId: string,
   owner: TrainingAttemptOwner,
-  weights: Uint8Array,
   bundle: unknown,
 ) {
   const parsed = modelBundleSchema.safeParse(bundle);
@@ -52,8 +53,26 @@ export async function publishTrainingArtifact(
     throw new TrainingArtifactValidationError(
       "Bundle does not describe this training snapshot",
     );
+  if (current.state.status === "succeeded") {
+    const version = await readModelVersion(current.state.modelVersionId);
+    if (
+      version?.artifact.kind !== "ultralytics" ||
+      canonicalJson(version.artifact.weights) !==
+        canonicalJson(document.weights)
+    )
+      throw new TrainingRunConflictError(
+        "Training already published different contents",
+      );
+  }
   const upload = await prepareModelUpload(current.modelId, document);
-  await uploadModelWeights(upload.uploadId, weights);
+  if (current.state.status !== "succeeded") {
+    const weights = await readTrainingArtifactParts(
+      runId,
+      owner,
+      document.weights,
+    );
+    await uploadModelWeights(upload.uploadId, weights);
+  }
   return transaction(async (tx) => {
     const [row] = await tx
       .select()

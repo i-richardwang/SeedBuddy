@@ -1,4 +1,4 @@
-export { collectUnreferencedTrainingCheckpoints } from "./collection";
+export { collectTrainingArtifactParts } from "./collection";
 export { publishTrainingArtifact } from "./publication";
 export {
   activeTrainingRun,
@@ -17,7 +17,7 @@ export {
 } from "./runs";
 export { readDatasetSnapshot, snapshotSummaries } from "./snapshots";
 
-export { saveTrainingCheckpoint, readTrainingCheckpoint } from "./checkpoints";
+export { saveTrainingArtifactPart } from "./artifacts";
 
 export { controlTrainingRun } from "./control";
 export { listTrainingAttempts } from "./attempts";

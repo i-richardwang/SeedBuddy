@@ -230,7 +230,7 @@ def _completed_epochs(output: Path, epochs: int) -> tuple[EpochReport, ...]:
     Ultralytics saves ``last.pt`` with its optimizer after every epoch and strips
     the optimizer once training ends; the journal holds the report of each epoch
     the checkpoint covers. A finished, torn, or partly journaled training has
-    nothing to resume and starts over.
+    no resumable epochs. The caller decides whether a fresh start is allowed.
     """
     checkpoint = output / "weights" / "last.pt"
     journal = output / EPOCH_JOURNAL
@@ -243,7 +243,7 @@ def _completed_epochs(output: Path, epochs: int) -> tuple[EpochReport, ...]:
             EpochReport.from_json(json.loads(line))
             for line in journal.read_text(encoding="utf-8").splitlines()
         )
-    except Exception:  # noqa: BLE001 - a torn checkpoint or journal starts over
+    except Exception:  # noqa: BLE001 - unreadable state is not resumable
         return ()
     if state.get("optimizer") is None or not 0 < completed < epochs:
         return ()
@@ -266,7 +266,6 @@ def train_yolo_detector(
     on_epoch: Callable[[EpochReport], None] | None = None,
     on_validation_start: Callable[[], None] | None = None,
     resume_required: bool = False,
-    on_checkpoint: Callable[[int], None] | None = None,
     on_execution: Callable[[dict[str, Any]], None] | None = None,
 ) -> YoloTrainingResult:
     """Fine-tune, validate, and publish inference calibration for a YOLO detector.
@@ -367,8 +366,6 @@ def train_yolo_detector(
             stream.write(json.dumps(report.to_json()) + "\n")
         if on_epoch:
             on_epoch(report)
-        if on_checkpoint:
-            on_checkpoint(report.epoch)
 
     trainer_model.add_callback("on_train_start", record_execution)
     trainer_model.add_callback("on_train_batch_end", stop_if_cancelled)

@@ -17,7 +17,7 @@
     {
       "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
       "match": {
-        "epoch=*": "Saved through epoch {formattedEpoch}"
+        "epoch=*": "Saved locally through epoch {formattedEpoch}"
       }
     }
   ],
@@ -195,5 +195,6 @@
   "train_preset_n": "YOLO26n · Whole image",
   "train_preset_s": "YOLO26s · Whole image 2048",
   "train_preset_n_description": "Compact model for whole-image training.",
-  "train_preset_s_description": "Larger model with higher-resolution input for small objects."
+  "train_preset_s_description": "Larger model with higher-resolution input for small objects.",
+  "training_resume_local_worker": "Resume uses local files on {worker}. If they are missing, restart training."
 }

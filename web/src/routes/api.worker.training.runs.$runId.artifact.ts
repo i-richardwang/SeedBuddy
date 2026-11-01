@@ -1,82 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
-
-import {
-  trainingAttemptOwnerSchema,
-  type TrainingAttemptOwner,
-} from "../domain/training/schema";
+import { modelBundleSchema } from "../domain/models/bundle";
+import { MAX_MODEL_MANIFEST_BYTES } from "../domain/models/transfer";
 import { publishTrainingArtifact } from "../server/training/public";
 import {
-  parseWorkerForm,
-  parseWorkerJsonText,
-  parseWorkerValue,
+  parseTrainingQuery,
+  parseWorkerJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import {
-  MAX_MODEL_ARTIFACT_REQUEST_BYTES,
-  MAX_MODEL_MANIFEST_BYTES,
-  MAX_MODEL_WEIGHTS_BYTES,
-} from "../domain/models/transfer";
 
-function payloadTooLarge(message: string): Response {
-  return new Response(message, { status: 413 });
-}
-
+/** Publishes the completed weights described by a small model manifest. */
 export const Route = createFileRoute(
   "/api/worker/training/runs/$runId/artifact",
 )({
   server: {
     handlers: {
-      PUT: async ({ params, request, context }) => {
-        const declaredLength = Number(request.headers.get("content-length"));
-        if (!Number.isSafeInteger(declaredLength) || declaredLength <= 0) {
+      POST: async ({ params, request, context }) => {
+        const length = Number(request.headers.get("content-length"));
+        if (!Number.isSafeInteger(length) || length <= 0)
           return new Response("Content-Length is required", { status: 411 });
-        }
-        if (declaredLength > MAX_MODEL_ARTIFACT_REQUEST_BYTES) {
-          return payloadTooLarge("Training artifact request is too large");
-        }
-        let owner: TrainingAttemptOwner;
-        let weights: Uint8Array;
-        let publication: unknown;
+        if (length > MAX_MODEL_MANIFEST_BYTES)
+          return new Response("Model manifest is too large", { status: 413 });
         try {
-          const form = await parseWorkerForm(request);
-          const session = form.get("sessionId");
-          const weightsFile = form.get("weights");
-          const bundle = form.get("bundle");
-          if (!(weightsFile instanceof File) || !(bundle instanceof File)) {
-            return new Response("sessionId, weights, and bundle are required", {
-              status: 400,
-            });
-          }
-          if (weightsFile.size > MAX_MODEL_WEIGHTS_BYTES) {
-            return payloadTooLarge("Training weights exceed 512 MiB");
-          }
-          if (bundle.size > MAX_MODEL_MANIFEST_BYTES) {
-            return payloadTooLarge("Training manifest exceeds 1 MiB");
-          }
-          owner = {
-            workerId: context.workerId,
-            ...parseWorkerValue(
-              { sessionId: session, attempt: Number(form.get("attempt")) },
-              trainingAttemptOwnerSchema,
-              "Training attempt",
-            ),
-          };
-          weights = new Uint8Array(await weightsFile.arrayBuffer());
-          publication = parseWorkerJsonText(await bundle.text());
-        } catch (error) {
-          return workerErrorResponse(
-            error,
-            "Invalid training artifact request",
-          );
-        }
-        try {
+          const owner = parseTrainingQuery(request, context.workerId);
+          const bundle = await parseWorkerJson(request, modelBundleSchema);
           return Response.json(
-            await publishTrainingArtifact(
-              params.runId,
-              owner,
-              weights,
-              publication,
-            ),
+            await publishTrainingArtifact(params.runId, owner, bundle),
           );
         } catch (error) {
           return workerErrorResponse(

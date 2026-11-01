@@ -1,4 +1,6 @@
 import { trainingBundle } from "../../testing/model-bundle";
+import { collectTrainingArtifactParts } from "../../training/public";
+import { listBlobs } from "../../infra/blobs/store";
 import { readDatasetSnapshot } from "../../training/public";
 import { expect, test } from "bun:test";
 
@@ -6,13 +8,14 @@ import {
   TRAINING_PRESETS,
   resolveTrainingRecipe,
 } from "../../../domain/training/recipes";
-import { MAX_MODEL_ARTIFACT_REQUEST_BYTES } from "../../../domain/models/transfer";
+import { MAX_MODEL_MANIFEST_BYTES } from "../../../domain/models/transfer";
 import { trainingRunSchema } from "../../../domain/training/schema";
 import { Route as HeartbeatRoute } from "../../../routes/api.worker.heartbeat";
 import { Route as WeightsRoute } from "../../../routes/api.worker.inference.model-versions.$versionId.weights";
 import { Route as ClaimRoute } from "../../../routes/api.worker.training.claim";
 import { Route as ArtifactRoute } from "../../../routes/api.worker.training.runs.$runId.artifact";
 import { Route as EpochsRoute } from "../../../routes/api.worker.training.runs.$runId.epochs";
+import { Route as ArtifactPartsRoute } from "../../../routes/api.worker.training.runs.$runId.artifact-parts";
 import { Route as ImageRoute } from "../../../routes/api.worker.training.runs.$runId.images.$digest";
 import { Route as LeaseRoute } from "../../../routes/api.worker.training.runs.$runId.lease";
 import { Route as PhaseRoute } from "../../../routes/api.worker.training.runs.$runId.phase";
@@ -210,40 +213,58 @@ test.each([...TRAINING_PRESETS])(
       frozen!.classes,
       frozen!.id,
     );
-    const form = new FormData();
-    form.append("sessionId", SESSION.sessionId);
-    form.append("attempt", "1");
-    form.append("weights", new File(["weights"], "best.pt"));
-    form.append(
-      "bundle",
-      new File([JSON.stringify(bundle)], "bundle.json", {
-        type: "application/json",
-      }),
-    );
-    const artifact = await workerRoute(
-      ArtifactRoute,
+    const artifactQuery = new URLSearchParams({ ...SESSION, attempt: "1" });
+    const partQuery = new URLSearchParams({
+      ...SESSION,
+      attempt: "1",
+      bytes: String(bundle.weights.bytes),
+      digest: bundle.weights.digest,
+      part: "0",
+    });
+    const weightsPart = await workerRoute(
+      ArtifactPartsRoute,
       "PUT",
     )({
       params: { runId: created.id },
-      request: new Request("http://localhost/artifact", {
+      request: new Request(`http://localhost/artifact-parts?${partQuery}`, {
         method: "PUT",
+        headers: {
+          authorization,
+          "content-length": String(bundle.weights.bytes),
+          "x-artifact-part-sha256": bundle.weights.digest,
+        },
+        body: "weights",
+      }),
+    });
+    expect(weightsPart.status).toBe(204);
+    const artifact = await workerRoute(
+      ArtifactRoute,
+      "POST",
+    )({
+      params: { runId: created.id },
+      request: new Request(`http://localhost/artifact?${artifactQuery}`, {
+        method: "POST",
         headers: { authorization, "content-length": "1000" },
-        body: form,
+        body: JSON.stringify(bundle),
       }),
     } as never);
     expect(artifact.status).toBe(200);
     const published = await artifact.json();
     expect(published.state.status).toBe("succeeded");
 
+    await collectTrainingArtifactParts();
+    expect(
+      await listBlobs(`training-artifact-parts/${created.id}/`),
+    ).toHaveLength(0);
     const repeated = await workerRoute(
       ArtifactRoute,
-      "PUT",
+      "POST",
     )({
       params: { runId: created.id },
-      request: new Request("http://localhost/artifact", {
-        method: "PUT",
+      request: new Request(`http://localhost/artifact?${artifactQuery}`, {
+        method: "POST",
         headers: { authorization, "content-length": "1000" },
-        body: form,
+        body: JSON.stringify(bundle),
       }),
     } as never);
     expect(await repeated.json()).toEqual(published);
@@ -302,12 +323,12 @@ test("training artifact admission rejects unknown and excessive request sizes", 
   const put = (request: Request) =>
     workerRoute(
       ArtifactRoute,
-      "PUT",
+      "POST",
     )({ params: { runId: "train-boundary" }, request } as never);
 
   const unknown = await put(
     new Request("http://localhost/artifact", {
-      method: "PUT",
+      method: "POST",
       headers: { authorization },
     }),
   );
@@ -315,10 +336,10 @@ test("training artifact admission rejects unknown and excessive request sizes", 
 
   const excessive = await put(
     new Request("http://localhost/artifact", {
-      method: "PUT",
+      method: "POST",
       headers: {
         authorization,
-        "content-length": String(MAX_MODEL_ARTIFACT_REQUEST_BYTES + 1),
+        "content-length": String(MAX_MODEL_MANIFEST_BYTES + 1),
       },
       body: new Uint8Array([1]),
     }),

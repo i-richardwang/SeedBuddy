@@ -1,51 +1,44 @@
-import type { TrainingCheckpoint } from "../../domain/training/schema";
 import {
-  resourceIdSchema,
-  sha256Schema,
-} from "../../domain/identifiers/schema";
+  artifactUploadSchema,
+  artifactPartSize,
+  type ArtifactUpload,
+} from "../../domain/training/artifact";
+import { resourceIdSchema } from "../../domain/identifiers/schema";
 
-interface TrainingArtifactRef {
-  trainingRunId: string;
-  trainingAttempt: number;
-  digest: string;
-}
-
-export function parseCheckpointKey(key: string): TrainingArtifactRef | null {
-  return parseTrainingArtifactKey("training-checkpoints", key);
-}
-
-function parseTrainingArtifactKey(
-  expectedPrefix: string,
-  key: string,
-): TrainingArtifactRef | null {
-  const [prefix, runIdValue, attemptValue, digestValue, extra] = key.split("/");
-  const runId = resourceIdSchema.safeParse(runIdValue);
-  const digest = sha256Schema.safeParse(digestValue);
-  const trainingAttempt = Number(attemptValue);
-  if (
-    prefix !== expectedPrefix ||
-    extra !== undefined ||
-    !runId.success ||
-    !digest.success ||
-    !Number.isSafeInteger(trainingAttempt) ||
-    trainingAttempt < 1
-  ) {
-    return null;
-  }
-  const reference = {
-    trainingRunId: runId.data,
-    trainingAttempt,
-    digest: digest.data,
-  };
-  return key ===
-    `${expectedPrefix}/${reference.trainingRunId}/${reference.trainingAttempt}/${reference.digest}`
-    ? reference
-    : null;
-}
-
-export function checkpointBlobKey(
+export function artifactPartKey(
   runId: string,
-  checkpoint: TrainingCheckpoint,
+  attempt: number,
+  upload: ArtifactUpload,
+  part: number,
 ): string {
-  return `training-checkpoints/${runId}/${checkpoint.attempt}/${checkpoint.digest}`;
+  return `training-artifact-parts/${runId}/${attempt}/${upload.digest}/${upload.bytes}/${part}`;
+}
+
+export function parseArtifactPartKey(key: string) {
+  const [prefix, runId, attemptText, digest, bytes, partText, extra] =
+    key.split("/");
+  const parsedRunId = resourceIdSchema.safeParse(runId);
+  const attempt = Number(attemptText);
+  const part = Number(partText);
+  const upload = artifactUploadSchema.safeParse({
+    digest,
+    bytes: Number(bytes),
+  });
+  if (
+    prefix !== "training-artifact-parts" ||
+    extra !== undefined ||
+    !parsedRunId.success ||
+    !Number.isSafeInteger(attempt) ||
+    attempt < 1 ||
+    !upload.success ||
+    !artifactPartSize(upload.data, part) ||
+    key !== artifactPartKey(parsedRunId.data, attempt, upload.data, part)
+  )
+    return null;
+  return {
+    trainingRunId: parsedRunId.data,
+    trainingAttempt: attempt,
+    upload: upload.data,
+    part,
+  };
 }

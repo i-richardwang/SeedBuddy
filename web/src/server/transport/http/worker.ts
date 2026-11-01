@@ -1,3 +1,4 @@
+import { artifactUploadSchema } from "../../../domain/training/artifact";
 import {
   inferenceAttemptOwnerSchema,
   type InferenceAttemptOwner,
@@ -193,4 +194,17 @@ export function parseInferenceQuery(
       "Inference attempt",
     ),
   };
+}
+
+/** Describes the complete file for both part acceptance and publication. */
+export function parseArtifactQuery(request: Request) {
+  const query = new URL(request.url).searchParams;
+  return parseWorkerValue(
+    {
+      bytes: Number(query.get("bytes")),
+      digest: query.get("digest"),
+    },
+    artifactUploadSchema,
+    "Artifact",
+  );
 }

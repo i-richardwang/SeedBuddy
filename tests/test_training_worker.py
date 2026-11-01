@@ -16,9 +16,7 @@ from vitroctl.detectors.ultralytics import (
     EpochReport,
     YoloTrainingInterruptedError,
 )
-from vitroctl.detectors.ultralytics.checkpoints import EPOCH_JOURNAL
 from vitroctl.io.image_io import CANONICAL_EXTENSION
-from vitroctl.training.documents import TrainingCheckpoint
 from vitroctl.worker import session as worker_session
 from vitroctl.worker import training as training_worker
 from vitroctl.worker.images import ImageCache
@@ -448,9 +446,6 @@ def test_training_job_reports_each_epoch_and_publishes_the_artifact(
     class Client:
         worker = SimpleNamespace(heartbeat=lambda: None)
 
-        def restore_checkpoint(self, job, output):
-            assert job.checkpoint is None
-
         def enter_phase(self, job: TrainingJob, phase: str) -> None:
             posted.append((job.run_id, {"phase": phase}))
 
@@ -597,9 +592,6 @@ def test_interrupted_training_job_cleans_its_attempt_directory(
     class Client:
         worker = SimpleNamespace(heartbeat=lambda: None)
 
-        def restore_checkpoint(self, job, output):
-            assert job.checkpoint is None
-
         def enter_phase(self, _job: TrainingJob, _phase: str) -> None:
             return None
 
@@ -640,9 +632,6 @@ def test_training_job_reports_an_unexpected_adapter_failure(
     class Client:
         worker = SimpleNamespace(heartbeat=lambda: None)
 
-        def restore_checkpoint(self, job, output):
-            assert job.checkpoint is None
-
         def enter_phase(self, _job: TrainingJob, _phase: str) -> None:
             return None
 
@@ -665,58 +654,6 @@ def test_training_job_reports_an_unexpected_adapter_failure(
 
     assert failures == [("train-broken", "'unexpected Ultralytics field'")]
     assert not (tmp_path / "training-runs" / "train-broken-1").exists()
-
-
-def test_checkpoint_roundtrip_is_portable_and_rejects_corruption(
-    tmp_path: Path,
-) -> None:
-    from dataclasses import replace
-    from hashlib import sha256
-
-    stored: list[bytes] = []
-
-    def respond(request: httpx.Request) -> httpx.Response:
-        assert request.url.params["attempt"] == "1"
-        if request.method == "PUT":
-            stored.append(request.content)
-            return httpx.Response(200, json={})
-        return httpx.Response(200, content=stored[-1])
-
-    client = TrainingClient(
-        WorkerClient(
-            "https://example.test",
-            "secret",
-            session(8 * 1024**3),
-            transport=httpx.MockTransport(respond),
-        )
-    )
-    job = TrainingJob.parse(_run())
-    source = tmp_path / "source"
-    names = ["weights/last.pt", "weights/best.pt", EPOCH_JOURNAL]
-    for name in names:
-        path = source / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(name.encode())
-    try:
-        client.save_checkpoint(job, source, 1)
-        portable = replace(
-            job,
-            checkpoint=TrainingCheckpoint(
-                attempt=1,
-                epoch=1,
-                digest=sha256(stored[0]).hexdigest(),
-                bytes=len(stored[0]),
-            ),
-        )
-        destination = tmp_path / "other-machine"
-        client.restore_checkpoint(portable, destination)
-        for name in names:
-            assert (destination / name).read_bytes() == (source / name).read_bytes()
-        stored.append(b"torn upload")
-        with pytest.raises(ValueError, match="digest verification"):
-            client.restore_checkpoint(portable, tmp_path / "corrupted")
-    finally:
-        client.worker.close()
 
 
 def test_training_requests_keep_the_identity_of_their_job() -> None:
@@ -745,3 +682,263 @@ def test_training_requests_keep_the_identity_of_their_job() -> None:
         assert attempts == [2, 1]
     finally:
         worker.close()
+
+
+def test_local_checkpoint_resume_validates_identity_and_requires_original_worker(
+    tmp_path,
+):
+    from dataclasses import replace
+
+    from vitroctl.training.documents import TrainingCheckpoint
+    from vitroctl.worker.local_training import prepare_local_training
+
+    job = TrainingJob.parse(_run())
+    root = tmp_path / "train-one-1"
+    root.mkdir()
+    prepare_local_training(job, root)
+    for name in ("weights/last.pt", "weights/best.pt", "epochs.jsonl"):
+        path = root / "run" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{"epoch": 1}\n' if name.endswith("jsonl") else "weights")
+    resumed = replace(
+        job,
+        attempt=2,
+        checkpoint=TrainingCheckpoint(attempt=1, epoch=1, worker_id=job.worker_id),
+    )
+    destination = tmp_path / "train-one-2"
+    destination.mkdir()
+    prepare_local_training(resumed, destination)
+    assert (destination / "run/weights/last.pt").read_bytes() == b"weights"
+    assert (root / "run/weights/last.pt").exists()
+    with pytest.raises(ValueError, match="another worker"):
+        prepare_local_training(
+            replace(resumed, worker_id="another-worker"), destination
+        )
+    with pytest.raises(ValueError, match="explicitly restart"):
+        prepare_local_training(
+            replace(resumed, dataset_snapshot_id="another-snapshot"), destination
+        )
+    (root / "run/weights/last.pt").unlink()
+    with pytest.raises(ValueError, match="explicitly restart"):
+        prepare_local_training(resumed, destination)
+
+
+def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
+    tmp_path, monkeypatch
+):
+    from hashlib import sha256
+
+    monkeypatch.setattr(training_worker, "ARTIFACT_PART_BYTES", 64)
+    monkeypatch.setattr("vitroctl.worker.connection.time.sleep", lambda _: None)
+    payload = b"weights" * 40
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(payload)
+    bundle = tmp_path / "bundle.json"
+    descriptor = {"bytes": len(payload), "digest": sha256(payload).hexdigest()}
+    bundle.write_text(json.dumps({"weights": descriptor}))
+    requests = []
+    stored = {}
+    completions = 0
+
+    def respond(request):
+        nonlocal completions
+        if request.method == "PUT":
+            assert request.url.path.endswith("/artifact-parts")
+            part = int(request.url.params["part"])
+            requests.append(part)
+            assert len(request.content) <= 64
+            assert (
+                request.headers["x-artifact-part-sha256"]
+                == sha256(request.content).hexdigest()
+            )
+            if part == 1 and requests.count(1) == 1:
+                return httpx.Response(503)
+            stored[part] = request.content
+            return httpx.Response(204)
+        assert request.url.path.endswith("/artifact")
+        assert json.loads(request.content)["weights"] == descriptor
+        assert b"".join(stored[i] for i in range(len(stored))) == payload
+        completions += 1
+        if completions == 1:
+            raise httpx.ReadTimeout("lost publication response")
+        return httpx.Response(200, json={})
+
+    worker = WorkerClient(
+        "https://example.test",
+        "secret",
+        session(8 * 1024**3),
+        transport=httpx.MockTransport(respond),
+    )
+    try:
+        TrainingClient(worker).publish_artifact(
+            TrainingJob.parse(_run()), weights, bundle
+        )
+    finally:
+        worker.close()
+    assert requests[:4] == [0, 1, 1, 2]
+    assert requests.count(0) == 1
+    assert completions == 2
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_retry_delivers_retained_bundle_without_training_again(
+    tmp_path, monkeypatch, cancelled
+):
+    from dataclasses import replace
+    from hashlib import sha256
+
+    from vitroctl.training.documents import TrainingCheckpoint
+    from vitroctl.worker.local_training import prepare_local_training
+
+    job = TrainingJob.parse(_run())
+    source = tmp_path / "training-runs/train-one-1"
+    source.mkdir(parents=True)
+    prepare_local_training(job, source)
+    (source / "bundle").mkdir()
+    (source / "bundle/weights.pt").write_bytes(b"finished")
+    (source / "bundle/bundle.json").write_text(
+        json.dumps({"weights": {"bytes": 8, "digest": sha256(b"finished").hexdigest()}})
+    )
+    resumed = replace(
+        job,
+        attempt=2,
+        checkpoint=TrainingCheckpoint(attempt=1, epoch=3, worker_id=job.worker_id),
+    )
+    monkeypatch.setattr(
+        training_worker, "keep_lease", lambda *a, **kw: nullcontext(lambda: cancelled)
+    )
+    monkeypatch.setattr(
+        training_worker,
+        "run_training_process",
+        lambda *a, **kw: pytest.fail("finished weights must not retrain"),
+    )
+    calls = []
+
+    def respond(request):
+        calls.append(request.url.path)
+        return httpx.Response(200, json={})
+
+    worker = WorkerClient(
+        "https://example.test",
+        "secret",
+        session(8 * 1024**3),
+        transport=httpx.MockTransport(respond),
+    )
+    images = ImageCache(tmp_path / "images")
+    try:
+        with (
+            pytest.raises(YoloTrainingInterruptedError) if cancelled else nullcontext()
+        ):
+            training_worker.process_training_job(
+                TrainingClient(worker), resumed, tmp_path, "cpu", images
+            )
+    finally:
+        images.close()
+        worker.close()
+    if cancelled:
+        assert not any(path.endswith(("artifact-parts", "artifact")) for path in calls)
+        assert (tmp_path / "training-runs/train-one-2/bundle/weights.pt").exists()
+        return
+    assert any(path.endswith("artifact-parts") for path in calls)
+    assert not any(path.endswith(("epochs", "checkpoint")) for path in calls)
+    assert not (tmp_path / "training-runs/train-one-2").exists()
+
+
+def test_epoch_reports_no_weight_bytes_and_interruption_retains_local_state(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        training_worker, "keep_lease", lambda *a, **kw: nullcontext(lambda: False)
+    )
+    monkeypatch.setattr(
+        training_worker,
+        "materialize_snapshot",
+        lambda *a, **kw: tmp_path / "dataset.yaml",
+    )
+    calls = []
+
+    def respond(request):
+        calls.append((request.url.path, json.loads(request.content)))
+        return httpx.Response(200, json={})
+
+    def train(_dataset, output, **options):
+        (output / "weights").mkdir(parents=True)
+        (output / "weights/last.pt").write_bytes(b"local optimizer and weights")
+        (output / "weights/best.pt").write_bytes(b"local best weights")
+        (output / "epochs.jsonl").write_text('{"epoch": 1}\n')
+        options["on_training_start"]()
+        options["on_epoch"](
+            EpochReport(
+                epoch=1,
+                train=DetectionLosses(1, 1, 1),
+                val=DetectionLosses(1, 1, 1),
+                precision=0.5,
+                recall=0.5,
+                map50=0.5,
+                map50_to_95=0.3,
+                fitness=0.3,
+                learning_rate=0.001,
+            )
+        )
+        raise YoloTrainingInterruptedError("paused")
+
+    monkeypatch.setattr(training_worker, "run_training_process", train)
+    worker = WorkerClient(
+        "https://example.test",
+        "secret",
+        session(8 * 1024**3),
+        transport=httpx.MockTransport(respond),
+    )
+    images = ImageCache(tmp_path / "images")
+    try:
+        with pytest.raises(YoloTrainingInterruptedError):
+            training_worker.process_training_job(
+                TrainingClient(worker),
+                TrainingJob.parse(_run()),
+                tmp_path,
+                "cpu",
+                images,
+            )
+    finally:
+        images.close()
+        worker.close()
+    assert all(path.endswith(("phase", "epochs")) for path, _ in calls)
+    assert [body["epoch"] for path, body in calls if path.endswith("epochs")] == [1]
+    assert (tmp_path / "training-runs/train-one-1/run/weights/last.pt").exists()
+
+
+def test_local_recovery_copy_is_atomic_and_retryable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dataclasses import replace
+
+    from vitroctl.training.documents import TrainingCheckpoint
+    from vitroctl.worker import local_training
+
+    job = TrainingJob.parse(_run())
+    source = tmp_path / "train-one-1"
+    source.mkdir()
+    local_training.prepare_local_training(job, source)
+    (source / "bundle").mkdir()
+    (source / "bundle/weights.pt").write_bytes(b"complete weights")
+    resumed = replace(
+        job,
+        attempt=2,
+        checkpoint=TrainingCheckpoint(attempt=1, epoch=1, worker_id=job.worker_id),
+    )
+    destination = tmp_path / "train-one-2"
+    destination.mkdir()
+
+    def interrupted_copy(_source, staging, **_options):
+        (staging / "weights.pt").write_bytes(b"partial")
+        raise OSError("disk unavailable")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(local_training.shutil, "copytree", interrupted_copy)
+        with pytest.raises(ValueError, match="missing or invalid"):
+            local_training.prepare_local_training(resumed, destination)
+    assert list(destination.iterdir()) == []
+    assert (source / "bundle/weights.pt").read_bytes() == b"complete weights"
+
+    local_training.prepare_local_training(resumed, destination)
+    assert (destination / "bundle/weights.pt").read_bytes() == b"complete weights"

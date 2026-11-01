@@ -28,7 +28,7 @@ const paused: Run = {
   attempt: 2,
   targetWorkerId: "gpu-1",
   lastProgressAt: null,
-  checkpoint: { attempt: 2, epoch: 7, digest: "a".repeat(64), bytes: 1 },
+  checkpoint: { attempt: 2, epoch: 7, workerId: "gpu-1" },
   recipe: YOLO26N_WHOLE_RECIPE,
   state: { status: "paused" },
 };
@@ -62,6 +62,12 @@ try {
     saved?.hasAttribute("data-pressed"),
     "saved progress is the default",
   );
+  assert.ok(
+    body.textContent?.includes(
+      m.training_resume_local_worker({ worker: "gpu-1" }),
+    ),
+  );
+  await submit();
   await act(async () => {
     (button(m.training_resume_from_start()) as unknown as HTMLElement).click();
   });
@@ -91,7 +97,7 @@ try {
       control: { action: "resume", targetWorkerId: "gpu-1", restart },
     },
   });
-  assert.deepEqual(submissions, [resume(true), resume(false)]);
+  assert.deepEqual(submissions, [resume(false), resume(true), resume(true)]);
   console.log("resuming training behaves");
 } finally {
   await unmount();

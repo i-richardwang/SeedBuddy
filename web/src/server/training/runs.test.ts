@@ -1,14 +1,18 @@
 import { trainingBundle } from "../testing/model-bundle";
-import { checkpointBlobKey } from "./keys";
 import { readTrainingRun } from "./runs";
 import { controlTrainingRun } from "./control";
 import { listTrainingAttempts } from "./attempts";
-import { readTrainingCheckpoint, saveTrainingCheckpoint } from "./checkpoints";
-import { collectUnreferencedTrainingCheckpoints } from "./collection";
+import {
+  saveTrainingArtifactPart,
+  readTrainingArtifactParts,
+} from "./artifacts";
+import { artifactPartKey } from "./keys";
+import { TRAINING_ARTIFACT_PART_BYTES } from "../../domain/training/artifact";
+import { collectTrainingArtifactParts } from "./collection";
 import { expect, test } from "bun:test";
 
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import { putImmutableBlob, requireBlob } from "../infra/blobs/store";
+import { requireBlob } from "../infra/blobs/store";
 import { openModelWeights } from "../models/publication";
 import { imageBlobKey } from "../images/keys";
 import { contentDigest } from "../infra/digest";
@@ -48,12 +52,33 @@ async function publishTrainingArtifact(
 ) {
   const run = await readTrainingRun(runId);
   const snapshot = await readDatasetSnapshot(run!.datasetSnapshotId);
-  return publishTrainingBundle(
-    runId,
-    owner,
+  const bundle = trainingBundle(
     weights,
-    trainingBundle(weights, publication, snapshot!.classes, snapshot!.id),
+    publication,
+    snapshot!.classes,
+    snapshot!.id,
   );
+  if (run!.state.status !== "succeeded") {
+    for (
+      let offset = 0, part = 0;
+      offset < weights.length;
+      offset += TRAINING_ARTIFACT_PART_BYTES, part++
+    ) {
+      const chunk = weights.subarray(
+        offset,
+        offset + TRAINING_ARTIFACT_PART_BYTES,
+      );
+      await saveTrainingArtifactPart(
+        runId,
+        owner,
+        bundle.weights,
+        part,
+        contentDigest(chunk),
+        chunk,
+      );
+    }
+  }
+  return publishTrainingBundle(runId, owner, bundle);
 }
 
 const CONTENTS = ["first-image", "second-image"];
@@ -378,7 +403,7 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
   await expect(
     recordTrainingEpoch(
       run.id,
-      owner("epoch-successor", undefined, 2),
+      owner("epoch-trainer", undefined, 2),
       epochReport(3),
       start,
     ),
@@ -386,18 +411,17 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
 
   const expired = new Date(start.getTime() + 10 * 60 * 1000);
   expect(
-    (await claimTrainingRun(owner("epoch-successor", undefined, 2), expired))
-      ?.id,
+    (await claimTrainingRun(owner("epoch-trainer", undefined, 2), expired))?.id,
   ).toBe(run.id);
   await enterTrainingPhase(
     run.id,
-    owner("epoch-successor", undefined, 2),
+    owner("epoch-trainer", undefined, 2),
     "training",
     expired,
   );
   await recordTrainingEpoch(
     run.id,
-    owner("epoch-successor", undefined, 2),
+    owner("epoch-trainer", undefined, 2),
     epochReport(1),
     expired,
   );
@@ -424,7 +448,7 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
   ]);
   const validating = await enterTrainingPhase(
     run.id,
-    owner("epoch-successor", undefined, 2),
+    owner("epoch-trainer", undefined, 2),
     "validating",
     expired,
   );
@@ -436,7 +460,7 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
   await expect(
     enterTrainingPhase(
       run.id,
-      owner("epoch-successor", undefined, 2),
+      owner("epoch-trainer", undefined, 2),
       "training",
       expired,
     ),
@@ -444,19 +468,19 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
   await expect(
     recordTrainingEpoch(
       run.id,
-      owner("epoch-successor", undefined, 2),
+      owner("epoch-trainer", undefined, 2),
       epochReport(2),
       expired,
     ),
   ).rejects.toThrow(/while validating/);
   await failTrainingRun(
     run.id,
-    owner("epoch-successor", undefined, 2),
+    owner("epoch-trainer", undefined, 2),
     "stopped",
   );
 });
 
-test("a worker whose lease was reassigned can no longer report on the run", async () => {
+test("an expired attempt cannot report after the same worker reclaims its run", async () => {
   const dataset = await reviewedDataset("missing-lease");
   const run = await createTrainingRun(dataset.id, recipe);
   await trainer("slow-trainer");
@@ -466,8 +490,9 @@ test("a worker whose lease was reassigned can no longer report on the run", asyn
     run.id,
   );
   const expired = new Date(start.getTime() + 10 * 60 * 1000);
+  expect(await claimTrainingRun(owner("fast-trainer"), expired)).toBeNull();
   expect(
-    (await claimTrainingRun(owner("fast-trainer", undefined, 2), expired))?.id,
+    (await claimTrainingRun(owner("slow-trainer", undefined, 2), expired))?.id,
   ).toBe(run.id);
   await expect(
     renewTrainingLease(run.id, owner("slow-trainer")),
@@ -475,7 +500,7 @@ test("a worker whose lease was reassigned can no longer report on the run", asyn
   await expect(
     failTrainingRun(run.id, owner("slow-trainer"), "late"),
   ).rejects.toThrow(/not owned/);
-  await failTrainingRun(run.id, owner("fast-trainer", undefined, 2), "stopped");
+  await failTrainingRun(run.id, owner("slow-trainer", undefined, 2), "stopped");
 });
 
 test("a restarted worker reclaims its run as a new fenced attempt", async () => {
@@ -507,7 +532,7 @@ test("a restarted worker reclaims its run as a new fenced attempt", async () => 
   await failTrainingRun(run.id, newSession, "stopped");
 });
 
-test("removing a worker frees its run for another worker at once", async () => {
+test("a removed worker requires explicit restart before its run can move", async () => {
   const dataset = await reviewedDataset("removed-worker");
   const run = await createTrainingRun(dataset.id, recipe);
   await trainer("removed-trainer");
@@ -517,6 +542,13 @@ test("removing a worker frees its run for another worker at once", async () => {
     run.id,
   );
   await removeWorker("removed-trainer");
+  expect(await claimTrainingRun(owner("remaining-trainer"), at)).toBeNull();
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
+  await controlTrainingRun(dataset.id, run.id, 1, {
+    action: "resume",
+    targetWorkerId: "remaining-trainer",
+    restart: true,
+  });
   expect(
     await claimTrainingRun(owner("remaining-trainer", undefined, 2), at),
   ).toMatchObject({
@@ -567,7 +599,7 @@ test("pause releases the model and fences the previous attempt even on the same 
   );
   await expect(
     publishTrainingArtifact(run.id, a, new Uint8Array([1]), publication),
-  ).rejects.toThrow(/superseded/);
+  ).rejects.toThrow(/not owned/);
   await expect(
     controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" }),
   ).rejects.toThrow(/refresh/);
@@ -585,57 +617,82 @@ test("pause releases the model and fences the previous attempt even on the same 
   ).rejects.toThrow(/Only paused or failed/);
 });
 
-test("a durable checkpoint follows training to another worker and is collected after cancellation", async () => {
-  const dataset = await reviewedDataset("portable-training");
-  const a = await trainer("portable-a");
-  const b = await trainer("portable-b");
-  const run = await createTrainingRun(dataset.id, recipe, a.workerId);
+test("local progress pins resume to its worker, while explicit restart can move", async () => {
+  const dataset = await reviewedDataset("local-training");
+  const a = await trainer("local-a");
+  const b = await trainer("local-b");
+  const run = await createTrainingRun(dataset.id, recipe);
   await claimTrainingRun(a);
   await enterTrainingPhase(run.id, a, "training");
-  await recordTrainingEpoch(run.id, a, epochReport(1));
-  const bytes = new Uint8Array([10, 20, 30]);
-  const checkpoint = await saveTrainingCheckpoint(run.id, a, 1, bytes);
-  const uploading = new Uint8Array([40, 50]);
-  const uploadingKey = checkpointBlobKey(run.id, {
-    ...checkpoint,
-    digest: contentDigest(uploading),
+  const reported = await recordTrainingEpoch(run.id, a, epochReport(1));
+  expect(reported.checkpoint).toEqual({
+    attempt: 1,
+    epoch: 1,
+    workerId: a.workerId,
   });
-  await putImmutableBlob(uploadingKey, uploading);
-  expect(await collectUnreferencedTrainingCheckpoints()).not.toContain(
-    uploadingKey,
-  );
-  await expect(saveTrainingCheckpoint(run.id, a, 2, bytes)).rejects.toThrow(
-    /reported/,
-  );
   await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
-  const collected = await collectUnreferencedTrainingCheckpoints();
-  expect(collected).not.toContain(checkpointBlobKey(run.id, checkpoint));
-  expect(collected).toContain(uploadingKey);
+  await expect(
+    controlTrainingRun(dataset.id, run.id, 1, {
+      action: "resume",
+      targetWorkerId: b.workerId,
+      restart: false,
+    }),
+  ).rejects.toThrow(/original worker/);
   await controlTrainingRun(dataset.id, run.id, 1, {
     action: "resume",
-    targetWorkerId: b.workerId,
+    targetWorkerId: null,
     restart: false,
   });
-  expect(await claimTrainingRun(a)).toBeNull();
-  const next = await claimTrainingRun(b);
-  expect(next?.checkpoint).toEqual(checkpoint);
-  expect(await readTrainingCheckpoint(run.id, { ...b, attempt: 2 })).toEqual(
-    bytes,
-  );
-  await expect(saveTrainingCheckpoint(run.id, a, 1, bytes)).rejects.toThrow(
-    /not owned/,
-  );
+  expect(await claimTrainingRun(b)).toBeNull();
+  const resumed = await claimTrainingRun(a);
+  expect(resumed?.attempt).toBe(2);
+  expect(resumed?.checkpoint).toEqual(reported.checkpoint);
   await controlTrainingRun(dataset.id, run.id, 2, { action: "pause" });
   await controlTrainingRun(dataset.id, run.id, 2, {
     action: "resume",
     targetWorkerId: b.workerId,
     restart: true,
   });
-  expect((await readTrainingRun(run.id))?.checkpoint).toBeNull();
-  expect(await collectUnreferencedTrainingCheckpoints()).toContain(
-    checkpointBlobKey(run.id, checkpoint),
+  const restarted = await claimTrainingRun(b);
+  expect(restarted?.checkpoint).toBeNull();
+  expect(restarted?.state.status).toBe("running");
+  await controlTrainingRun(dataset.id, run.id, 3, { action: "cancel" });
+});
+
+test("final artifact parts verify size and integrity before assembly and expire with the attempt", async () => {
+  const dataset = await reviewedDataset("artifact-parts");
+  const a = await trainer("artifact-parts-a");
+  const run = await createTrainingRun(dataset.id, recipe, a.workerId);
+  await claimTrainingRun(a);
+  const bytes = new Uint8Array(TRAINING_ARTIFACT_PART_BYTES + 3).fill(42);
+  const upload = { bytes: bytes.length, digest: contentDigest(bytes) };
+  const first = bytes.subarray(0, TRAINING_ARTIFACT_PART_BYTES);
+  const last = bytes.subarray(TRAINING_ARTIFACT_PART_BYTES);
+  const put = (
+    part: number,
+    chunk: Uint8Array,
+    digest = contentDigest(chunk),
+  ) => saveTrainingArtifactPart(run.id, a, upload, part, digest, chunk);
+  await expect(put(0, first, "0".repeat(64))).rejects.toThrow(/digest/);
+  await expect(put(0, last)).rejects.toThrow(/size/);
+  await put(0, first);
+  await put(0, first);
+  await expect(put(0, new Uint8Array(first.length).fill(43))).rejects.toThrow(
+    /different contents/,
   );
-  await controlTrainingRun(dataset.id, run.id, 2, { action: "cancel" });
+  await expect(readTrainingArtifactParts(run.id, a, upload)).rejects.toThrow(
+    /missing/,
+  );
+  await put(1, last);
+  expect(await readTrainingArtifactParts(run.id, a, upload)).toEqual(bytes);
+  expect(await collectTrainingArtifactParts()).not.toContain(
+    artifactPartKey(run.id, 1, upload, 0),
+  );
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
+  await expect(put(1, last)).rejects.toThrow(/not owned/);
+  expect(await collectTrainingArtifactParts()).toContain(
+    artifactPartKey(run.id, 1, upload, 0),
+  );
 });
 
 test("an expired lease cannot be renewed or publish before another worker claims it", async () => {
