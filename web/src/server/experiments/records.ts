@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { Executor } from "../infra/db/client";
 import {
   experimentCultureEvents,
+  experimentManualReadings,
   experimentObservationImages,
   experimentObservations,
   experimentTreatments,
@@ -19,9 +20,11 @@ import {
   experimentObservationSchema,
   experimentSchema,
   treatmentSchema,
+  manualReadingSchema,
   type CultureEvent,
   type Experiment,
   type ExperimentObservation,
+  type ManualReading,
   type Treatment,
 } from "../../domain/experiments/schema";
 
@@ -177,27 +180,65 @@ export async function listUnits(
   return rows.map((row) => toUnit(row, byUnit.get(row.id) ?? []));
 }
 
+function toManualReading(
+  row: typeof experimentManualReadings.$inferSelect,
+): ManualReading {
+  return manualReadingSchema.parse({
+    unit: row.unitId,
+    observation: row.observationId,
+    tally: row.tally,
+    recordedAt: row.recordedAt.toISOString(),
+  });
+}
+
+/** The counts people entered by hand across the experiment. */
+export async function listManualReadings(
+  experimentId: string,
+  db: Executor,
+): Promise<ManualReading[]> {
+  const rows = await db
+    .select()
+    .from(experimentManualReadings)
+    .where(eq(experimentManualReadings.experimentId, experimentId))
+    .orderBy(
+      asc(experimentManualReadings.observationId),
+      asc(experimentManualReadings.unitId),
+    );
+  return rows.map(toManualReading);
+}
+
+/**
+ * An observation has records once anything was recorded on it: a photograph
+ * placed, a count entered, or a culture event.
+ */
 export async function listObservations(
   experimentId: string,
   db: Executor,
 ): Promise<ExperimentObservation[]> {
-  const [rows, observationImageRefs, eventRefs] = await Promise.all([
-    db
-      .select()
-      .from(experimentObservations)
-      .where(eq(experimentObservations.experimentId, experimentId))
-      .orderBy(asc(experimentObservations.observedOn)),
-    db
-      .select({ observation: experimentObservationImages.observationId })
-      .from(experimentObservationImages)
-      .where(eq(experimentObservationImages.experimentId, experimentId)),
-    db
-      .select({ observation: experimentCultureEvents.observationId })
-      .from(experimentCultureEvents)
-      .where(eq(experimentCultureEvents.experimentId, experimentId)),
-  ]);
+  const [rows, observationImageRefs, manualRefs, eventRefs] = await Promise.all(
+    [
+      db
+        .select()
+        .from(experimentObservations)
+        .where(eq(experimentObservations.experimentId, experimentId))
+        .orderBy(asc(experimentObservations.observedOn)),
+      db
+        .select({ observation: experimentObservationImages.observationId })
+        .from(experimentObservationImages)
+        .where(eq(experimentObservationImages.experimentId, experimentId)),
+      db
+        .select({ observation: experimentManualReadings.observationId })
+        .from(experimentManualReadings)
+        .where(eq(experimentManualReadings.experimentId, experimentId)),
+      db
+        .select({ observation: experimentCultureEvents.observationId })
+        .from(experimentCultureEvents)
+        .where(eq(experimentCultureEvents.experimentId, experimentId)),
+    ],
+  );
   const recorded = new Set([
     ...observationImageRefs.map((row) => row.observation),
+    ...manualRefs.map((row) => row.observation),
     ...eventRefs.map((row) => row.observation),
   ]);
   return rows.map((observation, index) =>

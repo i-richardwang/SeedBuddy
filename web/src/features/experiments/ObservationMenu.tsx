@@ -1,5 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
-import { FolderPlus, Images, Pencil, Trash2 } from "lucide-react";
+import { FolderPlus, Images, Pencil, PencilLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { NamedDataset } from "../../domain/datasets/schema";
@@ -8,7 +8,11 @@ import type {
   Unit,
 } from "../../domain/experiments/contracts";
 import type { PlacedPhoto } from "../../domain/experiments/photos";
-import type { ExperimentObservation } from "../../domain/experiments/schema";
+import type {
+  ExperimentObservation,
+  ManualReading,
+  Treatment,
+} from "../../domain/experiments/schema";
 import type { Model } from "../../domain/models/schema";
 import { removeObservation } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
@@ -18,11 +22,12 @@ import { TableHeadMenu } from "../../ui/kit/Table";
 import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { AddPhotosDialog } from "./AddPhotosDialog";
+import { EnterManualReadingsDialog } from "./ManualReadingsDialog";
 import { observationLabel } from "./labels";
 import { EditObservationDialog } from "./ObservationDialog";
 import { Text } from "../../ui/kit/Text";
 
-type Action = "images" | "dataset" | "edit";
+type Action = "images" | "readings" | "dataset" | "edit";
 
 /**
  * An observation day's column heading, opening what can be done to that day.
@@ -37,6 +42,8 @@ export function ObservationMenu({
   question,
   units,
   images,
+  manualReadings,
+  treatments,
   placed,
   models,
   datasets,
@@ -52,6 +59,9 @@ export function ObservationMenu({
   units: Unit[];
   /** The images taken at this observation. */
   images: ObservationImageCell[];
+  /** The counts entered by hand at this observation. */
+  manualReadings: ManualReading[];
+  treatments: readonly Treatment[];
   /** The photographs the experiment holds across all its observations. */
   placed: readonly PlacedPhoto[];
   models: readonly Model[];
@@ -72,6 +82,14 @@ export function ObservationMenu({
       icon: Images,
       label: m.observation_menu_add_photos(),
       onClick: () => setOpen("images"),
+    });
+  }
+  if (units.length > 0) {
+    items.push({
+      key: "readings",
+      icon: PencilLine,
+      label: m.observation_menu_manual_readings(),
+      onClick: () => setOpen("readings"),
     });
   }
   if (images.length > 0) {
@@ -139,6 +157,17 @@ export function ObservationMenu({
         assigned={assigned}
         placed={placed}
         open={open === "images"}
+        onClose={close}
+      />
+
+      <EnterManualReadingsDialog
+        experiment={experiment}
+        observation={observation}
+        units={units}
+        treatments={treatments}
+        images={images}
+        manualReadings={manualReadings}
+        open={open === "readings"}
         onClose={close}
       />
 

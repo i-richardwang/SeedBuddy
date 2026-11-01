@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { resourceIdSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
-import { classListSchema } from "../models/classes";
+import { classListSchema, tallySchema } from "../models/classes";
 
 export const experimentIdSchema = z.uuid();
 export const observationIdSchema = z.uuid();
@@ -304,6 +304,48 @@ export const cultureEventRefSchema = z.strictObject({
 });
 
 export type CultureEventRef = z.infer<typeof cultureEventRefSchema>;
+
+/**
+ * A count a person entered for a unit on a day: what they counted at the
+ * bench, such as at transplanting, whether or not the dish was photographed.
+ * It is kept by class, like the tally a photograph yields, so the day counts
+ * it over the classes it names and a change of those recounts it. A person's
+ * number outranks every reading of the day's photograph.
+ */
+export const manualReadingSchema = z.strictObject({
+  unit: unitIdSchema,
+  observation: observationIdSchema,
+  tally: tallySchema,
+  recordedAt: z.string().datetime({ offset: true }),
+});
+
+export type ManualReading = z.infer<typeof manualReadingSchema>;
+
+/** A unit's count entered by hand, or `null` to withdraw the one it has. */
+const manualReadingEntrySchema = z.strictObject({
+  unit: unitIdSchema,
+  tally: tallySchema.nullable(),
+});
+
+export type ManualReadingEntry = z.infer<typeof manualReadingEntrySchema>;
+
+/**
+ * The counts entered for several units on one observation, in one step: as
+ * many as the observation has units, each at most once.
+ */
+export const manualReadingsRequestSchema = z.strictObject({
+  experiment: experimentIdSchema,
+  observation: observationIdSchema,
+  readings: z
+    .array(manualReadingEntrySchema)
+    .min(1, "No counts to record")
+    .refine(
+      (entries) => distinctIds(entries.map((entry) => entry.unit)),
+      "Units must be distinct",
+    ),
+});
+
+export type ManualReadingsRequest = z.infer<typeof manualReadingsRequestSchema>;
 
 /**
  * An observation is one day the units were photographed, and the question

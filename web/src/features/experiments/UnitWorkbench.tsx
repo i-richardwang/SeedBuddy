@@ -31,7 +31,8 @@ import type {
   UnitSeries,
   UnitStep,
 } from "../../domain/experiments/contracts";
-import { imageReview } from "../../domain/experiments/readings";
+import { cellReading, imageReview } from "../../domain/experiments/readings";
+import { formatCount } from "../../ui/numbers";
 import { ShellActions } from "../../ui/shell/Shell";
 import {
   Workbench,
@@ -100,13 +101,16 @@ export function UnitWorkbench({
   const latestEvent = latestCultureEvent(unit.events, ordinals);
 
   const photographed = series.observations.filter((item) => item.image);
-  // Only the days the unit was photographed on are chosen or stepped to. A
-  // step along the units can still land on a day this one was not
-  // photographed on; that day stays among them while it is in view. The day
-  // set beside it never is, so a step does not bring a day beside itself.
+  // Only the days the unit has a record of, a photograph or a count, are
+  // chosen or stepped to. A step along the units can still land on a day
+  // this one has none of; that day stays among them while it is in view.
+  // The day set beside it never is, so a step does not bring a day beside
+  // itself.
   const days = series.observations.filter(
     (item) =>
-      (item.image || item.observation.id === series.observation) &&
+      (item.image ||
+        item.manual ||
+        item.observation.id === series.observation) &&
       item.observation.id !== compare,
   );
   const reference = series.observations.find(
@@ -182,7 +186,7 @@ export function UnitWorkbench({
       treatments={treatments}
       canRemove={
         unit.events.length === 0 &&
-        !series.observations.some((item) => item.image) &&
+        !series.observations.some((item) => item.image || item.manual) &&
         navigation.some(
           (item) => item.treatment === unit.treatment && item.id !== unit.id,
         )
@@ -301,12 +305,19 @@ export function UnitWorkbench({
   }
 
   if (!shown) {
-    // A day in view is one this unit was not photographed on; without one,
-    // it has not been photographed at all.
+    // A day in view is one this unit was not photographed on, though a
+    // person may have counted it; without one, it has not been photographed
+    // at all.
+    const inView = series.observations.find(
+      (item) => item.observation.id === series.observation,
+    );
+    const counted = inView ? cellReading(inView, inView.observation) : null;
     const missing = series.observation
       ? {
           title: m.unit_no_image_on_day(),
-          description: m.unit_no_image_on_day_description(),
+          description: counted
+            ? m.unit_counted_on_day({ count: formatCount(counted.count) })
+            : m.unit_no_image_on_day_description(),
         }
       : {
           title: m.unit_no_image(),

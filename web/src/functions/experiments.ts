@@ -5,6 +5,7 @@ import {
   experimentRefSchema,
   experimentRequestSchema,
   experimentUpdateSchema,
+  manualReadingsRequestSchema,
   observationImageAssignmentSchema,
   observationImageRefSchema,
   observationRefSchema,
@@ -35,6 +36,7 @@ import {
   updateUnit,
   deleteCultureEvent,
   recordCultureEvents,
+  recordManualReadings,
   deleteObservation,
   updateObservation,
   listExperimentNames,
@@ -148,6 +150,10 @@ export const editObservation = createServerFn({ method: "POST" })
 export const removeObservation = createServerFn({ method: "POST" })
   .validator(observationRefSchema)
   .handler(({ data }) => deleteObservation(data));
+
+export const enterManualReadings = createServerFn({ method: "POST" })
+  .validator(manualReadingsRequestSchema)
+  .handler(({ data }) => recordManualReadings(data));
 
 export const assignImagesToObservation = createServerFn({ method: "POST" })
   .validator(observationImageAssignmentSchema)

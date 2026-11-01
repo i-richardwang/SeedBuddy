@@ -34,6 +34,7 @@ import type {
   UnitRef,
 } from "../../domain/experiments/schema";
 import {
+  listManualReadings,
   listObservations,
   listTreatments,
   listUnits,
@@ -167,18 +168,21 @@ async function readGrid(
   experiment: Experiment,
   db: Executor,
 ): Promise<ExperimentGrid> {
-  const [treatments, units, observations, images] = await Promise.all([
-    listTreatments(experiment.id, db),
-    listUnits(experiment.id, db),
-    listObservations(experiment.id, db),
-    listObservationImageCells(experiment.id, db),
-  ]);
+  const [treatments, units, observations, images, manualReadings] =
+    await Promise.all([
+      listTreatments(experiment.id, db),
+      listUnits(experiment.id, db),
+      listObservations(experiment.id, db),
+      listObservationImageCells(experiment.id, db),
+      listManualReadings(experiment.id, db),
+    ]);
   return {
     experiment,
     treatments,
     units: unitOrder(units, treatments),
     observations,
     images,
+    manualReadings,
   };
 }
 
@@ -205,27 +209,32 @@ async function readUnitSeries(
 ): Promise<UnitSeries | null> {
   const experiment = await readExperimentRecord(ref.experiment, db);
   if (!experiment) return null;
-  const [treatments, units, observations, images] = await Promise.all([
-    listTreatments(ref.experiment, db),
-    listUnits(ref.experiment, db),
-    listObservations(ref.experiment, db),
-    listObservationImageCells(ref.experiment, db),
-  ]);
+  const [treatments, units, observations, images, manualReadings] =
+    await Promise.all([
+      listTreatments(ref.experiment, db),
+      listUnits(ref.experiment, db),
+      listObservations(ref.experiment, db),
+      listObservationImageCells(ref.experiment, db),
+      listManualReadings(ref.experiment, db),
+    ]);
   const ordered = unitOrder(units, treatments);
   const unit = ordered.find((item) => item.id === ref.unit);
   if (!unit) return null;
-  const cells = observationCells(images);
+  const cells = observationCells(images, manualReadings);
   const own = observations.map((observation) => ({
     observation,
     cell: cells.get(cellKey(unit.id, observation.id)),
   }));
   const sizes = await readImageSizes(
-    own.flatMap(({ cell }) => (cell ? [cell.digest] : [])),
+    own.flatMap(({ cell }) => (cell?.image ? [cell.image.digest] : [])),
     db,
   );
   const series = own.map(({ observation, cell }) => ({
     observation,
-    image: cell ? { ...cell, ...sizes.get(cell.digest)! } : null,
+    image: cell?.image
+      ? { ...cell.image, ...sizes.get(cell.image.digest)! }
+      : null,
+    manual: cell?.manual ?? null,
   }));
   const viewing =
     observationId === undefined
@@ -246,7 +255,8 @@ async function readUnitSeries(
     unit,
     treatments,
     navigation: ordered.map(({ id, code, treatment }) => {
-      const image = viewing && cells.get(cellKey(id, viewing.observation.id));
+      const image =
+        viewing && cells.get(cellKey(id, viewing.observation.id))?.image;
       return { id, code, treatment, image: image ? imageReview(image) : null };
     }),
     observations: series,

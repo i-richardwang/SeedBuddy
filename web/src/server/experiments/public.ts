@@ -21,6 +21,7 @@ export {
   retryObservationImageAnalysis,
   unassignObservationImage,
 } from "./observation-images";
+export { recordManualReadings } from "./manual-readings";
 export {
   addObservation,
   deleteObservation,

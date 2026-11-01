@@ -241,5 +241,25 @@
   "experiments_column_treatments": "Treatments",
   "experiments_column_units": "Units",
   "experiments_column_observations": "Observation days",
-  "experiments_column_last_observed": "Last observed"
+  "experiments_column_last_observed": "Last observed",
+  "observation_menu_manual_readings": "Enter counts…",
+  "manual_readings_title": "Enter counts for {observation}",
+  "manual_readings_save": "Save counts",
+  "manual_readings_description": "A count entered here stands for the unit on this day, over whatever its photograph reads. Leave a unit empty to keep no count for it.",
+  "manual_readings_column_photograph": "From photograph",
+  "manual_readings_field": "{unit}: {class}",
+  "manual_readings_incomplete": "Fill in every class of {units}, or leave them empty",
+  "manual_readings_not_saved": "The counts were not saved",
+  "manual_readings_saved": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=1": "Count of 1 unit saved",
+        "count=*": "Counts of {formattedCount} units saved"
+      }
+    }
+  ],
+  "experiment_cell_manual": "Entered by hand",
+  "experiment_cell_manual_unanswered": "The count entered leaves out a class this day counts; enter it again",
+  "unit_counted_on_day": "Counted by hand: {count}. A photograph from this day can still be matched to it in the experiment."
 }

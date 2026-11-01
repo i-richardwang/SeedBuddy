@@ -43,6 +43,9 @@ export class UnitRejectedError extends ConflictError {
 export class ObservationImageRejectedError extends ConflictError {
   readonly code = "observation_image_rejected";
 }
+export class ManualReadingRejectedError extends ConflictError {
+  readonly code = "manual_reading_rejected";
+}
 
 /** The photographs a refused assignment would have placed a second time. */
 export const imageAlreadyUsedDetailsSchema = z.strictObject({
