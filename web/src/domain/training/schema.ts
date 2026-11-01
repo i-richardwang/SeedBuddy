@@ -162,11 +162,11 @@ export type TrainingAttemptOwner = z.infer<
   typeof trainingAttemptOwnerSchema
 > & { workerId: string };
 
+/** Last reported recovery point; its files exist only on this Worker. */
 export const trainingCheckpointSchema = z.strictObject({
   attempt: z.number().int().positive(),
   epoch: z.number().int().positive(),
-  digest: sha256Schema,
-  bytes: z.number().int().positive(),
+  workerId: resourceIdSchema,
 });
 export type TrainingCheckpoint = z.infer<typeof trainingCheckpointSchema>;
 

@@ -510,6 +510,7 @@ export async function claimTrainingRun(
       .update(trainingRuns)
       .set({
         attempt: candidate.attempt + 1,
+        targetWorkerId: owner.workerId,
         lastProgressAt: at,
         ...stateColumns({
           status: "running",
@@ -666,7 +667,17 @@ export async function recordTrainingEpoch(
     if (!previous || report.epoch > previous.epoch)
       await tx
         .update(trainingRuns)
-        .set({ lastProgressAt: at })
+        .set({
+          lastProgressAt: at,
+          checkpoint:
+            current.checkpoint && report.epoch < current.checkpoint.epoch
+              ? current.checkpoint
+              : {
+                  attempt: owner.attempt,
+                  epoch: report.epoch,
+                  workerId: owner.workerId,
+                },
+        })
         .where(eq(trainingRuns.id, runId));
     await tx
       .insert(trainingEpochs)

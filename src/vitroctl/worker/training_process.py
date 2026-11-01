@@ -38,7 +38,6 @@ def _train(
             **options,
             on_training_start=lambda: emit("training"),
             on_epoch=lambda report: emit("epoch", report),
-            on_checkpoint=lambda epoch: emit("checkpoint", epoch),
             on_execution=lambda execution: emit("execution", execution),
             on_validation_start=lambda: emit("validating"),
         )
@@ -59,7 +58,6 @@ def run_training_process(
     cancelled: Callable[[], bool],
     on_training_start: Callable[[], None],
     on_epoch: Callable[[EpochReport], None],
-    on_checkpoint: Callable[[int], None],
     on_validation_start: Callable[[], None],
     **options: Any,
 ) -> YoloTrainingResult:
@@ -92,8 +90,6 @@ def run_training_process(
                 on_training_start()
             elif kind == "epoch":
                 on_epoch(value)
-            elif kind == "checkpoint":
-                on_checkpoint(value)
             elif kind == "execution":
                 LOGGER.info("Training execution: %s", json.dumps(value, default=str))
             elif kind == "validating":

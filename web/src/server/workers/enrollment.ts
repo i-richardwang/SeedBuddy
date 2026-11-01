@@ -43,7 +43,8 @@ export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
 
 /**
  * Removing a worker revokes its token and ends its session, so the work it
- * holds returns to the queue and its pending writes are fenced off.
+ * holds loses its lease and its pending writes are fenced off. Local training
+ * recovery remains bound to that worker until explicitly restarted.
  */
 export async function removeWorker(workerId: string): Promise<void> {
   const [removed] = await (

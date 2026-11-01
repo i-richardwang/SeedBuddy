@@ -63,7 +63,9 @@ function ResumeTrainingForm({
   const { run, workers } = detail;
   const router = useRouter();
   const [targetWorkerId, setTargetWorkerId] = useState(run.targetWorkerId);
-  const [from, setFrom] = useState<"saved" | "start">("saved");
+  const [from, setFrom] = useState<"saved" | "start">(
+    run.checkpoint ? "saved" : "start",
+  );
 
   return (
     <Form
@@ -75,7 +77,10 @@ function ResumeTrainingForm({
             () =>
               controlRun(detail, {
                 action: "resume",
-                targetWorkerId,
+                targetWorkerId:
+                  from === "saved"
+                    ? (run.checkpoint?.workerId ?? run.targetWorkerId)
+                    : targetWorkerId,
                 restart: from === "start",
               }),
             m.training_resume_failed(),
@@ -90,11 +95,20 @@ function ResumeTrainingForm({
       <Form.Field label={m.training_worker()}>
         <TrainingWorkerSelect
           workers={workers}
-          value={targetWorkerId}
+          value={
+            from === "saved"
+              ? (run.checkpoint?.workerId ?? run.targetWorkerId)
+              : targetWorkerId
+          }
           onChange={setTargetWorkerId}
-          disabled={action.busy}
+          disabled={action.busy || from === "saved"}
         />
       </Form.Field>
+      {from === "saved" && run.checkpoint && (
+        <Text size="sm" type="secondary">
+          {m.training_resume_local_worker({ worker: run.checkpoint.workerId })}
+        </Text>
+      )}
       {run.checkpoint ? (
         <Form.Field label={m.training_resume_from()} fieldset>
           <ToggleGroup

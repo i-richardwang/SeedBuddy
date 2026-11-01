@@ -17,7 +17,7 @@
     {
       "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
       "match": {
-        "epoch=*": "已保存到第 {formattedEpoch} 轮"
+        "epoch=*": "本机已保存到第 {formattedEpoch} 轮"
       }
     }
   ],
@@ -195,5 +195,6 @@
   "train_preset_n": "YOLO26n · 整图",
   "train_preset_s": "YOLO26s · 整图 2048",
   "train_preset_n_description": "轻量模型，适用于整图训练。",
-  "train_preset_s_description": "较大模型，使用较高输入分辨率保留小目标细节。"
+  "train_preset_s_description": "较大模型，使用较高输入分辨率保留小目标细节。",
+  "training_resume_local_worker": "续训使用 {worker} 上的本地文件。文件丢失时，需要从头训练。"
 }

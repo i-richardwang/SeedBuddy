@@ -42,7 +42,6 @@ def test_supervisor_terminates_an_unresponsive_trainer_and_surfaces_failures(
             cancelled=lambda: interrupted and time.monotonic() >= deadline,
             on_training_start=lambda: None,
             on_epoch=lambda _: None,
-            on_checkpoint=lambda _: None,
             on_validation_start=lambda: None,
         )
     assert {child.pid for child in multiprocessing.active_children()} == before
@@ -93,7 +92,6 @@ def test_supervisor_cleans_descendants_after_the_trainer_has_exited(
         cancelled=lambda: False,
         on_training_start=lambda: None,
         on_epoch=lambda _: None,
-        on_checkpoint=lambda _: None,
         on_validation_start=lambda: None,
     )
     heartbeat = output / "child-heartbeat"
@@ -121,7 +119,6 @@ def test_supervisor_persists_child_execution_diagnostics_in_worker_log(
             cancelled=lambda: False,
             on_training_start=lambda: None,
             on_epoch=lambda _: None,
-            on_checkpoint=lambda _: None,
             on_validation_start=lambda: None,
         )
     assert '"validationBatch": 1' in caplog.text

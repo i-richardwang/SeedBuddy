@@ -1,30 +1,26 @@
 import { eq } from "drizzle-orm";
-
 import { transaction } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";
 import { listBlobs, removeBlob } from "../infra/blobs/store";
-import { checkpointBlobKey, parseCheckpointKey } from "./keys";
+import { parseArtifactPartKey } from "./keys";
 
-/** Checkpoints remain available for paused and failed tasks until explicitly restarted. */
-export async function collectUnreferencedTrainingCheckpoints(): Promise<
-  string[]
-> {
+/** Final-model parts live only while their execution attempt has a live lease. */
+export async function collectTrainingArtifactParts(): Promise<string[]> {
   const collected: string[] = [];
-  for (const key of await listBlobs("training-checkpoints/")) {
-    const reference = parseCheckpointKey(key);
+  for (const key of await listBlobs("training-artifact-parts/")) {
+    const reference = parseArtifactPartKey(key);
     if (!reference) continue;
-    const { trainingRunId: runId, trainingAttempt: attempt } = reference;
     await transaction(async (tx) => {
       const [run] = await tx
         .select()
         .from(trainingRuns)
-        .where(eq(trainingRuns.id, runId))
+        .where(eq(trainingRuns.id, reference.trainingRunId))
         .for("update");
-      if (run?.status === "running" && run.attempt === attempt) return;
       if (
-        run?.checkpoint &&
-        !["cancelled", "succeeded"].includes(run.status) &&
-        key === checkpointBlobKey(runId, run.checkpoint)
+        run?.status === "running" &&
+        run.attempt === reference.trainingAttempt &&
+        run.leaseExpiresAt &&
+        run.leaseExpiresAt > new Date()
       )
         return;
       await removeBlob(key);

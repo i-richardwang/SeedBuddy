@@ -30,18 +30,16 @@ TrainingPhase = Literal["preparing", "training", "validating"]
 class TrainingCheckpoint:
     attempt: int
     epoch: int
-    digest: str
-    bytes: int
+    worker_id: str
 
     @classmethod
     def parse(cls, value: Any, context: str) -> TrainingCheckpoint:
         checkpoint = as_object(value, context)
-        expect_fields(checkpoint, {"attempt", "epoch", "digest", "bytes"}, context)
+        expect_fields(checkpoint, {"attempt", "epoch", "workerId"}, context)
         return cls(
             attempt=as_integer(checkpoint["attempt"], f"{context}.attempt", minimum=1),
             epoch=as_integer(checkpoint["epoch"], f"{context}.epoch", minimum=1),
-            digest=as_digest(checkpoint["digest"], f"{context}.digest"),
-            bytes=as_integer(checkpoint["bytes"], f"{context}.bytes", minimum=1),
+            worker_id=_worker_id(checkpoint["workerId"], f"{context}.workerId"),
         )
 
 

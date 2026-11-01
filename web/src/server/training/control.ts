@@ -49,6 +49,16 @@ export async function controlTrainingRun(
         throw new TrainingRunConflictError(
           "Only paused or failed training can resume",
         );
+      const localWorker = run.checkpoint?.workerId ?? run.targetWorkerId;
+      if (
+        !control.restart &&
+        localWorker &&
+        control.targetWorkerId &&
+        control.targetWorkerId !== localWorker
+      )
+        throw new TrainingRunConflictError(
+          "Resume requires the original worker; restart training to use another worker",
+        );
       const active = await activeTrainingRun(run.modelId, tx);
       if (active)
         throw new TrainingRunConflictError(
@@ -57,7 +67,9 @@ export async function controlTrainingRun(
       await tx
         .update(trainingRuns)
         .set({
-          targetWorkerId: control.targetWorkerId,
+          targetWorkerId: control.restart
+            ? control.targetWorkerId
+            : (localWorker ?? control.targetWorkerId),
           ...(control.restart ? { checkpoint: null } : {}),
           lastProgressAt: null,
         })
