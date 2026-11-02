@@ -4,12 +4,15 @@ import {
   blankCell,
   countCell,
   dateCell,
+  decimalCell,
+  ratioCell,
   sheetName,
   textCell,
   workbookFilename,
   type CellStyle,
   type Workbook,
   type WorkbookCell,
+  type WorkbookSheet,
 } from "../../lib/spreadsheet/workbook";
 import {
   unitExclusions,
@@ -33,9 +36,22 @@ import {
   type ExperimentObservation,
   type Treatment,
 } from "../../domain/experiments/schema";
+import {
+  experimentSummary,
+  summaryCell,
+  summaryMeasure,
+  type ExperimentSummary,
+  type Statistic,
+  type SummaryMeasure,
+} from "../../domain/experiments/summary";
 import type { Model } from "../../domain/models/schema";
-import { cultureEventLabel, observationQuestion } from "./labels";
+import {
+  cultureEventLabel,
+  observationQuestion,
+  summaryMeasureLabel,
+} from "./labels";
 import { m } from "../../paraglide/messages";
+import { formatDay } from "../../ui/Day";
 
 export type ExperimentWorkbookSource = ExperimentGrid & {
   models: readonly Model[];
@@ -50,8 +66,34 @@ const DESIGN_COLUMNS = [{ width: 22 }, { width: 16 }, { width: 14 }];
 const HEADING_ROWS = 2;
 const DAY_WIDTH = 14;
 
+/** The summary's design columns: a treatment and its factor. */
+const SUMMARY_DESIGN_COLUMNS = [{ width: 22 }, { width: 16 }];
+/** A day of the summary: its date over its measure over n, mean, SD and SE. */
+const SUMMARY_HEADING_ROWS = 3;
+const SUMMARY_DAY_COLUMNS = [
+  { width: 6 },
+  { width: 10 },
+  { width: 10 },
+  { width: 10 },
+];
+/** A mean count is written to one decimal. */
+const COUNT_DIGITS = 1;
+
 export function experimentWorkbookFilename(experiment: Experiment): string {
   return workbookFilename(experiment.name, m.experiments_title());
+}
+
+/**
+ * The experiment as a file of two sheets: the grid, and the summary of it by
+ * treatment.
+ */
+export function experimentWorkbook(
+  source: ExperimentWorkbookSource,
+  exportedOn: CalendarDay,
+): Workbook {
+  return {
+    sheets: [gridSheet(source, exportedOn), summarySheet(source, exportedOn)],
+  };
 }
 
 /**
@@ -66,10 +108,10 @@ export function experimentWorkbookFilename(experiment: Experiment): string {
  * and a unit with a photograph found unclear, where the experiment does not
  * count such photographs, says so in place of every count it has.
  */
-export function experimentWorkbook(
+export function gridSheet(
   source: ExperimentWorkbookSource,
   exportedOn: CalendarDay,
-): Workbook {
+): WorkbookSheet {
   const {
     experiment,
     treatments,
@@ -102,12 +144,136 @@ export function experimentWorkbook(
   }
 
   return {
-    sheet: sheetName(experiment.name, m.experiments_title()),
+    name: sheetName(experiment.name, m.experiments_title()),
     columns: [...DESIGN_COLUMNS, ...days.map(() => ({ width: DAY_WIDTH }))],
     rows,
     stickyRows,
     stickyColumns: DESIGN_COLUMNS.length,
   };
+}
+
+/**
+ * The summary as a spreadsheet: a row per treatment, and under each day its
+ * n, mean, standard deviation and standard error over the treatment's units
+ * in the analysis that day. A day is summarised by its rate, each unit's
+ * count over its own count on the first observation, where any treatment has
+ * one, and by its count otherwise; the row under the date says which. Notes
+ * under the table say how the numbers were taken.
+ */
+export function summarySheet(
+  source: ExperimentWorkbookSource,
+  exportedOn: CalendarDay,
+): WorkbookSheet {
+  const { experiment, treatments, observations } = source;
+  const summary = experimentSummary(source);
+  const baseline = observations.find(
+    (observation) => observation.id === summary.baseline,
+  );
+  const measures = observations.map((observation) =>
+    summaryMeasure(summary, observation.id),
+  );
+  const rows: WorkbookCell[][] = [
+    [textCell(experiment.name, { strong: true })],
+    ...provenance(experiment, exportedOn),
+    [],
+  ];
+  const stickyRows = rows.length + SUMMARY_HEADING_ROWS;
+  rows.push(...summaryHeading(observations, measures));
+  for (const treatment of treatments) {
+    rows.push(summaryRow(treatment, observations, summary));
+  }
+  rows.push([], [textCell(m.summary_note_statistics())]);
+  if (baseline) {
+    rows.push([
+      textCell(m.summary_note_rate({ day: formatDay(baseline.observedOn) })),
+    ]);
+  }
+
+  return {
+    name: sheetName(m.experiment_summary(), m.experiment_summary()),
+    columns: [
+      ...SUMMARY_DESIGN_COLUMNS,
+      ...observations.flatMap(() => SUMMARY_DAY_COLUMNS),
+    ],
+    rows,
+    stickyRows,
+    stickyColumns: SUMMARY_DESIGN_COLUMNS.length,
+  };
+}
+
+/** The three heading rows: the dates, each over its measure, over n, mean, SD and SE. */
+function summaryHeading(
+  observations: readonly ExperimentObservation[],
+  measures: readonly SummaryMeasure[],
+): WorkbookCell[][] {
+  const covering = { strong: true, rows: SUMMARY_HEADING_ROWS };
+  const spanning = { strong: true, columns: SUMMARY_DAY_COLUMNS.length };
+  const design = SUMMARY_DESIGN_COLUMNS.map(() => blankCell);
+  const perDay = (cells: WorkbookCell[]) => observations.flatMap(() => cells);
+  return [
+    [
+      textCell(m.experiment_column_treatment(), covering),
+      textCell(m.workbook_column_factor(), covering),
+      ...observations.flatMap((observation) => [
+        calendarCell(observation.observedOn, spanning),
+        ...SUMMARY_DAY_COLUMNS.slice(1).map(() => blankCell),
+      ]),
+    ],
+    [
+      ...design,
+      ...measures.flatMap((measure) => [
+        textCell(summaryMeasureLabel(measure), spanning),
+        ...SUMMARY_DAY_COLUMNS.slice(1).map(() => blankCell),
+      ]),
+    ],
+    [
+      ...design,
+      ...perDay([
+        textCell(m.summary_column_n(), { strong: true }),
+        textCell(m.summary_column_mean(), { strong: true }),
+        textCell(m.summary_column_sd(), { strong: true }),
+        textCell(m.summary_column_se(), { strong: true }),
+      ]),
+    ],
+  ];
+}
+
+/** A treatment's row: its name and factor, then its statistics under each day. */
+function summaryRow(
+  treatment: Treatment,
+  observations: readonly ExperimentObservation[],
+  summary: ExperimentSummary,
+): WorkbookCell[] {
+  return [
+    textCell(treatment.name),
+    factorCell(treatment),
+    ...observations.flatMap((observation) => {
+      const cell = summaryCell(summary, treatment.id, observation.id);
+      const measure = summaryMeasure(summary, observation.id);
+      const statistic = measure === "rate" ? cell?.rate : cell?.count;
+      return statisticCells(statistic ?? null, measure);
+    }),
+  ];
+}
+
+/** n, mean, SD and SE, the spread left blank where a single unit has none. */
+function statisticCells(
+  statistic: Statistic | null,
+  measure: SummaryMeasure,
+): WorkbookCell[] {
+  if (!statistic) return SUMMARY_DAY_COLUMNS.map(() => blankCell);
+  const value = (figure: number | null) =>
+    figure === null
+      ? blankCell
+      : measure === "rate"
+        ? ratioCell(figure)
+        : decimalCell(figure, COUNT_DIGITS);
+  return [
+    countCell(statistic.n),
+    value(statistic.mean),
+    value(statistic.sd),
+    value(statistic.se),
+  ];
 }
 
 function calendarCell(day: CalendarDay, style?: CellStyle): WorkbookCell {

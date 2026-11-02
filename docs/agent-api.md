@@ -120,6 +120,8 @@ An experiment is a design and the records taken against it. The design is its tr
 
 A cell with neither reading nor exclusion has nothing yet. An agent reads numbers from the sheet; it never ranks a photograph's readings against an entered count or applies the exclusion rules itself.
 
+Under the cells, `summary` is the experiment by treatment, taken from those same cells: `baseline` names the first observation, and `cells` holds one entry per treatment per observation with the `units` in the analysis that day, each with its `count` and its `rate`, the count over the same unit's count on the baseline, and the `count` and `rate` statistics over them: `n`, `mean`, and the sample `sd` and `se`, null for a single unit. A rate is null for the baseline itself, for a day read for another model, and for a unit that counted nothing on the baseline. An agent reporting a treatment's mean reads it here rather than averaging cells itself, so its figure is the one the workbench and the spreadsheet show.
+
 ## Entering a day
 
 A day enters as an observation and the records taken on it, by either or both of two ways: photographs the workbench reads, and counts a person took at the bench.

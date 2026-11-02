@@ -43,6 +43,8 @@ A CultureEvent records contamination, nonviability, discard, harvest, or a missi
 
 A photograph a person cannot read clearly, such as a fogged lid or a dish out of focus, is marked unclear (不清晰). The mark belongs to the canonical image, not to the experiment, unit, observation, or model that shows it, and a photograph without one is clear. Whether unclear photographs count is each experiment's setting, off unless someone turns it on. Where they do not count, an unclear photograph takes its whole unit out of the analysis, every day of it, since the mark says the dish's record cannot be trusted: the grid still shows the unit's numbers, struck through, and the spreadsheet writes the word for unclear in their place. A day an event takes out is named by the event, and a photograph on such a day takes nothing else out. A day with no photograph is not an exclusion; the unit only has no number that day. Where they count, the number is used as it stands. Either way the photograph stays visible, is still read and carries the mark, and datasets train on it like any other. Marking, clearing, or changing the setting recomputes nothing; it only changes what counts.
 
+A Summary is the experiment by treatment: on each observation, how many of a treatment's units are in the analysis with a number, their mean, and their spread. The unit is the replicate, so statistics are over units, never over the individuals they hold. A day is summarised by its rate, each unit's count over its own count on the first observation, where the day reads for the same model; the first observation, and a day read for another model, by its count. The summary is the experiment page's second tab, the export's second sheet, and part of the sheet an agent reads, all from the same cells. Significance tests are left to the researcher, on the exported numbers.
+
 An Observation is one occasion, named by the day it happened. It cannot precede inoculation. An experiment is observed once a day at most, and observations are ordered by that day.
 
 Observation images are assigned to the units they show, one per unit per observation. A source filename is retained for traceability but is not an identifier; it provides an initial code suggestion that the operator confirms. A cell that already has an image can be given a different one. An assignment can be removed without changing the canonical image, its inference outcome, or its annotation.
@@ -155,9 +157,11 @@ claude mcp add --transport http vitroflow-annotation https://<workbench>/api/ann
 
 ## Experiment export
 
-**Export spreadsheet** on the experiment page downloads the grid as one `.xlsx`
-sheet. Its rows, quantities, missing values, and culture-event semantics follow
-the rules in [Readings](docs/readings.md).
+**Export spreadsheet** on the experiment page downloads an `.xlsx` of two
+sheets: the grid, a row per unit, and the summary by treatment, with n, mean,
+standard deviation and standard error under each observation. Its rows,
+quantities, missing values, and culture-event semantics follow the rules in
+[Readings](docs/readings.md).
 
 ## Dataset transfer
 

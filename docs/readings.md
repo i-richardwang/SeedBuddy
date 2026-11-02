@@ -91,7 +91,8 @@ one shows which. Hovering says why.
 
 ## What the spreadsheet carries
 
-An experiment exports as one sheet. The block at the top names the experiment,
+An experiment exports as a file of two sheets: the grid, and the summary of it
+by treatment. The grid's block at the top names the experiment,
 its plant material, explant type and base medium, the day it was inoculated and
 the day the file was taken. Below that the design repeats down every row —
 treatment, factor, unit — so the table sorts, filters and pivots on it, and each
@@ -111,14 +112,44 @@ unclear.
 ## What an agent reads
 
 An agent reads the experiment as a sheet (`domain/experiments/sheet.ts`): the
-design, and a cell for every unit on every observation. Each cell is resolved
-here, by the same functions the grid and the spreadsheet use: the reading the
-analysis counts and who stood behind it, why the day is out of the analysis if
-it is, and under them the photograph and the entered count the reading came
-from. An agent therefore never ranks readings or applies the exclusion rules
-itself, and a change to either changes what every reader sees at once. The
-workbench grid is a different view: it also shows what the workbench is still
-doing with a photograph, which the sheet does not.
+design, a cell for every unit on every observation, and the summary by
+treatment. Each cell is resolved here, by the same functions the grid and the
+spreadsheet use: the reading the analysis counts and who stood behind it, why
+the day is out of the analysis if it is, and under them the photograph and the
+entered count the reading came from. An agent therefore never ranks readings,
+applies the exclusion rules, or averages a treatment itself, and a change to
+any of them changes what every reader sees at once. The workbench grid is a
+different view: it also shows what the workbench is still doing with a
+photograph, which the sheet does not.
+
+## What the summary says
+
+The summary (`domain/experiments/summary.ts`) is the experiment by treatment:
+on each observation, how many of a treatment's units have a number in the
+analysis, the mean of those numbers, and their spread as the sample standard
+deviation and standard error. The unit is the replicate, so the statistics are
+taken over units and never over the individuals they hold: three dishes give
+n = 3 whatever they were sown with. A single unit has a mean and no spread,
+and a unit out of the analysis that day is not among the n.
+
+Two numbers are summarised. The count is what the unit read that day. The
+rate is that count over the unit's own count on the first observation, the
+day everything sown was counted: a germination trial's rate is the seeds
+germinated over the seeds sown in the same dish, and the treatment's rate is
+the mean of its dishes' rates, not the germinated over the sown of all of
+them together. A rate exists where the day reads for the model the first
+observation read for and the unit counted something that first day; the
+first observation itself has none, and a day read for another model has
+counts alone. A day is read by its rate where any treatment has one, and by
+its count otherwise.
+
+The workbench shows the summary as the experiment's second tab, a chart of one
+day's means with their standard deviations as error bars over a table of every
+day; the spreadsheet carries it as its second sheet, with n, mean, SD and SE
+under each date; and the agent's sheet carries it under the cells. Whether the
+treatments differ significantly is a question the summary does not answer:
+the test and the multiple-comparison method are the researcher's to choose,
+so that work is done on the exported numbers.
 
 ## What takes a unit out of the analysis
 

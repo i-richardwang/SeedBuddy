@@ -261,5 +261,21 @@
   ],
   "experiment_cell_manual": "Entered by hand",
   "experiment_cell_manual_unanswered": "The count entered leaves out a class this day counts; enter it again",
-  "unit_counted_on_day": "Counted by hand: {count}. A photograph from this day can still be matched to it in the experiment."
+  "unit_counted_on_day": "Counted by hand: {count}. A photograph from this day can still be matched to it in the experiment.",
+  "experiment_summary": "Summary",
+  "summary_measure_rate": "Rate",
+  "summary_measure_count": "Count",
+  "summary_chart_title": "{measure} by treatment, mean ± SD",
+  "summary_chart_day": "Observation day",
+  "summary_mean_sd": "{mean} ± {sd}",
+  "summary_n": "n = {count}",
+  "summary_tooltip_mean": "Mean ± SD",
+  "summary_column_n": "n",
+  "summary_column_mean": "Mean",
+  "summary_column_sd": "SD",
+  "summary_column_se": "SE",
+  "summary_note_statistics": "Mean ± standard deviation over the treatment's units in the analysis; n is how many.",
+  "summary_note_rate": "Rate = the day's count ÷ the same unit's count on the first observation ({day}). The first observation is summarised as a count.",
+  "summary_empty": "Nothing to summarise yet",
+  "summary_empty_description": "Once a day's photographs are read or its counts entered, each treatment is summarised here."
 }

@@ -15,7 +15,13 @@ type CellValue =
   | { readonly kind: "blank" }
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "date"; readonly date: Date }
-  | { readonly kind: "count"; readonly count: number };
+  | { readonly kind: "count"; readonly count: number }
+  | {
+      readonly kind: "decimal";
+      readonly value: number;
+      readonly digits: number;
+    }
+  | { readonly kind: "ratio"; readonly ratio: number };
 
 export interface CellStyle {
   readonly strong?: boolean;
@@ -51,16 +57,35 @@ export function countCell(count: number, style: CellStyle = {}): WorkbookCell {
   return { kind: "count", count, ...style };
 }
 
+/** A measured value shown to `digits` decimals, such as a mean. */
+export function decimalCell(
+  value: number,
+  digits: number,
+  style: CellStyle = {},
+): WorkbookCell {
+  return { kind: "decimal", value, digits, ...style };
+}
+
+/** A ratio where 1 is whole, shown as a percentage to one decimal. */
+export function ratioCell(ratio: number, style: CellStyle = {}): WorkbookCell {
+  return { kind: "ratio", ratio, ...style };
+}
+
 interface WorkbookColumn {
   readonly width: number;
 }
 
-export interface Workbook {
-  sheet: string;
+export interface WorkbookSheet {
+  name: string;
   columns: WorkbookColumn[];
   rows: WorkbookCell[][];
   stickyRows: number;
   stickyColumns: number;
+}
+
+/** A file of one or more sheets, the first on show when it opens. */
+export interface Workbook {
+  sheets: WorkbookSheet[];
 }
 
 function tidy(text: string): string {

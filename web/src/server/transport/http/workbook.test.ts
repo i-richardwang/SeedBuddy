@@ -5,20 +5,37 @@ import {
   blankCell,
   countCell,
   dateCell,
+  decimalCell,
+  ratioCell,
   textCell,
   type Workbook,
 } from "../../../lib/spreadsheet/workbook";
 import { workbookResponse } from "./workbook";
 
 const WORKBOOK: Workbook = {
-  sheet: "萌发试验",
-  columns: [{ width: 14 }, { width: 10 }, { width: 10 }],
-  rows: [
-    [textCell("萌发", { strong: true, columns: 3 }), blankCell, blankCell],
-    [dateCell({ year: 2026, month: 9, day: 1 }), countCell(15), countCell(12)],
+  sheets: [
+    {
+      name: "萌发试验",
+      columns: [{ width: 14 }, { width: 10 }, { width: 10 }],
+      rows: [
+        [textCell("萌发", { strong: true, columns: 3 }), blankCell, blankCell],
+        [
+          dateCell({ year: 2026, month: 9, day: 1 }),
+          countCell(15),
+          countCell(12),
+        ],
+      ],
+      stickyRows: 1,
+      stickyColumns: 1,
+    },
+    {
+      name: "汇总",
+      columns: [{ width: 14 }, { width: 10 }, { width: 10 }],
+      rows: [[textCell("CK"), decimalCell(13.5, 1), ratioCell(0.625)]],
+      stickyRows: 0,
+      stickyColumns: 0,
+    },
   ],
-  stickyRows: 1,
-  stickyColumns: 1,
 };
 
 /** The file as a spreadsheet reads it, rather than as bytes. */
@@ -96,5 +113,16 @@ describe("what the spreadsheet holds", () => {
     const styles = part(await written("trial.xlsx"), "xl/styles.xml");
     expect(styles).toContain(`formatCode="0"`);
     expect(styles).toContain(`formatCode="yyyy-mm-dd"`);
+    expect(styles).toContain(`formatCode="0.0"`);
+    expect(styles).toContain(`formatCode="0.0%"`);
+  });
+
+  test("every sheet is written, each under its name", async () => {
+    const files = await written("trial.xlsx");
+    expect(part(files, "xl/workbook.xml")).toContain(`name="萌发试验"`);
+    expect(part(files, "xl/workbook.xml")).toContain(`name="汇总"`);
+    const second = part(files, "xl/worksheets/sheet2.xml");
+    expect(second).toContain("<v>13.5</v>");
+    expect(second).toContain("<v>0.625</v>");
   });
 });

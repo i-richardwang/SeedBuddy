@@ -1,6 +1,10 @@
 import writeExcelFile, { type Cell } from "write-excel-file/node";
 
-import type { Workbook, WorkbookCell } from "../../../lib/spreadsheet/workbook";
+import type {
+  Workbook,
+  WorkbookCell,
+  WorkbookSheet,
+} from "../../../lib/spreadsheet/workbook";
 
 const CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -9,6 +13,13 @@ const CONTENT_TYPE =
 const COUNT_FORMAT = "0";
 /** A day reads largest unit first, the order that sorts as it reads. */
 const DATE_FORMAT = "yyyy-mm-dd";
+/** A ratio reads as a percentage to one decimal. */
+const RATIO_FORMAT = "0.0%";
+
+/** A measured value reads to the decimals it was given. */
+function decimalFormat(digits: number): string {
+  return digits > 0 ? `0.${"0".repeat(digits)}` : "0";
+}
 
 /** A cell a heading covers is written by that heading, and left empty here. */
 function encode(cell: WorkbookCell): Cell {
@@ -32,7 +43,34 @@ function encode(cell: WorkbookCell): Cell {
         format: COUNT_FORMAT,
         align: "right",
       };
+    case "decimal":
+      return {
+        ...style,
+        value: cell.value,
+        type: Number,
+        format: decimalFormat(cell.digits),
+        align: "right",
+      };
+    case "ratio":
+      return {
+        ...style,
+        value: cell.ratio,
+        type: Number,
+        format: RATIO_FORMAT,
+        align: "right",
+      };
   }
+}
+
+/** A sheet as the writer takes it: its name, its cells encoded, its widths and frozen panes. */
+function sheet(item: WorkbookSheet) {
+  return {
+    sheet: item.name,
+    data: item.rows.map((row) => row.map(encode)),
+    columns: item.columns,
+    stickyRowsCount: item.stickyRows,
+    stickyColumnsCount: item.stickyColumns,
+  };
 }
 
 /**
@@ -52,15 +90,7 @@ export async function workbookResponse(
   workbook: Workbook,
   filename: string,
 ): Promise<Response> {
-  const file = await writeExcelFile(
-    workbook.rows.map((row) => row.map(encode)),
-    {
-      sheet: workbook.sheet,
-      columns: workbook.columns,
-      stickyRowsCount: workbook.stickyRows,
-      stickyColumnsCount: workbook.stickyColumns,
-    },
-  ).toBuffer();
+  const file = await writeExcelFile(workbook.sheets.map(sheet)).toBuffer();
   // A Buffer is a window on a shared pool, so the response takes its own bytes.
   const bytes = new Uint8Array(file.byteLength);
   bytes.set(file);

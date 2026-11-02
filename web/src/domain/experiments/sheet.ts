@@ -29,14 +29,16 @@ import {
   unitIdSchema,
   type ManualReading,
 } from "./schema";
+import { experimentSummary, experimentSummarySchema } from "./summary";
 
 /**
  * The sheet is the experiment as its numbers: every unit's cell on every
  * observation, each resolved to the reading the analysis uses and whether the
- * day is in it, over the evidence the reading came from. The spreadsheet a
- * person exports and the sheet an agent reads carry the same thing; the
- * workbench grid, which also shows what the workbench is still doing with a
- * photograph, is a different view.
+ * day is in it, over the evidence the reading came from, and under them the
+ * summary by treatment taken from those cells. The spreadsheet a person
+ * exports and the sheet an agent reads carry the same thing; the workbench
+ * grid, which also shows what the workbench is still doing with a photograph,
+ * is a different view.
  */
 
 /** What a cell reads: the count, and who stood behind it. */
@@ -86,6 +88,8 @@ export const experimentSheetSchema = z.strictObject({
   observations: z.array(experimentObservationSchema),
   /** A cell for every unit on every observation, units in the grid's order. */
   cells: z.array(sheetCellSchema),
+  /** The cells summarised by treatment on each observation. */
+  summary: experimentSummarySchema,
 });
 
 export type ExperimentSheet = z.infer<typeof experimentSheetSchema>;
@@ -146,6 +150,7 @@ export function experimentSheet(grid: ExperimentGrid): ExperimentSheet {
     units: grid.units,
     observations: grid.observations,
     cells: grid.units.flatMap((unit) => unitCells(grid, unit, cells, ordinals)),
+    summary: experimentSummary(grid),
   };
 }
 

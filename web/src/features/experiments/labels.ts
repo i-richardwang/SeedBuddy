@@ -5,6 +5,7 @@ import type {
   ExperimentObservation,
   CultureEventType,
 } from "../../domain/experiments/schema";
+import type { SummaryMeasure } from "../../domain/experiments/summary";
 import { countsEveryClass } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";
 
@@ -30,6 +31,13 @@ export function observationQuestion(
       ? []
       : [countedClassesName(observation.countedClasses)]),
   ]);
+}
+
+/** The number a summary reads a day by, named. */
+export function summaryMeasureLabel(measure: SummaryMeasure): string {
+  return measure === "rate"
+    ? m.summary_measure_rate()
+    : m.summary_measure_count();
 }
 
 const CULTURE_EVENT_LABELS: Record<CultureEventType, () => string> = {

@@ -66,7 +66,7 @@
 @import "../ui/kit/DatePicker.css" layer(components);
 @import "../ui/kit/DropZone.css" layer(components);
 @import "../ui/kit/Legend.css" layer(components);
-@import "../ui/kit/LineChart.css" layer(components);
+@import "../ui/kit/Chart.css" layer(components);
 @import "../ui/kit/Table.css" layer(components);
 @import "../ui/kit/Pagination.css" layer(components);
 @import "../ui/kit/PreviewLayout.css" layer(components);

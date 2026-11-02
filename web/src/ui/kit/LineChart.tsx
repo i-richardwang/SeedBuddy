@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { AxisDomain } from "recharts/types/util/types";
 import { ChartTooltip } from "./ChartTooltip";
+import { textWidth } from "./chartText";
 import { useClientValue } from "./clientValue";
 import { chartColor, Legend } from "./Legend";
 
@@ -48,22 +49,6 @@ export interface LineChartProps {
 
 /** Room for the hovered dot (radius 5) at the top edge of the plot. */
 const DOT_RADIUS = 5;
-
-const widths = new Map<string, number>();
-let context: CanvasRenderingContext2D | null | undefined;
-
-/** Width of `text` at the axis label size (12px, `--text-xs`) in the page font, cached per text. */
-function textWidth(text: string): number {
-  const cached = widths.get(text);
-  if (cached !== undefined) return cached;
-  if (context === undefined)
-    context = document.createElement("canvas").getContext("2d");
-  if (!context) return 0;
-  context.font = `12px ${getComputedStyle(document.body).fontFamily}`;
-  const width = context.measureText(text).width;
-  widths.set(text, width);
-  return width;
-}
 
 /**
  * Width of the value axis: the widest formatted value plus 16px. The text is
@@ -107,28 +92,25 @@ export function LineChart({
   const lone = data.length === 1;
 
   return (
-    <figure className="ui-line-chart" style={{ height }}>
-      <figcaption className="ui-line-chart-header">
-        <span className="ui-line-chart-title">{title}</span>
+    <figure className="ui-chart" style={{ height }}>
+      <figcaption className="ui-chart-header">
+        <span className="ui-chart-title">{title}</span>
         <Legend categories={categories} labels={labels} />
       </figcaption>
-      <div className="ui-line-chart-plot">
+      <div className="ui-chart-plot">
         <ResponsiveContainer>
           <RechartsLineChart data={data} margin={{ top: DOT_RADIUS }}>
-            <CartesianGrid
-              className="ui-line-chart-grid-lines"
-              vertical={false}
-            />
+            <CartesianGrid className="ui-chart-grid-lines" vertical={false} />
             <XAxis
               axisLine={false}
-              className="ui-line-chart-label"
+              className="ui-chart-label"
               dataKey={index}
               domain={xAxisDomain}
               interval="equidistantPreserveStart"
               padding={{ left: 20, right: 20 }}
               // Tick labels render in a layer outside the axis group, so they carry the label class themselves.
               tick={{
-                className: "ui-line-chart-label",
+                className: "ui-chart-label",
                 transform: "translate(0, 6)",
               }}
               tickFormatter={indexFormatter}
@@ -138,11 +120,11 @@ export function LineChart({
             />
             <YAxis
               axisLine={false}
-              className="ui-line-chart-label"
+              className="ui-chart-label"
               domain={yAxisDomain}
               tick={(props) => (
                 <text
-                  className="ui-line-chart-label"
+                  className="ui-chart-label"
                   dy={4}
                   textAnchor="start"
                   x={0}
