@@ -59,7 +59,7 @@ export const Route = createFileRoute("/_workbench/experiments/$experiment/")({
   pendingComponent: () => (
     <PageColumnSkeleton>
       <PageHeaderSkeleton icon meta />
-      <TabsSkeleton tabs={2} />
+      <TabsSkeleton tabs={3} />
       <TableSkeleton />
     </PageColumnSkeleton>
   ),

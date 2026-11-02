@@ -15,6 +15,7 @@ import {
   unitDays,
 } from "../../domain/experiments/readings";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
+import { experimentSummary } from "../../domain/experiments/summary";
 import type { getExperimentGrid } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
@@ -39,14 +40,15 @@ import { observationQuestion } from "./labels";
 import { RecordObservationDialog } from "./ObservationDialog";
 import { ObservationMenu } from "./ObservationMenu";
 import { TreatmentName, TreatmentsTable } from "./TreatmentsTable";
+import { TreatmentSummary } from "./TreatmentSummary";
 import { UnitDayCount } from "./UnitDayCount";
 import { UnitSelectionBar } from "./UnitSelectionBar";
 
 /**
  * The parts of an experiment, one on show at a time: its units and what they
- * read, then its design.
+ * read, the summary of them by treatment, then its design.
  */
-export const EXPERIMENT_TABS = ["units", "treatments"] as const;
+export const EXPERIMENT_TABS = ["units", "summary", "treatments"] as const;
 
 export type ExperimentTab = (typeof EXPERIMENT_TABS)[number];
 
@@ -55,9 +57,9 @@ type ExperimentGridData = NonNullable<
 >;
 
 /**
- * One experiment, in two tabs: its units, a row per unit with the treatment
- * it belongs to and what it read on each day, and its design, a row per
- * treatment.
+ * One experiment, in three tabs: its units, a row per unit with the treatment
+ * it belongs to and what it read on each day; the summary, each treatment's
+ * mean and spread on each day; and its design, a row per treatment.
  */
 export function ExperimentGridView({
   data,
@@ -292,12 +294,20 @@ export function ExperimentGridView({
         activeKey={tab}
         items={[
           { key: "units", label: m.experiment_units() },
+          { key: "summary", label: m.experiment_summary() },
           { key: "treatments", label: m.experiment_treatments() },
         ]}
         onChange={onTabChange}
       />
       {tab === "units" ? (
         unitsTab
+      ) : tab === "summary" ? (
+        <TreatmentSummary
+          treatments={treatments}
+          units={units}
+          observations={observations}
+          summary={experimentSummary(data)}
+        />
       ) : (
         <TreatmentsTable
           experiment={experiment.id}

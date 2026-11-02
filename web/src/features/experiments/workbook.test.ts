@@ -14,6 +14,8 @@ import type { WorkbookCell } from "../../lib/spreadsheet/workbook";
 import {
   experimentWorkbook,
   experimentWorkbookFilename,
+  gridSheet,
+  summarySheet,
   type ExperimentWorkbookSource,
 } from "./workbook";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
@@ -122,25 +124,34 @@ function image(
   };
 }
 
+function source(
+  overrides: Partial<ExperimentWorkbookSource> = {},
+): ExperimentWorkbookSource {
+  return {
+    experiment: EXPERIMENT,
+    treatments: [TREATMENT],
+    units: [unit("A1"), unit("A2")],
+    observations: [SOWN, ROOTED],
+    images: [
+      image("A1", SOWN.id, { ungerminated: 20 }),
+      image("A2", SOWN.id, { ungerminated: 20 }),
+      image("A1", ROOTED.id, { rooted: 15 }),
+      image("A2", ROOTED.id, { rooted: 10 }),
+    ],
+    manualReadings: [],
+    models: [SEEDS, ROOTS],
+    ...overrides,
+  };
+}
+
+/** The grid sheet of the trial's workbook. */
 function trial(overrides: Partial<ExperimentWorkbookSource> = {}) {
-  return experimentWorkbook(
-    {
-      experiment: EXPERIMENT,
-      treatments: [TREATMENT],
-      units: [unit("A1"), unit("A2")],
-      observations: [SOWN, ROOTED],
-      images: [
-        image("A1", SOWN.id, { ungerminated: 20 }),
-        image("A2", SOWN.id, { ungerminated: 20 }),
-        image("A1", ROOTED.id, { rooted: 15 }),
-        image("A2", ROOTED.id, { rooted: 10 }),
-      ],
-      manualReadings: [],
-      models: [SEEDS, ROOTS],
-      ...overrides,
-    },
-    "2026-09-20",
-  );
+  return gridSheet(source(overrides), "2026-09-20");
+}
+
+/** The summary sheet of the trial's workbook. */
+function summary(overrides: Partial<ExperimentWorkbookSource> = {}) {
+  return summarySheet(source(overrides), "2026-09-20");
 }
 
 function describes(workbook: ReturnType<typeof trial>): WorkbookCell[][] {
@@ -365,5 +376,149 @@ describe("what the file is called", () => {
     expect(experimentWorkbookFilename({ ...EXPERIMENT, name: "//" })).toBe(
       "Experiments.xlsx",
     );
+  });
+});
+
+describe("the summary sheet", () => {
+  const SUMMARY_HEADING_ROWS = 3;
+  const germinating = () =>
+    summary({
+      observations: [SOWN, GERMINATED],
+      images: [
+        image("A1", SOWN.id, { ungerminated: 20 }),
+        image("A2", SOWN.id, { ungerminated: 20 }),
+        image("A1", GERMINATED.id, { ungerminated: 5, germinated: 15 }),
+        image("A2", GERMINATED.id, { ungerminated: 10, germinated: 10 }),
+      ],
+    });
+
+  test("comes second in the file, after the grid", () => {
+    const workbook = experimentWorkbook(source(), "2026-09-20");
+    expect(workbook.sheets.map((sheet) => sheet.name)).toEqual([
+      "Germination trial",
+      "Summary",
+    ]);
+  });
+
+  test("heads every day with its date over its measure over n, mean, SD and SE", () => {
+    const sheet = germinating();
+    const [dates, measures, statistics] = sheet.rows.slice(
+      sheet.stickyRows - SUMMARY_HEADING_ROWS,
+      sheet.stickyRows,
+    );
+    expect(dates).toEqual([
+      { kind: "text", text: "Treatment", strong: true, rows: 3 },
+      { kind: "text", text: "Factor", strong: true, rows: 3 },
+      {
+        kind: "date",
+        date: new Date(Date.UTC(2026, 8, 1)),
+        strong: true,
+        columns: 4,
+      },
+      { kind: "blank" },
+      { kind: "blank" },
+      { kind: "blank" },
+      {
+        kind: "date",
+        date: new Date(Date.UTC(2026, 8, 8)),
+        strong: true,
+        columns: 4,
+      },
+      { kind: "blank" },
+      { kind: "blank" },
+      { kind: "blank" },
+    ]);
+    expect(measures?.slice(2)).toEqual([
+      { kind: "text", text: "Count", strong: true, columns: 4 },
+      { kind: "blank" },
+      { kind: "blank" },
+      { kind: "blank" },
+      { kind: "text", text: "Rate", strong: true, columns: 4 },
+      { kind: "blank" },
+      { kind: "blank" },
+      { kind: "blank" },
+    ]);
+    expect(
+      statistics?.slice(2, 6).map((cell) => cell.kind === "text" && cell.text),
+    ).toEqual(["n", "Mean", "SD", "SE"]);
+    expect(sheet.stickyColumns).toBe(2);
+    expect(sheet.columns).toHaveLength(2 + 2 * 4);
+  });
+
+  test("a row per treatment: counts on the first day, rates after it", () => {
+    const sheet = germinating();
+    const [row] = sheet.rows.slice(sheet.stickyRows);
+    expect(row?.slice(0, 6)).toEqual([
+      { kind: "text", text: "CK" },
+      { kind: "text", text: "BA 0 mg/L" },
+      { kind: "count", count: 2 },
+      { kind: "decimal", value: 20, digits: 1 },
+      { kind: "decimal", value: 0, digits: 1 },
+      { kind: "decimal", value: 0, digits: 1 },
+    ]);
+    const [n, mean, sd, se] = row?.slice(6) ?? [];
+    expect(n).toEqual({ kind: "count", count: 2 });
+    expect(mean).toEqual({ kind: "ratio", ratio: 0.625 });
+    expect(sd?.kind === "ratio" && sd.ratio).toBeCloseTo(0.1768, 4);
+    expect(se?.kind === "ratio" && se.ratio).toBeCloseTo(0.125, 4);
+  });
+
+  test("a day read for another model is summarised by its counts", () => {
+    const sheet = summary();
+    const [, measures] = sheet.rows.slice(
+      sheet.stickyRows - SUMMARY_HEADING_ROWS,
+    );
+    expect(measures?.[6]).toEqual({
+      kind: "text",
+      text: "Count",
+      strong: true,
+      columns: 4,
+    });
+    const [row] = sheet.rows.slice(sheet.stickyRows);
+    expect(row?.slice(6)).toEqual([
+      { kind: "count", count: 2 },
+      { kind: "decimal", value: 12.5, digits: 1 },
+      { kind: "decimal", value: Math.sqrt(12.5), digits: 1 },
+      { kind: "decimal", value: Math.sqrt(12.5) / Math.sqrt(2), digits: 1 },
+    ]);
+  });
+
+  test("a single unit has a mean and no spread, and a unit out of the analysis is not counted", () => {
+    const sheet = summary({
+      units: [unit("A1"), unit("A2", CONTAMINATED)],
+    });
+    const [row] = sheet.rows.slice(sheet.stickyRows);
+    expect(row?.slice(6)).toEqual([
+      { kind: "count", count: 1 },
+      { kind: "decimal", value: 15, digits: 1 },
+      { kind: "blank" },
+      { kind: "blank" },
+    ]);
+  });
+
+  test("a treatment with nothing read that day leaves the day blank", () => {
+    const sheet = summary({ images: [] });
+    const [row] = sheet.rows.slice(sheet.stickyRows);
+    expect(row?.slice(2)).toEqual(Array(8).fill({ kind: "blank" }));
+  });
+
+  test("says under the table how the numbers were taken", () => {
+    const sheet = germinating();
+    const notes = sheet.rows.slice(sheet.stickyRows + 1);
+    expect(notes).toEqual([
+      [],
+      [
+        {
+          kind: "text",
+          text: "Mean ± standard deviation over the treatment's units in the analysis; n is how many.",
+        },
+      ],
+      [
+        {
+          kind: "text",
+          text: "Rate = the day's count ÷ the same unit's count on the first observation (Sep 1, 2026). The first observation is summarised as a count.",
+        },
+      ],
+    ]);
   });
 });

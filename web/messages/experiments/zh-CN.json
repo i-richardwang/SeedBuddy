@@ -242,5 +242,21 @@
   ],
   "experiment_cell_manual": "手工录入",
   "experiment_cell_manual_unanswered": "录入的计数缺少本观测日的计数类别，请重新录入",
-  "unit_counted_on_day": "手工录入的计数：{count}。也可以在实验表格中把这一天的照片对应到这个试验单元。"
+  "unit_counted_on_day": "手工录入的计数：{count}。也可以在实验表格中把这一天的照片对应到这个试验单元。",
+  "experiment_summary": "汇总",
+  "summary_measure_rate": "比率",
+  "summary_measure_count": "计数",
+  "summary_chart_title": "各处理{measure}（均值 ± 标准差）",
+  "summary_chart_day": "观测日",
+  "summary_mean_sd": "{mean} ± {sd}",
+  "summary_n": "n = {count}",
+  "summary_tooltip_mean": "均值 ± 标准差",
+  "summary_column_n": "n",
+  "summary_column_mean": "均值",
+  "summary_column_sd": "标准差",
+  "summary_column_se": "标准误",
+  "summary_note_statistics": "均值 ± 标准差按处理内计入统计的试验单元计算，n 为其数量。",
+  "summary_note_rate": "比率 = 当日计数 ÷ 同一试验单元在首次观测（{day}）的计数；首次观测列为计数本身。",
+  "summary_empty": "还没有可汇总的读数",
+  "summary_empty_description": "观测日的照片读出结果或录入计数后，这里按处理汇总。"
 }

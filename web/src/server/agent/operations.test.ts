@@ -313,10 +313,17 @@ describe("agent operations", () => {
         ],
       }),
     ) as ManualReading[];
-    expect(entered.map(({ unit, tally }) => ({ unit, tally }))).toEqual([
-      { unit: photographed!.id, tally: { germinated: 9 } },
-      { unit: counted!.id, tally: { germinated: 7 } },
-    ]);
+    // The day's counts come back as listed, in no particular order of units.
+    const byUnit = ({ unit }: { unit: string }, other: { unit: string }) =>
+      unit.localeCompare(other.unit);
+    expect(
+      entered.map(({ unit, tally }) => ({ unit, tally })).sort(byUnit),
+    ).toEqual(
+      [
+        { unit: photographed!.id, tally: { germinated: 9 } },
+        { unit: counted!.id, tally: { germinated: 7 } },
+      ].sort(byUnit),
+    );
 
     sheet = await readSheet(experiment.id);
     expect(cellOf(sheet, photographed!.id, observation.id)).toMatchObject({

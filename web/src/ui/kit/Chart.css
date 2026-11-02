@@ -1,5 +1,5 @@
-/* The header row sits 20px above the plot. */
-.ui-line-chart {
+/* The frame the line and bar charts share: a header row 20px above the plot. */
+.ui-chart {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -8,7 +8,7 @@
   margin: 0;
 }
 
-.ui-line-chart-header {
+.ui-chart-header {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
@@ -16,24 +16,24 @@
   justify-content: space-between;
 }
 
-.ui-line-chart-title {
+.ui-chart-title {
   font-size: var(--text-xs);
   font-weight: 500;
   line-height: var(--text-xs--line-height);
   color: var(--color-fg-secondary);
 }
 
-.ui-line-chart-plot {
+.ui-chart-plot {
   flex: 1;
   min-height: 0;
 }
 
-.ui-line-chart-grid-lines {
+.ui-chart-grid-lines {
   stroke: var(--color-border-secondary);
   stroke-width: 1;
 }
 
-.ui-line-chart-label {
+.ui-chart-label {
   font-size: var(--text-xs);
   line-height: 16px;
   fill: var(--color-fg-tertiary);

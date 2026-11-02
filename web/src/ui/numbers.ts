@@ -32,6 +32,15 @@ export function formatPercent(ratio: number): string {
   return format(ratio, { style: "percent", maximumFractionDigits: 0 });
 }
 
+/** A ratio, where 1 is whole, as a percent to one decimal, such as a rate. */
+export function formatRate(ratio: number): string {
+  return format(ratio, {
+    style: "percent",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
 /** A change in a measured value, signed, to a fixed number of decimals. */
 export function formatDecimalChange(value: number, digits: number): string {
   return format(value, {
