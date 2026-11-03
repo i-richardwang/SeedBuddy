@@ -119,7 +119,7 @@ def test_worker_claims_only_one_task_and_fences_its_result():
     process = Process()
     runner = InferenceRunner(client, process)  # type: ignore[arg-type]
     try:
-        assert runner.run_once()
+        assert runner.run_once(threading.Event())
         assert len(server.assignments) == 1
         assert [r.method for r in server.calls] == ["POST", "PUT"]
         assert dict(server.calls[-1].url.params) == {
@@ -127,7 +127,7 @@ def test_worker_claims_only_one_task_and_fences_its_result():
             "attempt": "3",
         }
         assert process.closed == 0
-        assert runner.run_once()
+        assert runner.run_once(threading.Event())
         assert len(server.assignments) == 0
     finally:
         runner.close()
@@ -143,7 +143,7 @@ def test_execution_errors_are_attempt_failures_not_detection_results():
 
     process = Process(fail)
     try:
-        assert InferenceRunner(client, process).run_once()  # type: ignore[arg-type]
+        assert InferenceRunner(client, process).run_once(threading.Event())  # type: ignore[arg-type]
         assert not any(r.method == "PUT" for r in server.calls)
         request = server.calls[-1]
         assert request.url.path.endswith("/fail")
@@ -164,7 +164,7 @@ def test_lost_lease_stops_execution_and_prevents_late_result(monkeypatch):
     process = Process()
     try:
         with pytest.raises(LeaseLostError):
-            InferenceRunner(client, process).run_once()  # type: ignore[arg-type]
+            InferenceRunner(client, process).run_once(threading.Event())  # type: ignore[arg-type]
         assert process.closed == 1
         assert not any(r.method == "PUT" for r in server.calls)
     finally:
@@ -183,7 +183,7 @@ def test_execution_deadline_stops_a_live_worker_even_when_renewal_succeeds(monke
 
     process = Process(hang)
     try:
-        assert InferenceRunner(client, process).run_once()  # type: ignore[arg-type]
+        assert InferenceRunner(client, process).run_once(threading.Event())  # type: ignore[arg-type]
         assert process.closed == 1
         assert not any(r.method == "PUT" for r in server.calls)
     finally:
@@ -226,7 +226,9 @@ def test_result_transport_retries_keep_the_same_attempt_and_payload():
         transport=httpx.MockTransport(transport),
     )
     try:
-        assert InferenceRunner(InferenceClient(worker), Process()).run_once()  # type: ignore[arg-type]
+        assert InferenceRunner(InferenceClient(worker), Process()).run_once(  # type: ignore[arg-type]
+            threading.Event()
+        )
         assert len(results) == 2 and results[0] == results[1]
     finally:
         worker.close()

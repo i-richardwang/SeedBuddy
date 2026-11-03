@@ -13,6 +13,7 @@ import {
 import {
   datasetSnapshotSchema,
   trainingRunSchema,
+  trainingRecipeSchema,
 } from "../src/domain/training/schema";
 
 import { dishRecipeSchema } from "../src/domain/images/coverage";
@@ -31,6 +32,7 @@ const contracts: ReadonlyArray<[string, ZodType]> = [
   ["inference-model-manifest", inferenceModelManifestSchema],
   ["detection-result", detectionResultSchema],
   ["training-run", trainingRunSchema],
+  ["training-recipe", trainingRecipeSchema],
   ["training-snapshot", datasetSnapshotSchema],
 ];
 

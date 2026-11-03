@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from vitroctl.annotations import AnnotationDocument
+from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.datasets.manifest import ManifestImage, load_dataset_manifest
 
 

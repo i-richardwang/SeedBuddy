@@ -42,7 +42,7 @@ def _setup(args: argparse.Namespace) -> int:
     )
     for check in preflight_profile(args.profile, profile):
         print(check)
-    path = save_profile(args.profile, profile, overwrite=args.force)
+    path = save_profile(args.profile, profile)
     print(f"saved worker profile: {path}")
     if replacing:
         restart_service(args.profile)

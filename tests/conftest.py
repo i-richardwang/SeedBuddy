@@ -7,6 +7,7 @@ from typing import Any
 
 import cv2
 import numpy as np
+import pytest
 
 from vitroctl.datasets.manifest import (
     MANIFEST_SCHEMA_VERSION,
@@ -144,3 +145,27 @@ def write_blob(data_root: Path, data: bytes) -> str:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
     return digest
+
+
+PARAMETERS = {
+    "epochs": 3,
+    "patience": 20,
+    "batch": 4,
+    "imgsz": 768,
+    "optimizer": "AdamW",
+    "lr0": 0.001,
+    "warmup_epochs": 3.0,
+    "mosaic": 0.0,
+    "mixup": 0.0,
+    "copy_paste": 0.0,
+    "max_det": 500,
+    "seed": 0,
+    "deterministic": True,
+}
+
+
+@pytest.fixture
+def recipe(request: pytest.FixtureRequest) -> dict[str, Any]:
+    filename = getattr(request, "param", "yolo26n-whole-v1.recipe.json")
+    path = Path(__file__).parents[1] / "configs/yolo26" / filename
+    return json.loads(path.read_text())["recipe"]

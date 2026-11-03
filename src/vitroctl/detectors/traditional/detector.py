@@ -5,7 +5,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from vitroctl.annotations import BoundingBox
+from vitroctl.contracts.annotation import BoundingBox
 from vitroctl.detectors.contract import (
     DetectionDiagnostics,
     DetectionInstance,
@@ -14,6 +14,7 @@ from vitroctl.detectors.contract import (
     DetectionResult,
     DishGeometry,
     RuntimeDescriptor,
+    adapter_fingerprint,
 )
 from vitroctl.detectors.traditional.config import PipelineConfig
 from vitroctl.detectors.traditional.identity import ExecutionIdentity
@@ -35,17 +36,6 @@ def _artifact_digest(execution: ExecutionIdentity) -> str:
     )
     identity = f"{execution.model_fingerprint}\0{config}".encode()
     return hashlib.sha256(identity).hexdigest()
-
-
-def _runtime_fingerprint(execution: ExecutionIdentity) -> str:
-    digest = hashlib.sha256(execution.pipeline_fingerprint.encode())
-    package = Path(__file__).parent
-    for name in ("../contract.py", "detector.py"):
-        digest.update(b"\0")
-        digest.update(name.encode())
-        digest.update(b"\0")
-        digest.update((package / name).read_bytes())
-    return digest.hexdigest()
 
 
 def _box_around(
@@ -81,7 +71,9 @@ class TraditionalDetector:
         execution = ExecutionIdentity.create(self.config, self.model)
         return RuntimeDescriptor(
             adapter="traditional",
-            fingerprint=_runtime_fingerprint(execution),
+            fingerprint=adapter_fingerprint(
+                execution.pipeline_fingerprint.encode(), Path(__file__)
+            ),
         )
 
     def predict(

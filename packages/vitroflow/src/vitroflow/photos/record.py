@@ -9,6 +9,8 @@ counted.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from vitroflow.photos.photographs import PHOTO_SUFFIXES
@@ -53,12 +55,15 @@ def load_record(path: Path) -> dict:
 
 
 def save_record(path: Path, record: dict) -> None:
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(record, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    temporary.replace(path)
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}-")
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, indent=2, ensure_ascii=False) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def has_confirmations(record: dict) -> bool:

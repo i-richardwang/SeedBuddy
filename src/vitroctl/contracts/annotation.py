@@ -5,17 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from vitroctl.contracts.documents import (
-    as_digest,
-    as_integer,
-    as_list,
-    as_number,
-    as_object,
-    as_string,
-    expect_fields,
-    expect_schema_version,
-)
-from vitroctl.contracts.identifiers import CLASS_NAME
 from vitroctl.contracts.validation import validate_wire_contract
 
 ANNOTATION_SCHEMA_VERSION = 1
@@ -52,6 +41,23 @@ class AnnotationDocument:
     height: int
     instances: tuple[AnnotationInstance, ...]
 
+    @classmethod
+    def from_document(cls, payload: dict[str, Any], context: str) -> AnnotationDocument:
+        """Read a schema-validated document and check image-relative semantics."""
+        image = payload["image"]
+        digest = image["digest"]
+        image_width = image["width"]
+        image_height = image["height"]
+
+        return cls(
+            digest=digest,
+            width=image_width,
+            height=image_height,
+            instances=_parse_instances(
+                payload["instances"], image_width, image_height, f"{context}.instances"
+            ),
+        )
+
     def to_dict(self) -> dict[str, object]:
         return {
             "schemaVersion": ANNOTATION_SCHEMA_VERSION,
@@ -79,13 +85,11 @@ class AnnotationDocument:
 def _parse_box(
     value: dict[str, Any], image_width: int, image_height: int, context: str
 ) -> BoundingBox:
-    bbox = as_object(value, context)
-    expect_fields(bbox, {"x", "y", "width", "height"}, context)
     parsed = BoundingBox(
-        x=as_number(bbox["x"], f"{context}.x"),
-        y=as_number(bbox["y"], f"{context}.y"),
-        width=as_number(bbox["width"], f"{context}.width", positive=True),
-        height=as_number(bbox["height"], f"{context}.height", positive=True),
+        x=value["x"],
+        y=value["y"],
+        width=value["width"],
+        height=value["height"],
     )
     if (
         parsed.x < 0
@@ -102,17 +106,13 @@ def _parse_instances(
 ) -> tuple[AnnotationInstance, ...]:
     identifiers: set[str] = set()
     instances: list[AnnotationInstance] = []
-    for index, raw_instance in enumerate(as_list(value, context)):
+    for index, instance in enumerate(value):
         instance_context = f"{context}[{index}]"
-        instance = as_object(raw_instance, instance_context)
-        expect_fields(instance, {"id", "class", "bbox"}, instance_context)
-        identifier = as_string(instance["id"], f"{instance_context}.id")
+        identifier = instance["id"]
         if identifier in identifiers:
             raise ValueError(f"{instance_context}.id is a duplicate: {identifier}")
         identifiers.add(identifier)
-        class_name = as_string(instance["class"], f"{instance_context}.class")
-        if not CLASS_NAME.fullmatch(class_name):
-            raise ValueError(f"{instance_context}.class is invalid")
+        class_name = instance["class"]
         instances.append(
             AnnotationInstance(
                 instance_id=identifier,
@@ -130,22 +130,4 @@ def _parse_instances(
 
 def parse_annotation(value: Any, context: str = "annotation") -> AnnotationDocument:
     validate_wire_contract("annotation", value, context)
-    payload = as_object(value, context)
-    expect_fields(payload, {"schemaVersion", "image", "instances"}, context)
-    expect_schema_version(payload, "schemaVersion", ANNOTATION_SCHEMA_VERSION, context)
-
-    image_context = f"{context}.image"
-    image = as_object(payload["image"], image_context)
-    expect_fields(image, {"digest", "width", "height"}, image_context)
-    digest = as_digest(image["digest"], f"{image_context}.digest")
-    image_width = as_integer(image["width"], f"{image_context}.width", 1)
-    image_height = as_integer(image["height"], f"{image_context}.height", 1)
-
-    return AnnotationDocument(
-        digest=digest,
-        width=image_width,
-        height=image_height,
-        instances=_parse_instances(
-            payload["instances"], image_width, image_height, f"{context}.instances"
-        ),
-    )
+    return AnnotationDocument.from_document(value, context)

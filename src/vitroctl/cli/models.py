@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +11,7 @@ from vitroctl.detectors.ultralytics.detector import (
     UltralyticsDetector,
     YoloInferenceSettings,
 )
+from vitroctl.detectors.ultralytics.runtime import require_ultralytics_version
 from vitroctl.models.bundle import (
     read_bundle,
     validate_bundle,
@@ -22,8 +22,7 @@ from vitroctl.models.bundle import (
 
 def verify_runtime(document: dict[str, Any], weights: Path) -> None:
     required = document["training"]["runtime"]["version"]
-    if version("ultralytics") != required:
-        raise ValueError(f"Bundle requires ultralytics {required}")
+    require_ultralytics_version(required)
     settings = document["inference"]
     detector = UltralyticsDetector(
         weights,

@@ -9,12 +9,12 @@ from pathlib import Path
 
 from vitroctl.detectors.ultralytics.checkpoints import CHECKPOINT_FILES, EPOCH_JOURNAL
 from vitroctl.io.files import atomic_directory, write_text_atomically
-from vitroctl.training.documents import TrainingJob
+from vitroctl.training.documents import TrainingClaim
 
 LOCAL_TRAINING_IDENTITY = "training-identity.json"
 
 
-def prepare_local_training(job: TrainingJob, root: Path) -> None:
+def prepare_local_training(job: TrainingClaim, root: Path) -> None:
     identity = {
         "runId": job.run_id,
         "snapshotId": job.dataset_snapshot_id,

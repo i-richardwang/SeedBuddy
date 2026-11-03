@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-from vitroctl.annotations import AnnotationInstance
+from vitroctl.contracts.annotation import AnnotationInstance
 from vitroctl.contracts.identifiers import CLASS_NAME
 from vitroctl.datasets.annotations import AnnotatedImage
 from vitroctl.datasets.manifest import verified_blob

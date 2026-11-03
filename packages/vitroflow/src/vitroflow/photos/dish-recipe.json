@@ -1,0 +1,12 @@
+{
+  "thumbnailLongEdge": 1200,
+  "sigma": 3,
+  "dp": 1.2,
+  "edgeThreshold": 80,
+  "centerThreshold": 45,
+  "minRadiusFraction": 0.32,
+  "maxRadiusFraction": 0.49,
+  "radiusPreference": 0.15,
+  "coverageMargin": 0.15,
+  "radiusTolerancePixels": 1
+}

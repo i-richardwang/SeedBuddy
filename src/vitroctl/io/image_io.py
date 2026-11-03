@@ -30,7 +30,3 @@ def verify_digest(data: bytes, digest: str) -> bytes:
     if content_digest(data) != digest:
         raise ValueError(f"Content failed digest verification against {digest}")
     return data
-
-
-def image_digest(path: str | Path) -> str:
-    return content_digest(Path(path).read_bytes())

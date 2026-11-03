@@ -120,7 +120,7 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
         assert events[-1] == "close inference"
         events.append("training")
 
-    monkeypatch.setattr(worker, "process_training_job", train)
+    monkeypatch.setattr(worker, "serve_training_claim", train)
     try:
         assert served.serve_once(threading.Event()) is True
         assert served.serve_once(threading.Event()) is True
@@ -129,7 +129,7 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
         def fail(*args, **kwargs):
             raise RuntimeError("training failed")
 
-        monkeypatch.setattr(worker, "process_training_job", fail)
+        monkeypatch.setattr(worker, "serve_training_claim", fail)
         with pytest.raises(RuntimeError, match="training failed"):
             served.serve_once(threading.Event())
         assert events[-2:] == ["close inference", "release"]

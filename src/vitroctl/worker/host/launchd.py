@@ -31,8 +31,8 @@ def launch_agent_path(name: str) -> Path:
     return Path.home() / "Library" / "LaunchAgents" / f"{service_label(name)}.plist"
 
 
-def launch_agent_document(name: str, executable: str | None = None) -> dict[str, Any]:
-    command = executable or shutil.which("vitroctl")
+def launch_agent_document(name: str) -> dict[str, Any]:
+    command = shutil.which("vitroctl")
     if not command:
         raise RuntimeError("vitroctl executable is not available on PATH")
     directory = profile_directory(name)

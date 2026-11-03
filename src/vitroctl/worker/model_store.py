@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import shutil
-import tempfile
 from dataclasses import dataclass
-from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -20,8 +17,15 @@ from vitroctl.detectors.traditional.detector import (
     TraditionalDetector,
 )
 from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
-from vitroctl.detectors.ultralytics.detector import UltralyticsDetector
-from vitroctl.detectors.ultralytics.runtime import release_accelerator
+from vitroctl.detectors.ultralytics.detector import (
+    UltralyticsDetector,
+    YoloInferenceSettings,
+)
+from vitroctl.detectors.ultralytics.runtime import (
+    release_accelerator,
+    require_ultralytics_version,
+)
+from vitroctl.io.files import atomic_directory
 
 CACHE_VALIDATION_ERRORS = (OSError, TypeError, ValueError, RuntimeError)
 LOGGER = logging.getLogger(__name__)
@@ -98,24 +102,26 @@ class ModelStore:
         self, version_id: str, classes: tuple[str, ...], artifact: dict[str, Any]
     ) -> UltralyticsDetector:
         required_runtime = artifact["training"]["runtime"]["version"]
-        if version("ultralytics") != required_runtime:
-            raise ValueError(f"Model requires ultralytics {required_runtime}")
+        require_ultralytics_version(required_runtime)
         expected_digest = artifact["digest"]
+        inference = artifact["inference"]
+        settings = YoloInferenceSettings(
+            inference["confidence"],
+            inference["imageSize"],
+            inference["maxDetections"],
+            inference["endToEnd"],
+        )
         destination = self._artifacts / version_id
         if destination.exists():
             try:
                 return self._verified_ultralytics_detector(
-                    destination, classes, expected_digest
+                    destination, classes, expected_digest, settings
                 )
             except CACHE_VALIDATION_ERRORS as error:
                 LOGGER.warning("discarding invalid cache for %s: %s", version_id, error)
                 self._discard_cache_entry(destination)
 
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        temporary = Path(
-            tempfile.mkdtemp(prefix=f".{version_id}.", dir=destination.parent)
-        )
-        try:
+        with atomic_directory(destination) as temporary:
             weights = temporary / "weights" / "best.pt"
             weights.parent.mkdir(parents=True)
             content = self._source.weights(version_id)
@@ -124,50 +130,23 @@ class ModelStore:
             if hashlib.sha256(content).hexdigest() != artifact["weights"]["digest"]:
                 raise ValueError("Downloaded YOLO weights have an unexpected digest")
             weights.write_bytes(content)
-            inference = artifact["inference"]
-            training = artifact["training"]
-            (temporary / "inference.json").write_text(
-                json.dumps(
-                    {
-                        "schemaVersion": 1,
-                        "weights": "weights/best.pt",
-                        "inference": {
-                            "ready": True,
-                            "confidence": inference["confidence"],
-                            "imageSize": inference["imageSize"],
-                            "maxDetections": inference["maxDetections"],
-                            "endToEnd": inference["endToEnd"],
-                        },
-                        "validation": artifact["validation"],
-                        "training": {
-                            "baseModel": training["baseModel"],
-                            "parameters": training["parameters"],
-                            "runtime": training["runtime"],
-                        },
-                    },
-                    indent=2,
-                )
-                + "\n",
-                encoding="utf-8",
+            self._verified_ultralytics_detector(
+                temporary, classes, expected_digest, settings
             )
-            self._verified_ultralytics_detector(temporary, classes, expected_digest)
-            try:
-                temporary.rename(destination)
-            except FileExistsError:
-                return self._verified_ultralytics_detector(
-                    destination, classes, expected_digest
-                )
-        finally:
-            if temporary.exists():
-                shutil.rmtree(temporary)
         return self._verified_ultralytics_detector(
-            destination, classes, expected_digest
+            destination, classes, expected_digest, settings
         )
 
     def _verified_ultralytics_detector(
-        self, run: Path, classes: tuple[str, ...], expected_digest: str
+        self,
+        run: Path,
+        classes: tuple[str, ...],
+        expected_digest: str,
+        settings: YoloInferenceSettings,
     ) -> UltralyticsDetector:
-        cached = UltralyticsDetector.from_run(run, classes, device=self._device)
+        cached = UltralyticsDetector(
+            run / "weights" / "best.pt", settings, classes, self._device
+        )
         if cached.artifact_digest != expected_digest:
             raise ValueError("YOLO artifact does not match its published digest")
         return cached

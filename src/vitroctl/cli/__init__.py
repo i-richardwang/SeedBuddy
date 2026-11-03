@@ -3,12 +3,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
 import sys
 from pathlib import Path
 
 import httpx
 
+from vitroctl.cli.connection import connection, connection_options
 from vitroctl.cli.models import add_model_commands
 from vitroctl.cli.training import add_training_commands
 from vitroctl.datasets.annotations import load_annotations
@@ -161,19 +161,8 @@ def _train_candidate_scoring(args: argparse.Namespace) -> int:
     return 0
 
 
-def _workbench(args: argparse.Namespace) -> tuple[str, str]:
-    server_url = args.server or os.environ.get("VITROFLOW_SERVER_URL")
-    token = args.token or os.environ.get("VITROFLOW_API_KEY")
-    if not server_url or not token:
-        raise ValueError(
-            f"dataset {args.dataset_command} needs --server/VITROFLOW_SERVER_URL "
-            "and --token/VITROFLOW_API_KEY"
-        )
-    return server_url, token
-
-
 def _pull_dataset(args: argparse.Namespace) -> int:
-    server_url, token = _workbench(args)
+    server_url, token = connection(args, "transfer")
     data_root = Path(args.data_root)
     report = pull_dataset(server_url, token, args.dataset, data_root)
     print(
@@ -185,7 +174,7 @@ def _pull_dataset(args: argparse.Namespace) -> int:
 
 
 def _push_dataset(args: argparse.Namespace) -> int:
-    server_url, token = _workbench(args)
+    server_url, token = connection(args, "transfer")
     report = push_dataset(server_url, token, args.dataset, Path(args.data_root))
     print(f"pushed {report.images} images of {report.dataset} to {server_url}")
     return 0
@@ -215,16 +204,6 @@ def _add_pipeline_options(parser: argparse.ArgumentParser) -> None:
 def _add_dataset_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dataset", required=True, help="Workbench dataset name")
     parser.add_argument("--data-root", default="data")
-
-
-def _add_workbench_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--server", help="Workbench URL (default: VITROFLOW_SERVER_URL)"
-    )
-    parser.add_argument(
-        "--token",
-        help="API key with the transfer scope (default: VITROFLOW_API_KEY)",
-    )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -277,13 +256,13 @@ def _parser() -> argparse.ArgumentParser:
         "pull", help="Download a workbench dataset into a local data directory"
     )
     _add_dataset_options(pull)
-    _add_workbench_options(pull)
+    connection_options(pull, "transfer")
     pull.set_defaults(handler=_pull_dataset)
     push = dataset_commands.add_parser(
         "push", help="Upload a local dataset to a workbench that does not have it"
     )
     _add_dataset_options(push)
-    _add_workbench_options(push)
+    connection_options(push, "transfer")
     push.set_defaults(handler=_push_dataset)
     export_yolo = dataset_commands.add_parser(
         "export-yolo", help="Export the annotations as a YOLO dataset"

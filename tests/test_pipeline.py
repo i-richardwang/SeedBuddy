@@ -145,7 +145,9 @@ def test_candidate_model_requires_its_canonical_schema() -> None:
         CandidateModel.from_dict(payload)
 
     payload = DEFAULT_MODEL.to_dict()
-    payload["weights"][0] = "1.0"
+    weights = payload["weights"]
+    assert isinstance(weights, list)
+    weights[0] = "1.0"
     with pytest.raises(TypeError, match="weights must be numeric"):
         CandidateModel.from_dict(payload)
 

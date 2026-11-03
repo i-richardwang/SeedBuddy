@@ -1,6 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -42,7 +43,7 @@ def test_shared_dataset_manifest_contract() -> None:
     assert dataset.images[0].annotation is not None
 
 
-def _manifest() -> dict[str, object]:
+def _manifest() -> dict[str, Any]:
     return manifest_document(
         "seeds",
         [
@@ -110,14 +111,14 @@ def test_manifest_encoding_is_canonical_and_bounded() -> None:
     assert b": " not in encoded
 
     document["images"][0]["filename"] = "x" * MAX_DATASET_MANIFEST_BYTES
-    with pytest.raises(ValueError, match="exceeds 16 MiB"):
+    with pytest.raises(ValueError, match=f"exceeds {MAX_DATASET_MANIFEST_BYTES} bytes"):
         encode_dataset_manifest(parse_dataset_manifest(document))
 
 
 def _server(
     *,
     blobs: dict[str, bytes] | None = None,
-    manifest: dict[str, object] | None = None,
+    manifest: dict[str, Any] | None = None,
 ):
     served = {DIGEST_A: IMAGE_A, DIGEST_B: IMAGE_B} if blobs is None else blobs
     document = _manifest() if manifest is None else manifest
@@ -298,7 +299,7 @@ def test_pull_replaces_the_previous_manifest(tmp_path: Path) -> None:
     assert [child.name for child in manifest.parent.iterdir()] == ["seeds.json"]
 
 
-def _data_root(root: Path, document: dict[str, object] | None = None) -> None:
+def _data_root(root: Path, document: dict[str, Any] | None = None) -> None:
     for digest, image in ((DIGEST_A, IMAGE_A), (DIGEST_B, IMAGE_B)):
         path = blob_path(root, digest)
         path.parent.mkdir(parents=True, exist_ok=True)

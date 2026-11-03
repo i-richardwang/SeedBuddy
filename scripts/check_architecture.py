@@ -10,34 +10,26 @@ DEPENDENCIES: dict[str, set[str]] = {
     "contracts": set(),
     "io": set(),
     "image_geometry": {"contracts"},
-    "annotations": {"contracts"},
-    "detector_contracts": {"annotations", "contracts"},
-    "datasets": {"annotations", "contracts", "io", "detector_contracts"},
-    "training": {"annotations", "contracts", "datasets"},
+    "datasets": {"contracts", "io"},
+    "training": {"contracts", "datasets"},
     "traditional": {
-        "annotations",
         "contracts",
         "datasets",
         "io",
-        "detector_contracts",
         "image_geometry",
     },
     "ultralytics": {
-        "annotations",
         "contracts",
         "datasets",
         "training",
         "io",
-        "detector_contracts",
     },
     "worker": {
         "models",
-        "annotations",
         "contracts",
         "datasets",
         "training",
         "io",
-        "detector_contracts",
         "traditional",
         "ultralytics",
     },
@@ -48,7 +40,6 @@ DEPENDENCIES: dict[str, set[str]] = {
         "host",
         "worker",
         "datasets",
-        "annotations",
         "traditional",
         "ultralytics",
         "io",
@@ -66,7 +57,7 @@ def owner(module: str) -> str:
     for prefix, name in (
         ("detectors.traditional", "traditional"),
         ("detectors.ultralytics", "ultralytics"),
-        ("detectors", "detector_contracts"),
+        ("detectors", "contracts"),
         ("worker.host", "host"),
     ):
         if suffix == prefix or suffix.startswith(prefix + "."):
@@ -140,11 +131,12 @@ def check_architecture(
             )
         ):
             if not target.startswith("vitroctl"):
-                if layer in {
-                    "contracts",
-                    "annotations",
-                    "detector_contracts",
-                } and target.split(".")[0] in {"torch", "cv2", "httpx", "ultralytics"}:
+                if layer == "contracts" and target.split(".")[0] in {
+                    "torch",
+                    "cv2",
+                    "httpx",
+                    "ultralytics",
+                }:
                     errors.append(
                         f"{module}: contract must not import runtime {target}"
                     )

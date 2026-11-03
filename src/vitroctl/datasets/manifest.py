@@ -10,29 +10,16 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from vitroctl.annotations import AnnotationDocument, parse_annotation
-from vitroctl.contracts.documents import (
-    as_digest,
-    as_integer,
-    as_list,
-    as_object,
-    as_string,
-    expect_fields,
-    expect_schema_version,
-)
-from vitroctl.contracts.identifiers import CLASS_NAME, DATASET_NAME, VERSION_ID
+from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.io.image_io import MAX_IMAGE_BYTES, content_digest
-
-if TYPE_CHECKING:
-    from vitroctl.detectors.contract import DetectionResult
+from vitroctl.detectors.contract import DetectionResult
+from vitroctl.detectors.documents import detection_from_document
+from vitroctl.io.files import file_digest
 
 MANIFEST_SCHEMA_VERSION = 1
-MAX_DATASET_IMAGES = 10_000
 MAX_DATASET_MANIFEST_BYTES = 16 * 1024 * 1024
-SPLITS = frozenset({"train", "val"})
 
 
 @dataclass(frozen=True)
@@ -93,10 +80,10 @@ def verified_blob(data_root: str | Path, digest: str) -> Path:
     """The path of the blob named ``digest`` once its bytes hash to that digest."""
     path = blob_path(data_root, digest)
     try:
-        data = path.read_bytes()
+        actual_digest = file_digest(path)
     except FileNotFoundError as error:
         raise BlobError(f"Blob is missing from the data root: {digest}") from error
-    if content_digest(data) != digest:
+    if actual_digest != digest:
         raise BlobError(f"Blob failed digest verification: {digest}")
     return path
 
@@ -105,97 +92,44 @@ def manifest_path(data_root: str | Path, dataset: str) -> Path:
     return Path(data_root) / "datasets" / f"{dataset}.json"
 
 
-def as_split(value: Any, context: str) -> str:
-    if value not in SPLITS:
-        raise ValueError(f"{context} must be train or val")
-    return value
-
-
 def _image(value: Any, context: str) -> ManifestImage:
-    from vitroctl.detectors.documents import parse_detection_result
-
-    entry = as_object(value, context)
-    expect_fields(
-        entry,
-        {
-            "digest",
-            "width",
-            "height",
-            "filename",
-            "bytes",
-            "split",
-            "detection",
-            "annotation",
-        },
-        context,
-        optional={"unclear"},
-    )
+    entry = value
     detection = None
     if entry["detection"] is not None:
-        detection = parse_detection_result(entry["detection"], f"{context}.detection")
+        detection = detection_from_document(entry["detection"])
     annotation = (
         None
         if entry["annotation"] is None
-        else parse_annotation(entry["annotation"], f"{context}.annotation")
+        else AnnotationDocument.from_document(
+            entry["annotation"], f"{context}.annotation"
+        )
     )
-    image_bytes = as_integer(entry["bytes"], f"{context}.bytes", minimum=1)
-    if image_bytes > MAX_IMAGE_BYTES:
-        raise ValueError(f"{context}.bytes must be at most {MAX_IMAGE_BYTES}")
     return ManifestImage(
-        digest=as_digest(entry["digest"], f"{context}.digest"),
-        width=as_integer(entry["width"], f"{context}.width", minimum=1),
-        height=as_integer(entry["height"], f"{context}.height", minimum=1),
-        filename=as_string(entry["filename"], f"{context}.filename"),
-        bytes=image_bytes,
-        split=(
-            None
-            if entry["split"] is None
-            else as_split(entry["split"], f"{context}.split")
-        ),
+        digest=entry["digest"],
+        width=entry["width"],
+        height=entry["height"],
+        filename=entry["filename"],
+        bytes=entry["bytes"],
+        split=entry["split"],
         detection=detection,
         annotation=annotation,
-        unclear=_unclear(entry.get("unclear", False), f"{context}.unclear"),
+        unclear=entry.get("unclear", False),
     )
-
-
-def _unclear(value: Any, context: str) -> bool:
-    if not isinstance(value, bool):
-        raise TypeError(f"{context} must be a boolean")
-    return value
 
 
 def parse_dataset_manifest(value: Any, context: str = "manifest") -> DatasetManifest:
     validate_wire_contract("dataset-manifest", value, context)
-    document = as_object(value, context)
-    expect_fields(document, {"schemaVersion", "dataset", "model", "images"}, context)
-    expect_schema_version(document, "schemaVersion", MANIFEST_SCHEMA_VERSION, context)
-    dataset = as_string(document["dataset"], f"{context}.dataset")
-    if not DATASET_NAME.fullmatch(dataset):
-        raise ValueError(f"{context}.dataset is invalid")
-    model = as_object(document["model"], f"{context}.model")
-    expect_fields(model, {"id", "classes"}, f"{context}.model")
-    model_id = as_string(model["id"], f"{context}.model.id")
-    if not VERSION_ID.fullmatch(model_id):
-        raise ValueError(f"{context}.model.id is invalid")
-    classes = tuple(
-        as_string(item, f"{context}.model.classes[{index}]")
-        for index, item in enumerate(
-            as_list(model["classes"], f"{context}.model.classes")
-        )
-    )
-    if not classes or len(set(classes)) != len(classes):
-        raise ValueError(f"{context}.model.classes must be non-empty and unique")
-    for name in classes:
-        if not CLASS_NAME.fullmatch(name):
-            raise ValueError(f"{context}.model.classes contains invalid class {name}")
+    document = value
+    dataset = document["dataset"]
+    model = document["model"]
+    model_id = model["id"]
+    classes = tuple(model["classes"])
+    if len(set(classes)) != len(classes):
+        raise ValueError(f"{context}.model.classes must be unique")
     images = tuple(
         _image(raw, f"{context}.images[{index}]")
-        for index, raw in enumerate(as_list(document["images"], f"{context}.images"))
+        for index, raw in enumerate(document["images"])
     )
-    if len(images) > MAX_DATASET_IMAGES:
-        raise ValueError(
-            f"{context}.images must contain at most {MAX_DATASET_IMAGES} images"
-        )
     digests = [image.digest for image in images]
     if len(set(digests)) != len(digests):
         raise ValueError(f"{context} lists an image digest more than once")
@@ -231,7 +165,7 @@ def encode_dataset_manifest(manifest: DatasetManifest) -> bytes:
         json.dumps(manifest.to_dict(), ensure_ascii=False, separators=(",", ":")) + "\n"
     ).encode("utf-8")
     if len(encoded) > MAX_DATASET_MANIFEST_BYTES:
-        raise ValueError("Manifest exceeds 16 MiB")
+        raise ValueError(f"Manifest exceeds {MAX_DATASET_MANIFEST_BYTES} bytes")
     return encoded
 
 

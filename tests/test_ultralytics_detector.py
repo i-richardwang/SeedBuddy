@@ -7,27 +7,15 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from conftest import PARAMETERS
 
 from vitroctl.detectors.contract import DetectionProducer
 from vitroctl.detectors.ultralytics import detector as ultralytics_module
-from vitroctl.detectors.ultralytics.detector import UltralyticsDetector
+from vitroctl.detectors.ultralytics.detector import (
+    UltralyticsDetector,
+    YoloInferenceSettings,
+)
 from vitroctl.worker.model_store import ModelManifest, ModelStore
-
-PARAMETERS = {
-    "epochs": 50,
-    "patience": 20,
-    "batch": 8,
-    "imgsz": 1024,
-    "optimizer": "AdamW",
-    "lr0": 0.001,
-    "warmup_epochs": 3.0,
-    "mosaic": 0.0,
-    "mixup": 0.0,
-    "copy_paste": 0.0,
-    "max_det": 500,
-    "seed": 0,
-    "deterministic": True,
-}
 
 
 class _Tensor:
@@ -39,47 +27,6 @@ class _Tensor:
 
     def numpy(self) -> np.ndarray:
         return self._values
-
-
-def _run(tmp_path: Path, *, ready: bool = True) -> Path:
-    run = tmp_path / "run"
-    weights = run / "weights"
-    weights.mkdir(parents=True)
-    (weights / "best.pt").write_bytes(b"weights")
-    (run / "inference.json").write_text(
-        json.dumps(
-            {
-                "schemaVersion": 1,
-                "weights": "weights/best.pt",
-                "inference": {
-                    "ready": ready,
-                    "confidence": 0.42 if ready else None,
-                    "imageSize": 768,
-                    "maxDetections": 500,
-                    "endToEnd": False,
-                },
-                "validation": {
-                    "precision": 0.6,
-                    "recall": 0.5,
-                    "map50": 0.7,
-                    "map50To95": 0.4,
-                    "fitness": 0.43,
-                },
-                "training": {
-                    "baseModel": {
-                        "reference": "yolo26n.pt",
-                        "digest": "a" * 64,
-                    },
-                    "parameters": PARAMETERS,
-                    "runtime": {
-                        "framework": "ultralytics",
-                        "version": "8.4.131",
-                    },
-                },
-            }
-        )
-    )
-    return run
 
 
 def test_ultralytics_detector_uses_published_inference_settings(
@@ -108,8 +55,11 @@ def test_ultralytics_detector_uses_published_inference_settings(
             return [SimpleNamespace(orig_shape=(80, 100), boxes=boxes)]
 
     monkeypatch.setattr(ultralytics_module, "load_yolo", lambda: FakeYolo)
-    detector = UltralyticsDetector.from_run(
-        _run(tmp_path), ("seed", "germinated"), device="mps"
+    detector = UltralyticsDetector(
+        _weights(tmp_path),
+        YoloInferenceSettings(0.42, 768, 500, False),
+        ("seed", "germinated"),
+        device="mps",
     )
     producer = DetectionProducer(
         "set.yolo-v1", detector.artifact_digest, detector.runtime
@@ -164,7 +114,11 @@ def test_ultralytics_detector_binds_weight_classes_to_the_model(
             self.names = {0: "germinated", 1: "seed"}
 
     monkeypatch.setattr(ultralytics_module, "load_yolo", lambda: FakeYolo)
-    detector = UltralyticsDetector.from_run(_run(tmp_path), ("seed", "germinated"))
+    detector = UltralyticsDetector(
+        _weights(tmp_path),
+        YoloInferenceSettings(0.42, 768, 500, False),
+        ("seed", "germinated"),
+    )
     producer = DetectionProducer(
         "set.yolo-v1", detector.artifact_digest, detector.runtime
     )
@@ -173,19 +127,22 @@ def test_ultralytics_detector_binds_weight_classes_to_the_model(
         detector.predict(tmp_path / "source.jpg", "c" * 64, producer)
 
 
-def test_ultralytics_detector_rejects_an_uncalibrated_run(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="not ready"):
-        UltralyticsDetector.from_run(_run(tmp_path, ready=False), ("seed",))
-
-
 def test_yolo_fingerprint_covers_weights_and_inference_settings(tmp_path: Path) -> None:
-    run = _run(tmp_path)
-    baseline = UltralyticsDetector.from_run(run, ("seed",))
-    document = json.loads((run / "inference.json").read_text())
-    document["inference"]["confidence"] = 0.5
-    (run / "inference.json").write_text(json.dumps(document))
-    changed = UltralyticsDetector.from_run(run, ("seed",))
+    weights = _weights(tmp_path)
+    baseline = UltralyticsDetector(
+        weights, YoloInferenceSettings(0.42, 768, 500, False), ("seed",)
+    )
+    changed = UltralyticsDetector(
+        weights, YoloInferenceSettings(0.5, 768, 500, False), ("seed",)
+    )
 
+    expected = hashlib.sha256(
+        b"weights\0"
+        + json.dumps(
+            baseline.settings.to_dict(), sort_keys=True, separators=(",", ":")
+        ).encode()
+    ).hexdigest()
+    assert baseline.artifact_digest == expected
     assert baseline.artifact_digest != changed.artifact_digest
     assert baseline.runtime == changed.runtime
 
@@ -198,7 +155,9 @@ def test_inference_worker_downloads_a_published_yolo_artifact(
             self.weights = weights
 
     monkeypatch.setattr(ultralytics_module, "load_yolo", lambda: FakeYolo)
-    reference = UltralyticsDetector.from_run(_run(tmp_path), ("seed",))
+    reference = UltralyticsDetector(
+        _weights(tmp_path), YoloInferenceSettings(0.42, 768, 500, False), ("seed",)
+    )
     artifact = {
         "kind": "ultralytics",
         "digest": reference.artifact_digest,
@@ -273,3 +232,10 @@ def test_inference_worker_downloads_a_published_yolo_artifact(
     source.content = b"WEIGHTS"
     with pytest.raises(ValueError, match="unexpected digest"):
         store.load(manifest)
+
+
+def _weights(tmp_path: Path) -> Path:
+    weights = tmp_path / "run" / "weights" / "best.pt"
+    weights.parent.mkdir(parents=True)
+    weights.write_bytes(b"weights")
+    return weights

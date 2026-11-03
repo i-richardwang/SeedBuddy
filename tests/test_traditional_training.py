@@ -4,7 +4,11 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from vitroctl.annotations import AnnotationDocument, AnnotationInstance, BoundingBox
+from vitroctl.contracts.annotation import (
+    AnnotationDocument,
+    AnnotationInstance,
+    BoundingBox,
+)
 from vitroctl.detectors.traditional.candidates import FEATURE_NAMES, CandidateEvidence
 from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
 from vitroctl.detectors.traditional.proposals import SeedProposal
