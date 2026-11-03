@@ -38,7 +38,7 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/$digest")({
           loaderData &&
             m.image_title({
               file: loaderData.review.filename,
-              dataset: loaderData.dataset.id,
+              dataset: loaderData.dataset.name,
             }),
         ),
       },

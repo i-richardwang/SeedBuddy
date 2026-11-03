@@ -22,14 +22,7 @@
   "epoch_chart_precision_recall": "Precision and recall",
   "epoch_chart_train_loss": "Train loss",
   "epoch_chart_val_loss": "Validation loss",
-  "epoch_series_box_loss": "Box loss",
-  "epoch_series_classification_loss": "Classification loss",
-  "epoch_series_map50": "mAP50",
-  "epoch_series_map50_95": "mAP50-95",
-  "epoch_series_precision": "Precision",
-  "epoch_series_recall": "Recall",
-  "epoch_series_regression_loss": "Regression loss",
-  "epoch_tooltip_epoch": [
+  "epoch_label": [
     {
       "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
       "match": {
@@ -37,6 +30,13 @@
       }
     }
   ],
+  "epoch_series_box_loss": "Box loss",
+  "epoch_series_classification_loss": "Classification loss",
+  "epoch_series_map50": "mAP50",
+  "epoch_series_map50_95": "mAP50-95",
+  "epoch_series_precision": "Precision",
+  "epoch_series_recall": "Recall",
+  "epoch_series_regression_loss": "Regression loss",
   "parameter_batch": "Batch",
   "parameter_copy_paste": "Copy-paste",
   "parameter_degrees": "Rotation degrees",
@@ -70,7 +70,9 @@
   "run_column_best_map50": "Best mAP50",
   "run_column_dataset": "Dataset",
   "run_column_run": "Run",
+  "run_column_status": "Status",
   "run_column_version": "Version",
+  "run_copy_id": "Copy run ID",
   "run_empty_description": "Start a run from one of the model's datasets.",
   "run_empty_title": "No training runs yet",
   "run_epochs_progress": [

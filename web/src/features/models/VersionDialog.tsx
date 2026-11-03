@@ -20,6 +20,7 @@ import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { IdentifierName } from "../../ui/IdentifierName";
+import { CopyButton } from "../../ui/kit/CopyButton";
 import { Flexbox } from "../../ui/kit/Flex";
 import {
   Table,
@@ -349,6 +350,9 @@ function ImageTable({
                 {group}
               </TableHead>
             ))}
+            <TableHead rowSpan={2} className="w-12">
+              <span className="sr-only">{m.column_actions()}</span>
+            </TableHead>
           </tr>
           <tr>
             {groups.flatMap((group) =>
@@ -392,6 +396,9 @@ function ImageTable({
                 reviewed={image.reviewed}
                 reading={image.candidate}
               />
+              <TableCell cellSlot="actions">
+                <CopyButton content={image.digest} title={m.image_copy_id()} />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

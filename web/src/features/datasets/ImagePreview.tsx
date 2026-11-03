@@ -10,31 +10,30 @@ import { Status } from "../../ui/kit/Status";
 import { previewSrc } from "../../ui/viewport/picture";
 import { BoxCount, hasQualityNotes, ImageQuality } from "./ImageFacts";
 import {
-  DATASET_IMAGE_STATE_TONE,
-  type DatasetImageState,
+  datasetImageState,
   datasetImageStateLabel,
+  datasetImageStateTone,
 } from "./labels";
 
 /** One image beside the list: the photograph, where it stands, and the way into its annotation. */
 export function ImagePreview({
   dataset,
   image,
-  state,
 }: {
   dataset: string;
   image: DatasetImageOverview;
-  state: DatasetImageState;
 }) {
+  const state = datasetImageState(image);
   return (
     <>
       <PreviewMedia src={previewSrc(image.digest)} alt={image.filename} />
       <Descriptions>
-        <DescriptionsItem label={m.dataset_column_state()}>
-          <Status tone={DATASET_IMAGE_STATE_TONE[state]}>
+        <DescriptionsItem label={m.state_label()}>
+          <Status tone={datasetImageStateTone(state)}>
             {datasetImageStateLabel(state)}
           </Status>
         </DescriptionsItem>
-        <DescriptionsItem label={m.dataset_preview_boxes()}>
+        <DescriptionsItem label={m.boxes_label()}>
           <BoxCount
             detected={image.detectionCount}
             proposed={image.proposalCount}

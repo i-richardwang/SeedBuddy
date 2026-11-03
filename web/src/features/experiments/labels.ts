@@ -35,9 +35,7 @@ export function observationQuestion(
 
 /** The number a summary reads a day by, named. */
 export function summaryMeasureLabel(measure: SummaryMeasure): string {
-  return measure === "rate"
-    ? m.summary_measure_rate()
-    : m.summary_measure_count();
+  return SUMMARY_MEASURE_LABELS[measure]();
 }
 
 const CULTURE_EVENT_LABELS: Record<CultureEventType, () => string> = {
@@ -76,3 +74,8 @@ export function imageReviewLabel(value: ReviewState): string {
 export function imageReviewTone(value: ReviewState): StatusTone {
   return IMAGE_REVIEW_LABELS[value].tone;
 }
+
+const SUMMARY_MEASURE_LABELS: Record<SummaryMeasure, () => string> = {
+  rate: m.summary_measure_rate,
+  count: m.summary_measure_count,
+};

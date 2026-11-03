@@ -6,34 +6,9 @@ import {
   trainingOverridesSchema,
 } from "../../domain/training/parameters";
 import { m } from "../../paraglide/messages";
+import { parameterLabel } from "./labels";
 
-export const PARAMETER_LABELS: Record<keyof TrainingParameters, () => string> =
-  {
-    epochs: m.parameter_epochs,
-    patience: m.parameter_patience,
-    batch: m.parameter_batch,
-    nbs: m.parameter_nbs,
-    imgsz: m.parameter_imgsz,
-    optimizer: m.parameter_optimizer,
-    lr0: m.parameter_lr0,
-    warmup_epochs: m.parameter_warmup_epochs,
-    mosaic: m.parameter_mosaic,
-    mixup: m.parameter_mixup,
-    copy_paste: m.parameter_copy_paste,
-    max_det: m.parameter_max_det,
-    seed: m.parameter_seed,
-    deterministic: m.parameter_deterministic,
-    scale: m.parameter_scale,
-    degrees: m.parameter_degrees,
-    flipud: m.parameter_flipud,
-    fliplr: m.parameter_fliplr,
-    translate: m.parameter_translate,
-    hsv_h: m.parameter_hsv_h,
-    hsv_s: m.parameter_hsv_s,
-    hsv_v: m.parameter_hsv_v,
-  };
-
-export interface ParameterGroup {
+interface ParameterGroup {
   key: string;
   title: () => string;
   parameters: (keyof TrainingParameters)[];
@@ -116,7 +91,7 @@ export const PARAMETER_FIELDS: ParameterField[] = (
     throw new Error(`Training field ${key} requires numeric bounds`);
   return {
     key,
-    label: PARAMETER_LABELS[key],
+    label: () => parameterLabel(key),
     min: property.minimum,
     max: property.maximum,
     ...FIELD_OPTIONS[key],

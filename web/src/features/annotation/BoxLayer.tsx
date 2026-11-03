@@ -21,7 +21,9 @@ import type {
 import type { ImageRectangle } from "../../domain/images/geometry";
 import { classColor } from "../../domain/models/classes";
 import { usePanGesture, useViewport } from "../../ui/viewport/ImageViewport";
-import { CANVAS_COLORS, type LayerKey, nextClass } from "./controls";
+import { nextClass } from "./class-keys";
+import { CANVAS_COLORS } from "./colors";
+import type { LayerKey } from "./layers";
 
 const HANDLE_SCREEN_SIZE = 8;
 

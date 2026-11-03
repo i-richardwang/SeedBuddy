@@ -22,7 +22,7 @@ import { countedClassesLabel } from "../../ui/model-names";
 import { formatCount, formatNumber } from "../../ui/numbers";
 import { Stepper } from "../../ui/Stepper";
 import { WorkbenchSection } from "../../ui/shell/Workbench";
-import { ClassLabel } from "./controls";
+import { ClassLabel } from "./ClassLabel";
 import { sourceLabel } from "./labels";
 
 /**
@@ -128,7 +128,7 @@ export function ChecksSection({
   const { progress } = review;
   if (!progress && checks === 0) return null;
   return (
-    <WorkbenchSection title={m.annotation_ai_section()}>
+    <WorkbenchSection title={m.annotation_proposal_label()}>
       {progress ? (
         <ProgressMeter
           label={m.annotation_ai_running()}

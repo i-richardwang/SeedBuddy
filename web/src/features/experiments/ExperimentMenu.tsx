@@ -60,13 +60,13 @@ export function ExperimentMenu({
       label: m.experiment_menu_delete(),
       onClick: () =>
         confirmDestructive({
-          title: m.experiment_delete_title({ name: experiment.name }),
+          title: m.item_delete_title({ name: experiment.name }),
           confirmLabel: m.experiment_delete(),
           onConfirm: async () => {
             await removeExperiment({ data: { experiment: experiment.id } });
           },
           onSuccess: async () => {
-            toast.success(m.experiment_deleted({ name: experiment.name }));
+            toast.success(m.item_deleted({ name: experiment.name }));
             await navigateAfterWrite({ to: "/experiments" });
           },
           invalidate: false,
@@ -77,7 +77,7 @@ export function ExperimentMenu({
   return (
     <>
       <PageMenu
-        label={m.experiment_actions({ name: experiment.name })}
+        label={m.item_actions({ name: experiment.name })}
         items={items}
       />
       <EditExperimentDialog

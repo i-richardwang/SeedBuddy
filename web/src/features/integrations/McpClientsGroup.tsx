@@ -1,12 +1,11 @@
-import { Plug, Unplug } from "lucide-react";
+import { Unplug } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { McpClient } from "../../domain/auth/integrations";
 import { removeMcpClient } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
-import { Button } from "../../ui/kit/Button";
-import { Empty } from "../../ui/kit/Empty";
 import { Flexbox } from "../../ui/kit/Flex";
 import { SettingsGroup } from "../../ui/kit/Settings";
 import {
@@ -22,13 +21,13 @@ import { toast } from "../../ui/kit/Toast";
 import { Timestamp } from "../../ui/Timestamp";
 import { mcpServerLabel } from "./labels";
 
-/** Approved MCP clients; `serversHref` leads to the server addresses a first client is given. */
+/** Approved MCP clients. */
 export function McpClientsGroup({
   mcpClients,
-  serversHref,
+  empty,
 }: {
   mcpClients: McpClient[];
-  serversHref: string;
+  empty: ReactNode;
 }) {
   return (
     <SettingsGroup
@@ -43,20 +42,7 @@ export function McpClientsGroup({
         narrow="cards"
         variant="borderless"
         aria-label={m.integrations_mcp_clients()}
-        empty={
-          mcpClients.length === 0 ? (
-            <Empty
-              icon={Plug}
-              title={m.mcp_empty()}
-              description={m.mcp_empty_description()}
-              action={
-                <Button render={<a href={serversHref} />}>
-                  {m.mcp_empty_show_servers()}
-                </Button>
-              }
-            />
-          ) : undefined
-        }
+        empty={mcpClients.length === 0 ? empty : undefined}
       >
         <TableHeader>
           <tr>
@@ -64,7 +50,7 @@ export function McpClientsGroup({
             <TableHead>{m.mcp_column_servers()}</TableHead>
             <TableHead>{m.mcp_column_approved()}</TableHead>
             <TableHead className="w-12">
-              <span className="sr-only">{m.api_key_column_actions()}</span>
+              <span className="sr-only">{m.column_actions()}</span>
             </TableHead>
           </tr>
         </TableHeader>

@@ -289,7 +289,7 @@ function ObservationFields({
         value={value.countedClasses}
         onChange={(countedClasses) => onChange({ ...value, countedClasses })}
       />
-      <Form.Field label={m.observation_note_label()}>
+      <Form.Field label={m.note_label()}>
         <Input
           disabled={disabled}
           value={value.note}

@@ -5,7 +5,7 @@ import type { Standing } from "./session";
 
 const SOURCE_LABELS: Record<ReviewSource, () => string> = {
   review: m.annotation_source_review,
-  proposal: m.annotation_ai_section,
+  proposal: m.annotation_proposal_label,
   detection: m.annotation_source_detected,
 };
 

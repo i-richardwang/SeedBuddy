@@ -11,7 +11,8 @@ import { ColorSwatch } from "../../ui/kit/ColorSwatch";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { classLabel } from "../../ui/model-names";
-import { classShortcut, type LayerKey } from "./controls";
+import { classShortcut } from "./class-keys";
+import type { LayerKey } from "./layers";
 
 /**
  * What a press on the image does next: the class a new box takes, or the

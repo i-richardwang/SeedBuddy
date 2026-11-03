@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { KeyRound, Plug, Plus } from "lucide-react";
 
 import { MCP_SERVERS } from "../../domain/auth/integrations";
 import { ApiKeysGroup } from "../../features/integrations/ApiKeysGroup";
@@ -7,7 +8,9 @@ import { McpClientsGroup } from "../../features/integrations/McpClientsGroup";
 import { getIntegrations } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
+import { Button } from "../../ui/kit/Button";
 import { CopyButton } from "../../ui/kit/CopyButton";
+import { Empty } from "../../ui/kit/Empty";
 import { TableSkeleton } from "../../ui/kit/PageSkeleton";
 import {
   SettingsGroup,
@@ -44,7 +47,21 @@ function IntegrationsPage() {
 
   return (
     <SettingsPage title={m.integrations_title()}>
-      <ApiKeysGroup apiKeys={apiKeys} />
+      <ApiKeysGroup
+        apiKeys={apiKeys}
+        empty={(create) => (
+          <Empty
+            icon={KeyRound}
+            title={m.api_key_empty()}
+            description={m.api_key_empty_description()}
+            action={
+              <Button type="primary" icon={Plus} onClick={create}>
+                {m.integrations_new_key()}
+              </Button>
+            }
+          />
+        )}
+      />
       <SettingsGroup id={MCP_SERVERS_ID} title={m.integrations_mcp_servers()}>
         {MCP_SERVERS.map((server) => (
           <SettingsValueRow
@@ -60,7 +77,18 @@ function IntegrationsPage() {
       </SettingsGroup>
       <McpClientsGroup
         mcpClients={mcpClients}
-        serversHref={`#${MCP_SERVERS_ID}`}
+        empty={
+          <Empty
+            icon={Plug}
+            title={m.mcp_empty()}
+            description={m.mcp_empty_description()}
+            action={
+              <Button render={<a href={`#${MCP_SERVERS_ID}`} />}>
+                {m.mcp_empty_show_servers()}
+              </Button>
+            }
+          />
+        }
       />
     </SettingsPage>
   );

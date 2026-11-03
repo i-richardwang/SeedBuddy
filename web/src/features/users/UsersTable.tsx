@@ -30,9 +30,9 @@ export function UsersTable({
           <TableHead>{m.user_dialog_name_label()}</TableHead>
           <TableHead>{m.user_dialog_email_label()}</TableHead>
           <TableHead className="w-40">{m.role_label()}</TableHead>
-          <TableHead>{m.users_column_status()}</TableHead>
+          <TableHead>{m.user_column_status()}</TableHead>
           <TableHead className="w-12">
-            <span className="sr-only">{m.users_column_actions()}</span>
+            <span className="sr-only">{m.column_actions()}</span>
           </TableHead>
         </tr>
       </TableHeader>
@@ -79,7 +79,7 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
           }}
         />
       </TableCell>
-      <TableCell cellLabel={m.users_column_status()}>
+      <TableCell cellLabel={m.user_column_status()}>
         <Status tone={account.banned ? "warning" : "success"}>
           {account.banned ? m.user_status_suspended() : m.user_status_active()}
         </Status>

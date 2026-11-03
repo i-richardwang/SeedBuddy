@@ -2,14 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { WorkerPresence } from "../../domain/workers/presence";
 import type { WorkerOverview } from "../../domain/workers/read-model";
 import type { WorkerActivity } from "../../domain/workers/schema";
 import { removeWorker } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
-import { Status, type StatusTone } from "../../ui/kit/Status";
+import { Status } from "../../ui/kit/Status";
 import {
   Table,
   TableBody,
@@ -20,15 +19,7 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { toast } from "../../ui/kit/Toast";
-
-const PRESENCE: Record<
-  WorkerPresence,
-  { label: () => string; tone: StatusTone }
-> = {
-  online: { label: m.worker_presence_online, tone: "success" },
-  stale: { label: m.worker_presence_stale, tone: "warning" },
-  offline: { label: m.worker_presence_offline, tone: "neutral" },
-};
+import { workerPresenceLabel, workerPresenceTone } from "./labels";
 
 export function WorkersTable({
   workers,
@@ -47,12 +38,12 @@ export function WorkersTable({
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.workers_column_worker()}</TableHead>
-          <TableHead className="w-28">{m.workers_column_presence()}</TableHead>
-          <TableHead>{m.workers_column_activity()}</TableHead>
-          <TableHead className="w-36">{m.workers_column_seen()}</TableHead>
+          <TableHead>{m.worker_column_worker()}</TableHead>
+          <TableHead className="w-28">{m.worker_column_presence()}</TableHead>
+          <TableHead>{m.worker_column_activity()}</TableHead>
+          <TableHead className="w-36">{m.worker_column_seen()}</TableHead>
           <TableHead className="w-12">
-            <span className="sr-only">{m.workers_column_actions()}</span>
+            <span className="sr-only">{m.column_actions()}</span>
           </TableHead>
         </tr>
       </TableHeader>
@@ -79,16 +70,16 @@ function WorkerRow({
   return (
     <TableRow>
       <TableCell cellSlot="title">{worker.workerId}</TableCell>
-      <TableCell cellLabel={m.workers_column_presence()}>
+      <TableCell cellLabel={m.worker_column_presence()}>
         <Status tone={workerPresenceTone(worker.presence)}>
           {workerPresenceLabel(worker.presence)}
         </Status>
       </TableCell>
-      <TableCell cellLabel={m.workers_column_activity()}>
+      <TableCell cellLabel={m.worker_column_activity()}>
         <Activity activity={worker.activity} />
       </TableCell>
       <TableCell
-        cellLabel={m.workers_column_seen()}
+        cellLabel={m.worker_column_seen()}
         className="whitespace-nowrap"
       >
         {worker.lastSeenSeconds === null
@@ -160,12 +151,4 @@ function formatAge(seconds: number) {
     return m.worker_age_hours({ count: Math.floor(seconds / 3600) });
   }
   return m.worker_age_days({ count: Math.floor(seconds / 86400) });
-}
-
-export function workerPresenceLabel(value: WorkerPresence): string {
-  return PRESENCE[value].label();
-}
-
-export function workerPresenceTone(value: WorkerPresence): StatusTone {
-  return PRESENCE[value].tone;
 }

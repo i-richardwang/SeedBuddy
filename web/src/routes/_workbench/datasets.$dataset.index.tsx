@@ -7,7 +7,6 @@ import type { DatasetDetail } from "../../domain/datasets/read-model";
 import { DatasetImagesTable } from "../../features/datasets/DatasetImagesTable";
 import { DatasetMenu } from "../../features/datasets/DatasetMenu";
 import { ImagePreview } from "../../features/datasets/ImagePreview";
-import { datasetImageState } from "../../features/datasets/labels";
 import { modelCrumbs } from "../../features/models/crumbs";
 import { TrainButton } from "../../features/training/TrainButton";
 import { TrainDialog, trainRefusal } from "../../features/training/TrainDialog";
@@ -68,7 +67,7 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/")({
 
 function DatasetPage() {
   const { dataset } = Route.useParams();
-  const { image: previewed } = Route.useSearch();
+  const { image } = Route.useSearch();
   const navigate = Route.useNavigate();
   const {
     dataset: { name },
@@ -83,7 +82,7 @@ function DatasetPage() {
   const refusal = trainRefusal({ reviewed: reviewedCount, training });
   useRouteRefresh(10_000);
 
-  const preview = images.find((image) => image.digest === previewed);
+  const preview = images.find((candidate) => candidate.digest === image);
   const closePreview = () =>
     void navigate({
       search: (previous) => ({ ...previous, image: undefined }),
@@ -103,13 +102,7 @@ function DatasetPage() {
         preview
           ? {
               title: preview.filename,
-              content: (
-                <ImagePreview
-                  dataset={dataset}
-                  image={preview}
-                  state={datasetImageState(preview)}
-                />
-              ),
+              content: <ImagePreview dataset={dataset} image={preview} />,
               onClose: closePreview,
             }
           : null
@@ -145,7 +138,7 @@ function DatasetPage() {
             />
           }
           images={images}
-          previewed={previewed}
+          image={image}
         />
       </PageSection>
       <PageSection title={m.training_runs()}>

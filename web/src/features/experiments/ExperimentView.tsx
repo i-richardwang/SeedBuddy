@@ -51,7 +51,7 @@ import { UnitSelectionBar } from "./UnitSelectionBar";
  */
 export const EXPERIMENT_TABS = ["units", "summary", "treatments"] as const;
 
-export type ExperimentTab = (typeof EXPERIMENT_TABS)[number];
+type ExperimentTab = (typeof EXPERIMENT_TABS)[number];
 
 /**
  * One experiment, in three tabs: its units, a row per unit with the treatment

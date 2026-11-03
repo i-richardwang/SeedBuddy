@@ -118,7 +118,7 @@ function TreatmentForm({
         factor={factor}
         onChange={setFactor}
       />
-      <Form.Field label={m.observation_note_label()}>
+      <Form.Field label={m.note_label()}>
         <Input disabled={action.busy} value={note} onValueChange={setNote} />
       </Form.Field>
       {creating ? (

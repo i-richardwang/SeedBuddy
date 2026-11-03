@@ -55,12 +55,12 @@ export function VersionsTable({
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.versions_column_version()}</TableHead>
-          <TableHead>{m.versions_column_status()}</TableHead>
-          <TableHead>{m.versions_column_source()}</TableHead>
-          <TableHead>{m.versions_column_published()}</TableHead>
+          <TableHead>{m.version_column_version()}</TableHead>
+          <TableHead>{m.version_column_status()}</TableHead>
+          <TableHead>{m.version_column_source()}</TableHead>
+          <TableHead>{m.version_column_published()}</TableHead>
           <TableHead className="w-28" numeric>
-            {m.versions_column_trained_on()}
+            {m.version_column_trained_on()}
           </TableHead>
           <TableHead className="w-28" numeric>
             {m.epoch_series_map50()}
@@ -68,9 +68,9 @@ export function VersionsTable({
           <TableHead className="w-28" numeric>
             {m.epoch_series_map50_95()}
           </TableHead>
-          <TableHead>{m.versions_column_comparison()}</TableHead>
+          <TableHead>{m.version_column_comparison()}</TableHead>
           <TableHead className="w-12">
-            <span className="sr-only">{m.versions_column_actions()}</span>
+            <span className="sr-only">{m.column_actions()}</span>
           </TableHead>
         </tr>
       </TableHeader>
@@ -97,24 +97,24 @@ export function VersionsTable({
               />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_status()}
+              cellLabel={m.version_column_status()}
               className="whitespace-nowrap"
             >
               <VersionStatus current={current} comparison={comparison} />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_source()}
+              cellLabel={m.version_column_source()}
               className="whitespace-nowrap"
             >
               <VersionSource version={version} training={training} />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_published()}
+              cellLabel={m.version_column_published()}
               className="whitespace-nowrap"
             >
               <Timestamp value={version.createdAt} />
             </TableCell>
-            <TableCell cellLabel={m.versions_column_trained_on()} numeric>
+            <TableCell cellLabel={m.version_column_trained_on()} numeric>
               {training ? (
                 m.versions_trained_images({ count: training.images })
               ) : (
@@ -128,7 +128,7 @@ export function VersionsTable({
               <Metric value={validationMetric(version.artifact, "map50To95")} />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_comparison()}
+              cellLabel={m.version_column_comparison()}
               className="whitespace-nowrap"
             >
               {current ? null : <CountError comparison={comparison} />}

@@ -35,10 +35,10 @@ import {
 } from "../../ui/viewport/ImageViewport";
 import { UnclearAlert, UnclearSection } from "../images/unclear";
 import { ChecksLayer, EditableBoxLayer } from "./BoxLayer";
-import type { LayerKey } from "./controls";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
 import { useSaveKey, useWorkbenchKeys } from "./keys";
 import { standingLabel, standingTone } from "./labels";
+import type { LayerKey } from "./layers";
 import { setEditLocked, useEditLocked } from "./lock";
 import { useImageSession } from "./session";
 import { EditTools, LayerControls } from "./tools";
