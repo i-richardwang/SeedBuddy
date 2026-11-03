@@ -20,6 +20,10 @@ class TrainingRecipe:
     @classmethod
     def from_document(cls, value: Any, context: str = "recipe") -> TrainingRecipe:
         validate_wire_contract("training-recipe", value, context)
+        return cls.decode(value)
+
+    @classmethod
+    def decode(cls, value: Any) -> TrainingRecipe:
         return cls(
             base_model_reference=value["baseModel"]["reference"],
             base_model_digest=value["baseModel"]["digest"],

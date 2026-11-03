@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 
 from vitroctl.contracts.annotation import BoundingBox
-from vitroctl.contracts.identifiers import CLASS_NAME
+from vitroctl.contracts.inference import YOLO_IOU
 from vitroctl.detectors.contract import (
     DetectionInstance,
     DetectionProducer,
@@ -30,7 +30,7 @@ class YoloInferenceSettings:
     end_to_end: bool
 
     @classmethod
-    def from_document(cls, document: dict[str, Any]) -> YoloInferenceSettings:
+    def decode(cls, document: dict[str, Any]) -> YoloInferenceSettings:
         return cls(
             document["confidence"],
             document["imageSize"],
@@ -60,7 +60,7 @@ def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
 
 @dataclass
 class UltralyticsDetector:
-    """Runs one validated YOLO training artifact through the shared contract."""
+    """Run a YOLO training artifact with classes validated by its document schema."""
 
     weights: Path
     settings: YoloInferenceSettings
@@ -75,11 +75,6 @@ class UltralyticsDetector:
         self.weights = self.weights.resolve()
         if not self.weights.is_file():
             raise FileNotFoundError(self.weights)
-        if not self.class_names or len(set(self.class_names)) != len(self.class_names):
-            raise ValueError("YOLO class names must be non-empty and unique")
-        for name in self.class_names:
-            if not CLASS_NAME.fullmatch(name):
-                raise ValueError(f"Invalid YOLO class name: {name}")
         self._runtime = load_yolo()
         with self.weights.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256")
@@ -131,7 +126,7 @@ class UltralyticsDetector:
             "imgsz": self.settings.image_size,
             "max_det": self.settings.max_detections,
             "end2end": self.settings.end_to_end,
-            "iou": 0.7,
+            "iou": YOLO_IOU,
             "verbose": False,
         }
         if self.device is not None:

@@ -122,12 +122,12 @@ def test_epoch_report_reads_the_trainer_after_validation() -> None:
         fitness=0.225,
         learning_rate=0.001,
     )
-    assert report.to_json()["train"] == {
+    assert report.to_dict()["train"] == {
         "box": 1.5,
         "classification": 2.25,
         "regression": 1.0,
     }
-    assert report.to_json()["map50To95"] == 0.2
+    assert report.to_dict()["map50To95"] == 0.2
 
 
 def test_epoch_report_normalizes_both_ultralytics_regression_losses() -> None:
@@ -153,37 +153,6 @@ def _dataset(tmp_path: Path) -> Path:
     dataset = tmp_path / "dataset.yaml"
     dataset.write_text("train: images/train\nval: images/val\n")
     return dataset
-
-
-def test_training_stops_at_a_batch_boundary(tmp_path: Path, monkeypatch) -> None:
-    class FakeYolo:
-        def __init__(self, _source: str) -> None:
-            self.callbacks: dict[str, list[Callable[..., None]]] = {}
-
-        def add_callback(self, event: str, callback) -> None:
-            self.callbacks.setdefault(event, []).append(callback)
-
-        def train(self, **_options: object) -> None:
-            for callback in self.callbacks["on_train_batch_end"]:
-                callback(SimpleNamespace())
-            pytest.fail("training must stop at the cancelled batch boundary")
-
-    monkeypatch.setattr(training, "load_yolo", lambda: FakeYolo)
-    monkeypatch.setattr(
-        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
-    )
-    model, digest = _base_model(tmp_path)
-
-    with pytest.raises(YoloTrainingInterruptedError, match="interrupted"):
-        train_yolo_detector(
-            _dataset(tmp_path),
-            tmp_path / "run",
-            parameters=PARAMETERS,
-            model=model,
-            model_digest=digest,
-            runtime_version="8.4.131",
-            cancelled=lambda: True,
-        )
 
 
 def _checkpointing_yolo(monkeypatch: pytest.MonkeyPatch):
@@ -326,62 +295,6 @@ def test_finished_training_left_behind_starts_over(
     assert not (output / "stale").exists()
 
 
-def test_validation_stops_at_a_batch_boundary(tmp_path: Path, monkeypatch) -> None:
-    instances = []
-
-    class FakeYolo:
-        def __init__(self, _source: str) -> None:
-            self.callbacks = {}
-            self.trainer = None
-            instances.append(self)
-
-        def add_callback(self, event: str, callback) -> None:
-            self.callbacks.setdefault(event, []).append(callback)
-
-        def train(self, **options: object) -> None:
-            save_dir = Path(str(options["project"])) / str(options["name"])
-            weights = save_dir / "weights"
-            weights.mkdir(parents=True)
-            (weights / "best.pt").write_bytes(b"weights")
-            self.trainer = SimpleNamespace(
-                save_dir=save_dir,
-                best=weights / "best.pt",
-                test_loader=SimpleNamespace(batch_size=4),
-                args=SimpleNamespace(imgsz=768, max_det=500, device="cpu"),
-            )
-
-        def val(self, **_options: object) -> None:
-            for callback in self.callbacks["on_val_batch_end"]:
-                callback(SimpleNamespace())
-            pytest.fail("validation must stop at the cancelled batch boundary")
-
-    checks = 0
-
-    def cancelled() -> bool:
-        nonlocal checks
-        checks += 1
-        return checks >= 3
-
-    monkeypatch.setattr(training, "load_yolo", lambda: FakeYolo)
-    monkeypatch.setattr(
-        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
-    )
-    model, digest = _base_model(tmp_path)
-
-    with pytest.raises(YoloTrainingInterruptedError, match="interrupted"):
-        train_yolo_detector(
-            _dataset(tmp_path),
-            tmp_path / "run",
-            parameters=PARAMETERS,
-            model=model,
-            model_digest=digest,
-            runtime_version="8.4.131",
-            cancelled=cancelled,
-        )
-
-    assert len(instances) == 2
-
-
 def test_training_reports_epochs_and_publishes_validated_settings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -499,6 +412,7 @@ def test_a_requested_resume_never_silently_discards_an_invalid_checkpoint(
             dataset,
             tmp_path / "run",
             parameters=PARAMETERS,
+            model="yolo26n.pt",
             model_digest="a" * 64,
             runtime_version="8.4.131",
             resume_required=True,

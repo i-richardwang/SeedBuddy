@@ -27,7 +27,7 @@ class ImageAnnotations(Protocol):
 
 
 @dataclass(frozen=True)
-class AnnotatedImage:
+class ImageDocuments:
     digest: str
     width: int
     height: int
@@ -35,7 +35,7 @@ class AnnotatedImage:
 
 
 def validate_annotation_set(
-    images: Iterable[AnnotatedImage],
+    images: Iterable[ImageDocuments],
     classes: Iterable[str] | None,
     context: str,
 ) -> None:

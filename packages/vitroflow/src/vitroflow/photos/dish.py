@@ -1,4 +1,7 @@
-"""The dish recipe is byte-identical to the workbench recipe; the repository test suite pins it."""
+"""Locate the dish circle in a grayscale photograph.
+
+The dish recipe is byte-identical to the workbench recipe.
+"""
 
 from __future__ import annotations
 

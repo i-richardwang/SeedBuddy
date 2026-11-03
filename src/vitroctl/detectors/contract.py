@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from vitroctl.contracts.annotation import BoundingBox
-from vitroctl.contracts.annotation_set import AnnotatedImage, validate_annotation_set
+from vitroctl.contracts.annotation_set import ImageDocuments, validate_annotation_set
+from vitroctl.contracts.validation import validate_wire_contract
 
 DETECTION_SCHEMA_VERSION = 1
 
@@ -128,14 +129,20 @@ class DetectionResult:
 
     def require_image(self, digest: str, width: int, height: int) -> None:
         validate_annotation_set(
-            (AnnotatedImage(digest, width, height, {"detection": self}),),
+            (ImageDocuments(digest, width, height, {"detection": self}),),
             None,
             "detection",
         )
 
     @classmethod
-    def from_document(cls, payload: dict[str, Any]) -> DetectionResult:
-        """Build a result from a schema-validated document; its constructor checks bounds and IDs."""
+    def from_document(
+        cls, payload: dict[str, Any], context: str = "detection-result"
+    ) -> DetectionResult:
+        validate_wire_contract("detection-result", payload, context)
+        return cls.decode(payload)
+
+    @classmethod
+    def decode(cls, payload: dict[str, Any]) -> DetectionResult:
         image = payload["image"]
         producer = _producer(payload["producer"])
 

@@ -39,6 +39,7 @@ DEPENDENCIES: dict[str, set[str]] = {
     "host": {"worker", "io"},
     "models": {"contracts", "io"},
     "cli": {
+        "contracts",
         "models",
         "host",
         "datasets",

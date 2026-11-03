@@ -29,8 +29,12 @@ class Assignment:
     @classmethod
     def from_document(cls, value: Any, context: str = "assignment") -> Assignment:
         validate_wire_contract("inference-assignment", value, context)
+        return cls.decode(value)
+
+    @classmethod
+    def decode(cls, value: Any) -> Assignment:
         result = cls(
-            ModelManifest.from_document(value["manifest"], f"{context}.manifest"),
+            ModelManifest.decode(value["manifest"]),
             value["image"],
             value["attempt"],
             value["leaseExpiresAt"],
@@ -102,8 +106,6 @@ class InferenceClient:
         self, assignment: Assignment, document: dict[str, Any], deadline: float
     ) -> None:
         document = outbound("detection-result", document)
-        if document["image"]["digest"] != assignment.image:
-            raise ValueError("Detection describes another image")
         response = self.worker.request(
             "PUT",
             f"api/worker/inference/results/{assignment.version_id}/{assignment.image}",

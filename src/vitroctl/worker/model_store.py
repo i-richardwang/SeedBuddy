@@ -10,7 +10,9 @@ from typing import Any, Protocol
 
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import Detector
-from vitroctl.detectors.traditional.config import PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+)
 from vitroctl.detectors.traditional.detector import (
     TRADITIONAL_CLASS,
     TraditionalDetector,
@@ -48,6 +50,10 @@ class ModelManifest:
         cls, value: Any, context: str = "model manifest"
     ) -> ModelManifest:
         validate_wire_contract("inference-model-manifest", value, context)
+        return cls.decode(value)
+
+    @classmethod
+    def decode(cls, value: Any) -> ModelManifest:
         return cls(
             model_version_id=value["modelVersionId"],
             classes=tuple(value["classes"]),
@@ -83,11 +89,11 @@ class ModelStore:
                 raise ValueError(
                     f"Traditional detector requires a model that declares {TRADITIONAL_CLASS}"
                 )
-            detector = TraditionalDetector(PipelineConfig(), DEFAULT_MODEL)
-        if detector.artifact_digest != artifact["digest"]:
-            raise ValueError(
-                f"Local artifact for {version_id} does not match the published digest"
-            )
+            detector = TraditionalDetector(DEFAULT_PIPELINE_CONFIG, DEFAULT_MODEL)
+            if detector.artifact_digest != artifact["digest"]:
+                raise ValueError(
+                    f"Local artifact for {version_id} does not match the published digest"
+                )
         self._loaded = (version_id, detector)
         LOGGER.info("loaded %s", version_id)
         return detector
@@ -107,7 +113,7 @@ class ModelStore:
         require_ultralytics_version(required_runtime)
         expected_digest = artifact["digest"]
         inference = artifact["inference"]
-        settings = YoloInferenceSettings.from_document(inference)
+        settings = YoloInferenceSettings.decode(inference)
         destination = self._artifacts / version_id
         if destination.exists():
             try:
@@ -126,12 +132,11 @@ class ModelStore:
                 raise ValueError("Downloaded YOLO weights have an unexpected size")
             verify_digest(content, artifact["weights"]["digest"])
             weights.write_bytes(content)
-            self._verified_ultralytics_detector(
+            detector = self._verified_ultralytics_detector(
                 temporary, classes, expected_digest, settings
             )
-        return self._verified_ultralytics_detector(
-            destination, classes, expected_digest, settings
-        )
+        detector.weights = (destination / "weights" / "best.pt").resolve()
+        return detector
 
     def _verified_ultralytics_detector(
         self,

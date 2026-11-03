@@ -1,3 +1,5 @@
+"""Worker HTTP connections accept a transport for tests; production uses HTTPX defaults."""
+
 from __future__ import annotations
 
 import time
@@ -59,7 +61,6 @@ class WorkerHttpClient:
         timeout: float = 120.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        """transport is a test seam; production uses the default transport."""
         self._client = httpx.Client(
             base_url=connection.base_url,
             headers={"Authorization": f"Bearer {connection.token}"},

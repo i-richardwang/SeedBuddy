@@ -24,16 +24,16 @@ def test_load_annotations_keeps_only_annotated_images(tmp_path: Path) -> None:
 
     annotated = load_annotations(manifest)
 
-    assert [image.entry.digest for image in annotated] == ["1" * 64]
+    assert [image.digest for image in annotated] == ["1" * 64]
     annotation = annotated[0].annotation
-    assert (annotated[0].entry.width, annotated[0].entry.height) == (100, 80)
+    assert annotation is not None
+    assert (annotated[0].width, annotated[0].height) == (100, 80)
     assert annotation.digest == "1" * 64
     assert annotation.instances[0].bbox.center == (14.0, 23.0)
 
 
 def test_shared_annotation_contract() -> None:
     payload = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
-    validate_wire_contract("annotation", payload, "annotation")
     annotation = AnnotationDocument.from_document(payload, "annotation")
 
     assert annotation.digest == "c" * 64
@@ -75,15 +75,14 @@ def test_unversioned_annotation_is_rejected() -> None:
     del payload["schemaVersion"]
 
     with pytest.raises(ValueError, match="annotation.*shared contract"):
-        validate_wire_contract("annotation", payload, "annotation")
+        AnnotationDocument.from_document(payload)
 
 
 def test_annotation_schema_rejects_unknown_fields_and_invalid_identities() -> None:
     payload = annotation_document("1" * 64)
     payload["unexpected"] = True
     with pytest.raises(ValueError, match="annotation.*shared contract"):
-        validate_wire_contract("annotation", payload, "annotation")
-
+        AnnotationDocument.from_document(payload)
     with pytest.raises(ValueError, match="annotation.image.digest.*shared contract"):
         validate_wire_contract(
             "annotation", annotation_document("images/a.jpg"), "annotation"
@@ -92,6 +91,5 @@ def test_annotation_schema_rejects_unknown_fields_and_invalid_identities() -> No
     payload = annotation_document(
         "1" * 64, [{"x": 95, "y": 20, "width": 8, "height": 6}]
     )
-    validate_wire_contract("annotation", payload, "annotation")
     with pytest.raises(ValueError, match=r"instances\[0\].bbox exceeds image bounds"):
         AnnotationDocument.from_document(payload, "annotation")

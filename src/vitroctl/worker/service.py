@@ -14,7 +14,7 @@ import httpx
 
 from vitroctl.detectors.ultralytics import YoloTrainingInterruptedError
 from vitroctl.detectors.ultralytics.runtime import release_accelerator
-from vitroctl.worker.images import BUDGET_BYTES, ImageCache
+from vitroctl.worker.images import ImageCache
 from vitroctl.worker.inference import WORKER_ERRORS, InferenceRunner
 from vitroctl.worker.inference_process import InferenceProcess
 from vitroctl.worker.inference_protocol import InferenceClient
@@ -34,7 +34,6 @@ class Worker:
         *,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        """transport is a test seam; production uses the default transport."""
         self.settings = settings
         self.client = WorkerClient(
             settings.server_url,
@@ -63,9 +62,7 @@ class Worker:
             claim = self.training.claim()
             if claim is not None:
                 self.runner.close()
-                images = ImageCache(
-                    self.settings.work_dir / "images", budget_bytes=BUDGET_BYTES
-                )
+                images = ImageCache(self.settings.work_dir / "images")
                 try:
                     serve_training_claim(
                         self.training,

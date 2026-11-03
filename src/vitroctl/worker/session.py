@@ -20,7 +20,9 @@ from uuid import uuid4
 import httpx
 
 from vitroctl.detectors.contract import RuntimeDescriptor
-from vitroctl.detectors.traditional.config import PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+)
 from vitroctl.detectors.traditional.detector import TraditionalDetector
 from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
 from vitroctl.detectors.ultralytics.detector import ultralytics_runtime_descriptor
@@ -54,14 +56,14 @@ class WorkerSettings:
 
 def available_runtimes() -> tuple[RuntimeDescriptor, ...]:
     """The adapters this process executes; training needs the ultralytics one."""
-    runtimes = [TraditionalDetector(PipelineConfig(), DEFAULT_MODEL).runtime]
+    runtimes = [TraditionalDetector(DEFAULT_PIPELINE_CONFIG, DEFAULT_MODEL).runtime]
     if ultralytics_installed():
         runtimes.append(ultralytics_runtime_descriptor())
     return tuple(runtimes)
 
 
 def device_memory_bytes(device: str) -> int:
-    """The memory the accelerator offers a claim or training run.
+    """The device memory available for inference and training.
 
     Unified-memory Macs report Metal's recommended working set, CUDA devices
     their total memory, and the CPU the machine's physical memory.
@@ -123,7 +125,6 @@ class WorkerClient(WorkerHttpClient):
         *,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        """transport is a test seam; production uses the default transport."""
         self.session = session
         super().__init__(
             WorkerConnection(server_url=server_url, token=token),

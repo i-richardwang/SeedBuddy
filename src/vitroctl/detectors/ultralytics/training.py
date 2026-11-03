@@ -10,6 +10,7 @@ from typing import Any, Protocol
 
 import numpy as np
 
+from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.ultralytics.checkpoints import EPOCH_JOURNAL
 from vitroctl.detectors.ultralytics.runtime import (
     load_training_trainer,
@@ -17,7 +18,6 @@ from vitroctl.detectors.ultralytics.runtime import (
     require_ultralytics_version,
 )
 from vitroctl.io.files import file_digest, write_text_atomically
-from vitroctl.training.parameters import parse_training_parameters
 
 
 class BoxValidationMetrics(Protocol):
@@ -43,7 +43,7 @@ class DetectionLosses:
     classification: float
     regression: float
 
-    def to_json(self) -> dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {
             "box": self.box,
             "classification": self.classification,
@@ -65,11 +65,11 @@ class EpochReport:
     fitness: float
     learning_rate: float
 
-    def to_json(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "epoch": self.epoch,
-            "train": self.train.to_json(),
-            "val": self.val.to_json(),
+            "train": self.train.to_dict(),
+            "val": self.val.to_dict(),
             "precision": self.precision,
             "recall": self.recall,
             "map50": self.map50,
@@ -79,7 +79,12 @@ class EpochReport:
         }
 
     @classmethod
-    def from_json(cls, document: Mapping[str, Any]) -> EpochReport:
+    def from_document(cls, document: Mapping[str, Any]) -> EpochReport:
+        validate_wire_contract("training-epoch-report", document, "epoch report")
+        return cls.decode(document)
+
+    @classmethod
+    def decode(cls, document: Mapping[str, Any]) -> EpochReport:
         return cls(
             epoch=int(document["epoch"]),
             train=DetectionLosses(**document["train"]),
@@ -235,7 +240,7 @@ def _completed_epochs(output: Path, epochs: int) -> tuple[EpochReport, ...]:
         state = _load_checkpoint(checkpoint)
         completed = int(state["epoch"]) + 1
         reports = tuple(
-            EpochReport.from_json(json.loads(line))
+            EpochReport.from_document(json.loads(line))
             for line in journal.read_text(encoding="utf-8").splitlines()
         )
     except Exception:  # noqa: BLE001 - unreadable state is not resumable
@@ -252,11 +257,10 @@ def train_yolo_detector(
     output_dir: str | Path,
     *,
     parameters: Mapping[str, Any],
-    model: str | Path = "yolo26n.pt",
+    model: str | Path,
     model_digest: str,
     runtime_version: str,
     device: str | None = None,
-    cancelled: Callable[[], bool] | None = None,
     on_training_start: Callable[[], None] | None = None,
     on_epoch: Callable[[EpochReport], None] | None = None,
     on_validation_start: Callable[[], None] | None = None,
@@ -270,7 +274,7 @@ def train_yolo_detector(
     training: one interrupted there resumes after its last completed epoch, and
     `on_epoch` still sees every epoch from the first.
     """
-    fixed_parameters = parse_training_parameters(parameters)
+    fixed_parameters = dict(parameters)
     data_path = Path(dataset).resolve()
     if not data_path.is_file():
         raise FileNotFoundError(data_path)
@@ -284,13 +288,6 @@ def train_yolo_detector(
     if not completed and output.exists():
         shutil.rmtree(output)
     output.parent.mkdir(parents=True, exist_ok=True)
-
-    # Raising, rather than setting `trainer.stop`, leaves the last completed
-    # epoch's checkpoint resumable: a stopped trainer validates and saves the
-    # partial epoch, then strips the optimizer from `last.pt`.
-    def stop_if_cancelled(_owner: object = None) -> None:
-        if cancelled and cancelled():
-            raise YoloTrainingInterruptedError("training interrupted")
 
     yolo = load_yolo()
     train_options: dict[str, object]
@@ -353,13 +350,11 @@ def train_yolo_detector(
     def record_epoch(trainer: Any) -> None:
         report = epoch_report(trainer)
         with journal.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(report.to_json()) + "\n")
+            stream.write(json.dumps(report.to_dict()) + "\n")
         if on_epoch:
             on_epoch(report)
 
     trainer_model.add_callback("on_train_start", record_execution)
-    trainer_model.add_callback("on_train_batch_end", stop_if_cancelled)
-    trainer_model.add_callback("on_val_batch_end", stop_if_cancelled)
     trainer_model.add_callback("on_model_save", record_execution)
     trainer_model.add_callback("on_model_save", record_epoch)
     if on_training_start:
@@ -368,7 +363,6 @@ def train_yolo_detector(
         for report in completed:
             on_epoch(report)
     trainer_model.train(trainer=load_training_trainer(), **train_options)
-    stop_if_cancelled()
     trainer = trainer_model.trainer
     save_dir = Path(trainer.save_dir)
     best_weights = Path(trainer.best)
@@ -389,8 +383,6 @@ def train_yolo_detector(
         save_dir / "training-context.json", json.dumps(context, indent=2) + "\n"
     )
     validator_model = yolo(str(best_weights))
-    validator_model.add_callback("on_val_batch_end", stop_if_cancelled)
-    stop_if_cancelled()
     if on_validation_start:
         on_validation_start()
     metrics = validator_model.val(
@@ -404,7 +396,6 @@ def train_yolo_detector(
         name="validation-one-to-many",
         exist_ok=False,
     )
-    stop_if_cancelled()
     confidence = best_f1_confidence(metrics)
     metric_values = _validation_summary(metrics)
 

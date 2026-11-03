@@ -16,7 +16,7 @@ import httpx
 
 from vitroctl.detectors.contract import DetectionProducer
 from vitroctl.io.image_io import read_image
-from vitroctl.worker.images import BUDGET_BYTES, ImageCache
+from vitroctl.worker.images import ImageCache
 from vitroctl.worker.inference_protocol import Assignment, InferenceClient
 from vitroctl.worker.model_store import ModelStore
 from vitroctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
@@ -35,7 +35,7 @@ def _execute(
     worker = WorkerClient(settings.server_url, settings.token, session)
     client = InferenceClient(worker)
     models = ModelStore(client, settings.work_dir, settings.device)
-    images = ImageCache(settings.work_dir / "images", budget_bytes=BUDGET_BYTES)
+    images = ImageCache(settings.work_dir / "images")
     try:
         while True:
             assignment, deadline = connection.recv()

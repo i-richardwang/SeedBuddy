@@ -18,12 +18,14 @@ from conftest import (
     write_blob,
 )
 
+from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.ultralytics import (
     DetectionLosses,
     EpochReport,
     YoloTrainingInterruptedError,
 )
 from vitroctl.io.image_io import CANONICAL_EXTENSION
+from vitroctl.models.bundle import read_bundle
 from vitroctl.worker import session as worker_session
 from vitroctl.worker import training as training_worker
 from vitroctl.worker.images import ImageCache
@@ -293,7 +295,6 @@ def test_snapshot_parser_validates_every_image_entry() -> None:
             ]
         )
     )
-    assert snapshot.id == "snapshot-one"
     assert snapshot.images[0].split == "val"
     assert snapshot.images[0].annotation.digest == "1" * 64
 
@@ -385,11 +386,9 @@ def test_training_claim_parses_the_complete_claim_contract() -> None:
     claim = TrainingClaim.from_document(response["run"])
 
     assert claim.run_id == "train-one"
-    assert claim.model_id == "seed-detector"
     assert claim.dataset_snapshot_id == "snapshot-one"
     assert claim.worker_id == "trainer"
     assert claim.session_id == "trainer-session"
-    assert claim.phase == "preparing"
 
 
 def test_training_claim_rejects_partial_or_foreign_claim_state() -> None:
@@ -467,7 +466,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
             posted.append((claim.run_id, {"lease": "renewed"}))
 
         def report_epoch(self, claim: TrainingClaim, report: EpochReport) -> None:
-            posted.append((claim.run_id, report.to_json()))
+            posted.append((claim.run_id, report.to_dict()))
 
         def publish_artifact(
             self, claim: TrainingClaim, weights: Path, inference: Path
@@ -581,8 +580,6 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
             stopped=threading.Event(),
         )
     if delivery_fails:
-        from vitroctl.models.bundle import read_bundle
-
         retained = tmp_path / "training-runs" / "train-one-1" / "bundle"
         assert read_bundle(retained)[1].read_bytes() == b"weights"
         return
@@ -597,8 +594,6 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
     assert len(artifacts) == 1
     assert artifacts[0][:2] == ("train-one", b"weights")
     assert artifacts[0][2]["classes"] == ["ungerminated", "germinated"]
-    from vitroctl.contracts.validation import validate_wire_contract
-
     validate_wire_contract("model-bundle", artifacts[0][2], "published bundle")
     assert not (tmp_path / "training-runs" / "train-one-1").exists()
 

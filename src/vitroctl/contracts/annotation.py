@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from vitroctl.contracts.validation import validate_wire_contract
+
 ANNOTATION_SCHEMA_VERSION = 1
 
 
@@ -40,8 +42,16 @@ class AnnotationDocument:
     instances: tuple[AnnotationInstance, ...]
 
     @classmethod
-    def from_document(cls, payload: dict[str, Any], context: str) -> AnnotationDocument:
-        """Read a schema-validated document and check image-relative semantics."""
+    def from_document(
+        cls, payload: dict[str, Any], context: str = "annotation"
+    ) -> AnnotationDocument:
+        validate_wire_contract("annotation", payload, context)
+        return cls.decode(payload, context)
+
+    @classmethod
+    def decode(
+        cls, payload: dict[str, Any], context: str = "annotation"
+    ) -> AnnotationDocument:
         image = payload["image"]
         digest = image["digest"]
         image_width = image["width"]
