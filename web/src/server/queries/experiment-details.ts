@@ -1,5 +1,5 @@
 /** Composes experiment grids, unit series, and overview listings. */
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import {
   cellKey,
@@ -21,6 +21,15 @@ import type {
   UnitRef,
 } from "../../domain/experiments/schema";
 import { experimentSheet, unitRow } from "../../domain/experiments/sheet";
+import {
+  atImageObservation,
+  listManualReadings,
+  listObservations,
+  listTreatments,
+  listUnits,
+  readExperimentRecord,
+  toExperiment,
+} from "../experiments/public";
 import { markedUnclear } from "../images/public";
 import { currentVersion } from "../inference/public";
 import { type Executor, snapshot } from "../infra/db/client";
@@ -35,18 +44,7 @@ import {
   images as storedImages,
 } from "../infra/db/schema";
 import { documentTally, readingsSubquery } from "../readings/public";
-import {
-  atImageObservation,
-  experimentObservationImageDetail,
-} from "./observation-image";
-import {
-  listManualReadings,
-  listObservations,
-  listTreatments,
-  listUnits,
-  readExperimentRecord,
-  toExperiment,
-} from "./records";
+import { experimentObservationImageDetail } from "./experiment-observation-image-detail";
 
 function observationImageGridQuery(db: Executor) {
   const readings = readingsSubquery(db, {
@@ -56,6 +54,8 @@ function observationImageGridQuery(db: Executor) {
   return db
     .select({
       observationImage: experimentObservationImages,
+      width: storedImages.width,
+      height: storedImages.height,
       outcomeStatus: sql<
         "succeeded" | "failed" | null
       >`case when ${inferenceTasks.status} = 'failed' then 'failed' when ${readings.detection} is not null then 'succeeded' else null end`,
@@ -71,6 +71,10 @@ function observationImageGridQuery(db: Executor) {
       unclear: markedUnclear(experimentObservationImages.imageId),
     })
     .from(experimentObservationImages)
+    .innerJoin(
+      storedImages,
+      eq(storedImages.id, experimentObservationImages.imageId),
+    )
     .innerJoin(experimentObservations, atImageObservation())
     .leftJoin(
       modelVersions,
@@ -93,7 +97,9 @@ type ObservationImageGridRow = Awaited<
   ReturnType<typeof observationImageGridQuery>
 >[number];
 
-function toCell(row: ObservationImageGridRow): ObservationImageCell {
+function toCell(
+  row: ObservationImageGridRow,
+): ObservationImageCell & { width: number; height: number } {
   const state: ImageAnalysisState = row.proposed
     ? "proposed"
     : row.reader === null
@@ -104,6 +110,8 @@ function toCell(row: ObservationImageGridRow): ObservationImageCell {
           ? "failed"
           : "pending";
   return {
+    width: row.width,
+    height: row.height,
     id: row.observationImage.id,
     unit: row.observationImage.unitId,
     observation: row.observationImage.observationId,
@@ -122,17 +130,14 @@ function toCell(row: ObservationImageGridRow): ObservationImageCell {
 async function listObservationImageCells(
   experimentId: string,
   db: Executor,
-): Promise<ObservationImageCell[]> {
+): Promise<(ObservationImageCell & { width: number; height: number })[]> {
   const rows = await observationImageGridQuery(db).where(
     eq(experimentObservationImages.experimentId, experimentId),
   );
   return rows.map(toCell);
 }
 
-async function readGrid(
-  experiment: Experiment,
-  db: Executor,
-): Promise<ExperimentGridDetail> {
+async function readGrid(experiment: Experiment, db: Executor) {
   const [treatments, units, observations, images, manualReadings] =
     await Promise.all([
       listTreatments(experiment.id, db),
@@ -142,12 +147,15 @@ async function readGrid(
       listManualReadings(experiment.id, db),
     ]);
   return {
-    experiment,
-    treatments,
-    units: unitOrder(units, treatments),
-    observations,
+    grid: {
+      experiment,
+      treatments,
+      units: unitOrder(units, treatments),
+      observations,
+      images: images.map(({ width: _width, height: _height, ...cell }) => cell),
+      manualReadings,
+    },
     images,
-    manualReadings,
   };
 }
 
@@ -156,7 +164,7 @@ export function experimentGridDetail(
 ): Promise<ExperimentGridDetail | null> {
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(experimentId, db);
-    return experiment ? readGrid(experiment, db) : null;
+    return experiment ? (await readGrid(experiment, db)).grid : null;
   });
 }
 
@@ -166,7 +174,9 @@ export function experimentSheetDetail(
 ): Promise<ExperimentSheetDetail | null> {
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(experimentId, db);
-    return experiment ? experimentSheet(await readGrid(experiment, db)) : null;
+    return experiment
+      ? experimentSheet((await readGrid(experiment, db)).grid)
+      : null;
   });
 }
 
@@ -175,7 +185,7 @@ export function unitRowOverview(ref: UnitRef): Promise<UnitRowOverview | null> {
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(ref.experiment, db);
     return experiment
-      ? unitRow(await readGrid(experiment, db), ref.unit)
+      ? unitRow((await readGrid(experiment, db)).grid, ref.unit)
       : null;
   });
 }
@@ -194,8 +204,8 @@ async function readUnitSeries(
 ): Promise<UnitDetail | null> {
   const experiment = await readExperimentRecord(ref.experiment, db);
   if (!experiment) return null;
-  const { treatments, units, observations, images, manualReadings } =
-    await readGrid(experiment, db);
+  const { grid, images: sizedImages } = await readGrid(experiment, db);
+  const { treatments, units, observations, images, manualReadings } = grid;
   const unit = units.find((item) => item.id === ref.unit);
   if (!unit) return null;
   const cells = observationCells(images, manualReadings);
@@ -203,15 +213,13 @@ async function readUnitSeries(
     observation,
     cell: cells.get(cellKey(unit.id, observation.id)),
   }));
-  const sizes = await readImageSizes(
-    own.flatMap(({ cell }) => (cell?.image ? [cell.image.digest] : [])),
-    db,
-  );
   const series = own.map(({ observation, cell }) => ({
     observation,
-    image: cell?.image
-      ? { ...cell.image, ...sizes.get(cell.image.digest)! }
-      : null,
+    image:
+      sizedImages.find(
+        (image) =>
+          image.unit === unit.id && image.observation === observation.id,
+      ) ?? null,
     manual: cell?.manual ?? null,
   }));
   const viewing =
@@ -241,25 +249,6 @@ async function readUnitSeries(
     observation: viewing?.observation.id ?? null,
     shown,
   };
-}
-
-/**
- * The size of each stored image named. An observation image refers to a
- * stored image, so every digest it gives is found.
- */
-async function readImageSizes(
-  digests: readonly string[],
-  db: Executor,
-): Promise<Map<string, { width: number; height: number }>> {
-  const rows = await db
-    .select({
-      digest: storedImages.id,
-      width: storedImages.width,
-      height: storedImages.height,
-    })
-    .from(storedImages)
-    .where(inArray(storedImages.id, [...digests]));
-  return new Map(rows.map(({ digest, ...size }) => [digest, size]));
 }
 
 export function listExperimentOverviews(): Promise<ExperimentOverview[]> {

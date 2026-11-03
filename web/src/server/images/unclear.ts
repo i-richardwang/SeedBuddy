@@ -1,3 +1,9 @@
+/**
+ * Whether a photograph could be read clearly is said of the canonical image,
+ * wherever it is shown. Marking or clearing it changes no reading: the grid,
+ * the spreadsheet and the dataset pages read the mark beside the readings
+ * they have.
+ */
 import { type Column, eq, inArray, type SQL, sql } from "drizzle-orm";
 
 import { ImageNotFoundError } from "../../domain/images/errors";
@@ -9,13 +15,6 @@ import type {
 import { database, type Executor, inTransaction } from "../infra/db/client";
 import { images, unclearImages } from "../infra/db/schema";
 import { lockImage } from "./lock";
-
-/**
- * Whether a photograph could be read clearly is said of the canonical image,
- * wherever it is shown. Marking or clearing it changes no reading: the grid,
- * the spreadsheet and the dataset pages read the mark beside the readings
- * they have.
- */
 
 /** Whether the image a query names is marked unclear, as a column of that query. */
 export function markedUnclear(imageId: Column): SQL<boolean> {

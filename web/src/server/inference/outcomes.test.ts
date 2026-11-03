@@ -9,7 +9,7 @@ import {
 } from "../../domain/inference/errors";
 import type { Worker } from "../../domain/workers/schema";
 import { storeAnnotation } from "../annotations/documents";
-import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
+import { addExperimentObservationImagesToNewDataset } from "../datasets/datasets";
 import { listImageRecords } from "../datasets/records";
 import { retryObservationImageAnalysis } from "../experiments/observation-images";
 import { database } from "../infra/db/client";

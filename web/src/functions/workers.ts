@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { workerRefSchema } from "../domain/workers/schema";
-import { listWorkerOverviews } from "../server/queries/public";
+import { workerPresenceDetail } from "../server/queries/public";
 import {
   enrollWorker,
   removeWorker as removeWorkerService,
@@ -9,7 +9,7 @@ import {
 import { requireAdministrator } from "./access";
 
 export const getWorkers = createServerFn({ method: "GET" }).handler(
-  listWorkerOverviews,
+  workerPresenceDetail,
 );
 
 /** Administrators enroll the machines that may serve as workers. */

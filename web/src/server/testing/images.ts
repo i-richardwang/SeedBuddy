@@ -8,7 +8,7 @@ import type { Tally } from "../../domain/models/classes";
 import type { ModelVersion } from "../../domain/models/schema";
 import { canonicalize } from "../images/ingest";
 import { storeImage } from "../images/store";
-import { TEST_RUNTIME } from "./workers";
+import { TEST_RUNTIME, ULTRALYTICS_RUNTIME } from "./workers";
 
 /** Fixture images are grids of flat blocks so lossy encoding keeps them distinct. */
 const FIXTURE_BLOCKS = 8;
@@ -70,19 +70,7 @@ export async function resultFor(
   content: string,
   runtime = TEST_RUNTIME,
 ): Promise<DetectionResult> {
-  return {
-    ...makeResult([{ id: 0, x: 10, y: 10 }], {
-      digest: await imageDigest(content),
-      dishRadius: FIXTURE_EDGE / 4,
-      width: FIXTURE_EDGE,
-      height: FIXTURE_EDGE,
-    }),
-    producer: {
-      modelVersionId: version.id,
-      artifactDigest: version.artifact.digest,
-      runtime,
-    },
-  };
+  return countedImageResult(version, await imageDigest(content), 1, runtime);
 }
 
 /** One box per instance the tally counts, laid along the top of the image. */
@@ -110,5 +98,28 @@ export async function countedResult(
       ...instance,
       score: 0.9,
     })),
+  };
+}
+
+export function countedImageResult(
+  version: ModelVersion,
+  digest: string,
+  seeds: number,
+  runtime = ULTRALYTICS_RUNTIME,
+) {
+  return {
+    ...makeResult(
+      Array.from({ length: seeds }, (_, id) => ({
+        id,
+        x: 12 + id * 14,
+        y: 12,
+      })),
+      { digest, dishRadius: 400, width: FIXTURE_EDGE, height: FIXTURE_EDGE },
+    ),
+    producer: {
+      modelVersionId: version.id,
+      artifactDigest: version.artifact.digest,
+      runtime,
+    },
   };
 }

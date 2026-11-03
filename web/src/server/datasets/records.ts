@@ -14,13 +14,13 @@ import { datasetImages, datasets, images } from "../infra/db/schema";
 import { readingsSubquery } from "../readings/public";
 import {
   type DatasetImage,
+  datasetMembershipOrder,
   listDatasets,
   listDatasetsForModel,
   type MembershipRow,
-  membershipOrder,
   readDataset,
   toDatasetImage,
-} from "./memberships";
+} from "./datasets";
 
 /**
  * A dataset image with the documents that decide its state, loaded in one
@@ -43,7 +43,9 @@ export interface ReviewedRecord extends ImageRecord {
   annotation: AnnotationDocument;
 }
 
-export function summarize(record: ImageRecord): DatasetImageOverview {
+export function summarizeDatasetImage(
+  record: ImageRecord,
+): DatasetImageOverview {
   const { image, detection, annotation } = record;
   return {
     dataset: image.dataset,
@@ -100,31 +102,27 @@ function toRecord(
 
 export async function listImageRecords(
   datasetId: string,
+  executor?: Executor,
 ): Promise<ImageRecord[]> {
-  const rows = await recordQuery(await database())
+  const rows = await recordQuery(executor ?? (await database()))
     .where(eq(datasetImages.datasetId, datasetId))
-    .orderBy(...membershipOrder());
+    .orderBy(...datasetMembershipOrder());
   return rows.map(toRecord);
 }
 
 /**
- * Images that have been reviewed, the only ones training may use. With
- * `lock`, the memberships are share-locked so a removal waits for the
- * caller's transaction.
+ * Images that have been reviewed, the only ones training may use.
  */
 export async function listReviewedRecords(
   datasetId: string,
   db: Executor,
-  lock = false,
 ): Promise<ReviewedRecord[]> {
   const query = recordQuery(db)
     .where(({ annotation }) =>
       and(eq(datasetImages.datasetId, datasetId), isNotNull(annotation)),
     )
-    .orderBy(...membershipOrder());
-  const rows = lock
-    ? await query.for("share", { of: datasetImages })
-    : await query;
+    .orderBy(...datasetMembershipOrder());
+  const rows = await query.for("share", { of: datasetImages });
   return rows
     .map(toRecord)
     .flatMap((record) =>
@@ -132,24 +130,25 @@ export async function listReviewedRecords(
     );
 }
 
-export function countReviewed(records: ImageRecord[]): number {
+export function countReviewedDatasetImages(records: ImageRecord[]): number {
   return records.filter((record) => record.annotation !== null).length;
 }
 
 /** Every dataset, or those training one model, with its image and review counts. */
 export async function listDatasetOverviews(
   modelId?: string,
+  executor?: Executor,
 ): Promise<DatasetOverview[]> {
   const datasets = modelId
-    ? await listDatasetsForModel(modelId)
-    : await listDatasets();
+    ? await listDatasetsForModel(modelId, executor)
+    : await listDatasets(executor);
   return Promise.all(
     datasets.map(async (dataset) => {
-      const records = await listImageRecords(dataset.id);
+      const records = await listImageRecords(dataset.id, executor);
       return {
         dataset,
         imageCount: records.length,
-        reviewedCount: countReviewed(records),
+        reviewedCount: countReviewedDatasetImages(records),
       };
     }),
   );

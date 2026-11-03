@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import { asc, eq } from "drizzle-orm";
 
@@ -7,14 +7,12 @@ import {
   WorkerNotFoundError,
 } from "../../domain/workers/errors";
 import type { EnrolledWorker } from "../../domain/workers/schema";
-import { database } from "../infra/db/client";
+import { database, type Executor } from "../infra/db/client";
+import { refusingUnique } from "../infra/db/errors";
 import { workers } from "../infra/db/schema";
+import { contentDigest } from "../infra/digest";
 
 const TOKEN_PREFIX = "vfw_";
-
-function tokenHash(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
 
 /**
  * An administrator enrolls a machine under a name and hands it the token
@@ -23,22 +21,20 @@ function tokenHash(token: string): string {
  */
 export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
   const token = `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
-  const [enrolled] = await (
-    await database()
-  )
-    .insert(workers)
-    .values({
-      id: workerId,
-      tokenHash: tokenHash(token),
-      enrolledAt: new Date(),
-    })
-    .onConflictDoNothing({ target: workers.id })
-    .returning({ id: workers.id });
-  if (!enrolled) {
-    throw new WorkerNameTakenError(
-      `A worker named ${workerId} is already enrolled`,
-    );
-  }
+  const db = await database();
+  await refusingUnique(
+    "workers_pkey",
+    () =>
+      new WorkerNameTakenError(
+        `A worker named ${workerId} is already enrolled`,
+      ),
+    () =>
+      db.insert(workers).values({
+        id: workerId,
+        tokenHash: contentDigest(token),
+        enrolledAt: new Date(),
+      }),
+  );
   return { workerId, token };
 }
 
@@ -67,15 +63,15 @@ export async function authenticateWorker(
   )
     .select({ id: workers.id })
     .from(workers)
-    .where(eq(workers.tokenHash, tokenHash(token)));
+    .where(eq(workers.tokenHash, contentDigest(token)));
   return worker?.id ?? null;
 }
 
 /** The names of the enrolled workers, in the order they were enrolled. */
-export async function listEnrolledWorkers(): Promise<string[]> {
-  const rows = await (
-    await database()
-  )
+export async function listEnrolledWorkers(
+  executor?: Executor,
+): Promise<string[]> {
+  const rows = await (executor ?? (await database()))
     .select({ id: workers.id })
     .from(workers)
     .orderBy(asc(workers.enrolledAt), asc(workers.id));

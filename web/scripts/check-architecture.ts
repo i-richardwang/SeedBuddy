@@ -39,6 +39,6 @@ if (errors.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    "Web architecture: layer boundaries, pure capabilities, server APIs, dependency cycles and style composition checked",
+    "Web architecture: layer boundaries, pure capabilities, server APIs, dependency cycles, style composition, operation contracts and unused public exports checked",
   );
 }

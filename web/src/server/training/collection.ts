@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
 
 import { listBlobs, removeBlob } from "../infra/blobs/store";
-import { transaction } from "../infra/db/client";
+import { operationTime, transaction } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";
+import { leaseIsHeld } from "../workers/public";
 import { parseArtifactPartKey } from "./keys";
 
 /** Final-model parts live only while their execution attempt has a live lease. */
@@ -12,18 +13,16 @@ export async function collectTrainingArtifactParts(): Promise<string[]> {
     const reference = parseArtifactPartKey(key);
     if (!reference) continue;
     await transaction(async (tx) => {
+      const at = await operationTime(tx);
       const [run] = await tx
-        .select()
+        .select({
+          attempt: trainingRuns.attempt,
+          held: leaseIsHeld(trainingRuns, at),
+        })
         .from(trainingRuns)
         .where(eq(trainingRuns.id, reference.trainingRunId))
         .for("update");
-      if (
-        run?.status === "running" &&
-        run.attempt === reference.trainingAttempt &&
-        run.leaseExpiresAt &&
-        run.leaseExpiresAt > new Date()
-      )
-        return;
+      if (run?.held && run.attempt === reference.trainingAttempt) return;
       await removeBlob(key);
       collected.push(key);
     });

@@ -12,7 +12,7 @@ import { canonicalJson } from "../../lib/json/canonical";
 import { lockImage } from "../images/public";
 import { database, type Executor, transaction } from "../infra/db/client";
 import { annotations, images } from "../infra/db/schema";
-import { readModel } from "../models/public";
+import { requireModel } from "../models/public";
 
 /** The image's stored review for the model, if a person has made one. */
 export async function readAnnotation(
@@ -54,8 +54,7 @@ export async function storeAnnotation(
       .from(images)
       .where(eq(images.id, ref.digest));
     if (!image) throw new Error(`Image ${ref.digest} is not stored`);
-    const model = await readModel(ref.modelId, tx);
-    if (!model) throw new Error(`Unknown model: ${ref.modelId}`);
+    const model = await requireModel(ref.modelId, tx);
     const document = annotationSchema.parse({
       schemaVersion: 1,
       image: { digest: ref.digest, ...image },
@@ -77,4 +76,22 @@ export async function storeAnnotation(
       });
     return document;
   });
+}
+
+/** Insert prevalidated reviews while the caller holds each image lock and has refused existing reviews. */
+export async function insertImportedAnnotations(
+  modelId: string,
+  documents: readonly AnnotationDocument[],
+  at: Date,
+  tx: Executor,
+): Promise<void> {
+  if (!documents.length) return;
+  await tx.insert(annotations).values(
+    documents.map((document) => ({
+      imageId: document.image.digest,
+      modelId,
+      document,
+      updatedAt: at,
+    })),
+  );
 }

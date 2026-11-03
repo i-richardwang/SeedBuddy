@@ -16,7 +16,7 @@ import { contentDigest } from "../infra/digest";
 import { observeTextsIntoDataset, reviewedDataset } from "../testing/datasets";
 import { imageBytes, imageDigest, storeTexts } from "../testing/images";
 import { handleCanonicalImageUpload } from "../transport/http/image-upload";
-import { readDatasetByName } from "./memberships";
+import { readDatasetByName } from "./datasets";
 import { listImageRecords } from "./records";
 import { importDataset, readDatasetManifest } from "./transfer";
 

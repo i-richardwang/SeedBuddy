@@ -5,7 +5,6 @@ import { and, eq } from "drizzle-orm";
 import type {
   CultureEvent,
   CultureEventRef,
-  CultureEventRequest,
   CultureEventsRequest,
 } from "../../domain/experiments/culture-events";
 import {
@@ -17,95 +16,28 @@ import {
 } from "../../domain/experiments/culture-events";
 import {
   CultureEventNotFoundError,
-  ObservationNotFoundError,
   UnitConflictError,
-  UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import type { Unit } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
-import { type Executor, inTransaction } from "../infra/db/client";
+import {
+  type Executor,
+  inTransaction,
+  operationTime,
+} from "../infra/db/client";
 import {
   experimentCultureEvents,
   experimentManualReadings,
   experimentObservationImages,
 } from "../infra/db/schema";
-import { listObservations, listUnits, lockExperiment } from "./records";
-
-async function recordCultureEvent(
-  value: CultureEventRequest,
-  executor?: Executor,
-): Promise<CultureEvent> {
-  const {
-    experiment: experimentId,
-    unit: unitId,
-    observation: observationId,
-    type,
-  } = value;
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const observations = await listObservations(experimentId, tx);
-    const observation = observations.find((item) => item.id === observationId);
-    if (!observation) {
-      throw new ObservationNotFoundError(
-        `Unknown observation: ${observationId}`,
-      );
-    }
-    const unit = (await listUnits(experimentId, tx)).find(
-      (item) => item.id === unitId,
-    );
-    if (!unit) throw new UnitNotFoundError(`Unknown unit: ${unitId}`);
-    if (
-      unit.events.some(
-        (event) => event.observation === observationId && event.type === type,
-      )
-    ) {
-      throw new UnitConflictError(
-        `${type} is already recorded for ${unit.code} at this observation`,
-      );
-    }
-    const hasTerminalEvent = unit.events.some((event) =>
-      cultureEventIsTerminal(event.type),
-    );
-    if (cultureEventIsTerminal(type) && hasTerminalEvent) {
-      throw new UnitConflictError(`${unit.code} has already left the bench`);
-    }
-
-    const ordinals = observationOrdinals(observations);
-    if (!unitIsAvailableAt(unit.events, observation, ordinals)) {
-      throw new UnitConflictError(
-        `Unit ${unit.code} was already removed before this observation`,
-      );
-    }
-    if (cultureEventIsTerminal(type)) {
-      await assertUnitRecordsEndAt(
-        experimentId,
-        unit,
-        observation,
-        ordinals,
-        tx,
-      );
-    }
-
-    const [row] = await tx
-      .insert(experimentCultureEvents)
-      .values({
-        experimentId,
-        id: randomUUID(),
-        unitId,
-        observationId,
-        type,
-        recordedAt: new Date(),
-      })
-      .returning();
-    if (!row) throw new Error("Culture event was not recorded");
-    const updated = (await listUnits(experimentId, tx)).find(
-      (item) => item.id === unitId,
-    );
-    const event = updated?.events.find((item) => item.id === row.id);
-    if (!event) throw new Error("Culture event was not read back");
-    return event;
-  });
-}
+import {
+  listObservations,
+  listUnits,
+  lockExperiment,
+  requireObservation,
+  requireUnit,
+  toCultureEvent,
+} from "./records";
 
 /** Records the same event on several units in one transaction. */
 export async function recordCultureEvents(
@@ -113,19 +45,53 @@ export async function recordCultureEvents(
   executor?: Executor,
 ): Promise<CultureEvent[]> {
   return inTransaction(executor, async (tx) => {
+    await lockExperiment(value.experiment, tx);
+    const observations = await listObservations(value.experiment, tx);
+    const observation = requireObservation(observations, value.observation);
+    const units = await listUnits(value.experiment, tx);
+    const ordinals = observationOrdinals(observations);
+    const at = await operationTime(tx);
     const events: CultureEvent[] = [];
-    for (const unit of value.units) {
-      events.push(
-        await recordCultureEvent(
-          {
-            experiment: value.experiment,
-            unit,
-            type: value.type,
-            observation: value.observation,
-          },
+    for (const unitId of value.units) {
+      const unit = requireUnit(units, unitId);
+      if (
+        unit.events.some(
+          (event) =>
+            event.observation === observation.id && event.type === value.type,
+        )
+      )
+        throw new UnitConflictError(
+          `${value.type} is already recorded for ${unit.code} at this observation`,
+        );
+      if (
+        cultureEventIsTerminal(value.type) &&
+        unit.events.some((event) => cultureEventIsTerminal(event.type))
+      )
+        throw new UnitConflictError(`${unit.code} has already left the bench`);
+      if (!unitIsAvailableAt(unit.events, observation, ordinals))
+        throw new UnitConflictError(
+          `Unit ${unit.code} was already removed before this observation`,
+        );
+      if (cultureEventIsTerminal(value.type))
+        await assertUnitRecordsEndAt(
+          value.experiment,
+          unit,
+          observation,
+          ordinals,
           tx,
-        ),
-      );
+        );
+      const [row] = await tx
+        .insert(experimentCultureEvents)
+        .values({
+          experimentId: value.experiment,
+          id: randomUUID(),
+          unitId,
+          observationId: observation.id,
+          type: value.type,
+          recordedAt: at,
+        })
+        .returning();
+      events.push(toCultureEvent(row!));
     }
     return events;
   });

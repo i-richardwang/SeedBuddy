@@ -3,12 +3,13 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "bun:test";
 
 import {
-  ObservationImageConflictError,
+  ObservationImageAssignmentConflictError,
   UnitConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import { database } from "../infra/db/client";
 import { experimentCultureEvents } from "../infra/db/schema";
+import { experimentGridDetail } from "../queries/experiment-details";
 import {
   createExperiment,
   INOCULATED,
@@ -20,7 +21,6 @@ import { storeTexts } from "../testing/images";
 import { deleteCultureEvent, recordCultureEvents } from "./culture-events";
 import { assignObservationImages } from "./observation-images";
 import { createObservation } from "./observations";
-import { experimentGridDetail } from "./queries";
 
 test("at most one terminal event", async () => {
   const version = await trainedVersion("exp-terminal-events");
@@ -129,7 +129,7 @@ test("culture events take effect until they are removed", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ObservationImageConflictError);
+  ).rejects.toThrow(ObservationImageAssignmentConflictError);
   await deleteCultureEvent({
     experiment: experiment.id,
     event: terminalEvent!.id,

@@ -5,7 +5,7 @@ import {
   createAnnotationRun,
 } from "../annotation-runs/public";
 import { storeAnnotation } from "../annotations/documents";
-import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
+import { addExperimentObservationImagesToNewDataset } from "../datasets/datasets";
 import { createModel, setModelAnnotation } from "../models/public";
 import { observeImagesForModel } from "../testing/experiments";
 import { pendingAnnotationsDetail } from "./pending-annotations-detail";

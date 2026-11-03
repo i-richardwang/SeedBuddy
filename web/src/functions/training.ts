@@ -15,7 +15,7 @@ import {
   createTrainingRun as createTrainingRunService,
 } from "../server/training/public";
 
-export const getTrainingRun = createServerFn({ method: "GET" })
+export const getTrainingRunDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema.extend({ runId: resourceIdSchema }))
   .handler(({ data }) => trainingRunDetail(data.dataset, data.runId));
 

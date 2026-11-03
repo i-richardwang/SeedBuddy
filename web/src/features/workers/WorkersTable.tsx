@@ -126,18 +126,23 @@ function WorkerMenu({ workerId }: { workerId: string }) {
 function Activity({ activity }: { activity: WorkerActivity | null }) {
   if (!activity) return m.worker_activity_idle();
   if (activity.kind === "inference") {
-    return m.worker_activity_inference({ image: activity.image });
+    return m.worker_activity_inference({
+      image: activity.subject.filename ?? "an image",
+    });
   }
   return (
     <TextLink
       render={
         <Link
           to="/datasets/$dataset/runs/$runId"
-          params={{ dataset: activity.dataset.id, runId: activity.runId }}
+          params={{
+            dataset: activity.subject.dataset.id,
+            runId: activity.subject.runId,
+          }}
         />
       }
     >
-      {m.worker_activity_training({ dataset: activity.dataset.name })}
+      {m.worker_activity_training({ dataset: activity.subject.dataset.name })}
     </TextLink>
   );
 }

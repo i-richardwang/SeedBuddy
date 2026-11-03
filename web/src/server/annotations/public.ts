@@ -1,1 +1,1 @@
-export { storeAnnotation } from "./documents";
+export { insertImportedAnnotations, storeAnnotation } from "./documents";

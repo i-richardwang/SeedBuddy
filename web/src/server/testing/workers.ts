@@ -62,3 +62,11 @@ export function trainingHeartbeat(
     memoryBytes: 24 * 1024 ** 3,
   };
 }
+
+export const ultralyticsWorker: Worker = {
+  ...trainingHeartbeat(
+    { workerId: "ultralytics-worker", sessionId: "session-ultralytics-worker" },
+    new Date("2026-08-27T00:00:00.000Z"),
+  ),
+  lastSeenAt: "2026-08-27T00:00:00.000Z",
+};

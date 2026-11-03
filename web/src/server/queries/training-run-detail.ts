@@ -5,10 +5,11 @@ import {
 } from "../../domain/training/schema";
 import { trainingRunStall } from "../../domain/training/stall";
 import { readDataset } from "../datasets/public";
+import { type Executor, operationTime, snapshot } from "../infra/db/client";
 import {
   readCurrentVersionId,
-  readModel,
   readModelVersion,
+  requireModel,
 } from "../models/public";
 import {
   activeTrainingRun,
@@ -16,7 +17,7 @@ import {
   listTrainingEpochs,
   readDatasetSnapshot,
   readTrainingRun,
-  trainingLeaseHeld,
+  trainingLeaseIsHeld,
 } from "../training/public";
 import { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
 
@@ -28,46 +29,51 @@ import { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
 export async function trainingRunDetail(
   datasetId: string,
   runId: string,
-  at = new Date(),
+  suppliedAt?: Date,
 ): Promise<TrainingRunDetail | null> {
-  const dataset = await readDataset(datasetId);
-  const run = await readTrainingRun(runId);
-  if (!dataset || !run) return null;
-  const snapshot = await readDatasetSnapshot(run.datasetSnapshotId);
-  if (snapshot?.datasetId !== dataset.id) return null;
-  const model = await readModel(dataset.modelId);
-  if (!model) throw new Error(`Unknown model: ${dataset.modelId}`);
-  const version =
-    run.state.status === "succeeded"
-      ? await readModelVersion(run.state.modelVersionId)
-      : null;
-  return {
-    dataset,
-    model,
-    run,
-    stall: trainingRunStall(run, {
-      at,
-      leaseHeld:
-        run.state.status === "running" && (await trainingLeaseHeld(runId, at)),
-    }),
-    blockedBy: await blockingRun(run),
-    epochs: await listTrainingEpochs(runId),
-    attempts: await listTrainingAttempts(runId),
-    workers: await listTrainingWorkerOverviews(),
-    version,
-    current:
-      version !== null && (await readCurrentVersionId(model.id)) === version.id,
-  };
+  return snapshot(async (db) => {
+    const at = await operationTime(db, suppliedAt);
+    const dataset = await readDataset(datasetId, db);
+    const run = await readTrainingRun(runId, db);
+    if (!dataset || !run) return null;
+    const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
+    if (snapshot?.datasetId !== dataset.id) return null;
+    const model = await requireModel(dataset.modelId, db);
+    const version =
+      run.state.status === "succeeded"
+        ? await readModelVersion(run.state.modelVersionId, db)
+        : null;
+    return {
+      dataset,
+      model,
+      run,
+      stall: trainingRunStall(run, {
+        at,
+        leaseHeld:
+          run.state.status === "running" &&
+          (await trainingLeaseIsHeld(runId, at, db)),
+      }),
+      blockedBy: await blockingRun(run, db),
+      epochs: await listTrainingEpochs(runId, db),
+      attempts: await listTrainingAttempts(runId, db),
+      workers: await listTrainingWorkerOverviews(at, db),
+      version,
+      current:
+        version !== null &&
+        (await readCurrentVersionId(model.id, db)) === version.id,
+    };
+  });
 }
 
 /** The model's run in progress that a paused or failed run waits for. */
 async function blockingRun(
   run: TrainingRun,
+  db: Executor,
 ): Promise<TrainingRunDetail["blockedBy"]> {
   if (!isTrainingRunResumable(run)) return null;
-  const active = await activeTrainingRun(run.modelId);
+  const active = await activeTrainingRun(run.modelId, db);
   if (!active) return null;
-  const snapshot = await readDatasetSnapshot(active.datasetSnapshotId);
+  const snapshot = await readDatasetSnapshot(active.datasetSnapshotId, db);
   if (!snapshot)
     throw new Error(`Unknown snapshot: ${active.datasetSnapshotId}`);
   return { runId: active.id, datasetId: snapshot.datasetId };

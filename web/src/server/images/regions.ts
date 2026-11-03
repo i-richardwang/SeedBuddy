@@ -173,8 +173,8 @@ export function createImageEvidence(
       image: ImageFrame,
       layout: ImageRegionLayout,
       regionId: string,
-      scope: readonly ImageRectangle[] | null = null,
-      coverage: ImageCoverage | null = null,
+      scope: readonly ImageRectangle[] | null,
+      coverage: ImageCoverage | null,
     ): Promise<ImageRegionEvidence> {
       const { key, bytes } = await evidence(
         image,
@@ -188,8 +188,8 @@ export function createImageEvidence(
     async readOverview(
       image: ImageFrame,
       layout: ImageRegionLayout,
-      scope: readonly ImageRectangle[] | null = null,
-      coverage: ImageCoverage | null = null,
+      scope: readonly ImageRectangle[] | null,
+      coverage: ImageCoverage | null,
     ) {
       const { bytes } = await evidence(image, layout, scope, coverage, null);
       return { ...imageOverview(image), bytes };

@@ -43,7 +43,7 @@ import { createExperiment } from "../../experiments/design";
 import { assignObservationImages } from "../../experiments/observation-images";
 import { createObservation } from "../../experiments/observations";
 import { listUnits } from "../../experiments/records";
-import { completeInferenceClaim } from "../../inference/public";
+import { completeInferenceTask } from "../../inference/public";
 import { listBlobs } from "../../infra/blobs/store";
 import { database } from "../../infra/db/client";
 import { contentDigest } from "../../infra/digest";
@@ -186,7 +186,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
     ) {
       assignment = parsed;
     } else {
-      await completeInferenceClaim(
+      await completeInferenceTask(
         { versionId: parsed.manifest.modelVersionId, digest: parsed.image },
         {
           schemaVersion: 1,
@@ -612,7 +612,12 @@ test.each([...TRAINING_PRESETS])(
       params: { runId: created.id },
       request: new Request(`http://localhost/artifact?${artifactQuery}`, {
         method: "POST",
-        headers: { authorization, "content-length": "1000" },
+        headers: {
+          authorization,
+          "content-length": String(
+            new TextEncoder().encode(JSON.stringify(bundle)).byteLength,
+          ),
+        },
         body: JSON.stringify(bundle),
       }),
     } as never);
@@ -631,7 +636,12 @@ test.each([...TRAINING_PRESETS])(
       params: { runId: created.id },
       request: new Request(`http://localhost/artifact?${artifactQuery}`, {
         method: "POST",
-        headers: { authorization, "content-length": "1000" },
+        headers: {
+          authorization,
+          "content-length": String(
+            new TextEncoder().encode(JSON.stringify(bundle)).byteLength,
+          ),
+        },
         body: JSON.stringify(bundle),
       }),
     } as never);

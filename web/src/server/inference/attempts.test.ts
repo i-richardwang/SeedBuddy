@@ -8,7 +8,7 @@ import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { Worker } from "../../domain/workers/schema";
 import { database } from "../infra/db/client";
 import { inferenceTasks } from "../infra/db/schema";
-import { listWorkerOverviews } from "../queries/public";
+import { workerPresenceDetail } from "../queries/public";
 import { snapshotImages } from "../testing/datasets";
 import { observeImages } from "../testing/experiments";
 import { FIXTURE_EDGE } from "../testing/images";
@@ -20,10 +20,10 @@ import {
 } from "../testing/workers";
 import { removeWorker } from "../workers/public";
 import {
-  claimInferenceAssignment,
-  completeInferenceClaim,
-  failInferenceAttempt,
-  renewInferenceClaim,
+  claimInferenceTask,
+  completeInferenceTask,
+  failInferenceTask,
+  renewInferenceTask,
 } from "./attempts";
 import { INFERENCE_LEASE_SECONDS } from "./policy";
 import {
@@ -70,10 +70,10 @@ async function claimImage(
   at = start,
 ): Promise<InferenceAssignment> {
   for (let n = 0; n < 1000; n++) {
-    const a = await claimInferenceAssignment(w, at);
+    const a = await claimInferenceTask(w, at);
     if (!a) throw new Error(`No work for ${digest}`);
     if (a.image === digest) return a;
-    await completeInferenceClaim(target(a), result(a, w), owner(a, w), at);
+    await completeInferenceTask(target(a), result(a, w), owner(a, w), at);
   }
   throw new Error("Could not reach test image");
 }
@@ -87,11 +87,11 @@ async function setup(name: string) {
 test("a slot returns its existing attempt on a repeated claim; another worker can take the next image", async () => {
   const { w, a } = await setup("single-slot");
   await observeImages("single-slot-next", ["single-slot-next"]);
-  const same = await claimInferenceAssignment(w, later(1));
+  const same = await claimInferenceTask(w, later(1));
   expect(same?.attempt).toBe(a.attempt);
   expect(same?.image).toBe(a.image);
   expect(same?.deadlineAt).toBe(a.deadlineAt);
-  const other = await claimInferenceAssignment(
+  const other = await claimInferenceTask(
     await worker("single-slot-other"),
     later(1),
   );
@@ -102,14 +102,14 @@ test("a slot returns its existing attempt on a repeated claim; another worker ca
 test("offline ownership expires and is reclaimed without a maintenance process", async () => {
   const { a, t, o } = await setup("offline");
   const second = await worker("offline-other");
-  await claimInferenceAssignment(second, later(INFERENCE_LEASE_SECONDS + 1));
+  await claimInferenceTask(second, later(INFERENCE_LEASE_SECONDS + 1));
   const resumed = await claimImage(
     second,
     a.image,
     later(INFERENCE_LEASE_SECONDS + 7),
   );
   expect(resumed.attempt).toBe(a.attempt + 1);
-  await expect(renewInferenceClaim(t, o, later(100))).rejects.toBeInstanceOf(
+  await expect(renewInferenceTask(t, o, later(100))).rejects.toBeInstanceOf(
     InferenceAttemptConflictError,
   );
   const state = await readInferenceTask(t);
@@ -124,17 +124,17 @@ test("heartbeats and renewals cannot extend a stuck execution beyond its fixed d
     ms < deadline.getTime();
     ms += 30_000
   ) {
-    const receipt = await renewInferenceClaim(t, o, new Date(ms));
+    const receipt = await renewInferenceTask(t, o, new Date(ms));
     expect(receipt.deadlineAt).toBe(a.deadlineAt);
     expect(new Date(receipt.leaseExpiresAt).getTime()).toBeLessThanOrEqual(
       deadline.getTime(),
     );
   }
-  await expect(renewInferenceClaim(t, o, deadline)).rejects.toBeInstanceOf(
+  await expect(renewInferenceTask(t, o, deadline)).rejects.toBeInstanceOf(
     InferenceAttemptConflictError,
   );
   await expect(
-    completeInferenceClaim(t, result(a, w), o, deadline),
+    completeInferenceTask(t, result(a, w), o, deadline),
   ).rejects.toBeInstanceOf(InferenceAttemptConflictError);
   await maintainInferenceTasks(deadline);
   expect((await readInferenceTask(t))?.attempts[0]?.failure?.code).toBe(
@@ -148,7 +148,7 @@ test("heartbeats and renewals cannot extend a stuck execution beyond its fixed d
   );
   expect(resumed.attempt).toBe(a.attempt + 1);
   await expect(
-    completeInferenceClaim(
+    completeInferenceTask(
       t,
       result(a, w),
       o,
@@ -159,7 +159,7 @@ test("heartbeats and renewals cannot extend a stuck execution beyond its fixed d
 
 test("a new attempt fences the old attempt even within the same worker session", async () => {
   const { w, a, t, o } = await setup("same-session");
-  await failInferenceAttempt(
+  await failInferenceTask(
     t,
     { code: "execution", message: "GPU failed" },
     o,
@@ -167,22 +167,22 @@ test("a new attempt fences the old attempt even within the same worker session",
   );
   const next = await claimImage(w, a.image, later(62));
   expect(next.attempt).toBe(a.attempt + 1);
-  await expect(renewInferenceClaim(t, o, later(63))).rejects.toBeInstanceOf(
+  await expect(renewInferenceTask(t, o, later(63))).rejects.toBeInstanceOf(
     InferenceAttemptConflictError,
   );
   await expect(
-    completeInferenceClaim(t, result(a, w), o, later(63)),
+    completeInferenceTask(t, result(a, w), o, later(63)),
   ).rejects.toBeInstanceOf(InferenceAttemptConflictError);
-  await completeInferenceClaim(t, result(next, w), owner(next, w), later(63));
+  await completeInferenceTask(t, result(next, w), owner(next, w), later(63));
 });
 
 test("success receipt replay survives a lost response and lease expiry; a different payload is refused", async () => {
   const { w, a, t, o } = await setup("receipt");
   const body = result(a, w);
-  await completeInferenceClaim(t, body, o, later(1));
-  await completeInferenceClaim(t, body, o, later(10000));
+  await completeInferenceTask(t, body, o, later(1));
+  await completeInferenceTask(t, body, o, later(10000));
   await expect(
-    completeInferenceClaim(
+    completeInferenceTask(
       t,
       { ...body, quality: { status: "review_required", warnings: [] } },
       o,
@@ -201,19 +201,9 @@ test("transient failure retries finitely, cools the worker, and manual retry pre
       code: "transport" as const,
       message: "image transfer failed",
     };
-    await failInferenceAttempt(
-      t,
-      failure,
-      owner(current, w),
-      later(i * 70 + 1),
-    );
-    await failInferenceAttempt(
-      t,
-      failure,
-      owner(current, w),
-      later(i * 70 + 2),
-    );
-    expect(await claimInferenceAssignment(w, later(i * 70 + 3))).toBeNull();
+    await failInferenceTask(t, failure, owner(current, w), later(i * 70 + 1));
+    await failInferenceTask(t, failure, owner(current, w), later(i * 70 + 2));
+    expect(await claimInferenceTask(w, later(i * 70 + 3))).toBeNull();
     if (i < 2) current = await claimImage(w, a.image, later((i + 1) * 70));
   }
   const failed = await readInferenceTask(t);
@@ -234,7 +224,7 @@ test("transient failure retries finitely, cools the worker, and manual retry pre
 
 test("worker cooldown survives a session restart while another worker takes over", async () => {
   const { w, a, t, o } = await setup("restart-cooldown");
-  await failInferenceAttempt(
+  await failInferenceTask(
     t,
     { code: "transport", message: "Disconnected" },
     o,
@@ -245,7 +235,7 @@ test("worker cooldown survives a session restart while another worker takes over
     sessionId: crypto.randomUUID(),
     startedAt: later(2).toISOString(),
   });
-  expect(await claimInferenceAssignment(restarted, later(7))).toBeNull();
+  expect(await claimInferenceTask(restarted, later(7))).toBeNull();
   const replacement = await claimImage(
     await worker("restart-cooldown-other"),
     a.image,
@@ -260,7 +250,7 @@ test("worker cooldown survives a session restart while another worker takes over
 
 test("permanent failure terminates immediately and is visible as a task failure", async () => {
   const { t, o } = await setup("bad-input");
-  await failInferenceAttempt(
+  await failInferenceTask(
     t,
     { code: "invalid_input", message: "Source image is invalid" },
     o,
@@ -285,7 +275,7 @@ test("worker removal preserves task and attempt history and permits reassignment
 test("concurrent completion and expiry leave one coherent terminal attempt", async () => {
   const { w, a, t, o } = await setup("completion-race");
   await Promise.allSettled([
-    completeInferenceClaim(t, result(a, w), o, later(1)),
+    completeInferenceTask(t, result(a, w), o, later(1)),
     maintainInferenceTasks(later(91)),
   ]);
   const state = await readInferenceTask(t);
@@ -320,15 +310,16 @@ test("candidate evaluation materializes only validation images", async () => {
 test("expired attempts do not appear as active recognition on the status page", async () => {
   const { t, o } = await setup("status-expired");
   // End the attempt through the public transition; the roster remains independent.
-  await failInferenceAttempt(
+  await failInferenceTask(
     t,
     { code: "execution", message: "stopped" },
     o,
     later(1),
   );
   expect(
-    (await listWorkerOverviews()).workers.find((w) => w.workerId === o.workerId)
-      ?.activity,
+    (await workerPresenceDetail()).workers.find(
+      (w) => w.workerId === o.workerId,
+    )?.activity,
   ).toBeNull();
   expect(
     await (
@@ -354,14 +345,14 @@ test("concurrent claims serialize one slot and distribute different slots withou
   const one = await worker("parallel-one");
   const two = await worker("parallel-two");
   const [first, repeated] = await Promise.all([
-    claimInferenceAssignment(one, later(4000)),
-    claimInferenceAssignment(one, later(4000)),
+    claimInferenceTask(one, later(4000)),
+    claimInferenceTask(one, later(4000)),
   ]);
   expect(first).not.toBeNull();
   expect(repeated).toEqual(first);
   const [held, other] = await Promise.all([
-    claimInferenceAssignment(one, later(4001)),
-    claimInferenceAssignment(two, later(4001)),
+    claimInferenceTask(one, later(4001)),
+    claimInferenceTask(two, later(4001)),
   ]);
   expect(held).not.toBeNull();
   expect(other).not.toBeNull();
@@ -371,7 +362,7 @@ test("concurrent claims serialize one slot and distribute different slots withou
 test("renewal racing reclamation cannot both succeed and lose its lease", async () => {
   const { t, o } = await setup("renew-race");
   const [renewed] = await Promise.allSettled([
-    renewInferenceClaim(t, o, later(80)),
+    renewInferenceTask(t, o, later(80)),
     maintainInferenceTasks(later(91)),
   ]);
   const task = await readInferenceTask(t);

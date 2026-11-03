@@ -6,11 +6,27 @@ import { ExperimentNotFoundError } from "../../domain/experiments/errors";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { database } from "../infra/db/client";
 import { models } from "../infra/db/schema";
-import { createModel, readModel } from "../models/public";
+import { createModel } from "../models/public";
+import { readModel } from "../models/registry";
 import { type AgentOperation, command, query } from "./definition";
 import { executeAgentOperation } from "./execution";
 import { agentOperations } from "./operations";
 import { failure } from "./testing";
+
+async function executeWithRegistry(
+  name: string,
+  input: unknown,
+  registry: ReadonlyMap<string, AgentOperation>,
+) {
+  const get = spyOn(agentOperations, "get").mockImplementation((key) =>
+    registry.get(key),
+  );
+  try {
+    return await executeAgentOperation(name, input);
+  } finally {
+    get.mockRestore();
+  }
+}
 
 function registryOf(
   ...operations: AgentOperation[]
@@ -90,12 +106,12 @@ describe("agent execution", () => {
 
     const log = spyOn(console, "error").mockImplementation(() => {});
     try {
-      const defect = await executeAgentOperation("breaks", {}, registry);
+      const defect = await executeWithRegistry("breaks", {}, registry);
       expect(failure(defect)).toEqual({
         code: "internal_error",
         message: "Internal error",
       });
-      const contract = await executeAgentOperation("lies", {}, registry);
+      const contract = await executeWithRegistry("lies", {}, registry);
       expect(failure(contract)).toEqual({
         code: "internal_error",
         message: "Internal error",
@@ -129,11 +145,7 @@ describe("agent execution", () => {
       }),
     );
 
-    const result = await executeAgentOperation(
-      "writes-then-fails",
-      {},
-      registry,
-    );
+    const result = await executeWithRegistry("writes-then-fails", {}, registry);
     expect(failure(result).code).toBe("not_found");
     const rows = await (
       await database()
@@ -169,8 +181,7 @@ describe("agent execution", () => {
     const log = spyOn(console, "error").mockImplementation(() => {});
     try {
       expect(
-        failure(await executeAgentOperation("invalid-output", {}, registry))
-          .code,
+        failure(await executeWithRegistry("invalid-output", {}, registry)).code,
       ).toBe("internal_error");
       const rows = await (
         await database()
@@ -232,7 +243,7 @@ test("model commands roll back writes when their output contract fails", async (
         }),
       });
       expect(
-        failure(await executeAgentOperation(name, input, registry)).code,
+        failure(await executeWithRegistry(name, input, registry)).code,
       ).toBe("internal_error");
       expect(validatedOutput).toBe(true);
       expect(await readModel(`${id}-new`)).toBeNull();
@@ -262,11 +273,11 @@ test("queries and service-owned commands receive no operation executor", async (
       handler,
     }),
   );
-  expect(await executeAgentOperation("read", {}, registry)).toEqual({
+  expect(await executeWithRegistry("read", {}, registry)).toEqual({
     ok: true,
     output: null,
   });
-  expect(await executeAgentOperation("stage", {}, registry)).toEqual({
+  expect(await executeWithRegistry("stage", {}, registry)).toEqual({
     ok: true,
     output: null,
   });

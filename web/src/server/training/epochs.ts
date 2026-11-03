@@ -79,8 +79,9 @@ export async function saveTrainingEpoch(
  */
 export async function listTrainingEpochs(
   runId: string,
+  executor?: Executor,
 ): Promise<TrainingEpoch[]> {
-  const db = await database();
+  const db = executor ?? (await database());
   const rows = await db
     .select({ epoch: trainingEpochs })
     .from(trainingEpochs)

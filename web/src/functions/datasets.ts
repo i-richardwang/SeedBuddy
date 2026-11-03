@@ -20,7 +20,7 @@ export const getDatasetDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema)
   .handler(({ data }) => datasetDetail(data.dataset));
 
-export const getDatasetImage = createServerFn({ method: "GET" })
+export const getDatasetImageDetail = createServerFn({ method: "GET" })
   .validator(datasetImageRefSchema)
   .handler(({ data }) => datasetImageDetail(data));
 

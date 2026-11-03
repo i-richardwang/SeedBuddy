@@ -10,7 +10,6 @@ import {
 import {
   ObservationConflictError,
   ObservationModelCountsConflictError,
-  ObservationNotFoundError,
 } from "../../domain/experiments/errors";
 import type {
   Experiment,
@@ -19,11 +18,9 @@ import type {
   ObservationRequest,
   ObservationUpdate,
 } from "../../domain/experiments/schema";
-import { ModelNotFoundError } from "../../domain/models/errors";
-import type { Model } from "../../domain/models/schema";
 import { type Executor, inTransaction } from "../infra/db/client";
 import { experimentObservations } from "../infra/db/schema";
-import { readModel } from "../models/public";
+import { requireModel } from "../models/public";
 import { assertUnitRecordsEndAt } from "./culture-events";
 import {
   atObservation,
@@ -60,21 +57,11 @@ async function rejectSameDay(
         eq(experimentObservations.observedOn, observedOn),
       ),
     );
-  if (rows.some((row) => row.id !== exceptObservationId)) {
+  if (rows.some((row) => row!.id !== exceptObservationId)) {
     throw new ObservationConflictError(
       `The experiment already has an observation on ${observedOn}`,
     );
   }
-}
-
-/** An observation asks a question the registry holds a model for. */
-export async function requireModel(
-  modelId: string,
-  tx: Executor,
-): Promise<Model> {
-  const model = await readModel(modelId, tx);
-  if (!model) throw new ModelNotFoundError(`Unknown model: ${modelId}`);
-  return model;
 }
 
 export async function createObservation(
@@ -106,8 +93,10 @@ export async function createObservation(
         createdAt: new Date(),
       })
       .returning();
-    if (!row) throw new Error("Observation was not created");
-    return requireObservation(await listObservations(experimentId, tx), row.id);
+    return requireObservation(
+      await listObservations(experimentId, tx),
+      row!.id,
+    );
   });
 }
 
@@ -152,11 +141,6 @@ export async function updateObservation(
       })
       .where(atObservation(experimentId, observationId))
       .returning();
-    if (!row) {
-      throw new ObservationNotFoundError(
-        `Unknown observation: ${observationId}`,
-      );
-    }
     const observations = await listObservations(experimentId, tx);
     if (previous.observedOn !== observedOn) {
       const ordinals = observationOrdinals(observations);
@@ -174,7 +158,7 @@ export async function updateObservation(
           );
       }
     }
-    return requireObservation(observations, row.id);
+    return requireObservation(observations, row!.id);
   });
 }
 
@@ -194,14 +178,8 @@ export async function deleteObservation(
         "An observation with images, counts or culture events cannot be deleted",
       );
     }
-    const [row] = await tx
+    await tx
       .delete(experimentObservations)
-      .where(atObservation(experimentId, observationId))
-      .returning({ id: experimentObservations.id });
-    if (!row) {
-      throw new ObservationNotFoundError(
-        `Unknown observation: ${observationId}`,
-      );
-    }
+      .where(atObservation(experimentId, observationId));
   });
 }

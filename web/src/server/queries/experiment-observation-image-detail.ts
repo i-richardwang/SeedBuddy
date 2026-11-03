@@ -3,6 +3,13 @@ import { and, eq } from "drizzle-orm";
 
 import type { ExperimentObservationImageDetail } from "../../domain/experiments/read-model";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
+import {
+  atImageObservation,
+  atObservationImage,
+  listObservations,
+  requireObservation,
+  toExperiment,
+} from "../experiments/public";
 import { markedUnclear } from "../images/public";
 import { currentVersion } from "../inference/public";
 import { type Executor, inSnapshot } from "../infra/db/client";
@@ -17,23 +24,6 @@ import {
 } from "../infra/db/schema";
 import { toModel } from "../models/public";
 import { readReview } from "../readings/public";
-import {
-  atObservationImage,
-  listObservations,
-  requireObservation,
-  toExperiment,
-} from "./records";
-
-/** The observation an image was taken at. */
-export function atImageObservation() {
-  return and(
-    eq(
-      experimentObservations.experimentId,
-      experimentObservationImages.experimentId,
-    ),
-    eq(experimentObservations.id, experimentObservationImages.observationId),
-  );
-}
 
 export function experimentObservationImageDetail(
   ref: ObservationImageRef,

@@ -20,10 +20,13 @@ export {
 } from "./observation-images";
 export { deleteObservation, updateObservation } from "./observations";
 export {
-  experimentGridDetail,
-  experimentSheetDetail,
-  findExperimentNames,
-  listExperimentOverviews,
-  unitDetail,
-  unitRowOverview,
-} from "./queries";
+  atImageObservation,
+  atObservationImage,
+  listManualReadings,
+  listObservations,
+  listTreatments,
+  listUnits,
+  readExperimentRecord,
+  requireObservation,
+  toExperiment,
+} from "./records";

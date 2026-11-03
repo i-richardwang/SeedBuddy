@@ -91,11 +91,6 @@ export async function setUserPassword(
   refuseSelf(actorUser, input.user, "reset the password of");
   await readUser(input.user);
   const context = await (await auth()).$context;
-  if (
-    input.password.length < context.password.config.minPasswordLength ||
-    input.password.length > context.password.config.maxPasswordLength
-  )
-    throw new Error("Invalid password length");
   const password = await context.password.hash(input.password);
   if (await context.internalAdapter.findCredentialAccount(input.user))
     await context.internalAdapter.updatePassword(input.user, password);

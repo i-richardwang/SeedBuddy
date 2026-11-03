@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, isNull, not, or } from "drizzle-orm";
 
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
-import { TrainingRunConflictError } from "../../domain/training/errors";
+import {
+  TrainingRunConflictError,
+  TrainingRunNotFoundError,
+} from "../../domain/training/errors";
 import {
   ACTIVE_TRAINING_RUN_STATUSES,
   type TrainingEpochReport,
@@ -34,13 +37,8 @@ import {
 import { leaseIsHeld, lockWorkerSession } from "../workers/public";
 import { finishAttempt } from "./attempts";
 import { latestTrainingEpoch, saveTrainingEpoch } from "./epochs";
-import {
-  ownershipConflict,
-  type RunningTrainingRun,
-  requireOwnedRunningRun,
-  requireTrainingRun,
-} from "./ownership";
 import { toTrainingRun } from "./records";
+import { ownershipConflict, requireTrainingRun } from "./runs-access";
 import { createDatasetSnapshot } from "./snapshots";
 import { validateTrainingTarget } from "./targets";
 
@@ -173,21 +171,16 @@ function leaseUntil(at: Date): Date {
   return new Date(at.getTime() + LEASE_MILLISECONDS);
 }
 
-function leaseFrom(at: Date): string {
-  return leaseUntil(at).toISOString();
-}
-
 /**
  * Whether a run's worker still holds it at `at`, judged as a claim judges
  * it; a run nobody runs is held by no one.
  */
-export async function trainingLeaseHeld(
+export async function trainingLeaseIsHeld(
   runId: string,
   at: Date,
+  db: Executor,
 ): Promise<boolean> {
-  const [row] = await (
-    await database()
-  )
+  const [row] = await db
     .select({ held: leaseIsHeld(trainingRuns, at) })
     .from(trainingRuns)
     .where(eq(trainingRuns.id, runId));
@@ -196,8 +189,9 @@ export async function trainingLeaseHeld(
 
 export async function latestTrainingRun(
   datasetId: string,
+  executor?: Executor,
 ): Promise<TrainingRun | null> {
-  const db = await database();
+  const db = executor ?? (await database());
   const [row] = await db
     .select({ run: trainingRuns })
     .from(trainingRuns)
@@ -258,7 +252,7 @@ export async function createTrainingRun(
         ...stateColumns({ status: "queued" }),
       })
       .returning();
-    return row ? toTrainingRun(row) : requireTrainingRun(runId, tx);
+    return toTrainingRun(row!);
   });
 }
 
@@ -340,14 +334,14 @@ export async function claimTrainingRun(
           status: "running",
           workerId: owner.workerId,
           sessionId: owner.sessionId,
-          leaseExpiresAt: leaseFrom(at),
+          leaseExpiresAt: leaseUntil(at).toISOString(),
           phase: "preparing",
           progress: 0,
         }),
       })
       .where(eq(trainingRuns.id, candidate.id))
       .returning();
-    return row ? toTrainingRun(row) : requireTrainingRun(candidate.id, tx);
+    return toTrainingRun(row!);
   });
 }
 
@@ -360,29 +354,18 @@ export async function lockTrainingRun(
     .from(trainingRuns)
     .where(eq(trainingRuns.id, runId))
     .for("update");
-  return row ? toTrainingRun(row) : requireTrainingRun(runId, tx);
-}
-
-/** The run as its leaseholder sees it; any other caller gets a conflict. */
-async function lockOwnedTrainingRun(
-  runId: string,
-  owner: AttemptOwner,
-  db: Executor,
-  suppliedAt?: Date,
-): Promise<{ run: RunningTrainingRun; at: Date }> {
-  const run = await lockTrainingRun(runId, db);
-  const at = await operationTime(db, suppliedAt);
-  return { run: await requireOwnedRunningRun(run, owner, db, at), at };
+  if (!row)
+    throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
+  return toTrainingRun(row);
 }
 
 /** Renew ownership without changing the run's phase or business progress. */
-export async function renewTrainingLease(
+export async function renewTrainingRun(
   runId: string,
   owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<TrainingRun> {
   return transaction(async (db) => {
-    await lockTrainingRun(runId, db);
     const at = await operationTime(db, suppliedAt);
     return fencedUpdate(
       runId,
@@ -402,12 +385,10 @@ export async function enterTrainingPhase(
   suppliedAt?: Date,
 ): Promise<TrainingRun> {
   return transaction(async (db) => {
-    const { run: current, at } = await lockOwnedTrainingRun(
-      runId,
-      owner,
-      db,
-      suppliedAt,
-    );
+    const current = await lockTrainingRun(runId, db);
+    const at = await operationTime(db, suppliedAt);
+    if (current.state.status !== "running")
+      throw ownershipConflict(runId, owner);
     if (
       phase !== current.state.phase &&
       phase !== NEXT_PHASE[current.state.phase]
@@ -416,22 +397,21 @@ export async function enterTrainingPhase(
         `Training run ${runId} cannot move from ${current.state.phase} to ${phase}`,
       );
     }
-    if (phase !== current.state.phase)
-      await db
-        .update(trainingRuns)
-        .set({ lastProgressAt: at })
-        .where(eq(trainingRuns.id, runId));
+
     return fencedUpdate(
       runId,
       owner,
-      stateColumns({
-        status: "running",
-        workerId: owner.workerId,
-        sessionId: owner.sessionId,
-        leaseExpiresAt: leaseFrom(at),
-        phase,
-        progress: Math.max(current.state.progress, PHASE_PROGRESS[phase]),
-      }),
+      {
+        ...stateColumns({
+          status: "running",
+          workerId: owner.workerId,
+          sessionId: owner.sessionId,
+          leaseExpiresAt: leaseUntil(at).toISOString(),
+          phase,
+          progress: Math.max(current.state.progress, PHASE_PROGRESS[phase]),
+        }),
+        ...(phase !== current.state.phase ? { lastProgressAt: at } : {}),
+      },
       db,
       at,
     );
@@ -449,12 +429,10 @@ export async function recordTrainingEpoch(
   suppliedAt?: Date,
 ): Promise<TrainingRun> {
   return transaction(async (tx) => {
-    const { run: current, at } = await lockOwnedTrainingRun(
-      runId,
-      owner,
-      tx,
-      suppliedAt,
-    );
+    const current = await lockTrainingRun(runId, tx);
+    const at = await operationTime(tx, suppliedAt);
+    if (current.state.status !== "running")
+      throw ownershipConflict(runId, owner);
     if (current.state.phase !== "training") {
       throw new TrainingRunConflictError(
         `Training run ${runId} cannot record epochs while ${current.state.phase}`,
@@ -467,37 +445,38 @@ export async function recordTrainingEpoch(
       );
     }
     const previous = await latestTrainingEpoch(runId, owner.attempt, tx);
-    if (previous === null || report.epoch > previous)
-      await tx
-        .update(trainingRuns)
-        .set({
-          lastProgressAt: at,
-          checkpoint:
-            current.checkpoint && report.epoch < current.checkpoint.epoch
-              ? current.checkpoint
-              : {
-                  attempt: owner.attempt,
-                  epoch: report.epoch,
-                  workerId: owner.workerId,
-                },
-        })
-        .where(eq(trainingRuns.id, runId));
+    const advanced = previous === null || report.epoch > previous;
     await saveTrainingEpoch(runId, current.attempt, report, at, tx);
     return fencedUpdate(
       runId,
       owner,
-      stateColumns({
-        status: "running",
-        workerId: owner.workerId,
-        sessionId: owner.sessionId,
-        leaseExpiresAt: leaseFrom(at),
-        phase: "training",
-        progress: Math.max(
-          current.state.progress,
-          PHASE_PROGRESS.training +
-            TRAINING_PROGRESS_RANGE * (report.epoch / total),
-        ),
-      }),
+      {
+        ...stateColumns({
+          status: "running",
+          workerId: owner.workerId,
+          sessionId: owner.sessionId,
+          leaseExpiresAt: leaseUntil(at).toISOString(),
+          phase: "training",
+          progress: Math.max(
+            current.state.progress,
+            PHASE_PROGRESS.training +
+              TRAINING_PROGRESS_RANGE * (report.epoch / total),
+          ),
+        }),
+        ...(advanced
+          ? {
+              lastProgressAt: at,
+              checkpoint:
+                current.checkpoint && report.epoch < current.checkpoint.epoch
+                  ? current.checkpoint
+                  : {
+                      attempt: owner.attempt,
+                      epoch: report.epoch,
+                      workerId: owner.workerId,
+                    },
+            }
+          : {}),
+      },
       tx,
       at,
     );
@@ -510,12 +489,15 @@ export async function failTrainingRun(
   error: string,
 ): Promise<TrainingRun> {
   return transaction(async (tx) => {
-    const { at } = await lockOwnedTrainingRun(runId, owner, tx);
-    return transitionTrainingRun(
+    const at = await operationTime(tx);
+    const run = await fencedUpdate(
       runId,
-      { status: "failed", error: error.slice(0, 2000) },
+      owner,
+      stateColumns({ status: "failed", error: error.slice(0, 2000) }),
       tx,
       at,
     );
+    await finishAttempt(run, "failed", tx, error.slice(0, 2000), at);
+    return run;
   });
 }

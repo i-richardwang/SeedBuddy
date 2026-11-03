@@ -3,6 +3,9 @@ import { ConflictError, NotFoundError, ValidationError } from "../errors";
 export class ModelNotFoundError extends NotFoundError {
   readonly code = "model_not_found";
 }
+export class ModelUploadNotFoundError extends NotFoundError {
+  readonly code = "model_upload_not_found";
+}
 export class ModelVersionNotFoundError extends NotFoundError {
   readonly code = "model_version_not_found";
 }

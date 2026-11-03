@@ -5,7 +5,12 @@ import type { DishAnalysis } from "../../domain/images/coverage";
 import { ImageSourceInvalidError } from "../../domain/images/errors";
 import { createSingleFlight } from "../../lib/async/work";
 import { putImmutableBlob } from "../infra/blobs/store";
-import { database, type Executor, transaction } from "../infra/db/client";
+import {
+  database,
+  type Executor,
+  operationTime,
+  transaction,
+} from "../infra/db/client";
 import { images } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
 import { analyzeImage } from "./analysis";
@@ -31,7 +36,9 @@ function assertStorable(bytes: Uint8Array): void {
   if (bytes.byteLength === 0)
     throw new ImageSourceInvalidError("The image is empty");
   if (bytes.byteLength > MAX_IMAGE_BYTES) {
-    throw new ImageSourceInvalidError("The image exceeds 64 MiB");
+    throw new ImageSourceInvalidError(
+      `The image exceeds ${MAX_IMAGE_BYTES / (1024 * 1024)} MiB`,
+    );
   }
 }
 
@@ -48,6 +55,7 @@ async function recordImage(
 ): Promise<StoredImage> {
   const { digest, bytes, width, height } = image;
   await lockImage(digest, tx);
+  const receivedAt = await operationTime(tx);
   await tx
     .insert(images)
     .values({
@@ -57,12 +65,12 @@ async function recordImage(
       bytes: bytes.byteLength,
       dishAnalysis: analysis,
       dishAnalysisAttemptedAt: attemptedAt,
-      receivedAt: new Date(),
+      receivedAt,
     })
     .onConflictDoUpdate({
       target: images.id,
       set: {
-        receivedAt: new Date(),
+        receivedAt,
         ...(analysis ? { dishAnalysis: analysis } : {}),
         ...(attemptedAt ? { dishAnalysisAttemptedAt: attemptedAt } : {}),
       },

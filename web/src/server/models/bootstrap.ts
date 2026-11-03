@@ -1,5 +1,6 @@
 import type { Connection } from "../infra/db/connection";
 import { installBuiltinModels } from "./registry";
+
 /**
  * Prepare one connection for the application. Connection setup owns the
  * resource until both schema migration and builtin registration succeed.

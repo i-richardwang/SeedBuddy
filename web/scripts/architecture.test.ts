@@ -19,17 +19,17 @@ test("business modules expose public operations, while tests may inspect interna
     ["src/server/images/public.ts", 'export { store } from "./store";'],
     ["src/server/images/store.ts", "export const store = () => {};"],
     [
-      "src/server/datasets/memberships.ts",
+      "src/server/datasets/datasets.ts",
       'import { store } from "../images/public";',
     ],
     [
-      "src/server/datasets/memberships.test.ts",
+      "src/server/datasets/datasets.test.ts",
       'import { store } from "../images/store";',
     ],
   ]);
   expect(checkArchitecture(sources)).toEqual([]);
   sources.set(
-    "src/server/datasets/memberships.ts",
+    "src/server/datasets/datasets.ts",
     'import { store } from "../images/store";',
   );
   expect(checkArchitecture(sources).join("\n")).toContain(

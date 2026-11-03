@@ -9,7 +9,7 @@ import {
 import type { ModelVersion } from "../../domain/models/schema";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import { createDataset, readDatasetByName } from "../datasets/memberships";
+import { createDataset, readDatasetByName } from "../datasets/datasets";
 import { transaction } from "../infra/db/client";
 import { datasetSnapshots, trainingRuns } from "../infra/db/schema";
 import {

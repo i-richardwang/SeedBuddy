@@ -35,8 +35,6 @@ const MAX_EDGE_PIXELS = 16384;
 
 const SOURCE_FORMAT_SET = new Set<string>(SOURCE_IMAGE_FORMATS);
 
-/** A source that cannot enter the canonical image boundary. */
-
 /**
  * The pixel size of bytes that are already a canonical image, as another
  * workbench exported them. Any other encoding is refused: bytes that entered

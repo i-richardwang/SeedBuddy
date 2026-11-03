@@ -4,7 +4,7 @@ import { workerPresence } from "../../domain/workers/presence";
 import type { WorkerPresenceDetail } from "../../domain/workers/read-model";
 import type { WorkerActivity } from "../../domain/workers/schema";
 import { attemptIsActive } from "../inference/public";
-import { database } from "../infra/db/client";
+import { type Executor, operationTime, snapshot } from "../infra/db/client";
 import {
   datasetSnapshots,
   datasets,
@@ -24,31 +24,38 @@ import { imageFilenames } from "./image-filenames";
  */
 async function inferenceActivity(
   at: Date,
+  db: Executor,
 ): Promise<Map<string, WorkerActivity>> {
-  const rows = await (
-    await database()
-  )
+  const rows = await db
     .select({
       workerId: inferenceAttempts.workerId,
       digest: inferenceAttempts.imageId,
     })
     .from(inferenceAttempts)
     .where(attemptIsActive(at));
-  const filenames = await imageFilenames(rows.map((row) => row.digest));
+  const filenames = await imageFilenames(
+    rows.map((row) => row.digest),
+    db,
+  );
   return new Map(
     rows.map((row) => [
       row.workerId,
-      { kind: "inference", image: filenames.get(row.digest) ?? "an image" },
+      {
+        kind: "inference",
+        subject: {
+          digest: row.digest,
+          filename: filenames.get(row.digest) ?? null,
+        },
+      },
     ]),
   );
 }
 
 async function trainingActivity(
   at: Date,
+  db: Executor,
 ): Promise<Map<string, WorkerActivity>> {
-  const rows = await (
-    await database()
-  )
+  const rows = await db
     .select({
       workerId: trainingRuns.workerId,
       runId: trainingRuns.id,
@@ -67,7 +74,10 @@ async function trainingActivity(
         ? [
             [
               row.workerId,
-              { kind: "training", runId: row.runId, dataset: row.dataset },
+              {
+                kind: "training",
+                subject: { runId: row.runId, dataset: row.dataset },
+              },
             ] as const,
           ]
         : [],
@@ -79,36 +89,38 @@ async function trainingActivity(
  * Every enrolled worker with its latest session: presence, what it is doing,
  * and how long ago it was heard from. A worker that never connected has none.
  */
-export async function listWorkerOverviews(): Promise<WorkerPresenceDetail> {
-  const at = new Date();
-  const age = (timestamp: string) =>
-    Math.max(0, Math.floor((at.getTime() - Date.parse(timestamp)) / 1000));
-  const [enrolled, sessions, inference, training] = await Promise.all([
-    listEnrolledWorkers(),
-    listWorkers(),
-    inferenceActivity(at),
-    trainingActivity(at),
-  ]);
-  const sessionOf = new Map(
-    sessions.map((session) => [session.workerId, session]),
-  );
-  return {
-    workers: enrolled.map((workerId) => {
-      const session = sessionOf.get(workerId);
-      if (!session) {
+export async function workerPresenceDetail(): Promise<WorkerPresenceDetail> {
+  return snapshot(async (db) => {
+    const at = await operationTime(db);
+    const age = (timestamp: string) =>
+      Math.max(0, Math.floor((at.getTime() - Date.parse(timestamp)) / 1000));
+    const [enrolled, sessions, inference, training] = await Promise.all([
+      listEnrolledWorkers(db),
+      listWorkers(db),
+      inferenceActivity(at, db),
+      trainingActivity(at, db),
+    ]);
+    const sessionOf = new Map(
+      sessions.map((session) => [session.workerId, session]),
+    );
+    return {
+      workers: enrolled.map((workerId) => {
+        const session = sessionOf.get(workerId);
+        if (!session) {
+          return {
+            workerId,
+            presence: "offline" as const,
+            lastSeenSeconds: null,
+            activity: null,
+          };
+        }
         return {
           workerId,
-          presence: "offline" as const,
-          lastSeenSeconds: null,
-          activity: null,
+          presence: workerPresence(session.lastSeenAt, at),
+          lastSeenSeconds: age(session.lastSeenAt),
+          activity: inference.get(workerId) ?? training.get(workerId) ?? null,
         };
-      }
-      return {
-        workerId,
-        presence: workerPresence(session.lastSeenAt, at),
-        lastSeenSeconds: age(session.lastSeenAt),
-        activity: inference.get(workerId) ?? training.get(workerId) ?? null,
-      };
-    }),
-  };
+      }),
+    };
+  });
 }

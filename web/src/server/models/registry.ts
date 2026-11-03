@@ -1,3 +1,10 @@
+/**
+ * Model and version rows, written under two rules. Registration is write-once:
+ * the same contents again are accepted, different contents under a registered
+ * id are refused, so a deployment can install what it always has on every
+ * start. Naming a task is a claim instead: the insert either takes the id or
+ * finds it taken.
+ */
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import {
@@ -32,16 +39,9 @@ import {
   inTransaction,
   transaction,
 } from "../infra/db/client";
+import { refusingUnique } from "../infra/db/errors";
 import { models, modelVersions } from "../infra/db/schema";
 import { heldBy, modelRecords } from "./records";
-
-/**
- * Model and version rows, written under two rules. Registration is write-once:
- * the same contents again are accepted, different contents under a registered
- * id are refused, so a deployment can install what it always has on every
- * start. Naming a task is a claim instead: the insert either takes the id or
- * finds it taken.
- */
 
 export function toModel(row: typeof models.$inferSelect): Model {
   return modelSchema.parse({
@@ -76,11 +76,21 @@ export async function readModel(
   return row ? toModel(row) : null;
 }
 
+export async function requireModel(
+  modelId: string,
+  db: Executor,
+): Promise<Model> {
+  const model = await readModel(modelId, db);
+  if (!model) throw new ModelNotFoundError(`Unknown model: ${modelId}`);
+  return model;
+}
+
 /** Bounded version discovery for one model, in deterministic newest-first order. */
 export async function listModelVersions(
   modelId: string,
+  executor?: Executor,
 ): Promise<ModelVersion[]> {
-  const db = await database();
+  const db = executor ?? (await database());
   return (
     await db
       .select()
@@ -163,11 +173,23 @@ export async function createModel(
     ...request,
     annotation: { ...DEFAULT_MODEL_ANNOTATION, ...request.annotation },
   });
-  const created = await insertModel(model, executor ?? (await database()));
-  if (!created) {
-    throw new ModelNameTakenError(`Model ${model.id} already exists`);
-  }
-  return created;
+  const db = executor ?? (await database());
+  const [created] = await refusingUnique(
+    "models_pkey",
+    () => new ModelNameTakenError(`Model ${model.id} already exists`),
+    () =>
+      db
+        .insert(models)
+        .values({
+          id: model.id,
+          name: model.name,
+          task: model.task,
+          classes: [...model.classes],
+          annotation: model.annotation,
+        })
+        .returning(),
+  );
+  return toModel(created!);
 }
 
 /** Changes how agents annotate the task. Its classes and records are untouched. */
@@ -218,9 +240,7 @@ export async function registerModelVersion(
 ): Promise<ModelVersion> {
   const db = executor ?? (await database());
   const version = modelVersionSchema.parse(value);
-  if (!(await readModel(version.modelId, db))) {
-    throw new ModelNotFoundError(`Unknown model: ${version.modelId}`);
-  }
+  await requireModel(version.modelId, db);
   const [inserted] = await db
     .insert(modelVersions)
     .values({

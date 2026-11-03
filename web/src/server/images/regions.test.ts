@@ -41,7 +41,7 @@ test.each([1, 2, 4])(
     const { readRegion: read, readOverview } = createImageEvidence(tracked);
     const layout = { coreSize: 512, halo: 32, displayScale };
     const overview = imageOverview(image);
-    const preparedOverview = await readOverview(image, layout);
+    const preparedOverview = await readOverview(image, layout, null, null);
     const expectedOverview = await sharp(image.bytes)
       .resize(overview.width, overview.height)
       .raw()
@@ -50,7 +50,7 @@ test.each([1, 2, 4])(
       expectedOverview,
     );
     for (const { id, patch } of imageRegions(image, layout)) {
-      const evidence = await read(image, layout, id);
+      const evidence = await read(image, layout, id, null, null);
       const expected = await sharp(image.bytes)
         .extract({
           left: patch.x,
@@ -75,15 +75,15 @@ test("concurrent regions prepare the source once and a new reader reuses persist
   const regions = imageRegions(image, layout);
   const { readRegion: read } = createImageEvidence(tracked);
   const evidence = await Promise.all(
-    regions.map(({ id }) => read(image, layout, id)),
+    regions.map(({ id }) => read(image, layout, id, null, null)),
   );
   expect(sourceReads()).toBe(1);
   const { readRegion: restarted } = createImageEvidence(tracked);
-  expect((await restarted(image, layout, regions.at(-1)!.id)).clean).toEqual(
-    evidence.at(-1)!.clean,
-  );
+  expect(
+    (await restarted(image, layout, regions.at(-1)!.id, null, null)).clean,
+  ).toEqual(evidence.at(-1)!.clean);
   expect(sourceReads()).toBe(1);
-  await restarted(image, { ...layout, halo: 48 }, regions[0]!.id);
+  await restarted(image, { ...layout, halo: 48 }, regions[0]!.id, null, null);
   expect(sourceReads()).toBe(2);
 });
 
@@ -101,17 +101,23 @@ test("partial preparation is reusable and failed work does not poison later requ
       await tracked.putImmutable(key, bytes);
     },
   });
-  await expect(read(image, layout, "tile-000-001")).rejects.toThrow(
+  await expect(read(image, layout, "tile-000-001", null, null)).rejects.toThrow(
     "storage unavailable",
   );
   expect(sourceReads()).toBe(1);
   const { readRegion: restarted } = createImageEvidence(tracked);
-  await restarted(image, layout, "tile-000-000");
+  await restarted(image, layout, "tile-000-000", null, null);
   expect(sourceReads()).toBe(1);
-  await read(image, layout, "tile-000-001");
+  await read(image, layout, "tile-000-001", null, null);
   expect(sourceReads()).toBe(2);
   await store.remove(imageBlobKey(image.digest));
-  await createImageEvidence(tracked).readRegion(image, layout, "tile-001-002");
+  await createImageEvidence(tracked).readRegion(
+    image,
+    layout,
+    "tile-001-002",
+    null,
+    null,
+  );
   expect(sourceReads()).toBe(2);
 });
 
@@ -120,16 +126,24 @@ test("scoped preparation produces only needed regions and can be reused or expan
   const layout = { coreSize: 512, halo: 32, displayScale: 1 };
   const scope = [{ x: 512, y: 0, width: 1, height: 1 }];
   const { readRegion: read } = createImageEvidence(tracked);
-  const first = await read(image, layout, "tile-000-001", scope);
+  const first = await read(image, layout, "tile-000-001", scope, null);
   expect((await store.list("image-regions/")).length).toBe(3);
-  expect((await read(image, layout, "tile-000-001")).clean).toBe(first.clean);
-  expect(sourceReads()).toBe(1);
-  await expect(read(image, layout, "tile-000-000", scope)).rejects.toThrow(
-    "does not exist",
+  expect((await read(image, layout, "tile-000-001", null, null)).clean).toBe(
+    first.clean,
   );
+  expect(sourceReads()).toBe(1);
+  await expect(
+    read(image, layout, "tile-000-000", scope, null),
+  ).rejects.toThrow("does not exist");
   const [second, third] = await Promise.all([
-    read(image, layout, "tile-000-000", [{ x: 0, y: 0, width: 1, height: 1 }]),
-    read(image, layout, "tile-001-002"),
+    read(
+      image,
+      layout,
+      "tile-000-000",
+      [{ x: 0, y: 0, width: 1, height: 1 }],
+      null,
+    ),
+    read(image, layout, "tile-001-002", null, null),
   ]);
   expect(second.clean.byteLength).toBeGreaterThan(0);
   expect(third.clean.byteLength).toBeGreaterThan(0);
@@ -141,18 +155,20 @@ test("context and regional reads share preparation but fetch only their own pers
   const layout = { coreSize: 512, halo: 32, displayScale: 1 };
   const reader = createImageEvidence(tracked);
   const [overview, region] = await Promise.all([
-    reader.readOverview(image, layout),
-    reader.readRegion(image, layout, "tile-000-000"),
+    reader.readOverview(image, layout, null, null),
+    reader.readRegion(image, layout, "tile-000-000", null, null),
   ]);
   expect(sourceReads()).toBe(1);
   reads.length = 0;
   const restarted = createImageEvidence(tracked);
-  expect(await restarted.readRegion(image, layout, "tile-000-000")).toEqual(
-    region,
-  );
+  expect(
+    await restarted.readRegion(image, layout, "tile-000-000", null, null),
+  ).toEqual(region);
   expect(reads).toEqual([region.key]);
   reads.length = 0;
-  expect(await restarted.readOverview(image, layout)).toEqual(overview);
+  expect(await restarted.readOverview(image, layout, null, null)).toEqual(
+    overview,
+  );
   expect(reads).toHaveLength(1);
   expect(reads[0]).toEndWith("/overview.png");
   expect(sourceReads()).toBe(1);

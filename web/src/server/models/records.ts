@@ -1,4 +1,4 @@
-import { eq, type SQL, type SQLWrapper } from "drizzle-orm";
+import { eq, type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 
 import {
@@ -35,8 +35,8 @@ const MODEL_RECORD_COLUMNS: Record<ModelRecordKind, PgColumn> = {
  * row of a select over `models` carries its own counts.
  */
 export function modelRecordCounts(
+  model: SQLWrapper | string,
   db: Executor,
-  model: SQLWrapper,
 ): Record<ModelRecordKind, SQL<number>> {
   return buildModelRecords((kind) => {
     const column = MODEL_RECORD_COLUMNS[kind];
@@ -49,18 +49,10 @@ export async function modelRecords(
   model: string,
   db: Executor,
 ): Promise<ModelRecords> {
-  const counts = buildModelRecords((kind) => {
-    const column = MODEL_RECORD_COLUMNS[kind];
-    return db.$count(column.table, eq(column, model));
-  });
-  return {
-    versions: await counts.versions,
-    uploads: await counts.uploads,
-    observations: await counts.observations,
-    annotations: await counts.annotations,
-    datasets: await counts.datasets,
-    trainingRuns: await counts.trainingRuns,
-  };
+  const [row] = await db
+    .select(modelRecordCounts(model, db))
+    .from(sql`(select 1) as model_counts`);
+  return toModelRecords(row!);
 }
 
 export function toModelRecords(
@@ -79,10 +71,10 @@ function buildModelRecords<T>(
 ): Record<ModelRecordKind, T> {
   return {
     versions: value("versions"),
-    uploads: value("uploads"),
     observations: value("observations"),
     annotations: value("annotations"),
     datasets: value("datasets"),
     trainingRuns: value("trainingRuns"),
+    uploads: value("uploads"),
   };
 }

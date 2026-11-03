@@ -14,7 +14,7 @@ import {
 import { database } from "../infra/db/client";
 import { contentDigest } from "../infra/digest";
 import { artifactPartKey } from "./keys";
-import { requireOwnedRunningRun, requireTrainingRun } from "./ownership";
+import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
 
 export async function saveTrainingArtifactPart(
   runId: string,

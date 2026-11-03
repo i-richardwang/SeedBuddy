@@ -12,7 +12,7 @@ import { controlTrainingRun } from "../training/control";
 import {
   claimTrainingRun,
   createTrainingRun,
-  renewTrainingLease,
+  renewTrainingRun,
 } from "../training/runs";
 import { trainingRunDetail } from "./training-run-detail";
 
@@ -39,7 +39,7 @@ test("a run's detail judges whether it has stalled as of its reading", async () 
   expect(await stall(after(1))).toBeNull();
   expect(await stall(after(16))).toBe("worker-lost");
   for (const minute of [4, 8, 12, 14])
-    await renewTrainingLease(run.id, { ...worker, attempt: 1 }, after(minute));
+    await renewTrainingRun(run.id, { ...worker, attempt: 1 }, after(minute));
   expect(await stall(after(16))).toBe("no-progress");
 
   await recordTestHeartbeat(

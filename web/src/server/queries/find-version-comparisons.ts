@@ -8,7 +8,7 @@ import type {
   ComparedReading,
   VersionComparisonDetail,
 } from "../../domain/models/read-model";
-import { type Executor, inSnapshot } from "../infra/db/client";
+import type { Executor } from "../infra/db/client";
 import {
   datasetImages,
   datasetSnapshotImages,
@@ -127,38 +127,37 @@ function heldOutImages(
  * asked for. The current version, and a version that held nothing out,
  * have no comparison.
  */
-export function findVersionComparisons(
+export async function findVersionComparisons(
   modelId: string,
-  { version, executor }: { version?: string; executor?: Executor } = {},
+  version: string | undefined,
+  db: Executor,
 ): Promise<Map<string, VersionComparisonDetail>> {
-  return inSnapshot(executor, async (db) => {
-    const byVersion = new Map<
-      string,
-      { classes: string[]; current: string | null; images: ComparedImage[] }
-    >();
-    for (const row of await heldOutImages(db, modelId, version)) {
-      const entry = byVersion.get(row.versionId) ?? {
-        classes: row.classes,
-        current: row.currentVersionId,
-        images: [],
-      };
-      entry.images.push({
-        digest: row.digest,
-        dataset:
-          row.datasetId && row.filename
-            ? { id: row.datasetId, filename: row.filename }
-            : null,
-        reviewed: row.reviewed,
-        candidate: reading(row.candidateStatus, row.candidateTally),
-        current: reading(row.currentStatus, row.currentTally),
-      });
-      byVersion.set(row.versionId, entry);
-    }
-    return new Map(
-      [...byVersion].map(([versionId, entry]) => [
-        versionId,
-        compareVersions(entry.classes, entry.current, entry.images),
-      ]),
-    );
-  });
+  const byVersion = new Map<
+    string,
+    { classes: string[]; current: string | null; images: ComparedImage[] }
+  >();
+  for (const row of await heldOutImages(db, modelId, version)) {
+    const entry = byVersion.get(row.versionId) ?? {
+      classes: row.classes,
+      current: row.currentVersionId,
+      images: [],
+    };
+    entry.images.push({
+      digest: row.digest,
+      dataset:
+        row.datasetId && row.filename
+          ? { id: row.datasetId, filename: row.filename }
+          : null,
+      reviewed: row.reviewed,
+      candidate: reading(row.candidateStatus, row.candidateTally),
+      current: reading(row.currentStatus, row.currentTally),
+    });
+    byVersion.set(row.versionId, entry);
+  }
+  return new Map(
+    [...byVersion].map(([versionId, entry]) => [
+      versionId,
+      compareVersions(entry.classes, entry.current, entry.images),
+    ]),
+  );
 }

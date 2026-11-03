@@ -12,7 +12,14 @@ const dependencies: Record<string, readonly string[]> = {
   inference: ["images", "models", "workers", "infra"],
   "annotation-runs": ["readings", "images", "models", "infra"],
   annotations: ["images", "models", "infra"],
-  datasets: ["readings", "images", "inference", "models", "infra"],
+  datasets: [
+    "annotations",
+    "readings",
+    "images",
+    "inference",
+    "models",
+    "infra",
+  ],
   readings: ["inference", "infra"],
   experiments: [
     "readings",

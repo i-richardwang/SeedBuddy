@@ -6,9 +6,10 @@ import {
   type ModelBundle,
   modelBundleSchema,
 } from "../../domain/models/bundle";
+import { sameClasses } from "../../domain/models/classes";
 import {
-  ModelNotFoundError,
   ModelPublicationInvalidError,
+  ModelUploadNotFoundError,
   ModelVersionNotFoundError,
 } from "../../domain/models/errors";
 import {
@@ -17,10 +18,19 @@ import {
 } from "../../domain/models/schema";
 import { canonicalJson } from "../../lib/json/canonical";
 import { openBlob, putImmutableBlob, removeBlob } from "../infra/blobs/store";
-import { database, type Executor, transaction } from "../infra/db/client";
+import {
+  database,
+  type Executor,
+  operationTime,
+  transaction,
+} from "../infra/db/client";
 import { modelUploads, modelVersions } from "../infra/db/schema";
 import { contentDigest, documentDigest } from "../infra/digest";
-import { readModel, readModelVersion, registerModelVersion } from "./registry";
+import {
+  readModelVersion,
+  registerModelVersion,
+  requireModel,
+} from "./registry";
 
 const UPLOAD_LIFETIME = 24 * 60 * 60 * 1000;
 
@@ -43,15 +53,15 @@ function executableSettings(bundle: ModelBundle) {
 
 export async function prepareModelUpload(modelId: string, value: ModelBundle) {
   const bundle = modelBundleSchema.parse(value);
-  const model = await readModel(modelId);
-  if (!model) throw new ModelNotFoundError(`Unknown model: ${modelId}`);
-  if (canonicalJson(model.classes) !== canonicalJson(bundle.classes))
+  const model = await requireModel(modelId, await database());
+  if (!sameClasses(model.classes, bundle.classes))
     throw new ModelPublicationInvalidError(
       "Bundle classes and their order must match the model",
     );
   const uploadId = `upload-${documentDigest({ modelId, bundle })}`;
-  const expiresAt = new Date(Date.now() + UPLOAD_LIFETIME);
   const db = await database();
+  const at = await operationTime(db);
+  const expiresAt = new Date(at.getTime() + UPLOAD_LIFETIME);
   await db
     .insert(modelUploads)
     .values({
@@ -75,7 +85,8 @@ export async function uploadModelWeights(
   weights: Uint8Array,
 ): Promise<void> {
   await transaction(async (tx) => {
-    const row = await requireUpload(uploadId, tx);
+    const at = await operationTime(tx);
+    const row = await requireUpload(uploadId, at, tx);
     if (
       weights.byteLength !== row.bundle.weights.bytes ||
       contentDigest(weights) !== row.bundle.weights.digest
@@ -91,14 +102,14 @@ export async function uploadModelWeights(
   });
 }
 
-async function requireUpload(id: string, tx: Executor) {
+async function requireUpload(id: string, at: Date, tx: Executor) {
   const [row] = await tx
     .select()
     .from(modelUploads)
     .where(eq(modelUploads.id, id))
     .for("update");
-  if (!row) throw new ModelVersionNotFoundError(`Unknown model upload: ${id}`);
-  if (!row.versionId && row.expiresAt.getTime() <= Date.now())
+  if (!row) throw new ModelUploadNotFoundError(`Unknown model upload: ${id}`);
+  if (!row.versionId && row.expiresAt <= at)
     throw new ModelPublicationInvalidError(
       "Upload expired; prepare the bundle again",
     );
@@ -109,9 +120,10 @@ async function requireUpload(id: string, tx: Executor) {
 export async function registerUploadedModel(
   uploadId: string,
   source: Extract<ModelVersion["source"], { kind: "training_run" }> | undefined,
+  at: Date,
   tx: Executor,
 ): Promise<ModelVersion> {
-  const row = await requireUpload(uploadId, tx);
+  const row = await requireUpload(uploadId, at, tx);
   const origin: ModelVersion["source"] = source ?? {
     kind: "import",
     bundleDigest: bundleDigest(row.bundle),
@@ -129,7 +141,7 @@ export async function registerUploadedModel(
       schemaVersion: 1,
       id,
       modelId: row.modelId,
-      createdAt: new Date().toISOString(),
+      createdAt: at.toISOString(),
       source: origin,
       artifact: {
         kind: "ultralytics",
@@ -156,7 +168,9 @@ export async function registerUploadedModel(
 export async function importModelUpload(
   uploadId: string,
 ): Promise<ModelVersion> {
-  return transaction((tx) => registerUploadedModel(uploadId, undefined, tx));
+  return transaction(async (tx) =>
+    registerUploadedModel(uploadId, undefined, await operationTime(tx), tx),
+  );
 }
 
 export async function openModelWeights(versionId: string) {
@@ -180,24 +194,21 @@ export async function openModelWeights(versionId: string) {
 /** Reservation locks serialize collection with upload and registration. Registered bytes remain rooted by versions. */
 export async function collectUnreferencedModelWeights(): Promise<string[]> {
   const db = await database();
+  const at = await operationTime(db);
   const expired = await db
     .select({ id: modelUploads.id })
     .from(modelUploads)
-    .where(
-      and(
-        isNull(modelUploads.versionId),
-        lt(modelUploads.expiresAt, new Date()),
-      ),
-    );
+    .where(and(isNull(modelUploads.versionId), lt(modelUploads.expiresAt, at)));
   const removed: string[] = [];
   for (const { id } of expired)
     await transaction(async (tx) => {
+      const at = await operationTime(tx);
       const [row] = await tx
         .select()
         .from(modelUploads)
         .where(eq(modelUploads.id, id))
         .for("update");
-      if (!row || row.versionId || row.expiresAt.getTime() > Date.now()) return;
+      if (!row || row.versionId || row.expiresAt > at) return;
       await removeBlob(row.weightsKey);
       await tx.delete(modelUploads).where(eq(modelUploads.id, id));
       removed.push(row.weightsKey);

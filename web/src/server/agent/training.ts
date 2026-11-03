@@ -59,14 +59,15 @@ export const trainingOperations = [
       epochs: z.array(trainingEpochSchema),
     }),
     handler: async ({ runId }) => {
-      const run = await requireTrainingRun(runId, await database());
-      const snapshot = await readDatasetSnapshot(run.datasetSnapshotId);
+      const db = await database();
+      const run = await requireTrainingRun(runId, db);
+      const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
       if (!snapshot)
         throw new TrainingRunNotFoundError("Training snapshot is missing");
       return {
         run,
         datasetId: snapshot.datasetId,
-        epochs: await listTrainingEpochs(runId),
+        epochs: await listTrainingEpochs(runId, db),
       };
     },
   }),

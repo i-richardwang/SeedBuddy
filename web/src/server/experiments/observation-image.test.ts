@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 
 import { setCurrentVersion } from "../models/registry";
+import { experimentGridDetail } from "../queries/experiment-details";
+import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
 import {
   assignImages,
   createExperiment,
@@ -9,13 +11,11 @@ import {
   trainedVersion,
   unitsOf,
 } from "../testing/experiments";
-import { imageDigest } from "../testing/images";
+import { countedImageResult, imageDigest } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
 import { registerTrainedVersion } from "../testing/models";
-import { experimentObservationImageDetail } from "./observation-image";
+import { ultralyticsWorker as worker } from "../testing/workers";
 import { createObservation } from "./observations";
-import { experimentGridDetail } from "./queries";
-import { countedImageResult, worker } from "./testing";
 
 test("a trained version reads only once it is made current, and the one left behind returns at once", async () => {
   const first = await trainedVersion("exp-retrained");

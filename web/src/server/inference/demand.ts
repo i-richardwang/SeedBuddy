@@ -4,8 +4,8 @@ import type { Executor } from "../infra/db/client";
 
 /** Discover missing work independently of worker capabilities or availability. */
 export async function materializeInferenceDemand(
-  tx: Executor,
   at: Date,
+  tx: Executor,
 ): Promise<void> {
   await tx.execute(sql`
     with demand as (

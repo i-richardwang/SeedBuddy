@@ -21,7 +21,6 @@ import {
 } from "../../domain/datasets/schema";
 import { ExperimentObservationImageNotFoundError } from "../../domain/experiments/errors";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
-import { ModelNotFoundError } from "../../domain/models/errors";
 import type { ImageSplit } from "../../domain/training/schema";
 import { imageBlobKey, lockImage } from "../images/public";
 import { database, type Executor, inTransaction } from "../infra/db/client";
@@ -33,7 +32,7 @@ import {
   experimentObservations,
   type images as imageAssets,
 } from "../infra/db/schema";
-import { readModel } from "../models/public";
+import { requireModel } from "../models/public";
 
 export interface DatasetImage extends DatasetImageRef {
   filename: string;
@@ -65,7 +64,7 @@ export function toDatasetImage({
   };
 }
 
-export function membershipOrder() {
+export function datasetMembershipOrder() {
   return [
     asc(datasetImages.addedAt),
     asc(datasetImages.filename),
@@ -104,16 +103,17 @@ export async function readDatasetByName(
   return row ? toDataset(row) : null;
 }
 
-export async function listDatasets(): Promise<Dataset[]> {
-  const db = await database();
+export async function listDatasets(executor?: Executor): Promise<Dataset[]> {
+  const db = executor ?? (await database());
   const rows = await db.select().from(datasets).orderBy(asc(datasets.name));
   return rows.map(toDataset);
 }
 
 export async function listDatasetsForModel(
   modelId: string,
+  executor?: Executor,
 ): Promise<Dataset[]> {
-  const db = await database();
+  const db = executor ?? (await database());
   const rows = await db
     .select()
     .from(datasets)
@@ -139,17 +139,14 @@ export async function createDataset(
   executor?: Executor,
 ): Promise<Dataset> {
   return inTransaction(executor, async (tx) => {
-    if (!(await readModel(modelId, tx))) {
-      throw new ModelNotFoundError(`Unknown model: ${modelId}`);
-    }
+    await requireModel(modelId, tx);
     const [row] = await refuseTakenDatasetName(name, () =>
       tx
         .insert(datasets)
         .values({ id: randomUUID(), name, modelId, createdAt: new Date() })
         .returning(),
     );
-    if (!row) throw new Error("Dataset was not created");
-    return toDataset(row);
+    return toDataset(row!);
   });
 }
 

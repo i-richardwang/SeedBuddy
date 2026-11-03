@@ -4,7 +4,6 @@ import { and, eq, lt, ne, sql } from "drizzle-orm";
 
 import {
   ExperimentNameTakenError,
-  ExperimentNotFoundError,
   ExperimentRecordsConflictError,
   ObservationConflictError,
   TreatmentConflictError,
@@ -12,7 +11,6 @@ import {
   TreatmentNotFoundError,
   UnitConflictError,
   UnitNameTakenError,
-  UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import { replicateCodes, sameName } from "../../domain/experiments/naming";
 import type { Unit } from "../../domain/experiments/read-model";
@@ -46,6 +44,7 @@ import {
   listTreatments,
   listUnits,
   lockExperiment,
+  requireUnit,
   toExperiment,
   toTreatment,
   toUnit,
@@ -64,11 +63,10 @@ export async function createExperiment(
         .values({ ...page, id: randomUUID(), createdAt: new Date() })
         .returning(),
     );
-    if (!row) throw new Error("Experiment was not created");
     for (const [index, treatment] of treatments.entries()) {
-      await insertTreatment(row.id, treatment, index + 1, [], tx);
+      await insertTreatment(row!.id, treatment, index + 1, [], tx);
     }
-    return toExperiment(row);
+    return toExperiment(row!);
   });
 }
 
@@ -118,10 +116,7 @@ export async function updateExperiment(
         .where(eq(experiments.id, experimentId))
         .returning(),
     );
-    if (!row) {
-      throw new ExperimentNotFoundError(`Unknown experiment: ${experimentId}`);
-    }
-    return toExperiment(row);
+    return toExperiment(row!);
   });
 }
 
@@ -137,13 +132,7 @@ export async function deleteExperiment(
         "An experiment with images, counts or culture events cannot be deleted",
       );
     }
-    const [row] = await tx
-      .delete(experiments)
-      .where(eq(experiments.id, experiment))
-      .returning({ id: experiments.id });
-    if (!row) {
-      throw new ExperimentNotFoundError(`Unknown experiment: ${experiment}`);
-    }
+    await tx.delete(experiments).where(eq(experiments.id, experiment));
   });
 }
 
@@ -164,8 +153,7 @@ async function insertTreatment(
     .insert(experimentTreatments)
     .values({ experimentId, id: randomUUID(), ...fields, position })
     .returning();
-  if (!row) throw new Error("Treatment was not created");
-  const treatment = toTreatment(row);
+  const treatment = toTreatment(row!);
   await insertReplicates(experimentId, treatment, replicates, tx);
   return treatment;
 }
@@ -189,7 +177,7 @@ async function insertReplicates(
       })),
     )
     .returning();
-  return rows.map((row) => toUnit(row));
+  return rows.map((row) => toUnit(row!));
 }
 
 export async function addTreatment(
@@ -250,7 +238,7 @@ export async function updateTreatment(
     if (!row) {
       throw new TreatmentNotFoundError(`Unknown treatment: ${treatmentId}`);
     }
-    return toTreatment(row);
+    return toTreatment(row!);
   });
 }
 
@@ -330,8 +318,7 @@ export async function updateUnit(
       .set({ code, treatmentId: treatment })
       .where(atUnit(experimentId, unitId))
       .returning();
-    if (!row) throw new UnitNotFoundError(`Unknown unit: ${unitId}`);
-    return toUnit(row);
+    return toUnit(row!);
   });
 }
 
@@ -341,22 +328,24 @@ export async function moveUnits(
   executor?: Executor,
 ): Promise<Unit[]> {
   return inTransaction(executor, async (tx) => {
+    await lockExperiment(value.experiment, tx);
+    await requireTreatment(value.experiment, value.treatment, tx);
+    const units = await listUnits(value.experiment, tx);
     const moved: Unit[] = [];
     for (const unitId of value.units) {
-      const units = await listUnits(value.experiment, tx);
       const unit = requireUnit(units, unitId);
-      moved.push(
-        await updateUnit(
-          {
-            experiment: value.experiment,
-            unit: unitId,
-            code: unit.code,
-            treatment: value.treatment,
-          },
-          tx,
-        ),
-      );
+      if (unit.treatment !== value.treatment && isLastReplicate(units, unit))
+        throw new UnitConflictError(
+          "The last replicate of a treatment cannot be moved",
+        );
+      unit.treatment = value.treatment;
+      moved.push(unit);
     }
+    for (const unit of moved)
+      await tx
+        .update(experimentUnits)
+        .set({ treatmentId: unit.treatment })
+        .where(atUnit(value.experiment, unit.id));
     return moved;
   });
 }
@@ -383,12 +372,6 @@ export async function deleteUnit(
     }
     await tx.delete(experimentUnits).where(atUnit(experimentId, unitId));
   });
-}
-
-function requireUnit(units: readonly Unit[], unitId: string): Unit {
-  const unit = units.find((item) => item.id === unitId);
-  if (!unit) throw new UnitNotFoundError(`Unknown unit: ${unitId}`);
-  return unit;
 }
 
 function isLastReplicate(units: readonly Unit[], unit: Unit): boolean {

@@ -16,6 +16,10 @@ import {
 } from "../../domain/experiments/errors";
 import { createModel } from "../models/registry";
 import {
+  experimentGridDetail,
+  unitDetail,
+} from "../queries/experiment-details";
+import {
   assignImages,
   createExperiment,
   INOCULATED,
@@ -23,8 +27,9 @@ import {
   trainedVersion,
   unitsOf,
 } from "../testing/experiments";
-import { imageDigest } from "../testing/images";
+import { countedImageResult, imageDigest } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
+import { ultralyticsWorker as worker } from "../testing/workers";
 import { recordCultureEvents } from "./culture-events";
 import { deleteUnit } from "./design";
 import { recordManualReadings } from "./manual-readings";
@@ -33,8 +38,6 @@ import {
   deleteObservation,
   updateObservation,
 } from "./observations";
-import { experimentGridDetail, unitDetail } from "./queries";
-import { countedImageResult, worker } from "./testing";
 
 test("a unit counted by hand has a number with no photograph, and the count outranks the photograph's", async () => {
   const version = await trainedVersion("exp-manual-counts");

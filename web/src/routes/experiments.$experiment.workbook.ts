@@ -5,8 +5,8 @@ import {
   experimentWorkbook,
   experimentWorkbookFilename,
 } from "../features/experiments/workbook";
-import { experimentGridDetail } from "../server/experiments/public";
 import { listModels } from "../server/models/public";
+import { experimentGridDetail } from "../server/queries/public";
 import { workbookResponse } from "../server/transport/http/workbook";
 
 export const Route = createFileRoute("/experiments/$experiment/workbook")({

@@ -1,12 +1,10 @@
 import { expect, test } from "bun:test";
 
-import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
+import { addExperimentObservationImagesToNewDataset } from "../datasets/datasets";
 import { createObservation } from "../experiments/observations";
-import {
-  assignObservationImages,
-  experimentGridDetail,
-} from "../experiments/public";
+import { assignObservationImages } from "../experiments/public";
 import { createModel } from "../models/public";
+import { experimentGridDetail } from "../queries/public";
 import { observeImagesForModel } from "../testing/experiments";
 import { storeTexts } from "../testing/images";
 import { findImages } from "./find-images";
