@@ -28,7 +28,7 @@ The MCP surface also opens to MCP clients the account approves through OAuth: se
 
 Every result is validated against the operation's published output schema before it leaves the workbench; for commands sharing the operation transaction, this validation must succeed before that transaction commits. Transaction ownership follows the [backend contract](backend-architecture.md#agent-control-plane). A successful call answers `{"result": ...}`. A failed call answers `{"error":{"code":"...","message":"..."}}`; HTTP maps the protocol-neutral code to the status describing what the agent can do about it:
 
-- `400` — schema or domain validation fails, including a dataset/model mismatch.
+- `400` — schema or domain validation fails, including a dataset/model mismatch or an unknown class in a manual count.
 - `401` — the request presents no live API key with the Experiment records scope.
 - `404` — the operation or the addressed record does not exist.
 - `409` — a domain rule rejected the request, such as deleting an observation that holds records, or entering a count that leaves out a class the day counts; the message says which rule.
@@ -42,9 +42,9 @@ Content-Type: application/json
 {"experiment":"…","observedOn":"2026-09-02","modelId":"seed-detector"}
 ```
 
-Experiment names, treatment names within an experiment, observation dates and unit codes identify duplicate creates, which return 409. Image uploads are idempotent; an existing digest is acknowledged successfully. Invalid source images and canonical-transfer digest mismatches return 400, while unexpected storage failures return 500.
+Experiment names, treatment names within an experiment, observation dates and unit codes identify duplicate creates, which return 409. Image uploads are idempotent; an existing digest is acknowledged successfully. Invalid source images return 400, while unexpected storage failures return 500.
 
-Image upload posts the raw source bytes as the request body with an exact `Content-Length`, up to 64 MiB. The returned digest identifies the [canonical image](images.md). Upload stores only the image by digest; assignment to a unit or dataset is a separate operation.
+Image upload posts the raw source bytes as the request body with an exact `Content-Length`, up to the [image size limit](domain.md#dataset-transfer). The returned digest identifies the [canonical image](images.md). Upload stores only the image by digest; assignment to a unit or dataset is a separate operation.
 
 ## MCP surface
 
@@ -62,6 +62,8 @@ the OAuth challenge, including on GET probes. After authentication, only POST
 is admitted; other methods receive `405 Method Not Allowed` with `Allow: POST`.
 GET streams and DELETE sessions are not implemented.
 
+OAuth resource requests use Better Auth's verifier for both Bearer and DPoP access tokens. A DPoP-bound token requires the client's signed proof for the request URL, method and access token; a reused proof is refused. Account and client authorization are checked on every request, including after a valid proof. Initialization uses the shared, retryable auth service.
+
 Better Auth verifies OAuth and issues challenges; the MCP SDK handles POST exchanges. Client ID Metadata Documents use a transport that resolves DNS once, rejects non-public addresses, pins the connection to a validated address, verifies TLS for the original hostname and refuses redirects.
 
 Add the experiment server to a local client, replacing `<workbench>` with the deployment hostname:
@@ -75,7 +77,7 @@ Image bytes use the [HTTP upload surface](#http-surface); MCP operations take th
 
 ## Error contract
 
-Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subject>_mismatch`, `ConflictError` for `<subject>_name_taken` or `<subject>_conflict`, and `NotFoundError` for `<subject>_not_found`. Protocol adapters classify these domain errors: the agent transport emits `invalid_request`, `conflict`, `not_found`, `unauthorized` or `internal_error`. The domain codes are:
+Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subject>_mismatch`, `ConflictError` for `<subject>_name_taken` or `<subject>_conflict`, and `NotFoundError` for `<subject>_not_found`. Protocol adapters classify these domain errors: the agent transport emits `invalid_request`, `conflict`, `not_found`, `unauthorized` or `internal_error`. Agent HTTP and MCP error bodies carry that category as `code` and a diagnostic `message`; they do not carry the domain code. The domain codes used inside the application are:
 
 | Subject | Codes |
 | --- | --- |
@@ -90,11 +92,17 @@ Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subj
 | training | `training_run_conflict`, `training_run_not_found`, `training_artifact_invalid` |
 | workers | `worker_not_found`, `worker_name_taken`, `worker_session_conflict` |
 
-`dataset_manifest_too_large` maps to `invalid_request`.
+`dataset_manifest_too_large` and `class_invalid` map to `invalid_request`. Unknown manual-count and inference classes use `class_invalid`; a missing annotation image uses `image_not_found`. Assignment conflicts use `ObservationImageConflictError` (`observation_image_conflict`) and `ExperimentObservationImageConflictError` (`experiment_observation_image_conflict`).
 
 Both MCP servers report tool handler failures as `isError: true` with JSON `{ "code": "…", "message": "…" }` in text content. The MCP SDK owns argument validation before handlers run.
 
-HTTP image and weight uploads, Worker artifact parts and dataset manifest PUTs share `exactLengthBody` admission in `transport/http/upload-body.ts`. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. The `/api/transfer/*` surface uses `{ "error": "…" }`; importing for an unknown model returns 404, while `DatasetImportInvalidError` returns 409. Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
+HTTP image and weight uploads, Worker artifact parts and dataset manifest PUTs share `exactLengthBody` admission in `transport/http/upload-body.ts`. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. Browser `/api/images` refusals use `{ "error": "…" }`, with a plain-text 500 for unexpected storage failure. Transfer responses are described [below](#transfer-surface). Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
+
+## Transfer surface
+
+`GET /api/transfer/datasets/:dataset` returns the JSON manifest, plain-text 404 for an unknown dataset, or 422 with `{ "error": "…" }` when the exported manifest exceeds its limit. `PUT` returns 201 with `{ "dataset": "…" }`; an unknown model returns 404 and `DatasetImportInvalidError` returns 409. Invalid JSON, an invalid manifest or a mismatched dataset name returns 400. Upload admission and import refusals use `{ "error": "…" }`.
+
+`GET /api/transfer/images/:digest` returns canonical image bytes or plain-text 404. `PUT` returns `{ "digest": "…" }`; an invalid digest, invalid canonical image or digest mismatch returns 400, and unexpected storage failures return 500, all with `{ "error": "…" }`. Transfers follow the [dataset limits and rules](domain.md#dataset-transfer).
 
 ## Design and records
 
@@ -106,7 +114,7 @@ HTTP image and weight uploads, Worker artifact parts and dataset manifest PUTs s
 
 - `reading` is the resolved count and its source (`manual`, `review`, `proposal` or `detection`), or null; resolution follows the [reading rules](readings.md#where-the-numbers-come-from).
 - `exclusion` is an `event` or `unclear` reason, or null, under the [exclusion rules](readings.md#what-takes-a-unit-out-of-the-statistics).
-- `image` carries the observation image `id`, digest, state, three tallies and unclear mark.
+- `image` carries the observation image `id`, digest, `filename`, state, `error`, three tallies and unclear mark.
 - `manual` carries the count entered by hand, as a class tally and recording time.
 
 A cell with neither reading nor exclusion has no resolved count or exclusion reason; it can still hold a photograph awaiting a reading. Agents follow the [resolved-sheet rules](readings.md#what-an-agent-reads).

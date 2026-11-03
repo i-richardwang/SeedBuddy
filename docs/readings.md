@@ -40,15 +40,11 @@ individuals of each class it held. A photograph is one way to get it, and
 the usual one; a person counting the dish at the bench is another. Where the
 number came from is kept beside it, and the number enters the statistics.
 
-A cell is one unit on one day. It holds the photograph taken of the unit
-that day, if one was, and the count entered by hand for it, if one was;
-it exists once it has either. One unit has at most one photograph and one
-count entered by hand per day.
+A cell is one unit on one observation. It holds the photograph taken of the unit that day and the count entered by hand for it, when there are any; one unit has at most one of each per day.
 
-Every photograph yields a tally: how many instances of each class the reading
-found. An image can hold three readings, and they rank: a reviewer's
+An annotated photograph yields a tally: how many instances of each class its boxes contain. An image can hold three annotation layers, and they rank: a reviewer's
 review outranks an AI agent's proposal, which outranks the model’s
-detection. Only a review marks the image reviewed; the grid distinguishes it from automated readings. The grid and resolved sheet use detections from the current model version. The image review workbench can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
+detection. Only a review marks the image reviewed; the grid distinguishes it from automated annotations. The grid and resolved sheet use detections from the current model version. The image review workbench can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
 
 A count entered by hand is a tally too, kept by class, for a day that was
 not photographed or a dish that was counted at the bench, such as when its

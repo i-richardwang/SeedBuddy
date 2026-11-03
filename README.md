@@ -4,7 +4,7 @@ VitroFlow turns repeated plant tissue culture photographs into comparable readin
 
 ## Parts
 
-- The Web control plane owns experiments, datasets, annotation review, model versions and training runs.
+- The workbench owns experiments, datasets, annotation review, model versions and training runs.
 - `vitroctl` is the source-installed operator CLI and native Worker runtime for dataset transfer, detection and training.
 - `vitroflow` is the published Python package for sorting dish photographs and reviewing focus and countability before upload.
 

@@ -43,12 +43,6 @@ resource nor keys issued for annotation alone.
 
 OAuth discovery and connection behavior follow the [shared MCP contract](agent-api.md#mcp-surface). For annotation, the protected resource metadata is `/.well-known/oauth-protected-resource/api/annotation/mcp` and the token audience is `<BETTER_AUTH_URL>/api/annotation/mcp`.
 
-OAuth resource requests use Better Auth's verifier for both Bearer and DPoP
-access tokens. A DPoP-bound token requires the client's signed proof for the
-request URL, method and access token; a reused proof is refused. The account and
-client authorization are checked on every request, including after a valid proof.
-Initialization uses the shared, retryable auth service.
-
 Add the annotation server to a local client:
 
 ```bash
@@ -58,56 +52,56 @@ codex mcp add vitroflow-annotation --url 'https://<workbench>/api/annotation/mcp
 
 ## Tool contract
 
-`annotation_find({image})` finds image references by filename or workbench page URL and lists their experiment or dataset locations. Ambiguous matches are presented for selection.
+`annotation-find({image})` finds image references by filename or workbench page URL and lists their experiment or dataset locations. Ambiguous matches are presented for selection.
 
-`annotation_pending({modelId?})` lists the images in datasets and experiment
+`annotation-pending({modelId?})` lists the images in datasets and experiment
 observations waiting for an agent. Images with a run in progress come first, with
-its progress, to be continued with `annotation_next`. Then come those that have
+its progress, to be continued with `annotation-next`. Then come those that have
 neither a reviewer's boxes nor an AI proposal for their model, provided the model
 has annotation instructions. `modelId` narrows the listing to one model; a
 listing names at most 100 images and reports how many wait in all.
 
-`annotation_read({ref: {digest, modelId}})` returns how the image is annotated
+`annotation-read({ref: {digest, modelId}})` returns how the image is annotated
 for the model at the time of the call: the reviewer's boxes, the AI proposal and the detection
 as source-coordinate instances, which of them the image reads by, and any run
 still at work. It is the view to consult before redrawing part of an image.
 
-`annotation_start({ref: {digest, modelId}, input?, scope?})` starts the image's
+`annotation-start({ref: {digest, modelId}, input?, scope?})` starts the image's
 run. `input` is the boxes the run begins from: a complete
-source-coordinate list, the name of one of the image's readings (`"review"`,
-`"proposal"` or `"detection"`, as `annotation_read` lists them) taken as it stands
-when the run starts, or nothing to start from the image alone. Naming a
-reading the image lacks is refused. `scope` is an optional list of
+source-coordinate list, the name of one of the image's annotation layers (`"review"`,
+`"proposal"` or `"detection"`, as `annotation-read` lists them) taken as it stands
+when the run starts, or nothing to start from the image alone. Naming an
+annotation layer the image lacks is refused. `scope` is an optional list of
 source-coordinate boxes `{x, y, width, height}` with the [whole-region redraw semantics](#product-workflow). A scoped run requires
 `input`, and a scope touching no region or leaving the image is refused. While the
 image has a run in progress, starting another is refused with that run's progress.
 
-`annotation_next({ref})` returns progress and the `taskId` of the first region of
+`annotation-next({ref})` returns progress and the `taskId` of the first region of
 the image's run still waiting for an answer. It returns the same region until that
 region is accepted.
 It is refused when the image has no run in progress.
 
-`annotation_cancel({ref})` cancels the image's run in progress and discards its
+`annotation-cancel({ref})` cancels the image's run in progress and discards its
 accepted regions, so another run can start with another input or scope.
 
 Each region is then worked through four tools:
 
-- `annotation_context({taskId})` returns a stable `contextId`, the frozen image,
+- `annotation-context({taskId})` returns a stable `contextId`, the frozen image,
   classes, rules, layout, scope and frozen coverage, and one unmarked whole-image OVERVIEW.
   `contextId` is the run identity: its definition is frozen, so every region of
   that run uses the same context. Load it at conversation start, when the context
   changes, and after context loss or compaction. A client may explicitly reload
   it at any time; the server does not track which conversations have seen it.
-- `annotation_view({taskId})` returns `contextId`, regional source geometry,
+- `annotation-view({taskId})` returns `contextId`, regional source geometry,
   CLEAN, and optional numbered INITIAL references. It does not repeat the
   overview or shared rules. Core and patch rectangles are original image pixels;
   proposal coordinates remain normalized to CLEAN. Task identifiers are
   server-issued and must be used verbatim.
-- `annotation_preview({taskId, instances})` validates the complete proposal,
+- `annotation-preview({taskId, instances})` validates the complete proposal,
   stores an immutable version, and returns `proposalId`, CLEAN and PROPOSED images.
   Instances have `id`, `class`, `box_2d`, and an optional `uncertain`
   flag. Where the image leaves a body's class, outline or count undecided, the
-  agent draws its most likely reading and marks those boxes `uncertain`; a person
+  agent draws its most likely annotation and marks those boxes `uncertain`; a person
   confirms them on the canvas, where each is ringed. A doubt never stays without
   a box, so a person only ever confirms or corrects a concrete answer.
   Coordinates are `[ymin, xmin, ymax, xmax]`, normalized to 0–1000 relative to CLEAN.
@@ -117,7 +111,7 @@ Each region is then worked through four tools:
   shows only the boxes this region owns and will save; halo-only boxes belong to
   neighboring regions. Boxes are outlined in their class's color, and a model
   with several classes labels each box with its class and names the colors. Preview and final collection use the same projection.
-- `annotation_submit({taskId, proposalId})` durably accepts exactly the previewed
+- `annotation-submit({taskId, proposalId})` durably accepts exactly the previewed
   proposal. Changed geometry requires another preview. Empty regions still submit an
   empty instance list. The final accepted region automatically completes the run.
 
@@ -195,8 +189,8 @@ every region's boxes, halo context included, and treats boxes from different
 regions overlapping by IoU ≥ 0.5 as one object, whatever class each region
 judged it, at most one box per region, strongest overlaps first. Each object
 yields one box, its class included: a retained input box first, then a box its
-region owns, then a whole halo reading over a cut one. A halo reading its owning
-region did not confirm is dropped. Seam collection treats frozen input under the [scope rules](#product-workflow) as retained readings. Overlaps
+region owns, then a whole halo box over a cut one. A halo box its owning
+region did not confirm is dropped. Seam collection treats frozen input under the [scope rules](#product-workflow) as retained boxes. Overlaps
 within one region are never merged. Owned boxes touching internal patch edges
 are rejected. A box's uncertainty is the agent's own judgment and stays with
 the box chosen for its object. Frozen input uncertainty, when present, describes
