@@ -6,6 +6,7 @@ import { inferenceTaskSchema } from "../../domain/inference/tasks";
 import {
   type Executor,
   inTransaction,
+  operationTime,
   snapshot,
   transaction,
 } from "../infra/db/client";
@@ -32,21 +33,7 @@ export function attemptKey(target: DetectionTarget, attempt: number) {
   );
 }
 export function attemptIsActive(at: Date) {
-  return and(
-    eq(inferenceAttempts.status, "running"),
-    gt(inferenceAttempts.leaseExpiresAt, at),
-    gt(inferenceAttempts.deadlineAt, at),
-    sessionIsCurrent(inferenceAttempts),
-  )!;
-}
-/** Sample server time after acquiring ownership locks, never before waiting on one. */
-export async function inferenceTime(tx: Executor, at?: Date): Promise<Date> {
-  if (at) return at;
-  const [row] = await tx
-    .select({ at: sql<string>`clock_timestamp()::text` })
-    .from(sql`(select 1) as clock`);
-  // The scalar clock query always returns exactly one row.
-  return new Date(row!.at);
+  return sql`(${eq(inferenceAttempts.status, "running")} and ${gt(inferenceAttempts.leaseExpiresAt, at)} and ${gt(inferenceAttempts.deadlineAt, at)} and ${sessionIsCurrent(inferenceAttempts)})`;
 }
 export async function lockTask(
   tx: Executor,
@@ -94,9 +81,8 @@ export async function finishFailedAttempt(
 /** Claims and maintenance reclaim expired ownership without worker cooperation. */
 async function expireInferenceAttempts(
   tx: Executor,
-  suppliedAt?: Date,
+  at: Date,
 ): Promise<number> {
-  const at = await inferenceTime(tx, suppliedAt);
   const rows = await tx
     .select({ task: inferenceTasks, attempt: inferenceAttempts })
     .from(inferenceTasks)
@@ -126,16 +112,15 @@ async function expireInferenceAttempts(
       .from(inferenceAttempts)
       .where(attemptKey(target, task.attempt));
     if (attempt?.status !== "running") continue;
-    const checkedAt = await inferenceTime(tx, suppliedAt);
     const [live] = await tx
       .select({ attempt: inferenceAttempts.attempt })
       .from(inferenceAttempts)
-      .where(and(attemptKey(target, task.attempt), attemptIsActive(checkedAt)));
+      .where(and(attemptKey(target, task.attempt), attemptIsActive(at)));
     if (live) continue;
     const code =
-      attempt.deadlineAt <= checkedAt
+      attempt.deadlineAt <= at
         ? "timeout"
-        : attempt.leaseExpiresAt <= checkedAt
+        : attempt.leaseExpiresAt <= at
           ? "lease_expired"
           : "session_replaced";
     await finishFailedAttempt(
@@ -151,7 +136,7 @@ async function expireInferenceAttempts(
               ? "Worker did not renew its inference lease"
               : "Worker session ended",
       },
-      checkedAt,
+      at,
     );
     expired += 1;
   }
@@ -160,9 +145,9 @@ async function expireInferenceAttempts(
 
 export async function maintainInferenceTasks(at?: Date): Promise<number> {
   return transaction(async (tx) => {
-    const now = await inferenceTime(tx, at);
+    const now = await operationTime(tx, at);
     await materializeInferenceDemand(tx, now);
-    return expireInferenceAttempts(tx, at);
+    return expireInferenceAttempts(tx, now);
   });
 }
 
@@ -213,7 +198,7 @@ export async function retryInferenceTask(
   await inTransaction(executor, async (tx) => {
     const task = await lockTask(tx, target);
     if (task.status !== "failed") return;
-    const at = await inferenceTime(tx);
+    const at = await operationTime(tx);
     await tx
       .update(inferenceTasks)
       .set({

@@ -27,6 +27,9 @@ test("tests and server testing helpers cannot sustain a public service export", 
   const sources = new Map([
     ["src/server/models/public.ts", 'export { seed } from "./registry";'],
     ["src/server/models/registry.test.ts", 'import { seed } from "./public";'],
+    ["src/server/models/registry.test.tsx", 'import { seed } from "./public";'],
+    ["src/server/models/testing.ts", 'import { seed } from "./public";'],
+    ["test/models.ts", 'import { seed } from "../src/server/models/public";'],
     [
       "src/server/testing/models.ts",
       'import { seed } from "../models/public";',

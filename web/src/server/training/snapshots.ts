@@ -1,10 +1,7 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
-import {
-  TrainingRunConflictError,
-  TrainingRunNotFoundError,
-} from "../../domain/training/errors";
+import { TrainingRunConflictError } from "../../domain/training/errors";
 import {
   type DatasetSnapshot,
   datasetSnapshotSchema,
@@ -27,7 +24,7 @@ import {
 } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
 import { readModel } from "../models/public";
-import { readTrainingRun, requireOwnedRunningRun } from "./ownership";
+import { requireOwnedRunningRun, requireTrainingRun } from "./ownership";
 
 /**
  * Gives every reviewed image a split it keeps across later snapshots, and
@@ -199,10 +196,8 @@ export async function datasetSnapshotOverviews(
 
 export async function snapshotForRun(runId: string, owner: AttemptOwner) {
   const db = await database();
-  const stored = await readTrainingRun(runId, db);
-  if (!stored)
-    throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
-  const run = await requireOwnedRunningRun(runId, stored, owner, db);
+  const stored = await requireTrainingRun(runId, db);
+  const run = await requireOwnedRunningRun(stored, owner, db);
   const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
   if (!snapshot) throw new Error(`Missing snapshot ${run.datasetSnapshotId}`);
   return snapshot;

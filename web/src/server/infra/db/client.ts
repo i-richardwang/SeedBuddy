@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+
 import type { Connection, Executor } from "./connection";
 
 export type { Executor } from "./connection";
@@ -81,4 +83,19 @@ export function inSnapshot<T>(
   work: (tx: Executor) => Promise<T>,
 ): Promise<T> {
   return executor ? work(executor) : snapshot(work);
+}
+
+/** Sample the database wall clock once per operation after acquiring its ownership lock;
+ * reuse that instant for predicates, fences and lease expiry. Tests may supply the instant.
+ */
+export async function operationTime(
+  db: Executor,
+  suppliedAt?: Date,
+): Promise<Date> {
+  if (suppliedAt) return suppliedAt;
+  const [row] = await db
+    .select({ at: sql<string>`clock_timestamp()::text` })
+    .from(sql`(select 1) as clock`);
+  if (!row) throw new Error("Database clock returned no instant");
+  return new Date(row.at);
 }

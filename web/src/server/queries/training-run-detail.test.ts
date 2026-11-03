@@ -38,7 +38,8 @@ test("a run's detail judges whether it has stalled as of its reading", async () 
     (await trainingRunDetail(dataset.id, run.id, at))?.stall;
   expect(await stall(after(1))).toBeNull();
   expect(await stall(after(16))).toBe("worker-lost");
-  await renewTrainingLease(run.id, { ...worker, attempt: 1 }, after(14));
+  for (const minute of [4, 8, 12, 14])
+    await renewTrainingLease(run.id, { ...worker, attempt: 1 }, after(minute));
   expect(await stall(after(16))).toBe("no-progress");
 
   await recordTestHeartbeat(

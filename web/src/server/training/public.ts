@@ -3,7 +3,7 @@ export { listTrainingAttempts } from "./attempts";
 export { collectTrainingArtifactParts } from "./collection";
 export { controlTrainingRun } from "./control";
 export { listTrainingEpochs } from "./epochs";
-export { readTrainingRun } from "./ownership";
+export { readTrainingRun, requireTrainingRun } from "./ownership";
 export { publishTrainingArtifact } from "./publication";
 export { toTrainingRun } from "./records";
 export {

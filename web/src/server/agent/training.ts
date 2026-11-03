@@ -10,6 +10,7 @@ import {
   trainingRecipeSchema,
   trainingRunSchema,
 } from "../../domain/training/schema";
+import { database } from "../infra/db/client";
 import {
   listTrainingRunOverviews,
   listTrainingWorkerOverviews,
@@ -19,7 +20,7 @@ import {
   createTrainingRun,
   listTrainingEpochs,
   readDatasetSnapshot,
-  readTrainingRun,
+  requireTrainingRun,
 } from "../training/public";
 import { command, query } from "./definition";
 
@@ -58,9 +59,7 @@ export const trainingOperations = [
       epochs: z.array(trainingEpochSchema),
     }),
     handler: async ({ runId }) => {
-      const run = await readTrainingRun(runId);
-      if (!run)
-        throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
+      const run = await requireTrainingRun(runId, await database());
       const snapshot = await readDatasetSnapshot(run.datasetSnapshotId);
       if (!snapshot)
         throw new TrainingRunNotFoundError("Training snapshot is missing");

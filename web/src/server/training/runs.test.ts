@@ -642,3 +642,44 @@ test("owned writes refuse a missing run as not found", async () => {
     TrainingRunNotFoundError,
   );
 });
+
+test.each([-1, 1])(
+  "lease fences and progress use the supplied clock (%i day)",
+  async (direction) => {
+    const dataset = await trainingDataset(`clock-${direction}`);
+    const worker = await trainer(`clock-worker-${direction}`);
+    const run = await createTrainingRun(dataset.id, recipe, worker.workerId);
+    const at = new Date(Date.now() + direction * 24 * 60 * 60_000);
+    expect((await claimTrainingRun(worker, at))?.id).toBe(run.id);
+    try {
+      const renewedAt = new Date(at.getTime() + 60_000);
+      const renewed = await renewTrainingLease(run.id, worker, renewedAt);
+      expect(renewed.state).toMatchObject({
+        leaseExpiresAt: new Date(
+          renewedAt.getTime() + 5 * 60_000,
+        ).toISOString(),
+      });
+      await enterTrainingPhase(run.id, worker, "training", renewedAt);
+      const reported = await recordTrainingEpoch(
+        run.id,
+        worker,
+        epochReport(1),
+        renewedAt,
+      );
+      expect(reported.lastProgressAt).toBe(renewedAt.toISOString());
+      const expiresAt = new Date(renewedAt.getTime() + 5 * 60_000);
+      await expect(
+        renewTrainingLease(run.id, worker, expiresAt),
+      ).rejects.toThrow(/not owned/);
+      await expect(
+        enterTrainingPhase(run.id, worker, "validating", expiresAt),
+      ).rejects.toThrow(/not owned/);
+      await expect(
+        recordTrainingEpoch(run.id, worker, epochReport(2), expiresAt),
+      ).rejects.toThrow(/not owned/);
+      expect(await listTrainingEpochs(run.id)).toHaveLength(1);
+    } finally {
+      await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
+    }
+  },
+);
