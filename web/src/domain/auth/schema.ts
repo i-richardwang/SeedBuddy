@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { timestampSchema } from "../identifiers/schema";
+import { timestampSchema } from "../time";
 
 /**
  * Workbench accounts. Every signed-in person holds one role: administrators
@@ -19,7 +19,7 @@ const userNameSchema = z.string().trim().min(1).max(120);
 const userEmailSchema = z.string().trim().toLowerCase().email().max(254);
 const passwordSchema = z.string().min(MIN_PASSWORD_LENGTH).max(256);
 
-// Better Auth session.user includes provider-owned account fields.
+/** Better Auth session.user includes provider-owned account fields. */
 export const workbenchUserSchema = z.object({
   id: z.string(),
   name: userNameSchema,

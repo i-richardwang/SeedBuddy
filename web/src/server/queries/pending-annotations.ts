@@ -1,11 +1,4 @@
-import {
-  and,
-  eq,
-  isNotNull,
-  isNull,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import type { AnnotationRef } from "../../domain/annotation/schema";
 import type { AnnotationProgress } from "../../domain/annotation-runs/schema";
@@ -36,10 +29,14 @@ interface PendingAnnotation {
  * model says how to annotate.
  */
 function awaiting(readings: ReturnType<typeof readingsSubquery>) {
-  return or(isNotNull(readings.progress), and(
-    sql`${models.annotation}->>'instructions' <> ''`,
-    isNull(readings.annotation), isNull(readings.proposal),
-  ));
+  return or(
+    isNotNull(readings.progress),
+    and(
+      sql`${models.annotation}->>'instructions' <> ''`,
+      isNull(readings.annotation),
+      isNull(readings.proposal),
+    ),
+  );
 }
 
 /**
@@ -51,20 +48,29 @@ export async function listPendingAnnotations(modelId?: string): Promise<{
   images: PendingAnnotation[];
 }> {
   const db = await database();
-  const datasetReadings = readingsSubquery(db, {modelId: datasets.modelId, version: currentVersion(datasets.modelId)});
-  const observationReadings = readingsSubquery(db, {modelId: experimentObservations.modelId, version: currentVersion(experimentObservations.modelId)});
+  const datasetReadings = readingsSubquery(db, {
+    modelId: datasets.modelId,
+    version: currentVersion(datasets.modelId),
+  });
+  const observationReadings = readingsSubquery(db, {
+    modelId: experimentObservations.modelId,
+    version: currentVersion(experimentObservations.modelId),
+  });
   const [inDatasets, inExperiments] = await Promise.all([
     db
-          .select({
-            digest: datasetImages.imageId,
-            modelId: datasets.modelId,
-            filename: datasetImages.filename,
-            progress: datasetReadings.progress,
-          })
-          .from(datasetImages)
-          .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-          .innerJoin(models, eq(models.id, datasets.modelId))
-          .leftJoinLateral(datasetReadings, eq(datasetReadings.imageId, datasetImages.imageId))
+      .select({
+        digest: datasetImages.imageId,
+        modelId: datasets.modelId,
+        filename: datasetImages.filename,
+        progress: datasetReadings.progress,
+      })
+      .from(datasetImages)
+      .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
+      .innerJoin(models, eq(models.id, datasets.modelId))
+      .leftJoinLateral(
+        datasetReadings,
+        eq(datasetReadings.imageId, datasetImages.imageId),
+      )
       .where(
         and(
           awaiting(datasetReadings),
@@ -72,28 +78,31 @@ export async function listPendingAnnotations(modelId?: string): Promise<{
         ),
       ),
     db
-          .select({
-            digest: experimentObservationImages.imageId,
-            modelId: experimentObservations.modelId,
-            filename: experimentObservationImages.filename,
-            progress: observationReadings.progress,
-          })
-          .from(experimentObservationImages)
-          .innerJoin(
-            experimentObservations,
-            and(
-              eq(
-                experimentObservations.experimentId,
-                experimentObservationImages.experimentId,
-              ),
-              eq(
-                experimentObservations.id,
-                experimentObservationImages.observationId,
-              ),
-            ),
-          )
-          .innerJoin(models, eq(models.id, experimentObservations.modelId))
-          .leftJoinLateral(observationReadings, eq(observationReadings.imageId, experimentObservationImages.imageId))
+      .select({
+        digest: experimentObservationImages.imageId,
+        modelId: experimentObservations.modelId,
+        filename: experimentObservationImages.filename,
+        progress: observationReadings.progress,
+      })
+      .from(experimentObservationImages)
+      .innerJoin(
+        experimentObservations,
+        and(
+          eq(
+            experimentObservations.experimentId,
+            experimentObservationImages.experimentId,
+          ),
+          eq(
+            experimentObservations.id,
+            experimentObservationImages.observationId,
+          ),
+        ),
+      )
+      .innerJoin(models, eq(models.id, experimentObservations.modelId))
+      .leftJoinLateral(
+        observationReadings,
+        eq(observationReadings.imageId, experimentObservationImages.imageId),
+      )
       .where(
         and(
           awaiting(observationReadings),

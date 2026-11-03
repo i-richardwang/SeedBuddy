@@ -18,4 +18,4 @@ export {
   snapshotForRun,
   trainingLeaseHeld,
 } from "./runs";
-export { datasetSnapshotSummaries, readDatasetSnapshot } from "./snapshots";
+export { datasetSnapshotOverviews, readDatasetSnapshot } from "./snapshots";

@@ -7,7 +7,6 @@ export function uploadFailure(message: string, status: number): Response {
 export async function exactLengthBody(
   request: Request,
   maxBytes: number,
-  excessLengthStatus: 400 | 413 = 413,
 ): Promise<Uint8Array | Response> {
   const length = Number(request.headers.get("content-length"));
   if (!Number.isSafeInteger(length) || length <= 0)
@@ -25,7 +24,7 @@ export async function exactLengthBody(
       size += value.byteLength;
       if (size > length) {
         await reader.cancel();
-        return uploadFailure("Body exceeds Content-Length", excessLengthStatus);
+        return uploadFailure("Body exceeds Content-Length", 413);
       }
       chunks.push(value);
     }

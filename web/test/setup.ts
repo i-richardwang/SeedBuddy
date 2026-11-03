@@ -1,3 +1,28 @@
+import { statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const webRoot = fileURLToPath(new URL("../", import.meta.url));
+const messagesOutput = new URL("../src/paraglide/messages.js", import.meta.url);
+const compiledAt =
+  statSync(messagesOutput, { throwIfNoEntry: false })?.mtimeMs ?? 0;
+const messageInputs = new Bun.Glob(
+  "{messages/**/*.json,project.inlang/settings.json,paraglide.config.ts,scripts/compile-messages.ts,package.json,bun.lock}",
+);
+if (
+  !compiledAt ||
+  [...messageInputs.scanSync({ cwd: webRoot, absolute: true })].some(
+    (path) => statSync(path).mtimeMs > compiledAt,
+  )
+) {
+  const compile = Bun.spawn([process.execPath, "scripts/compile-messages.ts"], {
+    cwd: webRoot,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if ((await compile.exited) !== 0)
+    throw new Error("Message compilation failed");
+}
+
 process.env.VITROFLOW_IMAGE_ANALYSIS_URL = new URL(
   "../src/server/images/dish-thread.ts",
   import.meta.url,

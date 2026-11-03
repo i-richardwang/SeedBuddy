@@ -14,11 +14,11 @@ import {
   removeDatasetImages,
   updateDataset,
 } from "../server/datasets/public";
-import { datasetOverview, readDatasetImage } from "../server/queries/public";
+import { datasetDetail, readDatasetImage } from "../server/queries/public";
 
-export const getDatasetOverview = createServerFn({ method: "GET" })
+export const getDatasetDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema)
-  .handler(({ data }) => datasetOverview(data.dataset));
+  .handler(({ data }) => datasetDetail(data.dataset));
 
 export const getDatasetImage = createServerFn({ method: "GET" })
   .validator(datasetImageRefSchema)

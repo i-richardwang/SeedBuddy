@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ImagePlus, PenLine, Search, SearchX } from "lucide-react";
 
-import type { getDatasetOverview } from "../../functions/datasets";
+import type { getDatasetDetail } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { QualityTags } from "../../ui/DetectionQuality";
@@ -38,11 +38,9 @@ import {
 } from "./labels";
 import { RemoveImageButton } from "./RemoveImageButton";
 
-type DatasetOverview = NonNullable<
-  Awaited<ReturnType<typeof getDatasetOverview>>
->;
+type DatasetDetail = NonNullable<Awaited<ReturnType<typeof getDatasetDetail>>>;
 
-type DatasetOverviewImage = DatasetOverview["images"][number];
+type DatasetImageOverview = DatasetDetail["images"][number];
 
 type Filter = DatasetImageState | "all";
 
@@ -55,7 +53,7 @@ export function DatasetImagesTable({
 }: {
   dataset: string;
   name: string;
-  images: DatasetOverviewImage[];
+  images: DatasetImageOverview[];
   previewed?: string;
 }) {
   const states = new Map(
@@ -198,7 +196,7 @@ export function ImagePreview({
   state,
 }: {
   dataset: string;
-  image: DatasetOverviewImage;
+  image: DatasetImageOverview;
   state: DatasetImageState;
 }) {
   return (
@@ -241,14 +239,14 @@ export function ImagePreview({
 }
 
 /** Whether anything is said against the image: the detector's warnings, or a person's mark. */
-function hasQualityNotes(image: DatasetOverviewImage): boolean {
+function hasQualityNotes(image: DatasetImageOverview): boolean {
   return (
     (image.quality !== null && image.quality.status !== "ok") || image.unclear
   );
 }
 
 /** What is said against the image, or nothing. */
-function ImageQuality({ image }: { image: DatasetOverviewImage }) {
+function ImageQuality({ image }: { image: DatasetImageOverview }) {
   if (!hasQualityNotes(image)) return <Absent />;
   return (
     <Flexbox horizontal gap={4} wrap="wrap">

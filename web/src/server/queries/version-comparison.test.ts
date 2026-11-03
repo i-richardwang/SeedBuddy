@@ -10,7 +10,7 @@ import {
   ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
 import { seedDetectionResult } from "../testing/inference";
-import { modelOverview } from "./model-overview";
+import { modelDetail } from "./model-detail";
 import { versionComparison } from "./version-comparison";
 
 test("a candidate is scored against the reviewers' counts on the held-out images both versions have read", async () => {
@@ -75,7 +75,7 @@ test("a candidate is scored against the reviewers' counts on the held-out images
       ?.current,
   ).toBeNull();
 
-  const versions = (await modelOverview(candidate.modelId))!.versions;
+  const versions = (await modelDetail(candidate.modelId))!.versions;
   expect(
     versions.map(({ version, training, current, comparison }) => ({
       id: version.id,

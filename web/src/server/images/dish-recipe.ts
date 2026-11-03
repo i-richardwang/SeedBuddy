@@ -1,6 +1,5 @@
 import { DISH_GEOMETRY } from "../../domain/images/coverage";
-import { canonicalJson } from "../../lib/json/canonical";
-import { contentDigest } from "../infra/digest";
+import { documentDigest } from "../infra/digest";
 
 const { coverageMargin: _coverageMargin, ...detection } = DISH_GEOMETRY;
 
@@ -10,7 +9,7 @@ const DISH_RECIPE = {
   implementation: "opencv-hough-gradient/v1",
   interpolation: "sharp/lanczos3",
 } as const;
-export const DISH_RECIPE_ID = contentDigest(canonicalJson(DISH_RECIPE));
+export const DISH_RECIPE_ID = documentDigest(DISH_RECIPE);
 
 export interface DishRequest {
   pixels: Uint8Array;

@@ -1,6 +1,10 @@
 import { and, asc, eq } from "drizzle-orm";
 
-import { type TrainingEpoch, type TrainingEpochReport, trainingEpochSchema } from "../../domain/training/schema";
+import {
+  type TrainingEpoch,
+  type TrainingEpochReport,
+  trainingEpochSchema,
+} from "../../domain/training/schema";
 import { database, type Executor } from "../infra/db/client";
 import { trainingEpochs, trainingRuns } from "../infra/db/schema";
 
@@ -47,10 +51,25 @@ function epochColumns(report: TrainingEpochReport, recordedAt: Date) {
   };
 }
 
-export async function saveTrainingEpoch(runId: string, attempt: number, report: TrainingEpochReport, at: Date, tx: Executor): Promise<void> {
+export async function saveTrainingEpoch(
+  runId: string,
+  attempt: number,
+  report: TrainingEpochReport,
+  at: Date,
+  tx: Executor,
+): Promise<void> {
   const columns = epochColumns(report, at);
-  await tx.insert(trainingEpochs).values({ runId, attempt, epoch: report.epoch, ...columns })
-    .onConflictDoUpdate({ target: [trainingEpochs.runId, trainingEpochs.attempt, trainingEpochs.epoch], set: columns });
+  await tx
+    .insert(trainingEpochs)
+    .values({ runId, attempt, epoch: report.epoch, ...columns })
+    .onConflictDoUpdate({
+      target: [
+        trainingEpochs.runId,
+        trainingEpochs.attempt,
+        trainingEpochs.epoch,
+      ],
+      set: columns,
+    });
 }
 
 /**
@@ -76,4 +95,3 @@ export async function listTrainingEpochs(
     .orderBy(asc(trainingEpochs.epoch));
   return rows.map(({ epoch }) => toEpoch(epoch));
 }
-

@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 
-import type { TrainingRunListing } from "../../domain/training/read-model";
+import type { TrainingRunOverview } from "../../domain/training/read-model";
 import { database } from "../infra/db/client";
 import {
   datasetSnapshots,
@@ -14,10 +14,10 @@ import { toTrainingRun } from "../training/public";
 const TRAINING_RUN_LIST_LIMIT = 100;
 
 /** The newest runs, of one training set or of every set training one model. */
-export async function listTrainingRunSummaries(
+export async function listTrainingRunOverviews(
   of: { datasetId: string } | { modelId: string },
   limit = TRAINING_RUN_LIST_LIMIT,
-): Promise<TrainingRunListing[]> {
+): Promise<TrainingRunOverview[]> {
   if (
     !Number.isSafeInteger(limit) ||
     limit < 1 ||

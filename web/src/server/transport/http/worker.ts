@@ -101,10 +101,9 @@ export function workerErrorResponse(
   return workerFailure(operation, 500);
 }
 
-function parseAttemptQuery(
+export function parseAttemptOwner(
   request: Request,
   workerId: string,
-  label: string,
 ): AttemptOwner {
   const query = new URL(request.url).searchParams;
   return {
@@ -115,20 +114,10 @@ function parseAttemptQuery(
         attempt: Number(query.get("attempt")),
       },
       attemptOwnerSchema,
-      label,
+      "Attempt owner",
     ),
   };
 }
-
-export const parseTrainingQuery = (
-  request: Request,
-  workerId: string,
-): AttemptOwner => parseAttemptQuery(request, workerId, "Training attempt");
-
-export const parseInferenceQuery = (
-  request: Request,
-  workerId: string,
-): AttemptOwner => parseAttemptQuery(request, workerId, "Inference attempt");
 
 /** Describes the complete file for both part acceptance and publication. */
 export function parseArtifactQuery(request: Request) {

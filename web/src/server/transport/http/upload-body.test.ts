@@ -48,11 +48,11 @@ test("upload admission reads exact bodies and refuses missing or short bodies", 
   }
 });
 
-test("overlong bodies retain each upload protocol's refusal status", async () => {
+test("overlong image and weight bodies are refused with 413", async () => {
   const weights = (await exactLengthBody(request("abc", "2"), 10)) as Response;
   const image = await handleImageUpload(request("abc", "2"));
   expect(weights.status).toBe(413);
-  expect(image.status).toBe(400);
+  expect(image.status).toBe(413);
   expect(await weights.json()).toEqual({
     error: "Body exceeds Content-Length",
   });

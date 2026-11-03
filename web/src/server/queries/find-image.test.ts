@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 
 import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
+import { createObservation } from "../experiments/observations";
 import {
-  addObservation,
   assignObservationImages,
   readExperimentGrid,
 } from "../experiments/public";
@@ -24,7 +24,7 @@ test("a person's filename or page link finds the image, once per model, with eve
   const { experiment } = observed;
   const grid = (await readExperimentGrid(experiment.id))!;
   const unit = grid.units.find((item) => item.code === "Test-1")!.id;
-  const later = await addObservation({
+  const later = await createObservation({
     experiment: experiment.id,
     observedOn: "2026-08-15",
     note: "",

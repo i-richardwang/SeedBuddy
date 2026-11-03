@@ -8,16 +8,16 @@ import {
   datasetImageRemovalResultSchema,
   datasetImageRemovalSchema,
   datasetListRequestSchema,
+  datasetOverviewSchema,
   datasetRefSchema,
   datasetRequestSchema,
   datasetSchema,
-  datasetSummarySchema,
   datasetUpdateSchema,
 } from "../../domain/datasets/schema";
 import {
   addExperimentObservationImages,
   createDataset,
-  listDatasetSummaries,
+  listDatasetOverviews,
   readDatasetContents,
   removeDatasetImages,
   updateDataset,
@@ -31,8 +31,8 @@ export const datasetOperations = [
     description:
       "List the datasets that train each recognition task, optionally for one model, with each one's id and name, how many images it holds, and how many of those are reviewed; training uses only reviewed images",
     input: datasetListRequestSchema,
-    output: z.array(datasetSummarySchema),
-    handler: ({ modelId }) => listDatasetSummaries(modelId),
+    output: z.array(datasetOverviewSchema),
+    handler: ({ modelId }) => listDatasetOverviews(modelId),
   }),
   query({
     name: "get-dataset",

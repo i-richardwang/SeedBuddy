@@ -14,7 +14,7 @@ import {
 } from "../server/models/public";
 import {
   modelCatalogue,
-  modelOverview,
+  modelDetail,
   versionComparison,
 } from "../server/queries/public";
 
@@ -22,9 +22,9 @@ export const getModelCatalogue = createServerFn({ method: "GET" }).handler(() =>
   modelCatalogue(),
 );
 
-export const getModelOverview = createServerFn({ method: "GET" })
+export const getModelDetail = createServerFn({ method: "GET" })
   .validator(modelRefSchema)
-  .handler(({ data }) => modelOverview(data.model));
+  .handler(({ data }) => modelDetail(data.model));
 
 export const getVersionComparison = createServerFn({ method: "GET" })
   .validator(modelVersionRefSchema)

@@ -4,7 +4,7 @@ import type { Model, ModelVersion } from "../models/schema";
 import type { TrainingAttempt, TrainingEpoch, TrainingRun } from "./schema";
 import type { TrainingRunStall } from "./stall";
 
-export interface TrainingRunListing {
+export interface TrainingRunOverview {
   dataset: NamedDataset;
   run: TrainingRun;
   completed: number;

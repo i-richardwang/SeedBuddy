@@ -4,7 +4,7 @@ import type { AnnotationDocument } from "../../domain/annotation/schema";
 import type {
   DatasetContents,
   DatasetImageRef,
-  DatasetSummary,
+  DatasetOverview,
 } from "../../domain/datasets/schema";
 import type {
   DetectionQuality,
@@ -13,11 +13,7 @@ import type {
 import { markedUnclear } from "../images/public";
 import { shownDetectingVersion } from "../inference/public";
 import { database, type Executor } from "../infra/db/client";
-import {
-  datasetImages,
-  datasets,
-  images,
-} from "../infra/db/schema";
+import { datasetImages, datasets, images } from "../infra/db/schema";
 import { readingsSubquery } from "../readings/public";
 import {
   type DatasetImage,
@@ -29,7 +25,7 @@ import {
   toDatasetImage,
 } from "./memberships";
 
-export interface ImageSummary extends DatasetImageRef {
+export interface ImageOverview extends DatasetImageRef {
   filename: string;
   /** Boxes of the newest detection, or null until a version has run. */
   detectionCount: number | null;
@@ -63,7 +59,7 @@ export interface ReviewedRecord extends ImageRecord {
   annotation: AnnotationDocument;
 }
 
-export function summarize(record: ImageRecord): ImageSummary {
+export function summarize(record: ImageRecord): ImageOverview {
   const { image, detection, annotation } = record;
   return {
     dataset: image.dataset,
@@ -84,19 +80,19 @@ function recordQuery(db: Executor) {
     version: shownDetectingVersion(datasetImages.imageId, datasets.modelId),
   });
   return db
-      .select({
-        membership: datasetImages,
-        image: images,
-        modelId: datasets.modelId,
-        detection: readings.detection,
-        proposal: sql<AnnotationDocument | null>`${readings.proposal}->'document'`,
-        annotation: readings.annotation,
-        unclear: markedUnclear(datasetImages.imageId),
-      })
-      .from(datasetImages)
-      .innerJoin(images, eq(images.id, datasetImages.imageId))
-      .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-      .leftJoinLateral(readings, eq(readings.imageId, datasetImages.imageId));
+    .select({
+      membership: datasetImages,
+      image: images,
+      modelId: datasets.modelId,
+      detection: readings.detection,
+      proposal: sql<AnnotationDocument | null>`${readings.proposal}->'document'`,
+      annotation: readings.annotation,
+      unclear: markedUnclear(datasetImages.imageId),
+    })
+    .from(datasetImages)
+    .innerJoin(images, eq(images.id, datasetImages.imageId))
+    .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
+    .leftJoinLateral(readings, eq(readings.imageId, datasetImages.imageId));
 }
 
 function toRecord(
@@ -157,9 +153,9 @@ export function countReviewed(records: ImageRecord[]): number {
 }
 
 /** Every dataset, or those training one model, with its image and review counts. */
-export async function listDatasetSummaries(
+export async function listDatasetOverviews(
   modelId?: string,
-): Promise<DatasetSummary[]> {
+): Promise<DatasetOverview[]> {
   const datasets = modelId
     ? await listDatasetsForModel(modelId)
     : await listDatasets();

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import type { TrainingRunListing } from "../../domain/training/read-model";
+import type { TrainingRunOverview } from "../../domain/training/read-model";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { IdentifierName } from "../../ui/IdentifierName";
@@ -28,7 +28,7 @@ export function TrainingRunsTable({
   datasetColumn = false,
   empty,
 }: {
-  runs: TrainingRunListing[];
+  runs: TrainingRunOverview[];
   datasetColumn?: boolean;
   empty?: ReactNode;
 }) {

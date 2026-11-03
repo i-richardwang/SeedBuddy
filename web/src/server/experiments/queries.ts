@@ -1,22 +1,20 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
+import {
+  cellKey,
+  imageReview,
+  observationCells,
+} from "../../domain/experiments/cell-reading";
 import type {
   ExperimentGrid,
-  ExperimentObservationImage,
   ExperimentOverview,
   ObservationImageCell,
   UnitSeries,
 } from "../../domain/experiments/contracts";
 import { unitOrder } from "../../domain/experiments/naming";
-import {
-  cellKey,
-  imageReview,
-  observationCells,
-} from "../../domain/experiments/readings";
 import type {
   Experiment,
   ImageAnalysisState,
-  ObservationImageRef,
   UnitRef,
 } from "../../domain/experiments/schema";
 import {
@@ -27,7 +25,7 @@ import {
 } from "../../domain/experiments/sheet";
 import { markedUnclear } from "../images/public";
 import { currentVersion } from "../inference/public";
-import { type Executor, inSnapshot, snapshot } from "../infra/db/client";
+import { type Executor, snapshot } from "../infra/db/client";
 import {
   experimentObservationImages,
   experimentObservations,
@@ -35,20 +33,20 @@ import {
   experimentTreatments,
   experimentUnits,
   inferenceTasks,
-  models,
   modelVersions,
   images as storedImages,
 } from "../infra/db/schema";
-import { toModel } from "../models/public";
-import { documentTally, readingsSubquery, readReview } from "../readings/public";
+import { documentTally, readingsSubquery } from "../readings/public";
 import {
-  atObservationImage,
+  atImageObservation,
+  readExperimentObservationImage,
+} from "./observation-image";
+import {
   listManualReadings,
   listObservations,
   listTreatments,
   listUnits,
   readExperimentRecord,
-  requireObservation,
   toExperiment,
 } from "./records";
 
@@ -58,29 +56,32 @@ function observationImageGridQuery(db: Executor) {
     version: modelVersions.id,
   });
   return db
-        .select({
-          observationImage: experimentObservationImages,
-          outcomeStatus: sql<
-            "succeeded" | "failed" | null
-          >`case when ${inferenceTasks.status} = 'failed' then 'failed' when ${readings.detection} is not null then 'succeeded' else null end`,
-          detectionTally: documentTally(sql`${readings.detection}`),
-          proposalTally: documentTally(sql`${readings.proposal}->'document'`),
-          annotationTally: documentTally(sql`${readings.annotation}`),
-          proposed: sql<boolean>`${readings.proposal} is not null`,
-          reviewed: sql<boolean>`${readings.annotation} is not null`,
-          reader: modelVersions.id,
-          error: sql<
-            string | null
-          >`case when ${inferenceTasks.status} = 'failed' then ${inferenceTasks.error} else null end`,
-          unclear: markedUnclear(experimentObservationImages.imageId),
-        })
-        .from(experimentObservationImages)
-        .innerJoin(experimentObservations, atImageObservation())
-        .leftJoin(
-          modelVersions,
-          eq(modelVersions.id, currentVersion(experimentObservations.modelId)),
-        )
-        .leftJoinLateral(readings, eq(readings.imageId, experimentObservationImages.imageId))
+    .select({
+      observationImage: experimentObservationImages,
+      outcomeStatus: sql<
+        "succeeded" | "failed" | null
+      >`case when ${inferenceTasks.status} = 'failed' then 'failed' when ${readings.detection} is not null then 'succeeded' else null end`,
+      detectionTally: documentTally(sql`${readings.detection}`),
+      proposalTally: documentTally(sql`${readings.proposal}->'document'`),
+      annotationTally: documentTally(sql`${readings.annotation}`),
+      proposed: sql<boolean>`${readings.proposal} is not null`,
+      reviewed: sql<boolean>`${readings.annotation} is not null`,
+      reader: modelVersions.id,
+      error: sql<
+        string | null
+      >`case when ${inferenceTasks.status} = 'failed' then ${inferenceTasks.error} else null end`,
+      unclear: markedUnclear(experimentObservationImages.imageId),
+    })
+    .from(experimentObservationImages)
+    .innerJoin(experimentObservations, atImageObservation())
+    .leftJoin(
+      modelVersions,
+      eq(modelVersions.id, currentVersion(experimentObservations.modelId)),
+    )
+    .leftJoinLateral(
+      readings,
+      eq(readings.imageId, experimentObservationImages.imageId),
+    )
     .leftJoin(
       inferenceTasks,
       and(
@@ -88,17 +89,6 @@ function observationImageGridQuery(db: Executor) {
         eq(inferenceTasks.modelVersionId, modelVersions.id),
       ),
     );
-}
-
-/** The observation an image was taken at. */
-function atImageObservation() {
-  return and(
-    eq(
-      experimentObservations.experimentId,
-      experimentObservationImages.experimentId,
-    ),
-    eq(experimentObservations.id, experimentObservationImages.observationId),
-  );
 }
 
 type ObservationImageGridRow = Awaited<
@@ -275,7 +265,7 @@ async function readImageSizes(
 }
 
 export function listExperiments(): Promise<ExperimentOverview[]> {
-  return snapshot(listExperimentSummaries);
+  return snapshot(listExperimentOverviews);
 }
 
 /** Every experiment's id and name, newest first, for navigation. */
@@ -310,7 +300,7 @@ function countOf(
   );
 }
 
-async function listExperimentSummaries(
+async function listExperimentOverviews(
   db: Executor,
 ): Promise<ExperimentOverview[]> {
   const rows = await db
@@ -333,91 +323,4 @@ async function listExperimentSummaries(
     ...row,
     experiment: toExperiment(row.experiment),
   }));
-}
-
-export function readExperimentObservationImage(
-  ref: ObservationImageRef,
-  executor?: Executor,
-): Promise<ExperimentObservationImage | null> {
-  return inSnapshot(executor, (db) => readObservationImage(ref, db));
-}
-
-async function readObservationImage(
-  ref: ObservationImageRef,
-  db: Executor,
-): Promise<ExperimentObservationImage | null> {
-  const [row] = await db
-    .select({
-      observationImage: experimentObservationImages,
-      experiment: experiments,
-      unit: experimentUnits,
-      model: models,
-      taskStatus: inferenceTasks.status,
-      taskError: inferenceTasks.error,
-      versionId: modelVersions.id,
-      unclear: markedUnclear(experimentObservationImages.imageId),
-    })
-    .from(experimentObservationImages)
-    .innerJoin(
-      experiments,
-      eq(experiments.id, experimentObservationImages.experimentId),
-    )
-    .innerJoin(experimentObservations, atImageObservation())
-    .innerJoin(models, eq(models.id, experimentObservations.modelId))
-    .leftJoin(
-      modelVersions,
-      eq(modelVersions.id, currentVersion(experimentObservations.modelId)),
-    )
-    .innerJoin(
-      experimentUnits,
-      and(
-        eq(
-          experimentUnits.experimentId,
-          experimentObservationImages.experimentId,
-        ),
-        eq(experimentUnits.id, experimentObservationImages.unitId),
-      ),
-    )
-    .leftJoin(
-      inferenceTasks,
-      and(
-        eq(inferenceTasks.imageId, experimentObservationImages.imageId),
-        eq(inferenceTasks.modelVersionId, modelVersions.id),
-      ),
-    )
-    .where(atObservationImage(ref.experiment, ref.observationImage));
-  if (!row) return null;
-  const experiment = toExperiment(row.experiment);
-  const [observation, review] = await Promise.all([
-    listObservations(ref.experiment, db).then((observations) =>
-      requireObservation(observations, row.observationImage.observationId),
-    ),
-    readReview(
-      { digest: row.observationImage.imageId, modelId: row.model.id },
-      row.observationImage.filename,
-      db,
-    ),
-  ]);
-  if (!review) return null;
-  return {
-    ref,
-    experimentName: experiment.name,
-    unit: {
-      id: row.unit.id,
-      code: row.unit.code,
-      treatment: row.unit.treatmentId,
-    },
-    observation,
-    model: toModel(row.model),
-    review,
-    failure:
-      row.taskStatus === "failed" && row.taskError && row.versionId
-        ? {
-            digest: row.observationImage.imageId,
-            versionId: row.versionId,
-            error: row.taskError,
-          }
-        : null,
-    unclear: row.unclear,
-  };
 }

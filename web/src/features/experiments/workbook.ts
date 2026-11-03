@@ -4,17 +4,17 @@ import {
   type Exclusion,
   unitExclusions,
 } from "../../domain/experiments/analysis";
-import type { ExperimentGrid, Unit } from "../../domain/experiments/contracts";
-import {
-  type ObservationOrdinals,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
 import {
   type ObservationCells,
   observationCells,
   unitDays,
   unitReading,
-} from "../../domain/experiments/readings";
+} from "../../domain/experiments/cell-reading";
+import type { ExperimentGrid, Unit } from "../../domain/experiments/contracts";
+import {
+  type ObservationOrdinals,
+  observationOrdinals,
+} from "../../domain/experiments/culture-events";
 import {
   type CalendarDay,
   type Experiment,

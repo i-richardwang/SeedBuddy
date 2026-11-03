@@ -11,7 +11,7 @@ import { Route as ResultRoute } from "../../../routes/api.worker.inference.resul
 import { Route as ReadyRoute } from "../../../routes/api.worker.ready";
 import { createExperiment } from "../../experiments/design";
 import { assignObservationImages } from "../../experiments/observation-images";
-import { addObservation } from "../../experiments/observations";
+import { createObservation } from "../../experiments/observations";
 import { listUnits } from "../../experiments/records";
 import { completeInferenceClaim } from "../../inference/public";
 import { database } from "../../infra/db/client";
@@ -55,7 +55,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
     treatments: [{ name: "Test", factor: null, note: "", replicates: 1 }],
   });
   const [unit] = await listUnits(experiment.id, await database());
-  const observation = await addObservation({
+  const observation = await createObservation({
     experiment: experiment.id,
     observedOn: "2026-08-08",
     note: "",

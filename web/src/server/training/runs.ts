@@ -195,9 +195,17 @@ async function ownedTransition(
   return toTrainingRun(row);
 }
 
-async function ownedUpdate(runId: string, owner: AttemptOwner, leaseExpiresAt: Date, db: Executor): Promise<TrainingRun> {
-  const [row] = await db.update(trainingRuns).set({ leaseExpiresAt })
-    .where(and(eq(trainingRuns.id, runId), ownedBy(owner, new Date()))).returning();
+async function ownedUpdate(
+  runId: string,
+  owner: AttemptOwner,
+  leaseExpiresAt: Date,
+  db: Executor,
+): Promise<TrainingRun> {
+  const [row] = await db
+    .update(trainingRuns)
+    .set({ leaseExpiresAt })
+    .where(and(eq(trainingRuns.id, runId), ownedBy(owner, new Date())))
+    .returning();
   if (!row) throw ownershipConflict(runId, owner);
   return toTrainingRun(row);
 }
@@ -394,12 +402,22 @@ export async function claimTrainingRun(
   });
 }
 
-async function selectRunForUpdate(runId: string, tx: Executor): Promise<Row | undefined> {
-  const [row] = await tx.select().from(trainingRuns).where(eq(trainingRuns.id, runId)).for("update");
+async function selectRunForUpdate(
+  runId: string,
+  tx: Executor,
+): Promise<Row | undefined> {
+  const [row] = await tx
+    .select()
+    .from(trainingRuns)
+    .where(eq(trainingRuns.id, runId))
+    .for("update");
   return row;
 }
 
-export async function lockTrainingRun(runId: string, tx: Executor): Promise<TrainingRun> {
+export async function lockTrainingRun(
+  runId: string,
+  tx: Executor,
+): Promise<TrainingRun> {
   return requireTrainingRunRow(await selectRunForUpdate(runId, tx), runId);
 }
 
@@ -410,7 +428,12 @@ async function lockOwnedTrainingRun(
   db: Executor,
 ): Promise<RunningTrainingRun> {
   const row = await selectRunForUpdate(runId, db);
-  return requireOwnedRunningRun(runId, row ? toTrainingRun(row) : null, owner, db);
+  return requireOwnedRunningRun(
+    runId,
+    row ? toTrainingRun(row) : null,
+    owner,
+    db,
+  );
 }
 
 export async function requireOwnedRunningRun(
@@ -420,11 +443,13 @@ export async function requireOwnedRunningRun(
   db: Executor,
 ): Promise<RunningTrainingRun> {
   await currentWorkerSession(owner, db);
-  if (run?.state.status !== "running" ||
-      run.state.workerId !== owner.workerId ||
-      run.state.sessionId !== owner.sessionId ||
-      run.attempt !== owner.attempt ||
-      new Date(run.state.leaseExpiresAt) <= new Date()) {
+  if (
+    run?.state.status !== "running" ||
+    run.state.workerId !== owner.workerId ||
+    run.state.sessionId !== owner.sessionId ||
+    run.attempt !== owner.attempt ||
+    new Date(run.state.leaseExpiresAt) <= new Date()
+  ) {
     throw ownershipConflict(runId, owner);
   }
   return { ...run, state: run.state };

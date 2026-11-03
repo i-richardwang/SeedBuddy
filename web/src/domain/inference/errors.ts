@@ -13,7 +13,7 @@ export class DetectionImageNotFoundError extends NotFoundError {
   readonly code = "detection_image_not_found";
 }
 export class ProducerMismatchError extends ValidationError {
-  readonly code = "producer_mismatch";
+  readonly code = "producer_invalid";
 }
 export class InferenceAttemptConflictError extends ConflictError {
   readonly code = "inference_attempt_conflict";

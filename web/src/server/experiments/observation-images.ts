@@ -29,8 +29,8 @@ import {
   experimentUnits,
   images,
 } from "../infra/db/schema";
-import { addObservation } from "./observations";
-import { readExperimentObservationImage } from "./queries";
+import { readExperimentObservationImage } from "./observation-image";
+import { createObservation } from "./observations";
 import {
   atObservationImage,
   listObservations,
@@ -45,7 +45,7 @@ export async function recordObservation(
   executor?: Executor,
 ): Promise<ExperimentObservation> {
   return inTransaction(executor, async (tx) => {
-    const observation = await addObservation(request, tx);
+    const observation = await createObservation(request, tx);
     if (photos.length === 0) return observation;
     const assigned = await assignObservationImages(
       {

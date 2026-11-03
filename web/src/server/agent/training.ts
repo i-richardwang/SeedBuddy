@@ -11,7 +11,7 @@ import {
   trainingRunSchema,
 } from "../../domain/training/schema";
 import {
-  listTrainingRunSummaries,
+  listTrainingRunOverviews,
   trainingWorkerOptions,
 } from "../queries/public";
 import {
@@ -77,7 +77,7 @@ export const trainingOperations = [
     input: modelRefSchema,
     output: z.array(trainingRunSchema),
     handler: async ({ model }) =>
-      (await listTrainingRunSummaries({ modelId: model })).map(
+      (await listTrainingRunOverviews({ modelId: model })).map(
         (summary) => summary.run,
       ),
   }),

@@ -24,8 +24,8 @@ import type {
 } from "../../domain/experiments/schema";
 import {
   removeCultureEvent,
+  removeObservationImage,
   removeUnit,
-  unassignObservationImage,
 } from "../../functions/experiments";
 import { clearUnclear, markUnclear } from "../../functions/images";
 import { m } from "../../paraglide/messages";
@@ -136,7 +136,7 @@ export function UnitMenu({
           content: m.unit_unassign_note(),
           confirmLabel: m.unit_unassign(),
           onConfirm: async () => {
-            await unassignObservationImage({ data: image.ref });
+            await removeObservationImage({ data: image.ref });
             toast.success(m.unit_image_unassigned());
             await navigateAfterWrite({
               to: "/experiments/$experiment",

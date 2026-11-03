@@ -11,8 +11,8 @@ import {
 } from "../../domain/experiments/schema";
 import type { Model } from "../../domain/models/schema";
 import {
+  createObservation,
   editObservation,
-  recordObservation,
 } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
@@ -122,7 +122,7 @@ function RecordObservationSession({
           event.preventDefault();
           void action.run(
             () =>
-              recordObservation({
+              createObservation({
                 data: { experiment, ...value, images: photos.ready },
               }),
             m.observation_not_added(),

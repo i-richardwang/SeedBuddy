@@ -15,11 +15,11 @@ export const READING_SOURCES = [...REVIEW_SOURCES, "manual"] as const;
 export type ReadingSource = (typeof READING_SOURCES)[number];
 
 /** What a unit read on a day: the individuals found, and who stood behind the number. */
-export const readingSchema = z.strictObject({
+export const cellReadingSchema = z.strictObject({
   count: z.number().int().min(0),
   source: z.enum(READING_SOURCES),
 });
-export type Reading = z.infer<typeof readingSchema>;
+export type CellReading = z.infer<typeof cellReadingSchema>;
 
 /**
  * The classes a day counts, in the order its model declares them: every class
@@ -106,7 +106,7 @@ function imageTally(
 export function imageReading(
   image: ObservationImageCell | null | undefined,
   observation: Pick<ExperimentObservation, "countedClasses">,
-): Reading | null {
+): CellReading | null {
   const reading = imageTally(image);
   return reading
     ? {
@@ -125,7 +125,7 @@ export function imageReading(
 function manualReading(
   manual: ManualReading | null,
   observation: Pick<ExperimentObservation, "countedClasses">,
-): Reading | null {
+): CellReading | null {
   if (!manual) return null;
   const answered = observation.countedClasses.every((name) =>
     Object.hasOwn(manual.tally, name),
@@ -145,7 +145,7 @@ function manualReading(
 export function cellReading(
   cell: UnitCell | null | undefined,
   observation: Pick<ExperimentObservation, "countedClasses">,
-): Reading | null {
+): CellReading | null {
   if (!cell) return null;
   return (
     manualReading(cell.manual, observation) ??
@@ -158,7 +158,7 @@ export function unitReading(
   cells: ObservationCells,
   unit: string,
   observation: ExperimentObservation,
-): Reading | null {
+): CellReading | null {
   return cellReading(cells.get(cellKey(unit, observation.id)), observation);
 }
 

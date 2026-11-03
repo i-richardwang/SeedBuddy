@@ -72,6 +72,7 @@ function registerAnnotationTools(server: McpServer) {
       },
       async (args) => {
         try {
+          /** The SDK validates inputSchema before invoking call. */
           return await call(args as z.infer<S>);
         } catch (error) {
           const { code, message } = classifyAgentFailure(error, name);

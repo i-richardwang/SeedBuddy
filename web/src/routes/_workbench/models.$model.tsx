@@ -15,7 +15,7 @@ import { modelIsFree } from "../../features/models/records";
 import { VersionDialog } from "../../features/models/VersionDialog";
 import { VersionsTable } from "../../features/models/VersionsTable";
 import { TrainingRunsTable } from "../../features/training/TrainingRunsTable";
-import { getModelOverview, getVersionComparison } from "../../functions/models";
+import { getModelDetail, getVersionComparison } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
@@ -32,7 +32,7 @@ import {
   PageSectionSkeleton,
 } from "../../ui/Page";
 
-type ModelOverview = NonNullable<Awaited<ReturnType<typeof getModelOverview>>>;
+type ModelDetail = NonNullable<Awaited<ReturnType<typeof getModelDetail>>>;
 
 /** `version` names the version whose comparison with the current one is open. */
 const modelSearchSchema = z.object({
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/_workbench/models/$model")({
   loaderDeps: ({ search }) => ({ version: search.version }),
   loader: async ({ params, deps }) => {
     const [overview, comparison] = await Promise.all([
-      getModelOverview({ data: { model: params.model } }),
+      getModelDetail({ data: { model: params.model } }),
       deps.version
         ? getVersionComparison({
             data: { model: params.model, version: deps.version },
@@ -57,7 +57,7 @@ export const Route = createFileRoute("/_workbench/models/$model")({
   staticData: {
     crumbs: ({ loaderData }) => [
       { label: m.models_title(), href: "/models" },
-      { label: modelName((loaderData as ModelOverview).model) },
+      { label: modelName((loaderData as ModelDetail).model) },
     ],
   },
   head: ({ loaderData }) => ({

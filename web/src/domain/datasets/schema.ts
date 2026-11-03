@@ -133,10 +133,10 @@ export const datasetListRequestSchema = z.strictObject({
 });
 
 /** A dataset with its size; only reviewed images are used for training. */
-export const datasetSummarySchema = z.strictObject({
+export const datasetOverviewSchema = z.strictObject({
   dataset: datasetSchema,
   imageCount: z.number().int().nonnegative(),
   reviewedCount: z.number().int().nonnegative(),
 });
 
-export type DatasetSummary = z.infer<typeof datasetSummarySchema>;
+export type DatasetOverview = z.infer<typeof datasetOverviewSchema>;
