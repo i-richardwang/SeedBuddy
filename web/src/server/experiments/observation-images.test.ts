@@ -9,6 +9,14 @@ import {
 } from "../../domain/experiments/errors";
 import { imageBlobKey } from "../images/keys";
 import { blobExists } from "../infra/blobs/store";
+import {
+  assignImages,
+  createExperiment,
+  INOCULATED,
+  reading,
+  trainedVersion,
+  unitsOf,
+} from "../testing/experiments";
 import { imageDigest, storeTexts } from "../testing/images";
 import {
   seedDetectionResult,
@@ -23,16 +31,7 @@ import {
 } from "./observation-images";
 import { createObservation } from "./observations";
 import { experimentGridDetail } from "./queries";
-import {
-  assignImages,
-  countedImageResult,
-  createExperiment,
-  INOCULATED,
-  reading,
-  trainedVersion,
-  unitsOf,
-  worker,
-} from "./testing";
+import { countedImageResult, worker } from "./testing";
 
 test("image assignment rejects duplicate units and reused images", async () => {
   const version = await trainedVersion("exp-assignment");

@@ -5,22 +5,21 @@ import { expect, test } from "bun:test";
 import { SEED_DETECTOR } from "../../domain/models/builtins";
 import { storeAnnotation } from "../annotations/documents";
 import { createModel } from "../models/registry";
+import {
+  assignImages,
+  createExperiment,
+  INOCULATED,
+  reading,
+  trainedVersion,
+  unitsOf,
+} from "../testing/experiments";
 import { imageDigest, storeTexts } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
 import { experimentObservationImageDetail } from "./observation-image";
 import { assignObservationImages } from "./observation-images";
 import { createObservation } from "./observations";
 import { experimentGridDetail, unitDetail } from "./queries";
-import {
-  assignImages,
-  countedImageResult,
-  createExperiment,
-  INOCULATED,
-  reading,
-  trainedVersion,
-  unitsOf,
-  worker,
-} from "./testing";
+import { countedImageResult, worker } from "./testing";
 
 test("a unit page shows its newest image and steps through units on its day", async () => {
   const version = await trainedVersion("exp-observation-unit");

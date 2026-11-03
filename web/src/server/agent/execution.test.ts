@@ -7,10 +7,10 @@ import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { database } from "../infra/db/client";
 import { models } from "../infra/db/schema";
 import { createModel, readModel } from "../models/public";
-import { failure } from "../testing/agent";
 import { type AgentOperation, command, query } from "./definition";
 import { executeAgentOperation } from "./execution";
 import { agentOperations } from "./operations";
+import { failure } from "./testing";
 
 function registryOf(
   ...operations: AgentOperation[]

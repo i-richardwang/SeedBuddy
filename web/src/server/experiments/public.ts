@@ -25,5 +25,5 @@ export {
   findExperimentNames,
   listExperimentOverviews,
   unitDetail,
-  unitRowDetail,
+  unitRowOverview,
 } from "./queries";

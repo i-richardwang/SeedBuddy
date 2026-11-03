@@ -108,33 +108,20 @@ export async function setUserPassword(
     });
 }
 
-export async function banUser(
+export async function setUserStatus(
   actorUser: WorkbenchUser,
-  input: { user: string },
+  input: { user: string; suspended: boolean },
 ): Promise<UserAccount> {
-  refuseSelf(actorUser, input.user, "suspend");
+  if (input.suspended) refuseSelf(actorUser, input.user, "suspend");
   await readUser(input.user);
   const context = await (await auth()).$context;
   await context.internalAdapter.updateUser(input.user, {
-    banned: true,
-    banReason: undefined,
-    banExpires: undefined,
+    banned: input.suspended,
+    banReason: input.suspended ? undefined : null,
+    banExpires: input.suspended ? undefined : null,
   });
-  await context.internalAdapter.deleteUserSessions(input.user);
-  return readUser(input.user);
-}
-
-export async function unbanUser(input: { user: string }): Promise<UserAccount> {
-  await readUser(input.user);
-  await (
-    await (
-      await auth()
-    ).$context
-  ).internalAdapter.updateUser(input.user, {
-    banned: false,
-    banReason: null,
-    banExpires: null,
-  });
+  if (input.suspended)
+    await context.internalAdapter.deleteUserSessions(input.user);
   return readUser(input.user);
 }
 

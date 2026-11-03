@@ -55,3 +55,7 @@ export const userPasswordUpdateSchema = userRefSchema.extend({
 export function isAdmin(user: Pick<WorkbenchUser, "role">): boolean {
   return user.role === "admin";
 }
+
+export const userStatusUpdateSchema = userRefSchema.extend({
+  suspended: z.boolean(),
+});

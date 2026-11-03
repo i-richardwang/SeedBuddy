@@ -3,6 +3,8 @@ import { posix as path } from "node:path";
 import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
 
+import { testCode } from "./architecture";
+
 /** Public service barrels expose only names consumed outside their module. */
 export function unusedPublicExports(
   sources: ReadonlyMap<string, string>,
@@ -16,8 +18,7 @@ export function unusedPublicExports(
     uses.get(target)!.add(name);
   };
   for (const [file, source] of sources) {
-    if (file.endsWith(".test.ts") || file.startsWith("src/server/testing/"))
-      continue;
+    if (testCode(file)) continue;
     const tree = parse(source, {
       sourceType: "module",
       plugins: ["typescript", "jsx"],

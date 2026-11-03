@@ -15,7 +15,7 @@ import type {
   ObservationImageCell,
   SheetCell,
   Unit,
-  UnitRowDetail,
+  UnitRowOverview,
 } from "./read-model";
 import type { ManualReading } from "./schema";
 import { experimentSummary } from "./summary";
@@ -85,7 +85,7 @@ export function experimentSheet(
 export function unitRow(
   grid: ExperimentGridDetail,
   unitId: string,
-): UnitRowDetail | null {
+): UnitRowOverview | null {
   const unit = grid.units.find((item) => item.id === unitId);
   const treatment = grid.treatments.find((item) => item.id === unit?.treatment);
   if (!unit || !treatment) return null;

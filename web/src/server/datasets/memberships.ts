@@ -248,7 +248,12 @@ async function resolveObservedImages(
       `The images were observed for different models: ${modelIds.join(", ")}`,
     );
   }
-  return { modelId: modelIds[0]!, observed };
+  const [modelId] = modelIds;
+  if (!modelId)
+    throw new DatasetModelMismatchError(
+      "At least one observed image is required",
+    );
+  return { modelId, observed };
 }
 
 async function insertMemberships(

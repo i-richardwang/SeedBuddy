@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
+import { AnnotationConflictError } from "../../domain/annotation/errors";
 import {
   type AnnotationDocument,
   type AnnotationInstance,
@@ -12,12 +13,6 @@ import { lockImage } from "../images/public";
 import { database, type Executor, transaction } from "../infra/db/client";
 import { annotations, images } from "../infra/db/schema";
 import { readModel } from "../models/public";
-
-export class AnnotationConflictError extends Error {
-  constructor() {
-    super("The annotation changed after this draft was opened");
-  }
-}
 
 /** The image's stored review for the model, if a person has made one. */
 export async function readAnnotation(

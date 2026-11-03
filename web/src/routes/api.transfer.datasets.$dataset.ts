@@ -1,30 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { DatasetImportInvalidError } from "../domain/datasets/errors";
 import {
+  DatasetImportInvalidError,
   DatasetManifestTooLargeError,
+} from "../domain/datasets/errors";
+import {
   datasetManifestSchema,
   encodeDatasetManifest,
   MAX_DATASET_MANIFEST_BYTES,
 } from "../domain/datasets/manifest";
 import { importDataset, readDatasetManifest } from "../server/datasets/public";
-
-function failed(message: string, status: number): Response {
-  return Response.json({ error: message }, { status });
-}
+import {
+  exactLengthBody,
+  uploadFailure as failed,
+} from "../server/transport/http/upload-body";
 
 async function manifestBody(request: Request): Promise<unknown | Response> {
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (!Number.isSafeInteger(declaredLength) || declaredLength <= 0) {
-    return failed("Manifest Content-Length is required", 411);
-  }
-  if (declaredLength > MAX_DATASET_MANIFEST_BYTES) {
-    return failed("Manifest exceeds 16 MiB", 413);
-  }
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.byteLength !== declaredLength) {
-    return failed("Manifest length differs from Content-Length", 400);
-  }
+  const bytes = await exactLengthBody(request, MAX_DATASET_MANIFEST_BYTES);
+  if (bytes instanceof Response) return bytes;
   try {
     return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
   } catch {

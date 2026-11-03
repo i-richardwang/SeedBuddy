@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-import {
-  ConflictError,
-  NotFoundError,
-  ValidationError,
-} from "../../domain/errors";
+import { failureCategory } from "../../domain/errors";
 import { transaction } from "../infra/db/client";
 import type { AgentOperation } from "./definition";
 import { agentOperations } from "./operations";
@@ -80,14 +76,12 @@ export function classifyAgentFailure(
   error: unknown,
   operation: string,
 ): Extract<AgentCallResult, { ok: false }> {
-  if (error instanceof ValidationError)
-    return failure("invalid_request", error.message);
-  if (error instanceof NotFoundError) {
-    return failure("not_found", error.message);
-  }
-  if (error instanceof ConflictError) {
-    return failure("conflict", error.message);
-  }
+  const category = failureCategory(error);
+  if (category !== null)
+    return failure(
+      category,
+      error instanceof Error ? error.message : String(error),
+    );
   console.error(`Agent operation ${operation} failed:`, error);
   return failure("internal_error", "Internal error");
 }

@@ -6,7 +6,7 @@ import type {
   ExperimentSheetDetail,
   SheetCell,
   Unit,
-  UnitRowDetail,
+  UnitRowOverview,
 } from "../../domain/experiments/read-model";
 import type {
   Experiment,
@@ -15,12 +15,12 @@ import type {
 } from "../../domain/experiments/schema";
 import { storeAnnotation } from "../annotations/documents";
 import { createModel } from "../models/public";
-import { failure } from "../testing/agent";
 import { observeImagesForModel } from "../testing/experiments";
 import { imageDigest, storeTexts } from "../testing/images";
 import { baselineVersion } from "../testing/models";
 import { type AgentCallResult, executeAgentOperation } from "./execution";
 import { agentOperations, describeAgentOperations } from "./operations";
+import { failure } from "./testing";
 
 function output(result: AgentCallResult): unknown {
   if (!result.ok) throw new Error(`Operation failed: ${result.message}`);
@@ -333,7 +333,7 @@ describe("agent operations", () => {
         experiment: experiment.id,
         unit: counted!.id,
       }),
-    ) as UnitRowDetail;
+    ) as UnitRowOverview;
     expect(row.unit.id).toBe(counted!.id);
     expect(row.treatment.name).toBe("T1");
     expect(row.cells).toHaveLength(1);

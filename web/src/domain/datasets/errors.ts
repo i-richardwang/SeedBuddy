@@ -12,3 +12,7 @@ export class DatasetImportInvalidError extends ValidationError {
 export class DatasetNameTakenError extends ConflictError {
   readonly code = "dataset_name_taken";
 }
+
+export class DatasetManifestTooLargeError extends ValidationError {
+  readonly code = "dataset_manifest_too_large";
+}

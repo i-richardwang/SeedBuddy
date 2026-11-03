@@ -6,8 +6,7 @@ import {
   removeUser,
   removeUserSessions,
   updateUserPassword,
-  updateUserReinstatement,
-  updateUserSuspension,
+  updateUserStatus,
 } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
@@ -66,7 +65,9 @@ export function UserMenu({ account }: { account: UserAccount }) {
                 onClick: () =>
                   act(
                     () =>
-                      updateUserReinstatement({ data: { user: account.id } }),
+                      updateUserStatus({
+                        data: { user: account.id, suspended: false },
+                      }),
                     m.user_not_reinstated(),
                   ),
               }
@@ -80,8 +81,8 @@ export function UserMenu({ account }: { account: UserAccount }) {
                     content: m.user_suspend_body(),
                     confirmLabel: m.user_suspend_confirm(),
                     onConfirm: async () => {
-                      await updateUserSuspension({
-                        data: { user: account.id },
+                      await updateUserStatus({
+                        data: { user: account.id, suspended: true },
                       });
                     },
                     onSuccess: () => {

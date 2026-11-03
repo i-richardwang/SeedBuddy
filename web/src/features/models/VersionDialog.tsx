@@ -15,7 +15,7 @@ import type {
   VersionComparisonDetail,
 } from "../../domain/models/read-model";
 import type { Model, ModelVersion } from "../../domain/models/schema";
-import { chooseCurrentVersion } from "../../functions/models";
+import { updateCurrentVersion } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -106,7 +106,7 @@ function VersionSession({
   const submit = () => {
     void run(
       () =>
-        chooseCurrentVersion({
+        updateCurrentVersion({
           data: { model: model.id, version: version.id },
         }),
       m.version_not_made_current(),

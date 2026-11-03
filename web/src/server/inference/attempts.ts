@@ -16,7 +16,7 @@ import type {
   WorkerIdentity,
 } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
-import { type Executor, transaction } from "../infra/db/client";
+import { type Executor, operationTime, transaction } from "../infra/db/client";
 import {
   inferenceAttempts,
   inferenceTasks,
@@ -37,7 +37,6 @@ import {
   attemptIsActive,
   attemptKey,
   finishFailedAttempt,
-  inferenceTime,
   lockTask,
   maintainInferenceTasks,
   type Task,
@@ -78,7 +77,6 @@ export async function claimInferenceAssignment(
   await maintainInferenceTasks(suppliedAt);
   return transaction(async (tx) => {
     const worker = await lockWorkerSession(owner, tx);
-    let at = await inferenceTime(tx, suppliedAt);
     const [held] = await tx
       .select()
       .from(inferenceAttempts)
@@ -93,7 +91,8 @@ export async function claimInferenceAssignment(
         digest: held.imageId,
         versionId: held.modelVersionId,
       });
-      at = await inferenceTime(tx, suppliedAt);
+
+      const at = await operationTime(tx, suppliedAt);
       const [live] = await tx
         .select()
         .from(inferenceAttempts)
@@ -108,6 +107,7 @@ export async function claimInferenceAssignment(
         );
       return live ? assignment(tx, task, live, at) : null;
     }
+    const at = await operationTime(tx, suppliedAt);
     const [training] = await tx
       .select({ id: trainingRuns.id })
       .from(trainingRuns)
@@ -158,7 +158,7 @@ export async function claimInferenceAssignment(
       .limit(1)
       .for("update", { of: inferenceTasks, skipLocked: true });
     if (!candidate) return null;
-    at = await inferenceTime(tx, suppliedAt);
+
     const { task } = candidate;
     const deadlineAt = new Date(
       at.getTime() +
@@ -244,7 +244,7 @@ export async function renewInferenceClaim(
     await lockWorkerSession(owner, tx);
     const task = await lockTask(tx, target);
     const attempt = await ownedAttempt(tx, target, owner);
-    const at = await inferenceTime(tx, suppliedAt);
+    const at = await operationTime(tx, suppliedAt);
     requireLive(task, attempt, at);
     const leaseExpiresAt = new Date(
       Math.min(
@@ -279,10 +279,9 @@ export async function completeInferenceClaim(
     const digest = documentDigest(parsed);
     if (attempt.status === "succeeded" && attempt.resultDigest === digest)
       return;
-    requireLive(task, attempt, await inferenceTime(tx, suppliedAt));
-    await storeInferenceOutcome(target, parsed, worker, tx);
-    const at = await inferenceTime(tx, suppliedAt);
+    const at = await operationTime(tx, suppliedAt);
     requireLive(task, attempt, at);
+    await storeInferenceOutcome(target, parsed, worker, tx);
     await tx
       .update(inferenceAttempts)
       .set({ status: "succeeded", finishedAt: at, resultDigest: digest })
@@ -309,7 +308,7 @@ export async function failInferenceAttempt(
       canonicalJson(attempt.failure) === canonicalJson(failure)
     )
       return;
-    const at = await inferenceTime(tx, suppliedAt);
+    const at = await operationTime(tx, suppliedAt);
     requireLive(task, attempt, at);
     await finishFailedAttempt(tx, task, attempt, failure, at);
   });

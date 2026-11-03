@@ -9,7 +9,7 @@ import {
   listApiKeys,
   revokeApiKey,
 } from "./api-keys";
-import { banUser } from "./users";
+import { setUserStatus } from "./users";
 
 function requestWith(secret: string | null): Request {
   return new Request("http://workbench/api/agent/list-experiments", {
@@ -84,7 +84,7 @@ describe("API keys", () => {
       scopes: ["experiments"],
       expiresInDays: null,
     });
-    await banUser(admin.user, { user: user.id });
+    await setUserStatus(admin.user, { suspended: true, user: user.id });
     expect(
       await authorizeApiKey(requestWith(issued.secret), "experiments"),
     ).toBe(false);

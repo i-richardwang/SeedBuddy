@@ -19,7 +19,7 @@ import type {
   UnitStep,
 } from "../../domain/experiments/read-model";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
-import { retryImageAnalysis } from "../../functions/experiments";
+import { updateImageAnalysis } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
@@ -469,7 +469,7 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
       loading={action.busy}
       onClick={() => {
         void action.run(
-          () => retryImageAnalysis({ data: image }),
+          () => updateImageAnalysis({ data: image }),
           m.unit_retry_failed(),
         );
       }}

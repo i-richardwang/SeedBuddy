@@ -6,7 +6,12 @@ import {
   modelRequestSchema,
   modelVersionRefSchema,
 } from "../domain/models/schema";
-import * as modelsService from "../server/models/public";
+import {
+  createModel as createModelService,
+  deleteModel,
+  setCurrentVersion,
+  setModelAnnotation,
+} from "../server/models/public";
 import {
   listModelOverviews,
   modelDetail,
@@ -25,20 +30,20 @@ export const getVersionComparison = createServerFn({ method: "GET" })
   .validator(modelVersionRefSchema)
   .handler(({ data }) => versionComparisonDetail(data.model, data.version));
 
-export const chooseCurrentVersion = createServerFn({ method: "POST" })
+export const updateCurrentVersion = createServerFn({ method: "POST" })
   .validator(modelVersionRefSchema)
-  .handler(({ data }) => modelsService.setCurrentVersion(data));
+  .handler(({ data }) => setCurrentVersion(data));
 
 export const createModel = createServerFn({ method: "POST" })
   .validator(modelRequestSchema)
-  .handler(({ data }) => modelsService.createModel(data));
+  .handler(({ data }) => createModelService(data));
 
 export const updateModelAnnotation = createServerFn({ method: "POST" })
   .validator(modelAnnotationRequestSchema)
-  .handler(({ data }) => modelsService.setModelAnnotation(data));
+  .handler(({ data }) => setModelAnnotation(data));
 
 export const removeModel = createServerFn({ method: "POST" })
   .validator(modelRefSchema)
   .handler(async ({ data }) => {
-    await modelsService.deleteModel(data);
+    await deleteModel(data);
   });

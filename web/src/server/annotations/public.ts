@@ -1,1 +1,1 @@
-export { AnnotationConflictError, storeAnnotation } from "./documents";
+export { storeAnnotation } from "./documents";

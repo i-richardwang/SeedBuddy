@@ -3,8 +3,8 @@ import path from "node:path";
 
 import { expect, test } from "bun:test";
 
+import { DatasetManifestTooLargeError } from "./errors";
 import {
-  DatasetManifestTooLargeError,
   datasetManifestSchema,
   encodeDatasetManifest,
   MAX_DATASET_MANIFEST_BYTES,

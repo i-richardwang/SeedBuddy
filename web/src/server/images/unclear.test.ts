@@ -10,7 +10,7 @@ import {
   reading,
   trainedVersion,
   unitsOf,
-} from "../experiments/testing";
+} from "../testing/experiments";
 import { storeTexts } from "../testing/images";
 import { clearImageUnclear, markImageUnclear } from "./unclear";
 

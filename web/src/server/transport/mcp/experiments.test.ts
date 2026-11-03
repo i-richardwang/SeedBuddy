@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { McpClientNotFoundError } from "../../../domain/auth/errors";
 import { agentOperations } from "../../agent/operations";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
-import { banUser, revokeUserSessions } from "../../auth/users";
+import { revokeUserSessions, setUserStatus } from "../../auth/users";
 import { agentHeaders, authorizeMcpClient, signInAs } from "../../testing/auth";
 import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
 import { serveExperimentsMcp } from "./experiments";
@@ -166,7 +166,7 @@ describe("experiment MCP authorization", () => {
     const member = await signInAs("member");
     const { accessToken } = await authorizeMcpClient(member.headers);
     expect((await call(accessToken)).status).toBe(200);
-    await banUser(admin.user, { user: member.user.id });
+    await setUserStatus(admin.user, { suspended: true, user: member.user.id });
     expect((await call(accessToken)).status).toBe(401);
   });
 

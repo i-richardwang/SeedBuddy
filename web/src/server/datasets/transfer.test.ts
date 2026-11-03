@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import sharp from "sharp";
 
 import { DatasetImportInvalidError } from "../../domain/datasets/errors";
+import { ImageSourceInvalidError } from "../../domain/images/errors";
 import { readAnnotation } from "../annotations/documents";
-import { ImageSourceInvalidError } from "../images/ingest";
 import { imageBlobKey } from "../images/keys";
 import { storeCanonicalImage } from "../images/store";
 import {

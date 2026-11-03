@@ -38,12 +38,10 @@ export function modelRecordCounts(
   db: Executor,
   model: SQLWrapper,
 ): Record<ModelRecordKind, SQL<number>> {
-  const counts = {} as Record<ModelRecordKind, SQL<number>>;
-  for (const kind of MODEL_RECORD_KINDS) {
+  return buildModelRecords((kind) => {
     const column = MODEL_RECORD_COLUMNS[kind];
-    counts[kind] = db.$count(column.table, eq(column, model)) as SQL<number>;
-  }
-  return counts;
+    return db.$count(column.table, eq(column, model));
+  });
 }
 
 /** How many records of each kind name one model, read at the moment of asking. */
@@ -51,23 +49,40 @@ export async function modelRecords(
   model: string,
   db: Executor,
 ): Promise<ModelRecords> {
-  const records = {} as ModelRecords;
-  for (const kind of MODEL_RECORD_KINDS) {
+  const counts = buildModelRecords((kind) => {
     const column = MODEL_RECORD_COLUMNS[kind];
-    records[kind] = await db.$count(column.table, eq(column, model));
-  }
-  return records;
+    return db.$count(column.table, eq(column, model));
+  });
+  return {
+    versions: await counts.versions,
+    uploads: await counts.uploads,
+    observations: await counts.observations,
+    annotations: await counts.annotations,
+    datasets: await counts.datasets,
+    trainingRuns: await counts.trainingRuns,
+  };
 }
 
 export function toModelRecords(
   row: Record<ModelRecordKind, unknown>,
 ): ModelRecords {
-  const records = {} as ModelRecords;
-  for (const kind of MODEL_RECORD_KINDS) records[kind] = Number(row[kind]);
-  return records;
+  return buildModelRecords((kind) => Number(row[kind]));
 }
 
 /** The kinds that hold a model in place, in the order the contract lists them. */
 export function heldBy(records: ModelRecords): ModelRecordKind[] {
   return MODEL_RECORD_KINDS.filter((kind) => records[kind] > 0);
+}
+
+function buildModelRecords<T>(
+  value: (kind: ModelRecordKind) => T,
+): Record<ModelRecordKind, T> {
+  return {
+    versions: value("versions"),
+    uploads: value("uploads"),
+    observations: value("observations"),
+    annotations: value("annotations"),
+    datasets: value("datasets"),
+    trainingRuns: value("trainingRuns"),
+  };
 }

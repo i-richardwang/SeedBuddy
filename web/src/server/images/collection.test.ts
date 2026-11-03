@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
 import { createObservation } from "../experiments/observations";
+import { blobExists, listBlobs, putImmutableBlob } from "../infra/blobs/store";
 import {
   assignImages,
   createExperiment,
   INOCULATED,
+  observeImages,
   reading,
   trainedVersion,
   unitsOf,
-} from "../experiments/testing";
-import { blobExists, listBlobs, putImmutableBlob } from "../infra/blobs/store";
-import { observeImages } from "../testing/experiments";
+} from "../testing/experiments";
 import { imageBytes, imageDigest, storeTexts } from "../testing/images";
 import { collectImages } from "./collection";
 import { canonicalize } from "./ingest";

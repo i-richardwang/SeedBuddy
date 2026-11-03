@@ -25,10 +25,7 @@ import {
   submitProposal,
   viewAnnotationTask,
 } from "../../annotation-runs/public";
-import {
-  findImages,
-  listPendingAnnotationOverviews,
-} from "../../queries/public";
+import { findImages, pendingAnnotationsDetail } from "../../queries/public";
 import { readAnnotationReading } from "../../readings/public";
 import { guardMcpRequest, serveAuthorized } from "./access";
 import { mcpErrorContent } from "./errors";
@@ -91,9 +88,7 @@ function registerAnnotationTools(server: McpServer) {
     z.strictObject({ modelId: resourceIdSchema.optional() }),
     { readOnlyHint: true },
     async (args) => ({
-      content: [
-        textContent(await listPendingAnnotationOverviews(args.modelId)),
-      ],
+      content: [textContent(await pendingAnnotationsDetail(args.modelId))],
     }),
   );
   register(

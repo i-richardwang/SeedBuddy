@@ -4,7 +4,6 @@ import type {
   PendingAnnotationOverview,
   PendingAnnotationsDetail,
 } from "../../domain/annotation/read-model";
-import { currentVersion } from "../inference/public";
 import { database } from "../infra/db/client";
 import {
   datasetImages,
@@ -38,17 +37,15 @@ function awaiting(readings: ReturnType<typeof readingsSubquery>) {
  * The images in datasets and experiment observations waiting for an agent,
  * runs already at work first. One model narrows the listing to its images.
  */
-export async function listPendingAnnotationOverviews(
+export async function pendingAnnotationsDetail(
   modelId?: string,
 ): Promise<PendingAnnotationsDetail> {
   const db = await database();
   const datasetReadings = readingsSubquery(db, {
     modelId: datasets.modelId,
-    version: currentVersion(datasets.modelId),
   });
   const observationReadings = readingsSubquery(db, {
     modelId: experimentObservations.modelId,
-    version: currentVersion(experimentObservations.modelId),
   });
   const [inDatasets, inExperiments] = await Promise.all([
     db

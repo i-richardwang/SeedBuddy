@@ -6,7 +6,7 @@ import {
 } from "../../domain/training/errors";
 import type { AttemptOwner } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
-import { database, transaction } from "../infra/db/client";
+import { database, operationTime, transaction } from "../infra/db/client";
 import {
   prepareModelUpload,
   readModelVersion,
@@ -14,7 +14,7 @@ import {
   uploadModelWeights,
 } from "../models/public";
 import { readTrainingArtifactParts } from "./artifacts";
-import { readTrainingRun, requireOwnedRunningRun } from "./ownership";
+import { requireOwnedRunningRun, requireTrainingRun } from "./ownership";
 import { lockTrainingRun, transitionTrainingRun } from "./runs";
 import { readDatasetSnapshot } from "./snapshots";
 
@@ -29,9 +29,7 @@ export async function publishTrainingArtifact(
     throw new TrainingArtifactInvalidError(parsed.error.message);
   const document = parsed.data;
   const db = await database();
-  const current = await readTrainingRun(runId, db);
-  if (!current)
-    throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
+  const current = await requireTrainingRun(runId, db);
   if (canonicalJson(document.training) !== canonicalJson(current.recipe))
     throw new TrainingArtifactInvalidError(
       "Training artifact identity does not match the run recipe",
@@ -39,7 +37,7 @@ export async function publishTrainingArtifact(
   if (current.attempt !== owner.attempt)
     throw new TrainingRunConflictError("Training attempt was superseded");
   if (current.state.status !== "succeeded")
-    await requireOwnedRunningRun(runId, current, owner, db);
+    await requireOwnedRunningRun(current, owner, db);
   const snapshot = await readDatasetSnapshot(current.datasetSnapshotId, db);
   if (!snapshot)
     throw new TrainingRunNotFoundError("Training snapshot is missing");
@@ -69,10 +67,11 @@ export async function publishTrainingArtifact(
   }
   return transaction(async (tx) => {
     const locked = await lockTrainingRun(runId, tx);
+    const at = await operationTime(tx);
     if (locked.attempt !== owner.attempt)
       throw new TrainingRunConflictError("Training attempt was superseded");
     if (locked.state.status !== "succeeded")
-      await requireOwnedRunningRun(runId, locked, owner, tx);
+      await requireOwnedRunningRun(locked, owner, tx, at);
     const version = await registerUploadedModel(
       upload.uploadId,
       {
@@ -94,6 +93,7 @@ export async function publishTrainingArtifact(
       runId,
       { status: "succeeded", modelVersionId: version.id },
       tx,
+      at,
     );
   });
 }

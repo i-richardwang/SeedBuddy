@@ -14,7 +14,7 @@ import {
 import { database } from "../infra/db/client";
 import { contentDigest } from "../infra/digest";
 import { artifactPartKey } from "./keys";
-import { readTrainingRun, requireOwnedRunningRun } from "./ownership";
+import { requireOwnedRunningRun, requireTrainingRun } from "./ownership";
 
 export async function saveTrainingArtifactPart(
   runId: string,
@@ -27,12 +27,7 @@ export async function saveTrainingArtifactPart(
   if (!artifactUploadSchema.safeParse(upload).success)
     throw new TrainingArtifactInvalidError("Invalid artifact upload");
   const db = await database();
-  await requireOwnedRunningRun(
-    runId,
-    await readTrainingRun(runId, db),
-    owner,
-    db,
-  );
+  await requireOwnedRunningRun(await requireTrainingRun(runId, db), owner, db);
   const expected = artifactPartSize(upload, part);
   if (
     !expected ||

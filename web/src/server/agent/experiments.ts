@@ -12,7 +12,7 @@ import {
 import {
   experimentOverviewSchema,
   experimentSheetSchema,
-  unitRowSchema,
+  unitRowOverviewSchema,
   unitSchema,
 } from "../../domain/experiments/read-model";
 import {
@@ -61,7 +61,7 @@ import {
   recordObservation,
   retryObservationImageAnalysis,
   unassignObservationImage,
-  unitRowDetail,
+  unitRowOverview,
   updateExperiment,
   updateObservation,
   updateTreatment,
@@ -105,9 +105,9 @@ export const experimentOperations = [
     description:
       "Read one unit's row of the sheet: its treatment, its culture events, and its cell on every observation",
     input: unitRefSchema,
-    output: unitRowSchema,
+    output: unitRowOverviewSchema,
     handler: async (ref) => {
-      const row = await unitRowDetail(ref);
+      const row = await unitRowOverview(ref);
       if (!row) {
         throw new UnitNotFoundError(
           `Unknown unit: ${ref.unit} in experiment ${ref.experiment}`,

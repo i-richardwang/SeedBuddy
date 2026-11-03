@@ -135,11 +135,11 @@ export async function importDataset(
       );
     }
     const mismatched = manifest.images.filter((image) => {
-      const image_ = stored.get(image.digest)!;
+      const storedImage = stored.get(image.digest)!;
       return (
-        image_.width !== image.width ||
-        image_.height !== image.height ||
-        image_.bytes !== image.bytes
+        storedImage.width !== image.width ||
+        storedImage.height !== image.height ||
+        storedImage.bytes !== image.bytes
       );
     });
     if (mismatched.length > 0) {
@@ -147,7 +147,13 @@ export async function importDataset(
         `Images have other metadata here: ${listed(mismatched.map((image) => image.digest))}`,
       );
     }
-    const reviewing = manifest.images.filter((image) => image.annotation);
+    const reviewing = manifest.images.filter(
+      (
+        image,
+      ): image is typeof image & {
+        annotation: NonNullable<typeof image.annotation>;
+      } => image.annotation !== null,
+    );
     if (reviewing.length > 0) {
       const reviewed = await tx
         .select({ digest: annotations.imageId })
@@ -185,7 +191,7 @@ export async function importDataset(
         reviewing.map((image) => ({
           imageId: image.digest,
           modelId: model.id,
-          document: image.annotation!,
+          document: image.annotation,
           updatedAt: addedAt,
         })),
       );

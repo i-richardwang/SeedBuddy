@@ -1,22 +1,22 @@
 import { expect, test } from "bun:test";
 
 import {
+  epochReport,
+  recipe,
+  trainer,
+  trainingDataset,
+} from "../testing/training";
+import {
   claimTrainingRun,
   createTrainingRun,
   enterTrainingPhase,
   failTrainingRun,
   recordTrainingEpoch,
 } from "../training/runs";
-import {
-  epochReport,
-  recipe,
-  reviewedDataset,
-  trainer,
-} from "../training/testing";
 import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
 test("training overviews list the dataset's runs and bound the requested page", async () => {
-  const dataset = await reviewedDataset("overview-runs");
+  const dataset = await trainingDataset("overview-runs");
   const owner = await trainer("listing-trainer");
   const first = await createTrainingRun(dataset.id, recipe, owner.workerId);
   expect((await claimTrainingRun(owner))?.id).toBe(first.id);
@@ -35,7 +35,7 @@ test("training overviews list the dataset's runs and bound the requested page", 
 });
 
 test("training overviews count epochs and select metrics only from the current attempt", async () => {
-  const dataset = await reviewedDataset("overview-epochs");
+  const dataset = await trainingDataset("overview-epochs");
   const owner = await trainer("listing-epoch-trainer");
   const run = await createTrainingRun(dataset.id, recipe, owner.workerId);
   const start = new Date();

@@ -1,4 +1,4 @@
-import type { AgentCallResult } from "../agent/execution";
+import type { AgentCallResult } from "./execution";
 export function failure(result: AgentCallResult): {
   code: string;
   message: string;

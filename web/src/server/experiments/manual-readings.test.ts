@@ -15,6 +15,14 @@ import {
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import { createModel } from "../models/registry";
+import {
+  assignImages,
+  createExperiment,
+  INOCULATED,
+  reading,
+  trainedVersion,
+  unitsOf,
+} from "../testing/experiments";
 import { imageDigest } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
 import { recordCultureEvents } from "./culture-events";
@@ -26,16 +34,7 @@ import {
   updateObservation,
 } from "./observations";
 import { experimentGridDetail, unitDetail } from "./queries";
-import {
-  assignImages,
-  countedImageResult,
-  createExperiment,
-  INOCULATED,
-  reading,
-  trainedVersion,
-  unitsOf,
-  worker,
-} from "./testing";
+import { countedImageResult, worker } from "./testing";
 
 test("a unit counted by hand has a number with no photograph, and the count outranks the photograph's", async () => {
   const version = await trainedVersion("exp-manual-counts");

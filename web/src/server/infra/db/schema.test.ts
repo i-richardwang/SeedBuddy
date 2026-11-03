@@ -6,7 +6,7 @@ import { recordCultureEvents } from "../../experiments/culture-events";
 import { createExperiment } from "../../experiments/design";
 import { createObservation } from "../../experiments/observations";
 import { listTreatments, listUnits } from "../../experiments/records";
-import { trainedVersion } from "../../experiments/testing";
+import { trainedVersion } from "../../testing/experiments";
 import { storeTexts } from "../../testing/images";
 import {
   baselineVersion,
