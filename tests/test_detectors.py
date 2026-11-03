@@ -14,7 +14,11 @@ from vitroctl.detectors.contract import (
     DetectionResult,
     RuntimeDescriptor,
 )
-from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+    DecisionConfig,
+    PipelineConfig,
+)
 from vitroctl.detectors.traditional.detector import TraditionalDetector
 from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
 
@@ -33,7 +37,9 @@ def test_traditional_manifest_matches_the_default_artifact() -> None:
         "schemaVersion": 1,
         "definition": "traditional-v1",
         "createdAt": "2026-08-27T00:00:00.000Z",
-        "artifactDigest": TraditionalDetector().artifact_digest,
+        "artifactDigest": TraditionalDetector(
+            config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL
+        ).artifact_digest,
     }
 
 
@@ -105,7 +111,7 @@ def test_traditional_detector_adapts_detections_to_boxes(monkeypatch) -> None:
 
 
 def test_traditional_artifact_identity_covers_model_and_configuration() -> None:
-    baseline = TraditionalDetector()
+    baseline = TraditionalDetector(config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
     changed = TraditionalDetector(
         PipelineConfig(decision=DecisionConfig(confidence_threshold=0.5)),
         DEFAULT_MODEL,

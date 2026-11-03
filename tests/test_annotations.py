@@ -6,12 +6,12 @@ from conftest import annotation_document, manifest_entry, write_manifest
 
 from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.datasets.annotations import load_annotations
+from vitroctl.datasets.manifest import load_dataset_manifest
 
 CONTRACT_FIXTURE = Path(__file__).parent / "fixtures" / "contracts" / "annotation.json"
 
 
-def test_load_annotations_keeps_only_annotated_images(tmp_path: Path) -> None:
+def test_manifest_annotated_keeps_only_annotated_images(tmp_path: Path) -> None:
     data_root = tmp_path / "data"
     manifest = write_manifest(
         data_root,
@@ -22,7 +22,7 @@ def test_load_annotations_keeps_only_annotated_images(tmp_path: Path) -> None:
         ],
     )
 
-    annotated = load_annotations(manifest)
+    annotated = load_dataset_manifest(manifest).annotated
 
     assert [image.digest for image in annotated] == ["1" * 64]
     annotation = annotated[0].annotation
@@ -47,7 +47,7 @@ def test_annotation_must_describe_its_manifest_image(tmp_path: Path) -> None:
         [manifest_entry("1" * 64, annotation=annotation_document("2" * 64))],
     )
     with pytest.raises(ValueError, match="describes another image"):
-        load_annotations(manifest)
+        load_dataset_manifest(manifest)
 
 
 def test_annotation_classes_belong_to_the_manifest_model(tmp_path: Path) -> None:
@@ -61,13 +61,13 @@ def test_annotation_classes_belong_to_the_manifest_model(tmp_path: Path) -> None
     )
 
     with pytest.raises(ValueError, match="unknown class: germinated"):
-        load_annotations(manifest)
+        load_dataset_manifest(manifest)
 
 
 def test_manifest_rejects_images_without_pixel_dimensions(tmp_path: Path) -> None:
     manifest = write_manifest(tmp_path, "batch", [manifest_entry("1" * 64, width=0)])
     with pytest.raises(ValueError, match=r"images\[0\].width.*shared contract"):
-        load_annotations(manifest)
+        load_dataset_manifest(manifest)
 
 
 def test_unversioned_annotation_is_rejected() -> None:

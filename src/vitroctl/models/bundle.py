@@ -12,6 +12,8 @@ from vitroctl.contracts.inference import YOLO_IOU
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.io.files import atomic_directory, file_digest
 
+BUNDLE_SCHEMA_VERSION = 1
+
 
 def weights_descriptor(weights: Path) -> dict[str, Any]:
     return {"digest": file_digest(weights), "bytes": weights.stat().st_size}
@@ -56,7 +58,7 @@ def training_bundle(
     if inference.pop("ready") is not True:
         raise ValueError("Training produced no usable validation signal")
     return {
-        "schemaVersion": 1,
+        "schemaVersion": BUNDLE_SCHEMA_VERSION,
         "classes": classes,
         "weights": weights_descriptor(weights),
         "inference": {**inference, "mode": "whole_image", "iou": YOLO_IOU},

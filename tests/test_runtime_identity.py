@@ -2,8 +2,10 @@ from pathlib import Path
 
 import pytest
 
+from vitroctl.detectors.traditional.config import DEFAULT_PIPELINE_CONFIG
 from vitroctl.detectors.traditional.detector import TraditionalDetector
 from vitroctl.detectors.traditional.identity import pipeline_fingerprint
+from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
 
 
 @pytest.mark.parametrize(
@@ -22,7 +24,7 @@ def test_runtime_identity_covers_behavior_without_changing_artifact_identity(
     dependency: str,
 ) -> None:
     pipeline_fingerprint.cache_clear()
-    detector = TraditionalDetector()
+    detector = TraditionalDetector(config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
     before = detector.runtime
     artifact = detector.artifact_digest
     source = Path(__file__).resolve().parents[1] / "src" / "vitroctl" / dependency

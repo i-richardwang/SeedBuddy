@@ -19,6 +19,7 @@ from uuid import uuid4
 
 import httpx
 
+from vitroctl.contracts.identifiers import WORKER_DEVICE
 from vitroctl.detectors.contract import RuntimeDescriptor
 from vitroctl.detectors.traditional.config import (
     DEFAULT_PIPELINE_CONFIG,
@@ -30,9 +31,9 @@ from vitroctl.detectors.ultralytics.runtime import ultralytics_installed
 from vitroctl.worker.connection import (
     WorkerConnection,
     WorkerHttpClient,
-    validate_worker_settings,
 )
 
+DEFAULT_POLL_SECONDS = 5.0
 LEASE_REFRESH_SECONDS = 30.0
 
 
@@ -45,13 +46,22 @@ class WorkerSettings:
     server_url: str
     token: str
     work_dir: Path
-    poll_seconds: float = 5.0
-    device: str | None = None
+    poll_seconds: float
+    device: str | None
 
     def __post_init__(self) -> None:
-        validate_worker_settings(
-            self.server_url, self.token, self.poll_seconds, self.device
-        )
+        if not self.server_url.startswith(("http://", "https://")):
+            raise ValueError("worker server URL must use http or https")
+        if not self.token:
+            raise ValueError("worker token is required")
+        if self.poll_seconds <= 0:
+            raise ValueError("poll interval must be positive")
+        if self.device is not None and not WORKER_DEVICE.fullmatch(self.device):
+            raise ValueError("device must be cpu, mps, cuda, or cuda:<index>")
+
+    @property
+    def connection(self) -> WorkerConnection:
+        return WorkerConnection(server_url=self.server_url, token=self.token)
 
 
 def available_runtimes() -> tuple[RuntimeDescriptor, ...]:
@@ -60,6 +70,10 @@ def available_runtimes() -> tuple[RuntimeDescriptor, ...]:
     if ultralytics_installed():
         runtimes.append(ultralytics_runtime_descriptor())
     return tuple(runtimes)
+
+
+def cuda_device_index(device: str) -> int:
+    return int(device.partition(":")[2] or "0")
 
 
 def device_memory_bytes(device: str) -> int:
@@ -74,7 +88,7 @@ def device_memory_bytes(device: str) -> int:
 
     if device == "mps":
         return int(torch.mps.recommended_max_memory())
-    index = int(device.partition(":")[2] or "0")
+    index = cuda_device_index(device)
     return int(torch.cuda.mem_get_info(index)[1])
 
 
@@ -119,15 +133,14 @@ class WorkerClient(WorkerHttpClient):
 
     def __init__(
         self,
-        server_url: str,
-        token: str,
+        connection: WorkerConnection,
         session: WorkerSession,
         *,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.session = session
         super().__init__(
-            WorkerConnection(server_url=server_url, token=token),
+            connection,
             transport=transport,
         )
 
@@ -152,76 +165,6 @@ class WorkerClient(WorkerHttpClient):
         response.raise_for_status()
 
 
-class Lease:
-    """One lease a keeper renews, and whether it has been lost."""
-
-    def __init__(self, renew: Callable[[], None]) -> None:
-        self.renew = renew
-        self.error: Exception | None = None
-
-    @property
-    def lost(self) -> bool:
-        return self.error is not None
-
-
-class LeaseKeeper:
-    """
-    Keeps every lease the session holds live from one thread. Each round
-    renews the leases still held and heartbeats once; a lease whose renewal
-    fails is lost on its own, while a failed heartbeat loses them all, since
-    the session itself may be gone.
-    """
-
-    def __init__(self, client: WorkerClient) -> None:
-        self.client = client
-        self._lock = threading.Lock()
-        self._leases: set[Lease] = set()
-        self._closed = threading.Event()
-        self._thread: threading.Thread | None = None
-
-    def hold(self, renew: Callable[[], None]) -> Lease:
-        """Renew once now, so a claim that is already lost fails here."""
-        renew()
-        lease = Lease(renew)
-        with self._lock:
-            self._leases.add(lease)
-            if self._thread is None:
-                self._thread = threading.Thread(
-                    target=self._refresh, name="worker-lease", daemon=True
-                )
-                self._thread.start()
-        return lease
-
-    def end(self, lease: Lease) -> None:
-        """Stop renewing the lease; a renewal that failed surfaces here."""
-        with self._lock:
-            self._leases.discard(lease)
-        if lease.error is not None:
-            raise LeaseLostError("Lease refresh failed") from lease.error
-
-    def close(self) -> None:
-        self._closed.set()
-        if self._thread is not None:
-            self._thread.join()
-
-    def _refresh(self) -> None:
-        while not self._closed.wait(LEASE_REFRESH_SECONDS):
-            with self._lock:
-                held = [lease for lease in self._leases if not lease.lost]
-            if not held:
-                continue
-            for lease in held:
-                try:
-                    lease.renew()
-                except Exception as error:  # noqa: BLE001 - the lease owns its loss
-                    lease.error = error
-            try:
-                self.client.heartbeat()
-            except Exception as error:  # noqa: BLE001 - every lease shares the session
-                for lease in held:
-                    lease.error = lease.error or error
-
-
 @contextmanager
 def keep_lease(
     client: WorkerClient,
@@ -229,17 +172,27 @@ def keep_lease(
     *,
     cancelled: Callable[[], bool],
 ) -> Iterator[Callable[[], bool]]:
-    """
-    Keep one lease live while the work runs. The caller polls the yielded
-    predicate and stops when the lease is lost or the process is shutting
-    down; leaving surfaces a lost lease.
-    """
-    keeper = LeaseKeeper(client)
+    """Renew one lease and heartbeat until work ends or ownership is lost."""
+    renew()
+    closed = threading.Event()
+    error: Exception | None = None
+
+    def refresh() -> None:
+        nonlocal error
+        while not closed.wait(LEASE_REFRESH_SECONDS):
+            try:
+                renew()
+                client.heartbeat()
+            except Exception as failure:  # noqa: BLE001
+                error = failure
+                return
+
+    thread = threading.Thread(target=refresh, name="worker-lease", daemon=True)
+    thread.start()
     try:
-        lease = keeper.hold(renew)
-        try:
-            yield lambda: lease.lost or cancelled()
-        finally:
-            keeper.end(lease)
+        yield lambda: error is not None or cancelled()
     finally:
-        keeper.close()
+        closed.set()
+        thread.join()
+        if error is not None:
+            raise LeaseLostError("Lease refresh failed") from error

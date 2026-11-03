@@ -22,7 +22,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from vitroctl.io.image_io import CANONICAL_EXTENSION, verify_digest
+from vitroctl.io.files import content_digest, verify_digest
+from vitroctl.io.image_io import CANONICAL_EXTENSION
 
 LOGGER = logging.getLogger(__name__)
 
@@ -99,7 +100,8 @@ class ImageCache:
     def _download(self, digest: str, download: Download) -> Path:
         try:
             started = time.monotonic()
-            data = verify_digest(download(digest), digest)
+            data = download(digest)
+            verify_digest(content_digest(data), digest)
             target = self.path(digest)
             target.parent.mkdir(parents=True, exist_ok=True)
             partial = self.root / _PARTIAL / f"{digest}.{uuid4().hex}"

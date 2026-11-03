@@ -28,12 +28,11 @@ from vitroctl.datasets.manifest import (
     ManifestImage,
     blob_path,
     encode_dataset_manifest,
-    load_dataset_manifest,
     manifest_path,
     verified_blob,
 )
-from vitroctl.io.files import atomic_file
-from vitroctl.io.image_io import MAX_IMAGE_BYTES
+from vitroctl.io.files import MAX_IMAGE_BYTES, atomic_file, verify_digest
+from vitroctl.io.http import authorized_client
 
 TRANSFER_TIMEOUT = httpx.Timeout(120.0, read=None, write=None)
 
@@ -62,17 +61,6 @@ class PushReport:
 
     dataset: str
     images: int
-
-
-def _client(
-    server_url: str, token: str, transport: httpx.BaseTransport | None
-) -> httpx.Client:
-    return httpx.Client(
-        base_url=server_url.rstrip("/") + "/",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=TRANSFER_TIMEOUT,
-        transport=transport,
-    )
 
 
 def _dataset_url(dataset: str) -> str:
@@ -105,8 +93,10 @@ def _bounded_get(client: httpx.Client, url: str, limit: int, excessive: str) -> 
     return b"".join(_bounded_chunks(client, url, limit, excessive))
 
 
-def _download_blob(client: httpx.Client, digest: str, target: Path) -> None:
+def _download_blob(client: httpx.Client, image: ManifestImage, target: Path) -> None:
+    digest = image.digest
     checksum = hashlib.sha256()
+    received = 0
     try:
         with atomic_file(target) as handle:
             for chunk in _bounded_chunks(
@@ -115,11 +105,16 @@ def _download_blob(client: httpx.Client, digest: str, target: Path) -> None:
                 MAX_IMAGE_BYTES,
                 f"Image exceeds {MAX_IMAGE_BYTES} bytes: {digest}",
             ):
+                received += len(chunk)
                 checksum.update(chunk)
                 handle.write(chunk)
-            if checksum.hexdigest() != digest:
+            try:
+                verify_digest(checksum.hexdigest(), digest)
+            except ValueError as error:
+                raise DatasetTransferError(str(error)) from error
+            if received != image.bytes:
                 raise DatasetTransferError(
-                    f"Content failed digest verification against {digest}"
+                    f"Blob size differs from the manifest: {digest}"
                 )
     finally:
         if not target.exists():
@@ -182,7 +177,9 @@ def pull_dataset(
     root = Path(output)
     root.mkdir(parents=True, exist_ok=True)
     kept = downloaded = replaced = 0
-    with _client(server_url, token, transport) as client:
+    with authorized_client(
+        server_url, token, timeout=TRANSFER_TIMEOUT, transport=transport
+    ) as client:
         manifest = _fetch_manifest(client, dataset)
         for image in manifest.images:
             target = blob_path(root, image.digest)
@@ -190,12 +187,7 @@ def pull_dataset(
                 _manifest_blob(root, image)
             except DatasetTransferError:
                 present = target.is_file()
-                _download_blob(client, image.digest, target)
-                try:
-                    _manifest_blob(root, image)
-                except DatasetTransferError:
-                    target.unlink(missing_ok=True)
-                    raise
+                _download_blob(client, image, target)
                 if present:
                     replaced += 1
                 else:
@@ -232,14 +224,9 @@ def push_dataset(
     root = Path(data_root)
     source = manifest_path(root, dataset)
     try:
-        if source.stat().st_size > MAX_DATASET_MANIFEST_BYTES:
-            raise DatasetTransferError(
-                f"Manifest exceeds {MAX_DATASET_MANIFEST_BYTES} bytes"
-            )
-        manifest = load_dataset_manifest(source)
-        manifest_bytes = encode_dataset_manifest(
-            outbound("dataset-manifest", manifest.to_dict())
-        )
+        document = outbound("dataset-manifest", json.loads(source.read_text()))
+        manifest = DatasetManifest.decode(document)
+        manifest_bytes = encode_dataset_manifest(document)
     except FileNotFoundError as error:
         raise DatasetTransferError(f"No manifest for {dataset} in {root}") from error
     except (TypeError, ValueError) as error:
@@ -249,7 +236,9 @@ def push_dataset(
             f"Manifest describes another dataset: {manifest.dataset}"
         )
     blobs = [_manifest_blob(root, image) for image in manifest.images]
-    with _client(server_url, token, transport) as client:
+    with authorized_client(
+        server_url, token, timeout=TRANSFER_TIMEOUT, transport=transport
+    ) as client:
         existing = client.get(_dataset_url(dataset))
         if existing.status_code == 200:
             raise DatasetTransferError(f"Dataset {dataset} already exists there")

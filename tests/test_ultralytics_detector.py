@@ -118,6 +118,7 @@ def test_ultralytics_detector_binds_weight_classes_to_the_model(
         _weights(tmp_path),
         YoloInferenceSettings(0.42, 768, 500, False),
         ("seed", "germinated"),
+        device=None,
     )
     producer = DetectionProducer(
         "set.yolo-v1", detector.artifact_digest, detector.runtime
@@ -130,10 +131,16 @@ def test_ultralytics_detector_binds_weight_classes_to_the_model(
 def test_yolo_fingerprint_covers_weights_and_inference_settings(tmp_path: Path) -> None:
     weights = _weights(tmp_path)
     baseline = UltralyticsDetector(
-        weights, YoloInferenceSettings(0.42, 768, 500, False), ("seed",)
+        weights,
+        YoloInferenceSettings(0.42, 768, 500, False),
+        ("seed",),
+        device=None,
     )
     changed = UltralyticsDetector(
-        weights, YoloInferenceSettings(0.5, 768, 500, False), ("seed",)
+        weights,
+        YoloInferenceSettings(0.5, 768, 500, False),
+        ("seed",),
+        device=None,
     )
 
     expected = hashlib.sha256(
@@ -156,7 +163,10 @@ def test_inference_worker_downloads_a_published_yolo_artifact(
 
     monkeypatch.setattr(ultralytics_module, "load_yolo", lambda: FakeYolo)
     reference = UltralyticsDetector(
-        _weights(tmp_path), YoloInferenceSettings(0.42, 768, 500, False), ("seed",)
+        _weights(tmp_path),
+        YoloInferenceSettings(0.42, 768, 500, False),
+        ("seed",),
+        device=None,
     )
     artifact = {
         "kind": "ultralytics",

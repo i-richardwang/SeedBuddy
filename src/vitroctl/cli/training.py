@@ -11,7 +11,6 @@ from typing import Any
 from vitroctl.cli.connection import client, connection_options
 from vitroctl.cli.output import json_output
 from vitroctl.contracts.validation import outbound
-from vitroctl.datasets.annotations import load_annotations
 from vitroctl.datasets.manifest import load_dataset_manifest, manifest_path
 from vitroctl.detectors.ultralytics import export_yolo_dataset, train_yolo_detector
 from vitroctl.models.bundle import training_bundle, training_provenance, write_bundle
@@ -64,7 +63,7 @@ def _run(args: argparse.Namespace) -> int:
     exported_path = output / "dataset"
     if not (exported_path / "dataset.yaml").exists():
         export_yolo_dataset(
-            load_annotations(source),
+            manifest.annotated,
             manifest.classes,
             args.data_root,
             exported_path,

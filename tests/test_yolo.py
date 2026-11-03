@@ -15,8 +15,12 @@ from vitroctl.contracts.annotation import (
     AnnotationInstance,
     BoundingBox,
 )
-from vitroctl.datasets.annotations import load_annotations
-from vitroctl.datasets.manifest import BlobError, ManifestImage, blob_path
+from vitroctl.datasets.manifest import (
+    BlobError,
+    ManifestImage,
+    blob_path,
+    load_dataset_manifest,
+)
 from vitroctl.detectors.ultralytics import (
     DatasetImage,
     export_dataset_images,
@@ -38,6 +42,7 @@ def _annotated(digest: str, split: str | None = None) -> ManifestImage:
         annotation=AnnotationDocument.from_document(
             annotation_document(digest, [{"x": 10, "y": 20, "width": 20, "height": 10}])
         ),
+        unclear=False,
     )
 
 
@@ -172,23 +177,6 @@ def test_split_assignment_fills_the_quota_around_recorded_splits() -> None:
     assert assign_splits(only_val, 0.9, seed=1)["2" * 64] == "train"
     only_train = [image("1" * 64, "train"), image("2" * 64)]
     assert assign_splits(only_train, 0.1, seed=1)["2" * 64] == "val"
-    with pytest.raises(ValueError, match="both train and val"):
-        assign_splits([image("1" * 64, "train"), image("2" * 64, "train")], 0.2, 1)
-
-
-def test_yolo_export_requires_unique_digests(tmp_path: Path) -> None:
-    data_root = tmp_path / "data"
-    digest = write_blob(data_root, encoded_image())
-    image = DatasetImage(
-        digest=digest,
-        width=100,
-        height=80,
-        instances=(),
-        file_path=blob_path(data_root, digest),
-    )
-
-    with pytest.raises(ValueError, match="unique image digests"):
-        export_dataset_images([image, image], SEED_CLASSES, tmp_path / "dup")
 
 
 def test_yolo_export_discards_an_invalid_dataset(tmp_path: Path) -> None:
@@ -239,7 +227,7 @@ def test_export_reads_recorded_splits_from_the_manifest(tmp_path: Path) -> None:
         )
     manifest_path = write_manifest(data_root, "batch", entries)
 
-    annotated = load_annotations(manifest_path)
+    annotated = load_dataset_manifest(manifest_path).annotated
     manifest = export_yolo_dataset(
         annotated, SEED_CLASSES, data_root, tmp_path / "yolo"
     )
@@ -259,3 +247,16 @@ def test_yolo_export_honours_recorded_splits(tmp_path: Path) -> None:
     for entry in manifest["images"]:
         assert (output / entry["image"]).is_file()
         assert (output / entry["label"]).is_file()
+
+
+@pytest.mark.parametrize("splits", [(), (None,), ("train", "train"), ("val", "val")])
+def test_export_requires_training_and_validation_images(tmp_path, splits):
+    from vitroctl.detectors.ultralytics.dataset import DatasetSplitError
+
+    images = [
+        DatasetImage(str(index), 100, 80, (), tmp_path / str(index), split)
+        for index, split in enumerate(splits)
+    ]
+    with pytest.raises(DatasetSplitError, match="both train and val"):
+        export_dataset_images(images, SEED_CLASSES, tmp_path / "export")
+    assert not (tmp_path / "export").exists()

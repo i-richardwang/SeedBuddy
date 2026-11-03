@@ -10,7 +10,11 @@ from vitroctl.detectors.traditional.candidates import (
     CandidateEvidence,
     describe_candidates,
 )
-from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+    DecisionConfig,
+    PipelineConfig,
+)
 from vitroctl.detectors.traditional.detection import detect_seeds
 from vitroctl.detectors.traditional.geometry import circle_mask
 from vitroctl.detectors.traditional.normalization import (
@@ -141,14 +145,14 @@ def test_candidate_model_requires_its_canonical_schema() -> None:
 
     payload = DEFAULT_MODEL.to_dict()
     payload["weights"] = "invalid"
-    with pytest.raises(TypeError, match="weights must be an array"):
+    with pytest.raises(ValueError, match="weights must be an array"):
         CandidateModel.from_dict(payload)
 
     payload = DEFAULT_MODEL.to_dict()
     weights = payload["weights"]
     assert isinstance(weights, list)
     weights[0] = "1.0"
-    with pytest.raises(TypeError, match="weights must be numeric"):
+    with pytest.raises(ValueError, match="weights must be numeric"):
         CandidateModel.from_dict(payload)
 
 
@@ -163,7 +167,7 @@ def test_count_seeds_records_the_image_identity(tmp_path: Path) -> None:
     path = tmp_path / "downloaded.jpg"
     cv2.imwrite(str(path), np.zeros((400, 600, 3), dtype=np.uint8))
 
-    result = count_seeds(path)
+    result = count_seeds(path, config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
 
     assert result.path == path
     assert result.digest == hashlib.sha256(path.read_bytes()).hexdigest()
@@ -188,7 +192,7 @@ def test_unrecognizable_dish_requires_review(tmp_path: Path) -> None:
     path = tmp_path / "blank.jpg"
     cv2.imwrite(str(path), np.zeros((400, 600, 3), dtype=np.uint8))
 
-    recognition = recognize(path)
+    recognition = recognize(path, config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
     result = recognition.result
     payload = result.to_dict()
 

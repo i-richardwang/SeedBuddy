@@ -65,7 +65,7 @@ class InferenceRunner:
                 raise LeaseLostError("Inference lease expired locally")
             if now >= next_renewal:
                 renewed_at = time.monotonic()
-                receipt = self.client.renew(assignment, min(lease_until, deadline))
+                receipt = self.client.renew(assignment, lease_until)
                 if receipt["deadlineAt"] != assignment.deadline_at:
                     raise LeaseLostError(
                         "Server changed the inference execution deadline"
@@ -75,14 +75,14 @@ class InferenceRunner:
                 )
                 lease_until = min(deadline, renewed_at + duration)
                 next_renewal = renewed_at + RENEW_SECONDS
-                self.client.heartbeat(min(lease_until, deadline))
+                self.client.heartbeat(lease_until)
                 if time.monotonic() >= lease_until:
                     raise LeaseLostError("Inference lease expired during renewal")
 
         try:
             result = self.process.run(assignment, deadline, check)
             check()
-            self.client.put_result(assignment, result, min(lease_until, deadline))
+            self.client.put_result(assignment, result, lease_until)
             LOGGER.info(
                 "detected %s with %s attempt %s",
                 assignment.image,
@@ -91,16 +91,12 @@ class InferenceRunner:
             )
         except InferenceExecutionError as error:
             self.process.close()
-            if time.monotonic() < min(lease_until, deadline):
-                self.client.fail(
-                    assignment, error.code, str(error), min(lease_until, deadline)
-                )
+            if time.monotonic() < lease_until:
+                self.client.fail(assignment, error.code, str(error), lease_until)
             LOGGER.error("inference attempt %s failed: %s", assignment.attempt, error)
         except WORKER_ERRORS as error:
             self.process.close()
-            if not isinstance(error, LeaseLostError) and time.monotonic() < min(
-                lease_until, deadline
-            ):
+            if not isinstance(error, LeaseLostError) and time.monotonic() < lease_until:
                 try:
                     self.client.fail(
                         assignment,
@@ -108,7 +104,7 @@ class InferenceRunner:
                         if isinstance(error, httpx.HTTPError)
                         else "execution",
                         str(error),
-                        min(lease_until, deadline),
+                        lease_until,
                     )
                 except WORKER_ERRORS:
                     LOGGER.warning(

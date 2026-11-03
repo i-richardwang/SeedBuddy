@@ -19,6 +19,9 @@ from vitroctl.detectors.ultralytics.runtime import (
 )
 from vitroctl.io.files import file_digest, write_text_atomically
 
+EXECUTION_SCHEMA_VERSION = 1
+INFERENCE_SUMMARY_SCHEMA_VERSION = 1
+
 
 class BoxValidationMetrics(Protocol):
     mp: float
@@ -103,7 +106,6 @@ class YoloTrainingResult:
     best_weights: Path
     summary: Path
     metrics: dict[str, float]
-    confidence: float | None
 
 
 class YoloTrainingInterruptedError(RuntimeError):
@@ -204,12 +206,12 @@ def epoch_report(trainer: Any) -> EpochReport:
     )
 
 
-def _model_source(model: str | Path, weights_dir: Path) -> str:
+def _model_source(model: str | Path, weights_dir: Path) -> Path:
     source = Path(model)
     if source.parent == Path() and not source.exists():
         weights_dir.mkdir(parents=True, exist_ok=True)
         source = weights_dir / source.name
-    return str(source)
+    return source
 
 
 def _load_checkpoint(path: Path) -> Mapping[str, Any]:
@@ -278,7 +280,7 @@ def train_yolo_detector(
     data_path = Path(dataset).resolve()
     if not data_path.is_file():
         raise FileNotFoundError(data_path)
-    installed_runtime_version = require_ultralytics_version(runtime_version)
+    require_ultralytics_version(runtime_version)
     output = Path(output_dir).resolve()
     completed = _completed_epochs(output, int(fixed_parameters["epochs"]))
     if resume_required and not completed:
@@ -307,7 +309,7 @@ def train_yolo_detector(
         trainer_model = yolo(str(checkpoint_path))
         train_options = {"resume": True, "data": str(data_path)}
     else:
-        model_source = Path(_model_source(model, output.parent / "weights"))
+        model_source = _model_source(model, output.parent / "weights")
         trainer_model = yolo(str(model_source))
         if not model_source.is_file() or file_digest(model_source) != model_digest:
             raise ValueError("Training base model failed digest verification")
@@ -330,7 +332,7 @@ def train_yolo_detector(
         # Keep requested recipe identity intact. Record actual runtime settings
         # separately, including OOM reductions and the pinned runtime defaults.
         execution = {
-            "schemaVersion": 1,
+            "schemaVersion": EXECUTION_SCHEMA_VERSION,
             "parameters": dict(vars(trainer.args)),
             "batch": trainer.batch_size,
             "trainBatchPerDevice": trainer.train_loader.batch_size,
@@ -401,7 +403,7 @@ def train_yolo_detector(
 
     summary_path = save_dir / "inference.json"
     summary = {
-        "schemaVersion": 1,
+        "schemaVersion": INFERENCE_SUMMARY_SCHEMA_VERSION,
         "inference": {
             "ready": confidence is not None,
             "confidence": confidence,
@@ -418,9 +420,9 @@ def train_yolo_detector(
             "parameters": fixed_parameters,
             "runtime": {
                 "framework": "ultralytics",
-                "version": installed_runtime_version,
+                "version": runtime_version,
             },
         },
     }
     write_text_atomically(summary_path, json.dumps(summary, indent=2) + "\n")
-    return YoloTrainingResult(best_weights, summary_path, metric_values, confidence)
+    return YoloTrainingResult(best_weights, summary_path, metric_values)

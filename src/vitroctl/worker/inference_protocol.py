@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Any
 
 from vitroctl.contracts.validation import outbound, validate_wire_contract
-from vitroctl.io.image_io import verify_digest
 from vitroctl.worker.model_store import ModelManifest
 from vitroctl.worker.session import WorkerClient
 
@@ -87,7 +86,7 @@ class InferenceClient:
             "GET", f"api/worker/inference/images/{digest}", deadline=self.deadline
         )
         response.raise_for_status()
-        return verify_digest(response.content, digest)
+        return response.content
 
     def renew(self, assignment: Assignment, deadline: float) -> dict[str, str]:
         response = self.worker.request(

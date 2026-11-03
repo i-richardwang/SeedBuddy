@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from vitroctl.contracts.annotation import BoundingBox
@@ -19,7 +19,7 @@ from vitroctl.detectors.contract import (
 from vitroctl.detectors.traditional.config import PipelineConfig
 from vitroctl.detectors.traditional.identity import ExecutionIdentity
 from vitroctl.detectors.traditional.pipeline import count_seeds
-from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL, CandidateModel
+from vitroctl.detectors.traditional.scoring import CandidateModel
 
 #: Every body the detector finds is a seed it cannot yet judge as germinated.
 TRADITIONAL_CLASS = "ungerminated"
@@ -58,8 +58,8 @@ def _box_around(
 
 @dataclass(frozen=True)
 class TraditionalDetector:
-    config: PipelineConfig = field(default_factory=PipelineConfig)
-    model: CandidateModel = DEFAULT_MODEL
+    config: PipelineConfig
+    model: CandidateModel
 
     @property
     def artifact_digest(self) -> str:

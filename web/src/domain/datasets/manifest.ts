@@ -20,7 +20,7 @@ export const MAX_DATASET_MANIFEST_BYTES = 16 * 1024 * 1024;
  * detection each image currently shows. Reviews, memberships and which
  * photographs a person found unclear are what an importing workbench keeps;
  * detections are what its own versions found and are carried for readers of
- * the manifest, never imported. An image that does not say is clear.
+ * the manifest, never imported.
  */
 const datasetManifestImageSchema = z
   .strictObject({
@@ -32,7 +32,7 @@ const datasetManifestImageSchema = z
     split: z.enum(IMAGE_SPLITS).nullable(),
     detection: detectionResultSchema.nullable(),
     annotation: annotationSchema.nullable(),
-    unclear: z.boolean().default(false),
+    unclear: z.boolean(),
   })
   .superRefine((image, context) => {
     for (const [field, document] of [

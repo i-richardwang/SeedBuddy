@@ -18,9 +18,12 @@ from vitroctl.detectors.ultralytics import (
     YoloTrainingInterruptedError,
     export_dataset_images,
 )
-from vitroctl.io.files import file_digest
-from vitroctl.io.image_io import verify_digest
-from vitroctl.models.bundle import training_bundle, training_provenance, write_bundle
+from vitroctl.models.bundle import (
+    read_bundle,
+    training_bundle,
+    training_provenance,
+    write_bundle,
+)
 from vitroctl.training.documents import (
     TrainingClaim,
     TrainingPhase,
@@ -49,8 +52,7 @@ class TrainingClient:
             raise ValueError("Training execution belongs to another worker session")
 
     def _identity(self, claim: TrainingClaim) -> dict[str, str | int]:
-        self._require_own_session(claim)
-        return {"sessionId": claim.session_id, "attempt": claim.attempt}
+        return {**self.worker.identity, "attempt": claim.attempt}
 
     def claim(self) -> TrainingClaim | None:
         response = self.worker.request(
@@ -112,17 +114,13 @@ class TrainingClient:
             params=self._identity(claim),
         )
         self.worker.require_current_session(response)
-        return verify_digest(response.content, digest)
+        return response.content
 
-    def publish_artifact(
-        self, claim: TrainingClaim, weights: Path, bundle: Path
-    ) -> None:
-        document = outbound("model-bundle", json.loads(bundle.read_text()))
+    def publish_artifact(self, claim: TrainingClaim, bundle_dir: Path) -> None:
+        document, weights = read_bundle(bundle_dir)
         descriptor = document["weights"]
         identity = self._identity(claim)
         url = f"api/worker/training/runs/{claim.run_id}/artifact"
-        if weights.stat().st_size != descriptor["bytes"]:
-            raise ValueError("Final weights size differs from the model manifest")
         with weights.open("rb") as stream:
             for part, chunk in enumerate(
                 iter(lambda: stream.read(ARTIFACT_PART_BYTES), b"")
@@ -138,8 +136,6 @@ class TrainingClient:
                     },
                 )
                 self.worker.require_current_session(response)
-        if file_digest(weights) != descriptor["digest"]:
-            raise ValueError("Final weights digest differs from the model manifest")
         response = self.worker.request("POST", url, params=identity, json=document)
         self.worker.require_current_session(response)
 
@@ -175,8 +171,6 @@ def materialize_snapshot(
         # The export publishes atomically, so a dataset that exists is complete.
         return dataset
     snapshot = client.fetch_snapshot(claim)
-    if len(snapshot.images) < 2:
-        raise ValueError("Training snapshot must contain at least two images")
     started = time.monotonic()
     with images.holding(
         (image.digest for image in snapshot.images),
@@ -262,8 +256,6 @@ def _train_bundle(
     )
     if cancelled():
         raise YoloTrainingInterruptedError("training interrupted")
-    if result.confidence is None:
-        raise RuntimeError("Training completed without a usable validation signal")
     exported = json.loads((root / "dataset" / "manifest.json").read_text())
     document = training_bundle(
         result.best_weights,
@@ -306,9 +298,7 @@ def serve_training_claim(
                 bundle = _train_bundle(client, claim, root, device, images, cancelled)
             if cancelled():
                 raise YoloTrainingInterruptedError("training interrupted")
-            client.publish_artifact(
-                claim, bundle / "weights.pt", bundle / "bundle.json"
-            )
+            client.publish_artifact(claim, bundle)
             shutil.rmtree(root)
     except (YoloTrainingInterruptedError, LeaseLostError):
         raise

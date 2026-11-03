@@ -16,7 +16,9 @@ const CONTRACT_FIXTURE = path.resolve(
 );
 
 function contractFixture(): unknown {
-  return JSON.parse(fs.readFileSync(CONTRACT_FIXTURE, "utf-8"));
+  const document = JSON.parse(fs.readFileSync(CONTRACT_FIXTURE, "utf-8"));
+  document.images[0].unclear = false;
+  return document;
 }
 
 test("shared dataset manifest contract", () => {
@@ -56,4 +58,11 @@ test("manifest encoding is canonical and bounded", () => {
   expect(() => encodeDatasetManifest(dataset)).toThrow(
     DatasetManifestTooLargeError,
   );
+});
+
+
+test("manifest requires an explicit unclear flag", () => {
+  const dataset = contractFixture() as { images: [{ unclear?: boolean }] };
+  delete dataset.images[0].unclear;
+  expect(datasetManifestSchema.safeParse(dataset).success).toBe(false);
 });

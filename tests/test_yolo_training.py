@@ -358,7 +358,9 @@ def test_training_reports_epochs_and_publishes_validated_settings(
     assert [report.epoch for report in reported] == [1, 2]
     assert phases == ["training", "validating"]
     assert result.best_weights == output / "weights" / "best.pt"
-    assert result.confidence == pytest.approx(0.2)
+    assert json.loads(result.summary.read_text())["inference"][
+        "confidence"
+    ] == pytest.approx(0.2)
     assert instances[0].train_options == {
         **PARAMETERS,
         "trainer": TRAINER,

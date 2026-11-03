@@ -146,7 +146,10 @@ def test_training_selects_a_model_that_reduces_traditional_corrections() -> None
     assert trained.report.cross_validation.false_negative == 0
     assert trained.report.training.corrections_per_instance == 0
     assert trained.config.decision.confidence_threshold == 0.5
-    assert trained.report.threshold == trained.config.decision.confidence_threshold
-    assert trained.report.bandwidth is None
+    assert (
+        trained.report.selection.threshold
+        == trained.config.decision.confidence_threshold
+    )
+    assert trained.report.selection.bandwidth is None
     assert not trained.model.calibration_centers
     assert trained.model.fingerprint != _prior().fingerprint

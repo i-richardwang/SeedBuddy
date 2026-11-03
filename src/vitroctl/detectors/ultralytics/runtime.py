@@ -44,8 +44,7 @@ def load_training_trainer() -> type:
     return MemoryBoundedDetectionTrainer
 
 
-def require_ultralytics_version(required: str) -> str:
+def require_ultralytics_version(required: str) -> None:
     installed = version("ultralytics")
     if installed != required:
         raise ValueError(f"Requires ultralytics {required}; installed {installed}")
-    return installed

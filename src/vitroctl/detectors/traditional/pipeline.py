@@ -10,7 +10,6 @@ from vitroctl.detectors.traditional.candidates import (
     describe_candidates,
 )
 from vitroctl.detectors.traditional.config import (
-    DEFAULT_PIPELINE_CONFIG,
     PipelineConfig,
 )
 from vitroctl.detectors.traditional.detection import CandidateSelection, detect_seeds
@@ -24,7 +23,7 @@ from vitroctl.detectors.traditional.proposals import SeedProposal, propose_seed_
 from vitroctl.detectors.traditional.regions import render_regions
 from vitroctl.detectors.traditional.rendering import render_debug, render_overlay
 from vitroctl.detectors.traditional.results import CountResult, QualityReport
-from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL, CandidateModel
+from vitroctl.detectors.traditional.scoring import CandidateModel
 from vitroctl.io.files import file_digest
 from vitroctl.io.image_io import read_image
 
@@ -40,7 +39,7 @@ class CandidateAnalysis:
 
 def analyze_candidates(
     path: str | Path,
-    config: PipelineConfig = DEFAULT_PIPELINE_CONFIG,
+    config: PipelineConfig,
 ) -> CandidateAnalysis:
     image = read_image(path)
     geometry = estimate_geometry(image, config)
@@ -110,8 +109,8 @@ class Recognition:
 def recognize(
     image_path: str | Path,
     *,
-    config: PipelineConfig = DEFAULT_PIPELINE_CONFIG,
-    model: CandidateModel = DEFAULT_MODEL,
+    config: PipelineConfig,
+    model: CandidateModel,
 ) -> Recognition:
     analysis = analyze_candidates(image_path, config)
     image = analysis.image
@@ -144,7 +143,7 @@ def recognize(
 def count_seeds(
     image_path: str | Path,
     *,
-    config: PipelineConfig = DEFAULT_PIPELINE_CONFIG,
-    model: CandidateModel = DEFAULT_MODEL,
+    config: PipelineConfig,
+    model: CandidateModel,
 ) -> CountResult:
     return recognize(image_path, config=config, model=model).result

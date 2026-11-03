@@ -36,8 +36,7 @@ class Worker:
     ) -> None:
         self.settings = settings
         self.client = WorkerClient(
-            settings.server_url,
-            settings.token,
+            settings.connection,
             WorkerSession.create(settings.device),
             transport=transport,
         )
@@ -88,7 +87,6 @@ def run_worker(
     worker = Worker(settings)
     try:
         with shutdown_signals() as stopped:
-            worker.client.heartbeat()
             if on_ready:
                 on_ready()
             while not stopped.is_set():
