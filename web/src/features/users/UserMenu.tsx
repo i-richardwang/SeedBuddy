@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { Ban, KeyRound, LogOut, Trash2, UserRoundCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -12,7 +11,7 @@ import {
 } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -24,7 +23,7 @@ import { PasswordField } from "./PasswordField";
 
 /** Everything an administrator does to another account, in one row menu. */
 export function UserMenu({ account }: { account: UserAccount }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const { busy, run } = useAsyncAction();
   const [resetting, setResetting] = useState(false);
 
@@ -34,7 +33,6 @@ export function UserMenu({ account }: { account: UserAccount }) {
       onSuccess: () => {
         if (done) toast.success(done);
       },
-      invalidate: () => router.invalidate(),
     });
 
   return (
@@ -86,7 +84,6 @@ export function UserMenu({ account }: { account: UserAccount }) {
                     onSuccess: () => {
                       toast.success(m.user_suspended({ name: account.name }));
                     },
-                    invalidate: () => router.invalidate(),
                   }),
               },
           { type: "divider" },
@@ -106,7 +103,6 @@ export function UserMenu({ account }: { account: UserAccount }) {
                 onSuccess: () => {
                   toast.success(m.user_deleted({ name: account.name }));
                 },
-                invalidate: () => router.invalidate(),
               }),
           },
         ]}
@@ -170,11 +166,13 @@ function ResetPasswordForm({
               },
             }),
           m.user_reset_password_not_changed(),
-        ).then((result) => {
-          if (!result.ok) return;
-          toast.success(m.user_reset_password_changed());
-          onDone();
-        });
+          {
+            onSuccess: () => {
+              toast.success(m.user_reset_password_changed());
+              onDone();
+            },
+          },
+        );
       }}
     >
       <PasswordField

@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
@@ -61,7 +60,6 @@ function ResumeTrainingForm({
   onDone: () => void;
 }) {
   const { run, workers } = detail;
-  const router = useRouter();
   const [targetWorkerId, setTargetWorkerId] = useState(run.targetWorkerId);
   const [from, setFrom] = useState<"saved" | "start">(
     run.checkpoint ? "saved" : "start",
@@ -85,7 +83,6 @@ function ResumeTrainingForm({
           m.training_resume_failed(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

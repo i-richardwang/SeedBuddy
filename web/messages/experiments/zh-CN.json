@@ -57,6 +57,8 @@
   "experiment_grid_label": "{experiment} 的观测",
   "experiment_group_analysis": "统计",
   "experiment_group_culture": "培养",
+  "experiment_image_reviewed": "已复核",
+  "experiment_image_unreviewed": "待复核",
   "experiment_menu_delete": "删除实验…",
   "experiment_menu_edit": "编辑详情…",
   "experiment_meta_inoculated": "{day} 接种",

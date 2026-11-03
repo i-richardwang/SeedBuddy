@@ -67,17 +67,23 @@ function ConsentPage() {
 
   const decide = (accept: boolean) => {
     setChoice(accept);
-    void run(async () => {
-      const { data, error } = await authClient.oauth2.consent({ accept });
-      if (error) throw new Error(error.message ?? m.consent_failed());
-      const next = continuation(data);
-      if (!next) throw new Error(m.consent_expired());
-      return next;
-    }, m.consent_failed()).then((result) => {
-      if (!result.ok) return;
-      setDecided(true);
-      window.location.assign(result.value);
-    });
+    void run(
+      async () => {
+        const { data, error } = await authClient.oauth2.consent({ accept });
+        if (error) throw new Error(error.message ?? m.consent_failed());
+        const next = continuation(data);
+        if (!next) throw new Error(m.consent_expired());
+        return next;
+      },
+      m.consent_failed(),
+      {
+        invalidate: false,
+        onSuccess: (next) => {
+          window.location.assign(next);
+          setDecided(true);
+        },
+      },
+    );
   };
 
   return (

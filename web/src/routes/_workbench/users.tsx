@@ -1,9 +1,4 @@
-import {
-  createFileRoute,
-  getRouteApi,
-  notFound,
-  useRouter,
-} from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, notFound } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -92,7 +87,6 @@ function UsersPage() {
 }
 
 function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
-  const router = useRouter();
   const { busy, run } = useAsyncAction();
 
   return (
@@ -116,15 +110,14 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
             void run(
               () => changeUserRole({ data: { user: account.id, role } }),
               m.user_role_not_changed(),
-              { invalidate: () => router.invalidate() },
             );
           }}
         />
       </TableCell>
       <TableCell cellLabel={m.users_column_status()}>
-        {account.banned ? (
-          <Status tone="warning">{m.user_status_suspended()}</Status>
-        ) : null}
+        <Status tone={account.banned ? "warning" : "success"}>
+          {account.banned ? m.user_status_suspended() : m.user_status_active()}
+        </Status>
       </TableCell>
       <TableCell cellSlot="actions" className="text-end">
         {self ? null : <UserMenu account={account} />}

@@ -1,5 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
-
 import { clearUnclear, markUnclear } from "../../functions/images";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -20,18 +18,13 @@ export function UnclearSection({
   digest: string;
   unclear: boolean;
 }) {
-  const router = useRouter();
   const { busy, run } = useAsyncAction();
   const save = async (on: boolean) => {
     const data = { digest };
-    await run(
-      async () => {
-        if (on) await markUnclear({ data });
-        else await clearUnclear({ data });
-      },
-      m.unclear_not_saved(),
-      { invalidate: () => router.invalidate() },
-    );
+    await run(async () => {
+      if (on) await markUnclear({ data });
+      else await clearUnclear({ data });
+    }, m.unclear_not_saved());
   };
 
   return (

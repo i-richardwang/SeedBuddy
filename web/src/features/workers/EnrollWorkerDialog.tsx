@@ -99,14 +99,16 @@ function EnrollWorkerForm({
               data: { workerId: String(form.get("workerId") ?? "") },
             }),
           m.worker_enroll_failed(),
-        ).then((result) => {
-          if (!result.ok) return;
-          const { workerId, token } = result.value;
-          onEnrolled({
-            command: `vitroctl worker setup ${workerId} --server ${window.location.origin}`,
-            token,
-          });
-        });
+          {
+            invalidate: false,
+            onSuccess: ({ workerId, token }) => {
+              onEnrolled({
+                command: `vitroctl worker setup ${workerId} --server ${window.location.origin}`,
+                token,
+              });
+            },
+          },
+        );
       }}
     >
       <Form.Field

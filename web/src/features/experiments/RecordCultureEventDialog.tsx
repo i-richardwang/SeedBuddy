@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type { Unit } from "../../domain/experiments/contracts";
@@ -70,7 +69,6 @@ function CultureEventForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [type, setType] = useState<CultureEventType>("contaminated");
   const [observation, setObservation] = useState(observations.at(-1)?.id ?? "");
 
@@ -93,7 +91,6 @@ function CultureEventForm({
           m.culture_event_not_recorded(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

@@ -1,14 +1,13 @@
-import { Link, useRouter } from "@tanstack/react-router";
-import { Plus, Server, Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { WorkerPresence } from "../../domain/workers/presence";
 import type { WorkerActivity } from "../../domain/workers/schema";
 import { deleteWorker, type getWorkers } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
-import { confirmDestructive } from "../../ui/confirmDestructive";
-import { Button } from "../../ui/kit/Button";
-import { Empty } from "../../ui/kit/Empty";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { Status, type StatusTone } from "../../ui/kit/Status";
 import {
   Table,
@@ -20,7 +19,6 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { toast } from "../../ui/kit/Toast";
-import { formatAge } from "../../ui/Timestamp";
 
 const PRESENCE: Record<
   WorkerPresence,
@@ -31,41 +29,22 @@ const PRESENCE: Record<
   offline: { label: m.worker_presence_offline, tone: "neutral" },
 };
 
-type WorkerStatus = Awaited<ReturnType<typeof getWorkers>>["workers"][number];
+type WorkerOverview = Awaited<ReturnType<typeof getWorkers>>["workers"][number];
 
 export function WorkersTable({
   workers,
   administers,
-  enroll,
+  empty,
 }: {
-  workers: WorkerStatus[];
+  workers: WorkerOverview[];
   administers: boolean;
-  enroll: () => void;
+  empty: ReactNode;
 }) {
   return (
     <Table
       narrow="cards"
-      aria-label={m.workers_workers()}
-      empty={
-        workers.length === 0 && (
-          <Empty
-            icon={Server}
-            title={m.workers_empty()}
-            description={
-              administers
-                ? m.workers_empty_description_admin()
-                : m.workers_empty_description_member()
-            }
-            action={
-              administers ? (
-                <Button type="primary" icon={Plus} onClick={enroll}>
-                  {m.worker_enroll()}
-                </Button>
-              ) : null
-            }
-          />
-        )
-      }
+      aria-label={m.workers_title()}
+      empty={workers.length === 0 ? empty : undefined}
     >
       <TableHeader>
         <tr>
@@ -95,7 +74,7 @@ function WorkerRow({
   worker,
   administers,
 }: {
-  worker: WorkerStatus;
+  worker: WorkerOverview;
   administers: boolean;
 }) {
   const presence = PRESENCE[worker.presence];
@@ -125,7 +104,7 @@ function WorkerRow({
 }
 
 function WorkerMenu({ workerId }: { workerId: string }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
 
   return (
     <RowMenu
@@ -147,7 +126,6 @@ function WorkerMenu({ workerId }: { workerId: string }) {
               onSuccess: () => {
                 toast.success(m.worker_removed({ name: workerId }));
               },
-              invalidate: () => router.invalidate(),
             }),
         },
       ]}
@@ -172,4 +150,15 @@ function Activity({ activity }: { activity: WorkerActivity | null }) {
       {m.worker_activity_training({ dataset: activity.dataset.name })}
     </TextLink>
   );
+}
+
+function formatAge(seconds: number) {
+  if (seconds < 60) return m.worker_age_seconds({ count: seconds });
+  if (seconds < 3600) {
+    return m.worker_age_minutes({ count: Math.floor(seconds / 60) });
+  }
+  if (seconds < 86400) {
+    return m.worker_age_hours({ count: Math.floor(seconds / 3600) });
+  }
+  return m.worker_age_days({ count: Math.floor(seconds / 86400) });
 }

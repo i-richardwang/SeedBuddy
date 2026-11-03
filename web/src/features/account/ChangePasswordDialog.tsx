@@ -49,18 +49,23 @@ function ChangePasswordForm({
         const values = new FormData(event.currentTarget);
         const currentPassword = String(values.get("currentPassword") ?? "");
         const newPassword = String(values.get("newPassword") ?? "");
-        void run(async () => {
-          const { error } = await authClient.changePassword({
-            currentPassword,
-            newPassword,
-            revokeOtherSessions: true,
-          });
-          if (error) throw new Error(error.message);
-        }, m.account_password_not_changed()).then((result) => {
-          if (!result.ok) return;
-          toast.success(m.account_password_changed());
-          onDone();
-        });
+        void run(
+          async () => {
+            const { error } = await authClient.changePassword({
+              currentPassword,
+              newPassword,
+              revokeOtherSessions: true,
+            });
+            if (error) throw new Error(error.message);
+          },
+          m.account_password_not_changed(),
+          {
+            onSuccess: () => {
+              toast.success(m.account_password_changed());
+              onDone();
+            },
+          },
+        );
       }}
     >
       <PasswordField

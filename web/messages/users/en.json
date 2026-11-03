@@ -30,6 +30,7 @@
   "user_role_of": "Role of {name}",
   "user_sessions_not_revoked": "Sessions not revoked",
   "user_signed_out_everywhere": "{name} signed out everywhere",
+  "user_status_active": "Active",
   "user_status_suspended": "Suspended",
   "user_suspend_body": "Signed out everywhere. The account is kept.",
   "user_suspend_confirm": "Suspend user",

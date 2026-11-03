@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type { Unit } from "../../domain/experiments/contracts";
@@ -64,7 +63,6 @@ function UnitForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [code, setCode] = useState(unit.code);
   const [treatment, setTreatment] = useState(unit.treatment);
 
@@ -82,7 +80,6 @@ function UnitForm({
           m.unit_not_saved(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

@@ -1,4 +1,4 @@
-import { Link, linkOptions, useRouter } from "@tanstack/react-router";
+import { Link, linkOptions } from "@tanstack/react-router";
 import { Columns2, ImageOff } from "lucide-react";
 import { useCallback, useEffect, useEffectEvent } from "react";
 
@@ -49,14 +49,17 @@ import {
   ImageWorkbenchSkeleton,
 } from "../annotation/ImageWorkbench";
 import { useWorkbenchKeys } from "../annotation/keys";
-import { STANDING_LABELS } from "../annotation/labels";
 import {
   DayComparison,
   DayComparisonSkeleton,
   DayCountsSection,
   referenceDay,
 } from "./DayComparison";
-import { cultureEventLabel, observationLabel } from "./labels";
+import {
+  cultureEventLabel,
+  IMAGE_REVIEW_LABELS,
+  observationLabel,
+} from "./labels";
 import { CultureMenu, UnitMenu } from "./UnitMenu";
 
 /**
@@ -437,12 +440,11 @@ function framedPictures(
 }
 
 function ReviewDot({ review }: { review: ImageReview }) {
-  const { tone, label } = STANDING_LABELS[review];
+  const { tone, label } = IMAGE_REVIEW_LABELS[review];
   return <StatusDot tone={tone} label={label()} />;
 }
 
 function RetryButton({ image }: { image: ObservationImageRef }) {
-  const router = useRouter();
   const action = useAsyncAction();
   return (
     <Button
@@ -452,7 +454,6 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
         await action.run(
           () => retryObservationImageAnalysis({ data: image }),
           m.unit_retry_failed(),
-          { invalidate: () => router.invalidate() },
         );
       }}
     >

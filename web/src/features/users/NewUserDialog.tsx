@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type { UserRole } from "../../domain/auth/schema";
@@ -45,7 +44,6 @@ function NewUserForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [role, setRole] = useState<UserRole>("member");
 
   return (
@@ -67,7 +65,6 @@ function NewUserForm({
           m.user_not_added(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

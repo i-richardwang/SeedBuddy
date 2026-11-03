@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type {
@@ -120,7 +119,6 @@ function ManualReadingsForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const classes = observation.countedClasses;
   const existing = new Map(manualReadings.map((item) => [item.unit, item]));
   const photographs = new Map(images.map((image) => [image.unit, image]));
@@ -174,7 +172,6 @@ function ManualReadingsForm({
                 m.manual_readings_saved({ count: checked.entries.length }),
               );
             },
-            invalidate: () => router.invalidate(),
           },
         );
       }}

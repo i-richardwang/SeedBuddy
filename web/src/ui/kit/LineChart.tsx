@@ -24,7 +24,7 @@ import { chartColor, Legend } from "./Legend";
  * the chart after the lines.
  */
 
-export interface LineChartProps {
+interface LineChartProps {
   categories: string[];
   /** Recharts elements drawn inside the chart after the lines. */
   children?: ReactNode;

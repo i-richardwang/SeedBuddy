@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type { Unit } from "../../domain/experiments/contracts";
@@ -82,7 +81,6 @@ function RecordObservationSession({
 }: Parameters<typeof RecordObservationDialog>[0] & {
   afterClose: () => void;
 }) {
-  const router = useRouter();
   const action = useAsyncAction();
   const [value, setValue] = useState<ObservationValue>(() => ({
     observedOn: today(),
@@ -128,7 +126,6 @@ function RecordObservationSession({
             m.observation_not_added(),
             {
               onSuccess: onClose,
-              invalidate: () => router.invalidate(),
             },
           );
         }}
@@ -205,7 +202,6 @@ function EditObservationForm({
   action: AsyncAction;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const [value, setValue] = useState<ObservationValue>(() => ({
     observedOn: observation.observedOn,
     modelId: observation.modelId,
@@ -225,7 +221,6 @@ function EditObservationForm({
           m.observation_not_saved(),
           {
             onSuccess: onClose,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

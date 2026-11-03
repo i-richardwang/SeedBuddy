@@ -63,27 +63,28 @@ function NewExperimentSession({
           event.preventDefault();
           if (treatments.length === 0) return;
           const form = new FormData(event.currentTarget);
-          void action
-            .run(
-              () =>
-                startExperiment({
-                  data: {
-                    ...readExperimentFields(form),
-                    inoculatedOn,
-                    countsUnclear,
-                    treatments,
-                  },
-                }),
-              m.experiment_not_started(),
-            )
-            .then(async (result) => {
-              if (!result.ok) return;
-              onClose();
-              await navigateAfterWrite({
-                to: "/experiments/$experiment",
-                params: { experiment: result.value.id },
-              });
-            });
+          void action.run(
+            () =>
+              startExperiment({
+                data: {
+                  ...readExperimentFields(form),
+                  inoculatedOn,
+                  countsUnclear,
+                  treatments,
+                },
+              }),
+            m.experiment_not_started(),
+            {
+              invalidate: false,
+              onSuccess: async (experiment) => {
+                onClose();
+                await navigateAfterWrite({
+                  to: "/experiments/$experiment",
+                  params: { experiment: experiment.id },
+                });
+              },
+            },
+          );
         }}
       >
         <ExperimentFields

@@ -11,7 +11,7 @@ import { TooltipGroup } from "./Tooltip";
  * `render`. Its controls share one tooltip, which glides between them.
  */
 
-export interface ToolbarProps extends Omit<
+interface ToolbarProps extends Omit<
   ToolbarPrimitive.Root.Props,
   "className" | "orientation" | "disabled"
 > {

@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { FolderPlus, Images, Pencil, PencilLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -16,7 +15,7 @@ import type {
 import type { Model } from "../../domain/models/schema";
 import { removeObservation } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { TableHeadMenu } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
@@ -68,7 +67,7 @@ export function ObservationMenu({
   /** The datasets training the observation's model. */
   datasets: NamedDataset[];
 }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const [open, setOpen] = useState<Action | null>(null);
   const close = () => setOpen(null);
   const name = observationLabel(observation);
@@ -126,7 +125,6 @@ export function ObservationMenu({
             onSuccess: () => {
               toast.success(m.observation_deleted({ observation: name }));
             },
-            invalidate: () => router.invalidate(),
           }),
       },
     );

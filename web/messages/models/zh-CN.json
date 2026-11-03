@@ -50,7 +50,7 @@
       ],
       "selectors": ["hasCurrent"],
       "match": {
-        "hasCurrent=no": "在 {formattedCount} 张没有参与训练的已审核图片上，与人工计数比较。误差越低越好。 这个模型还没有当前版本，下面只有本版本的结果。",
+        "hasCurrent=no": "在 {formattedCount} 张没有参与训练的已审核图片上，与人工计数比较。误差越低越好。这个模型还没有当前版本，下面只有本版本的结果。",
         "hasCurrent=*": "在 {formattedCount} 张没有参与训练的已审核图片上，与人工计数比较。误差越低越好。"
       }
     }
@@ -65,7 +65,7 @@
   "version_dialog_reading_alone": "还在读图：{candidate}/{total}。",
   "version_dialog_title": "对比与启用版本 {version}",
   "version_dialog_total_error": "合计误差（每张）",
-  "version_dialog_waiting": "读图完成后这里会显示对比结果，需要有在线的 worker。",
+  "version_dialog_waiting": "读图完成后这里会显示对比结果，需要有在线的计算节点。",
   "version_imported_provenance": "外部训练：{description}",
   "version_made_current": "版本 {version} 已设为当前版本",
   "version_not_made_current": "未能设为当前版本",

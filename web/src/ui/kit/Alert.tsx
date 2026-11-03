@@ -19,9 +19,9 @@ import { Snippet } from "./Snippet";
  * live region, so a notice that appears is announced without interrupting.
  */
 
-export type AlertType = "warning" | "error";
+type AlertType = "warning" | "error";
 
-export interface AlertProps {
+interface AlertProps {
   /** Placed after the text. */
   action?: ReactNode;
   description?: ReactNode;

@@ -37,7 +37,7 @@ const place = (group: HTMLElement) => {
   group.dataset.indicator = "";
 };
 
-export interface ToggleGroupOption<Value extends string> {
+interface ToggleGroupOption<Value extends string> {
   disabled?: boolean;
   /** Written like Hotkey's `keys` (`mod+k`). */
   hotkey?: string;
@@ -46,7 +46,7 @@ export interface ToggleGroupOption<Value extends string> {
   value: Value;
 }
 
-export interface ToggleGroupProps<Value extends string> {
+interface ToggleGroupProps<Value extends string> {
   /** Accessible name of the group. */
   "aria-label": string;
   onChange: (value: Value) => void;

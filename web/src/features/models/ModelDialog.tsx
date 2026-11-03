@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type { ModelAnnotation } from "../../domain/models/schema";
@@ -51,7 +50,6 @@ function ModelForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [classes, setClasses] = useState("");
@@ -72,7 +70,6 @@ function ModelForm({
       m.model_not_created(),
       {
         onSuccess: onDone,
-        invalidate: () => router.invalidate(),
       },
     );
   };

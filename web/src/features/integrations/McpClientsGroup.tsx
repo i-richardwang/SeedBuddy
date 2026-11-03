@@ -1,10 +1,9 @@
-import { useRouter } from "@tanstack/react-router";
 import { Plug, Unplug } from "lucide-react";
 
 import type { McpClient } from "../../domain/auth/integrations";
 import { removeMcpClient } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
@@ -80,7 +79,7 @@ export function McpClientsGroup({
 }
 
 function McpClientRow({ client }: { client: McpClient }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
 
   return (
     <TableRow>
@@ -112,7 +111,6 @@ function McpClientRow({ client }: { client: McpClient }) {
               onSuccess: () => {
                 toast.success(m.mcp_disconnected({ name: client.name }));
               },
-              invalidate: () => router.invalidate(),
             })
           }
         />

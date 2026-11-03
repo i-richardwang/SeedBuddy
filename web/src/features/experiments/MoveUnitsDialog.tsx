@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type { Unit } from "../../domain/experiments/contracts";
@@ -65,7 +64,6 @@ function MoveForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const shared = units.every((unit) => unit.treatment === units[0]?.treatment)
     ? units[0]?.treatment
     : undefined;
@@ -94,7 +92,6 @@ function MoveForm({
           m.experiment_units_not_moved(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

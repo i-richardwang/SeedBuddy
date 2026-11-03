@@ -1,5 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
-
 import type { Unit } from "../../domain/experiments/contracts";
 import type { PlacedPhoto } from "../../domain/experiments/photos";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
@@ -48,7 +46,6 @@ function AddPhotosSession({
   onClose,
   afterClose,
 }: AddPhotosDialogProps & { afterClose: () => void }) {
-  const router = useRouter();
   const action = useAsyncAction();
   const photos = useObservationPhotos({ units, assigned, placed });
 
@@ -86,7 +83,6 @@ function AddPhotosSession({
             m.observation_images_assign_failed(),
             {
               onSuccess: onClose,
-              invalidate: () => router.invalidate(),
             },
           );
         }}

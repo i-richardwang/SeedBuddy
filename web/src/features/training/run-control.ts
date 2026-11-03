@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
@@ -6,7 +5,7 @@ import type { TrainingRunDetail } from "../../domain/training/read-model";
 import type { TrainingControl } from "../../domain/training/schema";
 import { controlTraining } from "../../functions/training";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 
 /**
@@ -16,8 +15,8 @@ import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
  * holds the dialog it opens.
  */
 export function useTrainingRunControl(detail: TrainingRunDetail) {
+  const confirmDestructive = useConfirmDestructive();
   const { run } = detail;
-  const router = useRouter();
   const action = useAsyncAction();
   const [resuming, setResuming] = useState(false);
   const send = (control: TrainingControl) => controlRun(detail, control);
@@ -27,7 +26,6 @@ export function useTrainingRunControl(detail: TrainingRunDetail) {
       void action.run(
         () => send({ action: "pause" }),
         m.training_pause_failed(),
-        { invalidate: () => router.invalidate() },
       );
     },
     resume: () => setResuming(true),
@@ -39,7 +37,6 @@ export function useTrainingRunControl(detail: TrainingRunDetail) {
         onConfirm: async () => {
           await send({ action: "cancel" });
         },
-        invalidate: () => router.invalidate(),
       });
     },
     resuming,

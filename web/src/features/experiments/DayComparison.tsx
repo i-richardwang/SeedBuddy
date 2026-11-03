@@ -17,7 +17,7 @@ import {
   type ViewportLink,
 } from "../../ui/viewport/ImageViewport";
 import { FILL, type RelativeView } from "../../ui/viewport/viewport";
-import { UnclearAlert } from "../annotation/unclear";
+import { UnclearAlert } from "../images/unclear";
 import { observationLabel } from "./labels";
 import { UnitDayCount } from "./UnitDayCount";
 

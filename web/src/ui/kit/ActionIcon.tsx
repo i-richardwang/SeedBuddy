@@ -13,7 +13,7 @@ import { Tooltip, type TooltipProps } from "./Tooltip";
  * command.
  */
 
-export type ActionIconSize = "small" | "middle" | "header" | "bar";
+type ActionIconSize = "small" | "middle" | "header" | "bar";
 
 export interface ActionIconProps extends Omit<
   ButtonProps,

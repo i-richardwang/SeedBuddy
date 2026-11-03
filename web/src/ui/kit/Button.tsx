@@ -15,8 +15,8 @@ import { springTransition } from "./motionToken";
  * Pressing scales the element with a spring, whatever element `render` gives.
  */
 
-export type ButtonType = "default" | "primary" | "dashed" | "text";
-export type ButtonSize = "small" | "middle" | "large";
+type ButtonType = "default" | "primary" | "dashed" | "text";
+type ButtonSize = "small" | "middle" | "large";
 
 export interface ButtonProps extends Omit<
   useRender.ComponentProps<"button">,

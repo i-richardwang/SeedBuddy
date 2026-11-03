@@ -22,7 +22,7 @@ import { Icon } from "./Icon";
 import { useIsCompact } from "./mediaQuery";
 import { TooltipGroup } from "./Tooltip";
 
-export interface AppShellState {
+interface AppShellState {
   /** Closes the compact navigation drawer. */
   closeNavigation: () => void;
 }
@@ -109,10 +109,7 @@ export function AppShellAccount({
   );
 }
 
-export interface AppShellProps extends Omit<
-  HTMLAttributes<HTMLDivElement>,
-  "title"
-> {
+interface AppShellProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   /** Location shown in the top bar, usually a `Breadcrumb`. */
   breadcrumb: ReactNode;
   children?: ReactNode;

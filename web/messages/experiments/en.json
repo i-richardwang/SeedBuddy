@@ -57,6 +57,8 @@
   "experiment_grid_label": "Observations of {experiment}",
   "experiment_group_analysis": "Analysis",
   "experiment_group_culture": "Culture",
+  "experiment_image_reviewed": "Reviewed",
+  "experiment_image_unreviewed": "To review",
   "experiment_menu_delete": "Delete experiment…",
   "experiment_menu_edit": "Edit details…",
   "experiment_meta_inoculated": "Inoculated {day}",

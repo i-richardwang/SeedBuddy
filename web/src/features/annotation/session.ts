@@ -16,7 +16,7 @@ import type { Model } from "../../domain/models/schema";
 import { saveAnnotation } from "../../functions/review";
 import { canonicalJson } from "../../lib/json/canonical";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { classForShortcut } from "./controls";
 import { isOwnedKey } from "./keys";
@@ -168,6 +168,7 @@ export function useImageSession({
   model: Model;
   locked: boolean;
 }): ImageSession {
+  const confirmDestructive = useConfirmDestructive();
   const opening = useMemo(() => openingOf(review, shown), [review, shown]);
   const [session, dispatch] = useReducer(reduceSession, null, () =>
     opened(opening, model.classes[0]!),
@@ -211,8 +212,9 @@ export function useImageSession({
       confirmLabel: m.annotation_discard(),
       onConfirm: blocker.proceed,
       onCancel: blocker.reset,
+      invalidate: false,
     });
-  }, [blocker, saving]);
+  }, [blocker, saving, confirmDestructive]);
 
   const selected =
     instances.find((instance) => instance.id === session.selectedId) ?? null;
@@ -273,29 +275,34 @@ export function useImageSession({
           },
         }),
       m.annotation_save_failed(),
+      {
+        invalidate: false,
+        onSuccess: async (value) => {
+          if (value.status === "conflict") {
+            dispatch({ type: "conflict" });
+            return;
+          }
+          // The stored boxes are the review now. The readings on hand still predate
+          // it, so the draft holds until fresh ones arrive.
+          dispatch({
+            type: "open",
+            opening: {
+              key: opening.key,
+              shown: "review",
+              base: draft.instances,
+              instances: draft.instances,
+            },
+            activeClass: session.activeClass,
+          });
+          await router.invalidate();
+        },
+      },
     );
     if (!result.ok) {
       dispatch({ type: "failed" });
       return false;
     }
-    if (result.value.status === "conflict") {
-      dispatch({ type: "conflict" });
-      return false;
-    }
-    // The stored boxes are the review now. The readings on hand still predate
-    // it, so the draft holds until fresh ones arrive.
-    dispatch({
-      type: "open",
-      opening: {
-        key: opening.key,
-        shown: "review",
-        base: draft.instances,
-        instances: draft.instances,
-      },
-      activeClass: session.activeClass,
-    });
-    await router.invalidate();
-    return true;
+    return result.value.status !== "conflict";
   }, [draft, review.ref, router, runSave, opening.key, session.activeClass]);
 
   const discard = useCallback(
@@ -306,7 +313,9 @@ export function useImageSession({
   const { run: runReload } = useAsyncAction();
   const reload = useCallback(() => {
     discard();
-    void runReload(() => router.invalidate(), m.annotation_reload_failed());
+    void runReload(() => router.invalidate(), m.annotation_reload_failed(), {
+      invalidate: false,
+    });
   }, [discard, runReload, router]);
 
   useShortcuts({

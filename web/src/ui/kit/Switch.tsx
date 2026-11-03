@@ -19,7 +19,7 @@ import { springTransition } from "./motionToken";
  * rewrites them mid-flight.
  */
 
-export type SwitchSize = "middle" | "small";
+type SwitchSize = "middle" | "small";
 
 const THUMB_SPRING = { damping: 24, stiffness: 360 };
 
@@ -87,7 +87,7 @@ function SwitchThumb({
   );
 }
 
-export interface SwitchProps {
+interface SwitchProps {
   checked: boolean;
   disabled?: boolean;
   onChange: (checked: boolean) => void;

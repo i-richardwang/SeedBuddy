@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import {
   ChevronDown,
   CircleMinus,
@@ -30,11 +29,10 @@ import {
 import { clearUnclear, markUnclear } from "../../functions/images";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
-  runAction,
   useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
@@ -71,7 +69,7 @@ export function UnitMenu({
   /** The datasets the photograph could join. */
   datasets: NamedDataset[];
 }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const navigateAfterWrite = useNavigateAfterWrite();
   const [open, setOpen] = useState<Action | null>(null);
   const close = () => setOpen(null);
@@ -101,17 +99,24 @@ export function UnitMenu({
       key: "unclear",
       icon: unclear ? Eye : EyeOff,
       label: unclear ? m.unclear_menu_clear() : m.unclear_menu_mark(),
-      onClick: async () => {
-        const result = await runAction(async () => {
-          if (unclear) await clearUnclear({ data: ref });
-          else await markUnclear({ data: ref });
-        }, m.unclear_not_saved());
-        if (!result.ok) return;
-        toast.success(
-          unclear ? m.unclear_cleared({ file }) : m.unclear_marked({ file }),
-        );
-        await router.invalidate();
-      },
+      onClick: () =>
+        confirmDestructive({
+          title: unclear
+            ? m.unclear_clear_title({ file })
+            : m.unclear_mark_title({ file }),
+          confirmLabel: unclear ? m.unclear_clear() : m.unclear_mark(),
+          onConfirm: async () => {
+            if (unclear) await clearUnclear({ data: ref });
+            else await markUnclear({ data: ref });
+          },
+          onSuccess: () => {
+            toast.success(
+              unclear
+                ? m.unclear_cleared({ file })
+                : m.unclear_marked({ file }),
+            );
+          },
+        }),
     });
   }
   items.push({
@@ -143,6 +148,7 @@ export function UnitMenu({
               params: { experiment: image.ref.experiment },
             });
           },
+          invalidate: false,
         }),
     });
   }
@@ -162,7 +168,6 @@ export function UnitMenu({
           onSuccess: () => {
             toast.success(m.unit_deleted({ code: unit.code }));
           },
-          invalidate: () => router.invalidate(),
         }),
     });
   }
@@ -313,7 +318,6 @@ function RemoveCultureEventForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const { events } = unit;
   const [event, setEvent] = useState(events.at(-1)?.id ?? "");
   const describe = (item: (typeof events)[number]) => {
@@ -345,7 +349,6 @@ function RemoveCultureEventForm({
               );
               onDone();
             },
-            invalidate: () => router.invalidate(),
           },
         );
       }}

@@ -25,7 +25,7 @@ import {
  * trace in the page.
  */
 
-export type DraggablePanelPlacement = "left" | "right";
+type DraggablePanelPlacement = "left" | "right";
 
 const PAN_THRESHOLD = 3;
 
