@@ -4,4 +4,4 @@ Everyone signs in with an email address and password; there is no self-service s
 
 Bootstrap credentials and the public origin are configured in the shared authentication block of [the environment example](../.env.example).
 
-Authentication is [Better Auth](https://better-auth.com) over the application database, served at `/api/auth/*`. Programmatic access belongs to accounts too: under Integrations every account issues personal API keys for experiment records, image annotation and dataset transfer and reviews the MCP clients it has authorized. Machine enrollment is described in [vitroctl](vitroctl.md#workers).
+Authentication is [Better Auth](https://better-auth.com) over the application database, served at `/api/auth/*`. Programmatic access belongs to accounts too: under Integrations every account issues personal API keys for Experiment records, Image annotation and Dataset transfer and reviews the MCP clients it has authorized. Machine enrollment is described in [vitroctl](vitroctl.md#workers).

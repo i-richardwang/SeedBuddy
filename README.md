@@ -30,7 +30,7 @@ bun run dev
 
 Use `bun run format` in `web/` to format source and messages, and `bun run format:check` to check them. Generate database migrations with `bun run db:generate` (`drizzle-kit generate`); startup applies them as described in [Database schema](docs/architecture.md#database-schema).
 
-Sign in with the administrator credentials configured there. Account behavior is described in [Accounts](docs/accounts.md); Worker installation is in [vitroctl](docs/vitroctl.md#install).
+Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](docs/accounts.md); Worker installation is in [vitroctl](docs/vitroctl.md#install).
 
 ## Deployment
 
@@ -41,11 +41,11 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Compose runs the workbench, maintenance, Postgres, RustFS and a one-shot bucket initializer. `Dockerfile.web` starts the built server through `bun run start` (`bun dist/server.js`); Compose uses that image command for the workbench and overrides it with `bun dist/maintenance.js` for maintenance. The workbench is exposed on port 3000, RustFS on 9000 and its console on 9001. Services restart unless stopped. The three image variables accept immutable mirror references.
+Compose runs the workbench, maintenance, Postgres, RustFS and a one-shot bucket initializer. `Dockerfile.web` starts the built server through `bun run start` (`bun dist/server.js`); Compose uses that image command for the workbench and overrides it with `bun dist/maintenance.js` for maintenance. The workbench is exposed on port 3000, RustFS on 9000 and its console on 9001. Long-running services restart unless stopped. The three image variables accept immutable mirror references.
 
 [zeabur-template.yaml](zeabur-template.yaml) deploys the application roles with PostgreSQL and MinIO; its deployment form and service instructions define domain binding and storage setup. MinIO creates the bucket in its start command. Workers run outside the hosting platform.
 
-Workbench and maintenance use the same source commit or image digest and storage environment. Maintenance has no public port. See [Images](docs/images.md#maintenance) for its analysis policy.
+Workbench and maintenance use the same source commit or image digest and storage environment. Maintenance has no public port. After `bun run build` in `web/`, `bun run maintenance` executes `dist/maintenance.js`, `bun run images:analyze [batch-size]` executes the finite sweep in `dist/analyze-images.js`, and `bun run blobs:collect` executes one collection pass in `dist/collect-blobs.js`. See [Images](docs/images.md#maintenance) for its analysis policy.
 
 ## Verification
 

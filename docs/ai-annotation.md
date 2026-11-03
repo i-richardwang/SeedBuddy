@@ -141,8 +141,7 @@ reusable assets in the blob store, including after a server restart.
 A completion receipt identifies an asset plan. Incomplete preparations reuse
 finished images and resume the same preparation path.
 
-Ingestion, analysis and image preparation share one process-wide slot, acquired
-before loading an original for regional preparation. A 32 MiB LRU retains encoded
+Regional preparation follows the shared [image processing budget](images.md#previews-and-processing). A 32 MiB LRU retains encoded
 evidence, not decoded originals. Context reads the overview; views and previews
 read CLEAN. Reference and proposal overlays use a separate 16 MiB LRU and at most
 two concurrent renders. Decoder and render working memory are additional to these
