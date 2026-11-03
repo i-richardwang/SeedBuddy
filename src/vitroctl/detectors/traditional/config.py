@@ -114,3 +114,6 @@ def _section(
         names = ", ".join(sorted(unknown_fields))
         raise ValueError(f"Unknown field(s) in '{name}': {names}")
     return section_type(**values)
+
+
+DEFAULT_PIPELINE_CONFIG = PipelineConfig()

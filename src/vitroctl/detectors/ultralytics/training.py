@@ -411,7 +411,6 @@ def train_yolo_detector(
     summary_path = save_dir / "inference.json"
     summary = {
         "schemaVersion": 1,
-        "weights": best_weights.relative_to(save_dir).as_posix(),
         "inference": {
             "ready": confidence is not None,
             "confidence": confidence,

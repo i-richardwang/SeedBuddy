@@ -464,7 +464,6 @@ def test_training_reports_epochs_and_publishes_validated_settings(
     assert instances[1].val_options["device"] == "mps"
     assert json.loads(result.summary.read_text()) == {
         "schemaVersion": 1,
-        "weights": "weights/best.pt",
         "inference": {
             "ready": True,
             "confidence": 0.2,
