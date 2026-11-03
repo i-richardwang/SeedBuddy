@@ -28,7 +28,7 @@ from vitroctl.detectors.ultralytics.runtime import ultralytics_installed
 from vitroctl.worker.connection import (
     WorkerConnection,
     WorkerHttpClient,
-    validate_worker_process,
+    validate_worker_settings,
 )
 
 LEASE_REFRESH_SECONDS = 30.0
@@ -47,8 +47,9 @@ class WorkerSettings:
     device: str | None = None
 
     def __post_init__(self) -> None:
-        WorkerConnection(server_url=self.server_url, token=self.token)
-        validate_worker_process(self.poll_seconds, self.device)
+        validate_worker_settings(
+            self.server_url, self.token, self.poll_seconds, self.device
+        )
 
 
 def available_runtimes() -> tuple[RuntimeDescriptor, ...]:
@@ -60,7 +61,7 @@ def available_runtimes() -> tuple[RuntimeDescriptor, ...]:
 
 
 def device_memory_bytes(device: str) -> int:
-    """The memory the accelerator offers a job.
+    """The memory the accelerator offers a claim or training run.
 
     Unified-memory Macs report Metal's recommended working set, CUDA devices
     their total memory, and the CPU the machine's physical memory.
@@ -120,13 +121,12 @@ class WorkerClient(WorkerHttpClient):
         token: str,
         session: WorkerSession,
         *,
-        timeout: float = 120.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
+        """transport is a test seam; production uses the default transport."""
         self.session = session
         super().__init__(
             WorkerConnection(server_url=server_url, token=token),
-            timeout=timeout,
             transport=transport,
         )
 

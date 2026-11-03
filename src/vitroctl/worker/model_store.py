@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import shutil
 from dataclasses import dataclass
@@ -26,6 +25,7 @@ from vitroctl.detectors.ultralytics.runtime import (
     require_ultralytics_version,
 )
 from vitroctl.io.files import atomic_directory
+from vitroctl.io.image_io import verify_digest
 
 CACHE_VALIDATION_ERRORS = (OSError, TypeError, ValueError, RuntimeError)
 LOGGER = logging.getLogger(__name__)
@@ -124,8 +124,7 @@ class ModelStore:
             content = self._source.weights(version_id)
             if len(content) != artifact["weights"]["bytes"]:
                 raise ValueError("Downloaded YOLO weights have an unexpected size")
-            if hashlib.sha256(content).hexdigest() != artifact["weights"]["digest"]:
-                raise ValueError("Downloaded YOLO weights have an unexpected digest")
+            verify_digest(content, artifact["weights"]["digest"])
             weights.write_bytes(content)
             self._verified_ultralytics_detector(
                 temporary, classes, expected_digest, settings
@@ -136,13 +135,13 @@ class ModelStore:
 
     def _verified_ultralytics_detector(
         self,
-        run: Path,
+        artifact_directory: Path,
         classes: tuple[str, ...],
         expected_digest: str,
         settings: YoloInferenceSettings,
     ) -> UltralyticsDetector:
         cached = UltralyticsDetector(
-            run / "weights" / "best.pt", settings, classes, self._device
+            artifact_directory / "weights" / "best.pt", settings, classes, self._device
         )
         if cached.artifact_digest != expected_digest:
             raise ValueError("YOLO artifact does not match its published digest")

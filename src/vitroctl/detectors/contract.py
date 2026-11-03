@@ -132,9 +132,7 @@ class DetectionResult:
             raise ValueError("Detection dimensions differ from the source image")
 
     @classmethod
-    def from_document(
-        cls, payload: dict[str, Any], context: str = "detection"
-    ) -> DetectionResult:
+    def from_document(cls, payload: dict[str, Any]) -> DetectionResult:
         """Build a result from a schema-validated document; its constructor checks bounds and IDs."""
         image = payload["image"]
         producer = _producer(payload["producer"])

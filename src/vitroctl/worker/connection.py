@@ -27,7 +27,10 @@ class WorkerConnection:
         return self.server_url.rstrip("/") + "/"
 
 
-def validate_worker_process(poll_seconds: float, device: str | None) -> None:
+def validate_worker_settings(
+    server_url: str, token: str, poll_seconds: float, device: str | None
+) -> None:
+    WorkerConnection(server_url=server_url, token=token)
     if poll_seconds <= 0:
         raise ValueError("poll interval must be positive")
     if device is not None and not WORKER_DEVICE.fullmatch(device):
@@ -56,6 +59,7 @@ class WorkerHttpClient:
         timeout: float = 120.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
+        """transport is a test seam; production uses the default transport."""
         self._client = httpx.Client(
             base_url=connection.base_url,
             headers={"Authorization": f"Bearer {connection.token}"},

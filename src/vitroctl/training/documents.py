@@ -46,20 +46,19 @@ class TrainingClaim:
     @classmethod
     def from_document(cls, value: Any, context: str = "training run") -> TrainingClaim:
         validate_wire_contract("training-run", value, context)
-        run = value
         state_context = f"{context}.state"
-        state = run["state"]
+        state = value["state"]
         if state["status"] != "running":
             raise ValueError(f"{state_context}.status must be running")
         phase = state["phase"]
         progress = state["progress"]
         return cls(
-            run_id=run["id"],
-            model_id=run["modelId"],
-            dataset_snapshot_id=run["datasetSnapshotId"],
-            created_at=_timestamp(run["createdAt"], f"{context}.createdAt"),
-            attempt=run["attempt"],
-            recipe=TrainingRecipe.from_document(run["recipe"]),
+            run_id=value["id"],
+            model_id=value["modelId"],
+            dataset_snapshot_id=value["datasetSnapshotId"],
+            created_at=_timestamp(value["createdAt"], f"{context}.createdAt"),
+            attempt=value["attempt"],
+            recipe=TrainingRecipe.from_document(value["recipe"]),
             worker_id=state["workerId"],
             session_id=state["sessionId"],
             lease_expires_at=_timestamp(
@@ -67,16 +66,15 @@ class TrainingClaim:
             ),
             phase=cast(TrainingPhase, phase),
             progress=progress,
-            checkpoint=TrainingCheckpoint.from_document(run["checkpoint"])
-            if run["checkpoint"] is not None
+            checkpoint=TrainingCheckpoint.from_document(value["checkpoint"])
+            if value["checkpoint"] is not None
             else None,
         )
 
 
 def _timestamp(value: Any, context: str) -> datetime:
-    text = value
     try:
-        parsed = datetime.fromisoformat(text)
+        parsed = datetime.fromisoformat(value)
     except ValueError as error:
         raise ValueError(f"{context} must be an ISO-8601 timestamp") from error
     if parsed.tzinfo is None:
@@ -104,15 +102,14 @@ class TrainingSnapshot:
     @classmethod
     def from_document(cls, value: Any, context: str = "snapshot") -> TrainingSnapshot:
         validate_wire_contract("training-snapshot", value, context)
-        document = value
         images = tuple(
             _snapshot_image(raw, f"{context}.images[{index}]")
-            for index, raw in enumerate(document["images"])
+            for index, raw in enumerate(value["images"])
         )
         digests = [image.digest for image in images]
         if len(set(digests)) != len(digests):
             raise ValueError(f"{context} lists an image digest more than once")
-        classes = tuple(document["classes"])
+        classes = tuple(value["classes"])
         known = set(classes)
         for image in images:
             for instance in image.annotation.instances:
@@ -121,24 +118,23 @@ class TrainingSnapshot:
                         f"{context} annotation uses unknown class {instance.class_name}"
                     )
         return cls(
-            id=document["id"],
-            dataset_id=document["datasetId"],
-            model_id=document["modelId"],
+            id=value["id"],
+            dataset_id=value["datasetId"],
+            model_id=value["modelId"],
             classes=classes,
             images=images,
         )
 
 
 def _snapshot_image(value: Any, context: str) -> SnapshotImage:
-    entry = value
-    digest = entry["digest"]
+    digest = value["digest"]
     annotation = AnnotationDocument.from_document(
-        entry["annotation"], f"{context}.annotation"
+        value["annotation"], f"{context}.annotation"
     )
     if annotation.digest != digest:
         raise ValueError(f"{context}.annotation describes another image")
-    width = entry["width"]
-    height = entry["height"]
+    width = value["width"]
+    height = value["height"]
     if (annotation.width, annotation.height) != (width, height):
         raise ValueError(
             f"{context}.annotation is drawn on {annotation.width}x{annotation.height}, "
@@ -148,6 +144,6 @@ def _snapshot_image(value: Any, context: str) -> SnapshotImage:
         digest=digest,
         width=width,
         height=height,
-        split=entry["split"],
+        split=value["split"],
         annotation=annotation,
     )

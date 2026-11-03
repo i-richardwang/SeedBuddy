@@ -106,8 +106,8 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
 
     served, _ = _worker(tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS))
     events: list[str] = []
-    jobs = iter([None, object(), object()])
-    monkeypatch.setattr(served.training, "claim", lambda: next(jobs))
+    claims = iter([None, object(), object()])
+    monkeypatch.setattr(served.training, "claim", lambda: next(claims))
     monkeypatch.setattr(
         served.runner, "run_once", lambda _stopped: events.append("inference") or True
     )

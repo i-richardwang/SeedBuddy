@@ -1,4 +1,4 @@
-"""Dish geometry uses the workbench recipe, pinned by tests/test_dish_recipe.py."""
+"""Dish geometry is byte-identical to the workbench recipe; the repository test suite pins it."""
 
 from __future__ import annotations
 

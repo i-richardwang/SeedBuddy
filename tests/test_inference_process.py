@@ -32,7 +32,7 @@ def crash_child(connection, settings, session):
     os._exit(2)
 
 
-def process(tmp_path: Path, target) -> InferenceProcess:
+def process(tmp_path: Path, monkeypatch, target) -> InferenceProcess:
     settings = WorkerSettings(
         server_url="https://example.test", token="secret", work_dir=tmp_path
     )
@@ -42,11 +42,12 @@ def process(tmp_path: Path, target) -> InferenceProcess:
         (RuntimeDescriptor("traditional", "b" * 64),),
         8192,
     )
-    return InferenceProcess(settings, session, target=target)
+    monkeypatch.setattr("vitroctl.worker.inference_process._execute", target)
+    return InferenceProcess(settings, session)
 
 
-def test_execution_process_is_warm_across_tasks(tmp_path):
-    worker = process(tmp_path, warm_child)
+def test_execution_process_is_warm_across_tasks(tmp_path, monkeypatch):
+    worker = process(tmp_path, monkeypatch, warm_child)
     try:
         first = worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
         second = worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
@@ -57,8 +58,10 @@ def test_execution_process_is_warm_across_tasks(tmp_path):
     assert worker._process is None
 
 
-def test_blocked_native_call_is_killed_and_the_process_can_restart(tmp_path):
-    worker = process(tmp_path, blocked_child)
+def test_blocked_native_call_is_killed_and_the_process_can_restart(
+    tmp_path, monkeypatch
+):
+    worker = process(tmp_path, monkeypatch, blocked_child)
     deadline = time.monotonic() + 1
 
     def check():
@@ -69,15 +72,15 @@ def test_blocked_native_call_is_killed_and_the_process_can_restart(tmp_path):
         with pytest.raises(TimeoutError):
             worker.run(None, deadline, check)  # type: ignore[arg-type]
         assert worker._process is None
-        worker._target = warm_child
+        monkeypatch.setattr("vitroctl.worker.inference_process._execute", warm_child)
         assert worker.run(None, time.monotonic() + 20, lambda: None)["count"] == 1  # type: ignore[arg-type]
     finally:
         worker.close()
     assert worker._process is None
 
 
-def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path):
-    worker = process(tmp_path, crash_child)
+def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path, monkeypatch):
+    worker = process(tmp_path, monkeypatch, crash_child)
     try:
         with pytest.raises(RuntimeError, match="disconnected|exited"):
             worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
@@ -95,8 +98,8 @@ def partial_reply_child(connection, settings, session):
     time.sleep(600)
 
 
-def test_partial_pipe_frame_cannot_block_the_supervisor(tmp_path):
-    worker = process(tmp_path, partial_reply_child)
+def test_partial_pipe_frame_cannot_block_the_supervisor(tmp_path, monkeypatch):
+    worker = process(tmp_path, monkeypatch, partial_reply_child)
     deadline = time.monotonic() + 1
 
     def check():

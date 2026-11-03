@@ -174,6 +174,8 @@ def pull_dataset(
 ) -> PullReport:
     """Mirror one dataset into ``output`` and report what the pull did.
 
+    transport is a test seam; production uses the default transport.
+
     A local blob is kept only when its bytes verify against its digest; a
     missing or failing blob is downloaded and verified, replacing any file that
     was there. The manifest is installed once every blob is in place.
@@ -223,6 +225,8 @@ def push_dataset(
     transport: httpx.BaseTransport | None = None,
 ) -> PushReport:
     """Send one dataset of ``data_root`` to a workbench that does not have it.
+
+    transport is a test seam; production uses the default transport.
 
     Every blob the manifest names must verify locally before anything is sent.
     The workbench acknowledges each blob, then applies the manifest as one

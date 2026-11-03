@@ -60,14 +60,13 @@ class DatasetManifest:
     @classmethod
     def from_document(cls, value: Any, context: str = "manifest") -> DatasetManifest:
         validate_wire_contract("dataset-manifest", value, context)
-        document = value
-        dataset = document["dataset"]
-        model = document["model"]
+        dataset = value["dataset"]
+        model = value["model"]
         model_id = model["id"]
         classes = tuple(model["classes"])
         images = tuple(
             _image(raw, f"{context}.images[{index}]")
-            for index, raw in enumerate(document["images"])
+            for index, raw in enumerate(value["images"])
         )
         digests = [image.digest for image in images]
         if len(set(digests)) != len(digests):
@@ -133,29 +132,26 @@ def manifest_path(data_root: str | Path, dataset: str) -> Path:
 
 
 def _image(value: Any, context: str) -> ManifestImage:
-    entry = value
     detection = None
-    if entry["detection"] is not None:
-        detection = DetectionResult.from_document(
-            entry["detection"], f"{context}.detection"
-        )
+    if value["detection"] is not None:
+        detection = DetectionResult.from_document(value["detection"])
     annotation = (
         None
-        if entry["annotation"] is None
+        if value["annotation"] is None
         else AnnotationDocument.from_document(
-            entry["annotation"], f"{context}.annotation"
+            value["annotation"], f"{context}.annotation"
         )
     )
     return ManifestImage(
-        digest=entry["digest"],
-        width=entry["width"],
-        height=entry["height"],
-        filename=entry["filename"],
-        bytes=entry["bytes"],
-        split=entry["split"],
+        digest=value["digest"],
+        width=value["width"],
+        height=value["height"],
+        filename=value["filename"],
+        bytes=value["bytes"],
+        split=value["split"],
         detection=detection,
         annotation=annotation,
-        unclear=entry.get("unclear", False),
+        unclear=value.get("unclear", False),
     )
 
 
