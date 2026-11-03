@@ -48,7 +48,7 @@ The allowed internal dependencies are defined by layer:
 | `cli` | `datasets`, `host`, `io`, `models`, `traditional`, `training`, `ultralytics` |
 | `entry` | None |
 
-`detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. Reviewed dataset loading belongs to `datasets/annotations.py`.
+`detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. Reviewed dataset loading belongs to `datasets/annotations.py`. Traditional configuration defaults are `DEFAULT_PIPELINE_CONFIG` in `detectors/traditional/config.py`; split assignment belongs to `detectors/ultralytics/dataset.py`, which defines `assign_splits` without exporting it from the package.
 
 `scripts/check_architecture.py` defines these layer names and checks ownership, dependency directions, unresolved package imports and cycles, including type-only and function-local imports.
 
@@ -65,5 +65,7 @@ Startup applies all forward migrations in `web/drizzle/` through `web/src/server
 ## Continuous verification
 
 The `Quality` workflow runs the [verification gate](../README.md#verification) on pull requests and main-branch pushes with locked dependencies, then checks PostgreSQL concurrency and S3 immutability against disposable storage. The workflow exposes a `check` job for branch protection. Private reference images are an explicit operator check.
+
+Authentication tests live in `web/src/server/auth/service.test.ts`, Worker HTTP tests in `web/src/server/transport/http/worker.test.ts`, and database constraint tests in `web/src/server/infra/db/schema.test.ts`.
 
 Test invocation and message compilation are described in [Verification](../README.md#verification).

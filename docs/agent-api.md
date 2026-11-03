@@ -29,7 +29,7 @@ The MCP surface also opens to MCP clients the account approves through OAuth: se
 Every result is validated against the operation's published output schema before it leaves the workbench; for commands sharing the operation transaction, this validation must succeed before that transaction commits. Transaction ownership follows the [backend contract](backend-architecture.md#agent-control-plane). A successful call answers `{"result": ...}`. A failed call answers `{"error":{"code":"...","message":"..."}}`; HTTP maps the protocol-neutral code to the status describing what the agent can do about it:
 
 - `400` — schema or domain validation fails, including a dataset/model mismatch.
-- `401` — the request presents no live API key with the experiment records scope.
+- `401` — the request presents no live API key with the Experiment records scope.
 - `404` — the operation or the addressed record does not exist.
 - `409` — a domain rule rejected the request, such as deleting an observation that holds records, or entering a count that leaves out a class the day counts; the message says which rule.
 - `500` — a workbench defect; the body carries no detail, and the cause is in the server log.
@@ -42,15 +42,15 @@ Content-Type: application/json
 {"experiment":"…","observedOn":"2026-09-02","modelId":"seed-detector"}
 ```
 
-Every record an agent can create is named by something it already knows: an experiment by its name, a treatment by its name within the experiment, an observation by its date, a unit by its code, a dataset by its name, an image by its digest. Repeating a create therefore answers 409 rather than making a second record, so a call whose response was lost is safe to send again.
+Experiment names, treatment names within an experiment, observation dates and unit codes identify duplicate creates, which return 409. Image uploads are idempotent; an existing digest is acknowledged successfully. Invalid source images and canonical-transfer digest mismatches return 400, while unexpected storage failures return 500.
 
-Image upload posts the raw source bytes as the request body with an exact `Content-Length`, up to 64 MiB. The image is canonicalized on entry, and the returned digest identifies the canonical bytes; identical uploads are idempotent.
+Image upload posts the raw source bytes as the request body with an exact `Content-Length`, up to 64 MiB. The returned digest identifies the [canonical image](images.md). Upload stores only the image by digest; assignment to a unit or dataset is a separate operation.
 
 ## MCP surface
 
 `POST /api/experiments/mcp` is the experiment MCP server, serving MCP 2026-07-28 and 2025-06-18 Streamable HTTP clients. Its tools are exactly the operations of the registry. Drawing boxes follows the [annotation workflow and authorization](ai-annotation.md). Each tool carries the operation's input and output schemas and its behavior annotations, and a successful call returns the result as structured content.
 
-Both MCP servers use `createMcpHandler` with `legacy: "stateless"`. Clients negotiating 2025-06-18 initialize before tool requests and send `MCP-Protocol-Version`; 2026-07-28 clients send protocol metadata on each request. A per-request server factory serves both lifecycles, with no session identifier or server-side session store.
+Both MCP servers use stateless `createMcpHandler` adapters. Clients negotiating 2025-06-18 initialize before tool requests and send `MCP-Protocol-Version`; 2026-07-28 clients send protocol metadata on each request. A per-request server factory serves both lifecycles, with no session identifier or server-side session store.
 
 An MCP client presents either credential. One configured with a request header sends the API key above; the key is checked as it is on the HTTP surface, and a key without the scope is challenged like a request with no credential.
 
@@ -64,7 +64,14 @@ GET streams and DELETE sessions are not implemented.
 
 Better Auth verifies OAuth and issues challenges; the MCP SDK handles POST exchanges. Client ID Metadata Documents use a transport that resolves DNS once, rejects non-public addresses, pins the connection to a validated address, verifies TLS for the original hostname and refuses redirects.
 
-Image bytes use the [HTTP upload surface](#http-surface); MCP operations take the returned digest.
+Add the experiment server to a local client, replacing `<workbench>` with the deployment hostname:
+
+```bash
+claude mcp add --transport http vitroflow-experiments 'https://<workbench>/api/experiments/mcp'
+codex mcp add vitroflow-experiments --url 'https://<workbench>/api/experiments/mcp'
+```
+
+Image bytes use the [HTTP upload surface](#http-surface); MCP operations take the returned digest. A hosted client needs access to the source bytes and a way to send an authenticated HTTP body; attaching a photograph to its chat does not itself upload it to VitroFlow. Annotation image delivery is described in [AI annotation](ai-annotation.md#evidence-and-caches).
 
 ## Error contract
 
@@ -72,19 +79,22 @@ Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subj
 
 | Subject | Codes |
 | --- | --- |
+| annotation | `annotation_conflict` |
 | annotation-runs | `annotation_run_conflict`, `annotation_run_not_found` |
 | auth | `user_not_found`, `user_account_conflict`, `api_key_not_found`, `mcp_client_not_found` |
-| datasets | `dataset_not_found`, `dataset_model_mismatch`, `dataset_import_invalid`, `dataset_name_taken` |
+| datasets | `dataset_not_found`, `dataset_model_mismatch`, `dataset_import_invalid`, `dataset_name_taken`, `dataset_manifest_too_large` |
 | experiments | `experiment_not_found`, `experiment_observation_image_not_found`, `observation_not_found`, `treatment_not_found`, `unit_not_found`, `culture_event_not_found`, `experiment_name_taken`, `experiment_records_conflict`, `image_storage_conflict`, `observation_conflict`, `observation_model_counts_conflict`, `treatment_name_taken`, `treatment_conflict`, `unit_conflict`, `observation_image_conflict`, `manual_reading_conflict`, `experiment_observation_image_conflict`, `unit_name_taken` |
-| images | `image_not_found` |
+| images | `image_not_found`, `image_source_invalid` |
 | inference | `detection_conflict`, `detection_outcome_invalid`, `detection_image_not_found`, `producer_mismatch`, `inference_attempt_conflict` |
 | models | `model_not_found`, `model_version_not_found`, `model_name_taken`, `model_usage_conflict`, `class_invalid`, `model_publication_invalid` |
 | training | `training_run_conflict`, `training_run_not_found`, `training_artifact_invalid` |
 | workers | `worker_not_found`, `worker_name_taken`, `worker_session_conflict` |
 
+`annotation_conflict` maps to `conflict`; `dataset_manifest_too_large` maps to `invalid_request`. A missing image in reading lookup raises `image_not_found`.
+
 Both MCP servers report tool handler failures as `isError: true` with JSON `{ "code": "…", "message": "…" }` in text content. The MCP SDK owns argument validation before handlers run.
 
-HTTP image and weight uploads use exact-length body admission. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. The `/api/transfer/*` surface uses `{ "error": "…" }`. Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
+HTTP image and weight uploads and dataset manifest PUTs share exact-length body admission. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. The `/api/transfer/*` surface uses `{ "error": "…" }`. Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
 
 ## Design and records
 
@@ -94,18 +104,18 @@ HTTP image and weight uploads use exact-length body admission. A declared size a
 
 `get-experiment` reads the experiment's sheet, and `get-unit` one unit's row of it. The sheet is the design and a cell for every unit on every observation, each cell resolved for the statistics (see [readings](readings.md)):
 
-- `reading` is the count the day uses for the unit and its `source`: `manual` for a count a person entered, else `review`, `proposal`, or `detection` for the best reading its photograph has. It is null while the cell has no number: no photograph or count yet, a photograph not yet read, or a count that left a class the day counts unanswered.
-- `exclusion` says why the day stays out of the statistics, or is null when it is in: an `event` names the culture event that took the unit out, and `unclear` says a photograph of the unit was marked unclear in an experiment that does not count such photographs. A reading may be present on an excluded day; it is left out of the statistics, and a sheet exported from the workbench writes the reason in its place.
-- `image` is the photograph behind the cell: its observation image `id`, which datasets add it by; its `digest`, which marks and dataset removal address it by; its reading `state`; the three tallies it may carry; and whether it is `unclear`.
-- `manual` is the count a person entered: its `tally` by class and when it was recorded.
+- `reading` is the resolved count and its source (`manual`, `review`, `proposal` or `detection`), or null; resolution follows the [reading rules](readings.md#where-the-numbers-come-from).
+- `exclusion` is an `event` or `unclear` reason, or null, under the [exclusion rules](readings.md#what-takes-a-unit-out-of-the-statistics).
+- `image` carries the observation image `id`, digest, state, three tallies and unclear mark.
+- `manual` carries the count entered by hand, as a class tally and recording time.
 
-A cell with neither reading nor exclusion has nothing yet. Agents follow the [resolved-sheet rules](readings.md#what-an-agent-reads).
+A cell with neither reading nor exclusion has no resolved count or exclusion reason; it can still hold a photograph awaiting a reading. Agents follow the [resolved-sheet rules](readings.md#what-an-agent-reads).
 
 Under the cells, `summary` contains `baseline` and `cells`, with one cell per treatment and observation. Each entry carries its units, counts, rates and statistics (`n`, `mean`, `sd`, `se`). Their [meaning and nullability](readings.md#what-the-summary-says) match the workbench and spreadsheet.
 
 ## Entering a day
 
-A day enters as an observation and the records taken on it, by either or both of two ways: photographs the workbench reads, and counts a person took at the bench.
+A day enters as an observation and the records taken on it, by either or both of two ways: photographs the workbench reads, and counts entered by hand.
 
 1. `get-experiment` reads the sheet: treatments, units with their codes, and the observations already made.
 2. `create-observation` adds the observation date, the model its photographs are read for, and `countedClasses`, the classes the day's count sums, every class when omitted; a germination trial's later days count `["germinated"]`. When the photographs are already uploaded, `images` matches them to their units in the same step, so the day and its photographs enter together or not at all; omit it to plan a day first.
@@ -114,7 +124,7 @@ A day enters as an observation and the records taken on it, by either or both of
 5. `mark-image-unclear` and `clear-image-unclear` address an image by digest. Repeated calls return `marked: false` or `cleared: false` when there is nothing to change. Assignment entries also accept `unclear: true`. The experiment's `countsUnclear` setting is accepted by `create-experiment` and `update-experiment`; [exclusion rules](readings.md#what-takes-a-unit-out-of-the-statistics) define its effect.
 6. `record-culture-events` records an event for several units at one observation; `delete-culture-event` removes a mistaken event.
 
-Reading needs no request: matched photographs are queued for the current version of their observation's model automatically, and `retry-observation-image-analysis` requeues one that failed. Version selection follows the [model lifecycle](domain.md#models-and-versions). A model with no current version queues nothing; its photographs wait for a reviewer, and `create-model` names such a model in the first place.
+Reading needs no request: matched photographs are queued for the current version of their observation's model automatically, and `retry-observation-image-analysis` requeues one that failed. Version selection follows the [model lifecycle](domain.md#models-and-versions). A model with no current version queues nothing; its photographs can be read by a reviewer or an annotation agent, and `create-model` names such a model in the first place.
 
 ## Dataset workflow
 

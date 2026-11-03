@@ -2,6 +2,14 @@
 
 The [reading rules](readings.md) define counts, exclusions, summaries and exports.
 
+## Terms
+
+A reading is a count read from a photograph by a model or a person; an inference is a model’s reading. A count entered by hand records a tally supplied directly for a unit and observation.
+
+A Worker is a registered machine. A Worker process is the running program that authenticates as that Worker and supervises execution.
+
+API key scope names follow the UI: Dataset transfer, Experiment records and Image annotation.
+
 ## Experimental design
 
 An experiment has a case-insensitively unique name, plant material, explant type, shared base medium, protocol notes and inoculation date. A treatment names a condition, optionally as a factor, level and unit written as applied. Shared conditions belong on the experiment.
@@ -12,7 +20,7 @@ An observation is one occasion on one calendar day, at most once per experiment 
 
 One standardized photograph belongs to each unit and observation. Its source filename supplies a suggested unit code for confirmation and remains traceability metadata, not identity. Replacing or removing an assignment preserves the canonical image and its readings. Objects within a unit are subsamples; the physical dish circle is an image diagnostic, not the unit's identity.
 
-Images, counts entered by hand and culture events prevent deletion of their unit or observation, and prevent deletion of their treatment or experiment. An inoculation date cannot move past an observation. Discarded, harvested and missing are terminal culture events; a unit has at most one terminal event and has no records after it. An event entered by mistake can be removed.
+Images, counts entered by hand and culture events prevent deletion of their unit or observation, and prevent deletion of their treatment or experiment. Deleting an eligible treatment also deletes its units. An inoculation date cannot move past an observation. Discarded, harvested and missing are terminal culture events; a unit has at most one terminal event and has no records after it. An event entered by mistake can be removed.
 
 ## Models and versions
 
