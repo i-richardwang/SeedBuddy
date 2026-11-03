@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 
 import { Route as LoginRoute } from "../../../routes/login";
+import { sessionHeaders, signInAs, TEST_PASSWORD } from "../../testing/auth";
 import { readSession, redirect } from "./session";
-import { TEST_PASSWORD, sessionHeaders, signInAs } from "../../testing/auth";
 
 type LoginGet = (context: {
   request: Request;

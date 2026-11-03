@@ -1,8 +1,6 @@
-import { completeInferenceClaim } from "../../inference/public";
 import { expect, test } from "bun:test";
 
 import { makeResult } from "../../../domain/annotation/testing";
-import { database } from "../../infra/db/client";
 import { inferenceAssignmentSchema } from "../../../domain/inference/assignments";
 import { Route as StoreRoute } from "../../../routes/api.images";
 import { Route as HeartbeatRoute } from "../../../routes/api.worker.heartbeat";
@@ -15,11 +13,13 @@ import { createExperiment } from "../../experiments/design";
 import { assignObservationImages } from "../../experiments/observation-images";
 import { addObservation } from "../../experiments/observations";
 import { listUnits } from "../../experiments/records";
-import { readReview } from "../../readings/public";
+import { completeInferenceClaim } from "../../inference/public";
+import { database } from "../../infra/db/client";
 import { contentDigest } from "../../infra/digest";
+import { readReview } from "../../readings/public";
 import {
-  FIXTURE_EDGE,
   baselineVersion,
+  FIXTURE_EDGE,
   imageBytes,
   imageDigest,
 } from "../../testing/fixtures";

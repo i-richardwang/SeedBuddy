@@ -5,7 +5,19 @@ import {
   SEED_DETECTOR_BASELINE,
 } from "../../domain/models/builtins";
 import {
+  ModelIdTakenError,
+  ModelInUseError,
+  ModelNotFoundError,
+  ModelVersionNotFoundError,
+} from "../../domain/models/errors";
+import {
   DEFAULT_MODEL_ANNOTATION,
+  type Model,
+  type ModelAnnotationRequest,
+  type ModelRef,
+  type ModelRequest,
+  type ModelVersion,
+  type ModelVersionRef,
   modelAnnotationRequestSchema,
   modelRequestSchema,
   modelSchema,
@@ -13,26 +25,14 @@ import {
   modelVersionSchema,
   sameModel,
   sameModelVersion,
-  type Model,
-  type ModelAnnotationRequest,
-  type ModelRef,
-  type ModelRequest,
-  type ModelVersion,
-  type ModelVersionRef,
 } from "../../domain/models/schema";
 import {
-  ModelIdTakenError,
-  ModelInUseError,
-  ModelNotFoundError,
-  ModelVersionNotFoundError,
-} from "../../domain/models/errors";
-import {
   database,
-  transaction,
-  inTransaction,
   type Executor,
+  inTransaction,
+  transaction,
 } from "../infra/db/client";
-import { modelVersions, models } from "../infra/db/schema";
+import { models, modelVersions } from "../infra/db/schema";
 import { heldBy, modelRecords } from "./records";
 
 /**

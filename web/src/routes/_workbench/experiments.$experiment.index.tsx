@@ -4,6 +4,7 @@ import {
   stripSearchParams,
 } from "@tanstack/react-router";
 import { z } from "zod";
+
 import type { ExperimentGrid } from "../../domain/experiments/contracts";
 import { experimentIdSchema } from "../../domain/experiments/schema";
 import {
@@ -12,7 +13,6 @@ import {
 } from "../../features/experiments/ExperimentView";
 import { getExperimentGrid } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
-import { PageColumnSkeleton } from "../../ui/Page";
 import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import {
@@ -20,6 +20,7 @@ import {
   TableSkeleton,
   TabsSkeleton,
 } from "../../ui/kit/PageSkeleton";
+import { PageColumnSkeleton } from "../../ui/Page";
 
 /** The units' tab is on show unless the address names another. */
 const searchDefaults = { tab: "units" } as const;

@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
+
 import { McpClientNotFoundError } from "../../../domain/auth/errors";
-import { experimentsMcpHandler, serveExperimentsMcp } from "./experiments";
 import { agentOperations } from "../../agent/operations";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
-import { authorizeMcpClient, signInAs } from "../../testing/auth";
 import { banUser, revokeUserSessions } from "../../auth/users";
+import { authorizeMcpClient, signInAs } from "../../testing/auth";
 import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
+import { experimentsMcpHandler, serveExperimentsMcp } from "./experiments";
 
 async function rpc(method: string, params?: unknown): Promise<unknown> {
   const response = await experimentsMcpHandler.fetch(

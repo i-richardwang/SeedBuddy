@@ -1,24 +1,25 @@
 import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
+
 import {
   AnnotationRunConflictError,
   AnnotationRunNotFoundError,
 } from "../../domain/annotation-runs/errors";
-import { observeImages } from "../testing/fixtures";
-import { storeImage } from "../images/public";
 import { readAnnotation, storeAnnotation } from "../annotations/documents";
-import { readAnnotationReading } from "../readings/public";
+import { storeImage } from "../images/public";
 import { database } from "../infra/db/client";
 import { annotationRuns } from "../infra/db/schema";
 import { createModel, setModelAnnotation } from "../models/public";
-import { createAnnotationRun, cancelAnnotationRun } from "./runs";
-import { nextAnnotationTask, savePreview, submitProposal } from "./tasks";
+import { readAnnotationReading } from "../readings/public";
+import { observeImages } from "../testing/fixtures";
 import { readTask } from "./access";
+import { cancelAnnotationRun, createAnnotationRun } from "./runs";
+import { nextAnnotationTask, savePreview, submitProposal } from "./tasks";
 import {
+  previewAnnotationTask,
   readAnnotationContext,
   viewAnnotationTask,
-  previewAnnotationTask,
 } from "./views";
 
 async function setup(name: string) {

@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { MAX_MODEL_WEIGHTS_BYTES } from "../models/transfer";
+
 import { sha256Schema } from "../identifiers/schema";
+import { MAX_MODEL_WEIGHTS_BYTES } from "../models/transfer";
 
 /** Fixed wire size, shared with vitroctl.worker.training. */
 export const TRAINING_ARTIFACT_PART_BYTES = 8 * 1024 * 1024;

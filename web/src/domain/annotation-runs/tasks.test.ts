@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
-import { regions, owns, prepareProposal, tiles, type Region } from "./tasks";
+
 import { collectRegions } from "./results";
 import type { AnnotationDefinition } from "./schema";
+import { owns, prepareProposal, type Region, regions, tiles } from "./tasks";
+
 const definition: AnnotationDefinition = {
   input: null,
   scope: null,

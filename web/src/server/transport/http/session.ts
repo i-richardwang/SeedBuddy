@@ -1,8 +1,8 @@
 import { redirect as routerRedirect } from "@tanstack/react-router";
 
 import {
-  workbenchUserSchema,
   type WorkbenchUser,
+  workbenchUserSchema,
 } from "../../../domain/auth/schema";
 import { auth } from "../../auth/public";
 

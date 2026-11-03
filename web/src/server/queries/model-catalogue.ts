@@ -1,6 +1,6 @@
+import type { ModelCatalogueEntry } from "../../domain/models/contracts";
 import { snapshot } from "../infra/db/client";
 import { models } from "../infra/db/schema";
-import type { ModelCatalogueEntry } from "../../domain/models/contracts";
 import { modelRecordCounts, toModel, toModelRecords } from "../models/public";
 
 /**

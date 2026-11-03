@@ -1,11 +1,11 @@
+import type { McpServerName } from "../../domain/auth/integrations";
 import {
-  userAccountSchema,
   type UserAccount,
   type UserRole,
+  userAccountSchema,
 } from "../../domain/auth/schema";
 import { auth } from "../auth/service";
 import { deploymentEndpoint } from "../infra/deployment";
-import type { McpServerName } from "../../domain/auth/integrations";
 import type { DpopKey } from "./dpop";
 
 export const TEST_PASSWORD = "correct-horse-battery";

@@ -2,16 +2,16 @@ import { useState } from "react";
 
 import { today } from "../../domain/experiments/schema";
 import { startExperiment } from "../../functions/experiments";
+import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { Form } from "../../ui/kit/Form";
-import { m } from "../../paraglide/messages";
 import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
+import { Form } from "../../ui/kit/Form";
 import {
   DesignField,
+  type DesignRow,
   initialDesign,
   submittedDesign,
-  type DesignRow,
 } from "./DesignField";
 import { ExperimentFields, readExperimentFields } from "./ExperimentFields";
 

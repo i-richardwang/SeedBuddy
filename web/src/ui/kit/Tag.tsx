@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+
 import { cn } from "./cn";
 
 /** A filled label; `color` tints it with a status color. */

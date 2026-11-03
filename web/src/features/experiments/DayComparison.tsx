@@ -1,12 +1,10 @@
 import { ImageOff } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
-import { observationLabel } from "./labels";
-import { UnitDayCount } from "./UnitDayCount";
 import type { Exclusion } from "../../domain/experiments/analysis";
 import type { UnitSeries } from "../../domain/experiments/contracts";
-import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { countChange } from "../../domain/experiments/readings";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { Select } from "../../ui/kit/Select";
@@ -20,6 +18,8 @@ import {
 } from "../../ui/viewport/ImageViewport";
 import { FILL, type RelativeView } from "../../ui/viewport/viewport";
 import { UnclearAlert } from "../annotation/unclear";
+import { observationLabel } from "./labels";
+import { UnitDayCount } from "./UnitDayCount";
 
 type UnitObservation = UnitSeries["observations"][number];
 

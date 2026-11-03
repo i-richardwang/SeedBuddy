@@ -1,11 +1,11 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { Plus, Server, Trash2 } from "lucide-react";
+
 import type { WorkerPresence } from "../../domain/workers/presence";
 import type { WorkerActivity } from "../../domain/workers/schema";
 import { deleteWorker, type getWorkers } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
-import { formatAge } from "../../ui/Timestamp";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
@@ -20,6 +20,7 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { toast } from "../../ui/kit/Toast";
+import { formatAge } from "../../ui/Timestamp";
 
 const PRESENCE: Record<
   WorkerPresence,

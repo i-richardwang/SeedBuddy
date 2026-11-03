@@ -1,13 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
 import { eq, inArray } from "drizzle-orm";
+
+import { putImmutableBlob, removeBlob } from "../infra/blobs/store";
+import { database, transaction } from "../infra/db/client";
+import { images } from "../infra/db/schema";
 import {
   createImageAnalysisRefresher,
   IMAGE_ANALYSIS_RETRY_MS,
 } from "./analysis-maintenance";
 import { DISH_RECIPE_ID } from "./dish-recipe";
-import { database, transaction } from "../infra/db/client";
-import { images } from "../infra/db/schema";
-import { putImmutableBlob, removeBlob } from "../infra/blobs/store";
 import { imageBlobKey } from "./keys";
 
 const inserted: string[] = [];

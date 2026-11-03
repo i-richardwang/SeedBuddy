@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { command, query } from "./definition";
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
 import {
   datasetContentsSchema,
@@ -23,6 +22,7 @@ import {
   removeDatasetImages,
   updateDataset,
 } from "../datasets/public";
+import { command, query } from "./definition";
 
 /** A dataset gathers the photographs that train one recognition task. */
 export const datasetOperations = [

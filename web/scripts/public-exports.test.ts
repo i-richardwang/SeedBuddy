@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+
 import { unusedPublicExports } from "./public-exports";
 
 test("service APIs count aliases and types, and retain namespace consumers", () => {

@@ -1,9 +1,9 @@
-import {
-  artifactUploadSchema,
-  artifactPartSize,
-  type ArtifactUpload,
-} from "../../domain/training/artifact";
 import { resourceIdSchema } from "../../domain/identifiers/schema";
+import {
+  type ArtifactUpload,
+  artifactPartSize,
+  artifactUploadSchema,
+} from "../../domain/training/artifact";
 
 export function artifactPartKey(
   runId: string,

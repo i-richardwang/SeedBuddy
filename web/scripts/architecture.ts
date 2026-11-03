@@ -1,6 +1,7 @@
-import traverse from "@babel/traverse";
 import { posix as path } from "node:path";
+
 import { parse } from "@babel/parser";
+import traverse from "@babel/traverse";
 
 /** Allowed server dependencies. Public entry points are the only cross-module API. */
 const dependencies: Record<string, readonly string[]> = {

@@ -1,4 +1,3 @@
-import { exactLengthBody, uploadFailure } from "./upload-body";
 import { MAX_IMAGE_BYTES } from "../../../domain/images/canonical";
 import { imageDigestSchema } from "../../../domain/images/schema";
 import {
@@ -6,6 +5,7 @@ import {
   storeCanonicalImage,
   storeImage,
 } from "../../images/public";
+import { exactLengthBody, uploadFailure } from "./upload-body";
 
 async function storing(
   store: () => Promise<{ digest: string }>,

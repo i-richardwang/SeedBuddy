@@ -5,10 +5,10 @@ import { useState } from "react";
 import type { Treatment } from "../../domain/experiments/schema";
 import { removeTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
+import { RowMenu } from "../../ui/ActionsMenu";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { toast } from "../../ui/kit/Toast";
-import { RowMenu } from "../../ui/ActionsMenu";
 import { ReplicatesDialog, TreatmentDialog } from "./TreatmentDialog";
 
 type Action = "edit" | "replicates";

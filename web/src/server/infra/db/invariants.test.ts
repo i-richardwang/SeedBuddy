@@ -2,15 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import { expect, test } from "bun:test";
 
-import { database } from "./client";
-import { isUniqueViolation } from "./errors";
-import {
-  experimentCultureEvents,
-  experimentUnits,
-  experimentTreatments,
-  experiments,
-  modelVersions,
-} from "./schema";
 import { recordCultureEvent } from "../../experiments/culture-events";
 import { createExperiment } from "../../experiments/design";
 import { addObservation } from "../../experiments/observations";
@@ -20,6 +11,15 @@ import {
   registerTrainedVersion,
   traditionalVersion,
 } from "../../testing/fixtures";
+import { database } from "./client";
+import { isUniqueViolation } from "./errors";
+import {
+  experimentCultureEvents,
+  experiments,
+  experimentTreatments,
+  experimentUnits,
+  modelVersions,
+} from "./schema";
 
 test("the database rejects a second terminal event", async () => {
   const suffix = randomUUID();

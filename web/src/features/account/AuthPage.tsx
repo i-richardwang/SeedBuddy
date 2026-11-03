@@ -1,8 +1,8 @@
 import type { ComponentProps } from "react";
 
 import { AppBrand } from "../../ui/BrandLogo";
-import { ColorSchemeMenu, LanguageMenu } from "../../ui/Preferences";
 import { AuthLayout } from "../../ui/kit/AuthLayout";
+import { ColorSchemeMenu, LanguageMenu } from "../../ui/Preferences";
 
 /** A page outside the signed-in shell: the brand above, the language and color scheme below. */
 export function AuthPage(

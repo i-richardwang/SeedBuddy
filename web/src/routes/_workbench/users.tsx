@@ -1,4 +1,3 @@
-import { Status } from "../../ui/kit/Status";
 import {
   createFileRoute,
   getRouteApi,
@@ -8,18 +7,18 @@ import {
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
+import { isAdmin, type UserAccount } from "../../domain/auth/schema";
 import { NewUserDialog } from "../../features/users/NewUserDialog";
 import { RoleSelect } from "../../features/users/RoleSelect";
 import { UserMenu } from "../../features/users/UserMenu";
-import { isAdmin, type UserAccount } from "../../domain/auth/schema";
 import { changeUserRole, getUsers } from "../../functions/users";
-import { documentTitle } from "../../ui/documentTitle";
 import { m } from "../../paraglide/messages";
-import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
+import { documentTitle } from "../../ui/documentTitle";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Button } from "../../ui/kit/Button";
 import { Flexbox } from "../../ui/kit/Flex";
 import { TableSkeleton } from "../../ui/kit/PageSkeleton";
+import { Status } from "../../ui/kit/Status";
 import {
   Table,
   TableBody,
@@ -29,6 +28,7 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { Tag } from "../../ui/kit/Tag";
+import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
 
 const workbench = getRouteApi("/_workbench");
 

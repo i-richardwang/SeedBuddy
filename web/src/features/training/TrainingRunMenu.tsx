@@ -7,7 +7,7 @@ import {
 } from "../../domain/training/schema";
 import { m } from "../../paraglide/messages";
 import { Button } from "../../ui/kit/Button";
-import { DropdownMenu, type DropdownItem } from "../../ui/kit/DropdownMenu";
+import { type DropdownItem, DropdownMenu } from "../../ui/kit/DropdownMenu";
 import type { TrainingRunControl } from "./run-control";
 import { TrainingRunState } from "./TrainingRunState";
 

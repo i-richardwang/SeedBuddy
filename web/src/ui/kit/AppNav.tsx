@@ -1,6 +1,7 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import { Play } from "lucide-react";
 import type { ReactNode } from "react";
+
 import { m } from "../../paraglide/messages";
 import { useAppShell } from "./AppShell";
 import { Icon, type IconProps } from "./Icon";

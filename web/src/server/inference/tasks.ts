@@ -1,17 +1,18 @@
-import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import { and, asc, eq, gt, lte, not, or, sql } from "drizzle-orm";
-import {
-  snapshot,
-  inTransaction,
-  transaction,
-  type Executor,
-} from "../infra/db/client";
-import { inferenceTasks, inferenceAttempts } from "../infra/db/schema";
-import { sessionIsCurrent } from "../workers/public";
+
+import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { InferenceFailure } from "../../domain/inference/tasks";
 import { inferenceTaskSchema } from "../../domain/inference/tasks";
-import type { DetectionTarget } from "./outcomes";
+import {
+  type Executor,
+  inTransaction,
+  snapshot,
+  transaction,
+} from "../infra/db/client";
+import { inferenceAttempts, inferenceTasks } from "../infra/db/schema";
+import { sessionIsCurrent } from "../workers/public";
 import { materializeInferenceDemand } from "./demand";
+import type { DetectionTarget } from "./outcomes";
 import { INFERENCE_MAX_ATTEMPTS, retryDelaySeconds } from "./policy";
 
 export type Task = typeof inferenceTasks.$inferSelect;

@@ -1,57 +1,57 @@
 import { parseDate } from "@internationalized/date";
 
 import {
+  type Exclusion,
+  unitExclusions,
+} from "../../domain/experiments/analysis";
+import type { ExperimentGrid, Unit } from "../../domain/experiments/contracts";
+import {
+  type ObservationOrdinals,
+  observationOrdinals,
+} from "../../domain/experiments/culture-events";
+import {
+  type ObservationCells,
+  observationCells,
+  unitDays,
+  unitReading,
+} from "../../domain/experiments/readings";
+import {
+  type CalendarDay,
+  type Experiment,
+  type ExperimentObservation,
+  formatFactor,
+  type Treatment,
+} from "../../domain/experiments/schema";
+import {
+  type ExperimentSummary,
+  experimentSummary,
+  type Statistic,
+  type SummaryMeasure,
+  summaryCell,
+  summaryMeasure,
+} from "../../domain/experiments/summary";
+import type { Model } from "../../domain/models/schema";
+import {
   blankCell,
+  type CellStyle,
   countCell,
   dateCell,
   decimalCell,
   ratioCell,
   sheetName,
   textCell,
-  workbookFilename,
-  type CellStyle,
   type Workbook,
   type WorkbookCell,
   type WorkbookSheet,
+  workbookFilename,
 } from "../../lib/spreadsheet/workbook";
-import {
-  unitExclusions,
-  type Exclusion,
-} from "../../domain/experiments/analysis";
-import type { ExperimentGrid, Unit } from "../../domain/experiments/contracts";
-import {
-  observationOrdinals,
-  type ObservationOrdinals,
-} from "../../domain/experiments/culture-events";
-import {
-  observationCells,
-  unitDays,
-  unitReading,
-  type ObservationCells,
-} from "../../domain/experiments/readings";
-import {
-  formatFactor,
-  type CalendarDay,
-  type Experiment,
-  type ExperimentObservation,
-  type Treatment,
-} from "../../domain/experiments/schema";
-import {
-  experimentSummary,
-  summaryCell,
-  summaryMeasure,
-  type ExperimentSummary,
-  type Statistic,
-  type SummaryMeasure,
-} from "../../domain/experiments/summary";
-import type { Model } from "../../domain/models/schema";
+import { m } from "../../paraglide/messages";
+import { formatDay } from "../../ui/Day";
 import {
   cultureEventLabel,
   observationQuestion,
   summaryMeasureLabel,
 } from "./labels";
-import { m } from "../../paraglide/messages";
-import { formatDay } from "../../ui/Day";
 
 export type ExperimentWorkbookSource = ExperimentGrid & {
   models: readonly Model[];

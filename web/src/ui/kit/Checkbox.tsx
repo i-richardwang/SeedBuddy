@@ -2,6 +2,7 @@ import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import { CheckboxGroup as BaseCheckboxGroup } from "@base-ui/react/checkbox-group";
 import { CheckIcon, MinusIcon } from "lucide-react";
 import { type ReactNode, useId } from "react";
+
 import { Text } from "./Text";
 
 /*

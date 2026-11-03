@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Search, SearchX } from "lucide-react";
 import type { ReactNode } from "react";
+
 import type { ExperimentOverview } from "../../domain/experiments/contracts";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";

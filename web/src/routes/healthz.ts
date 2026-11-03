@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { sql } from "drizzle-orm";
 
-import { database } from "../server/infra/db/client";
 import { SEED_DETECTOR_BASELINE_VERSION_ID } from "../domain/models/builtins";
 import { reachBlobStore } from "../server/infra/blobs/store";
+import { database } from "../server/infra/db/client";
 import { readModelVersion } from "../server/models/public";
 
 /**

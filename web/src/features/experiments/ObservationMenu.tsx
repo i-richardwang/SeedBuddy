@@ -19,13 +19,13 @@ import { m } from "../../paraglide/messages";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { TableHeadMenu } from "../../ui/kit/Table";
+import { Text } from "../../ui/kit/Text";
 import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { AddPhotosDialog } from "./AddPhotosDialog";
-import { EnterManualReadingsDialog } from "./ManualReadingsDialog";
 import { observationLabel } from "./labels";
+import { EnterManualReadingsDialog } from "./ManualReadingsDialog";
 import { EditObservationDialog } from "./ObservationDialog";
-import { Text } from "../../ui/kit/Text";
 
 type Action = "images" | "readings" | "dataset" | "edit";
 

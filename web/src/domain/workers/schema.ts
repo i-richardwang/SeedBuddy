@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { NamedDataset } from "../datasets/schema";
-import { timestampSchema, resourceIdSchema } from "../identifiers/schema";
+import { resourceIdSchema, timestampSchema } from "../identifiers/schema";
 import { runtimeDescriptorSchema } from "../inference/schema";
 
 const runtimesSchema = z

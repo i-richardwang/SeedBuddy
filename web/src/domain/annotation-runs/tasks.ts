@@ -1,14 +1,15 @@
-import { sha256Schema } from "../identifiers/schema";
-import { imageRegions } from "../images/regions";
-import type { ImageRegion } from "../images/geometry";
-import { AnnotationRunConflictError } from "./errors";
-import type { AnnotationContent, AnnotationDefinition } from "./schema";
+import { z } from "zod";
+
 import {
-  annotationSchema,
   type AnnotationInstance,
+  annotationSchema,
   type BoundingBox,
 } from "../annotation/schema";
-import { z } from "zod";
+import { sha256Schema } from "../identifiers/schema";
+import type { ImageRegion } from "../images/geometry";
+import { imageRegions } from "../images/regions";
+import { AnnotationRunConflictError } from "./errors";
+import type { AnnotationContent, AnnotationDefinition } from "./schema";
 
 const edge = z.number().min(0).max(1000);
 const box = z

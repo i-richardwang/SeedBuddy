@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
+
+import { businessFailureSchema } from "../domain/errors";
 import {
   ExperimentNotFoundError,
   ExperimentObservationImageAlreadyUsedError,
 } from "../domain/experiments/errors";
-import { businessFailureSchema } from "../domain/errors";
-import { errorMessage } from "../ui/errors";
 import { withRequestLocale } from "../server/transport/http/locale";
+import { errorMessage } from "../ui/errors";
 import { mapBusinessErrors } from "./errors";
 
 const handler = mapBusinessErrors.options.server!;

@@ -1,22 +1,22 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
+import type { Tally } from "../../domain/models/classes";
 import {
-  compareVersions,
   type ComparedImage,
   type ComparedReading,
+  compareVersions,
   type VersionComparisonDetail,
 } from "../../domain/models/comparison";
-import type { Tally } from "../../domain/models/classes";
-import { inSnapshot, type Executor } from "../infra/db/client";
+import { type Executor, inSnapshot } from "../infra/db/client";
 import {
   datasetImages,
   datasetSnapshotImages,
   datasetSnapshots,
   inferenceOutcomes,
   inferenceTasks,
-  modelVersions,
   models,
+  modelVersions,
 } from "../infra/db/schema";
 import { documentTally } from "../readings/public";
 

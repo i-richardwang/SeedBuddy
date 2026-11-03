@@ -1,23 +1,25 @@
 import { createHash } from "node:crypto";
-import { eq, lt, isNull, and } from "drizzle-orm";
+
+import { and, eq, isNull, lt } from "drizzle-orm";
+
 import {
-  modelBundleSchema,
   type ModelBundle,
+  modelBundleSchema,
 } from "../../domain/models/bundle";
 import {
   ModelNotFoundError,
-  ModelVersionNotFoundError,
   ModelPublicationError,
+  ModelVersionNotFoundError,
 } from "../../domain/models/errors";
 import {
-  modelVersionSchema,
   type ModelVersion,
+  modelVersionSchema,
 } from "../../domain/models/schema";
 import { canonicalJson } from "../../lib/json/canonical";
-import { database, transaction, type Executor } from "../infra/db/client";
+import { openBlob, putImmutableBlob, removeBlob } from "../infra/blobs/store";
+import { database, type Executor, transaction } from "../infra/db/client";
 import { modelUploads, modelVersions } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
-import { openBlob, putImmutableBlob, removeBlob } from "../infra/blobs/store";
 import { readModel, readModelVersion, registerModelVersion } from "./registry";
 
 const UPLOAD_LIFETIME = 24 * 60 * 60 * 1000;

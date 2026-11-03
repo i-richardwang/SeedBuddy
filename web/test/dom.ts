@@ -4,6 +4,7 @@
  * in its own process (see `isolated.ts`) because the globals are process-wide.
  */
 import assert from "node:assert/strict";
+
 import { type Element as DomElement, Window } from "happy-dom";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";

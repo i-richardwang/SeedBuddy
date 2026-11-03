@@ -1,11 +1,12 @@
 /** Isolated DOM harness for the shared dialog entry; the scenario to run is the first argument. */
-import { body, button, press, pressKey, render, unmount, waitFor } from "./dom";
 
 import assert from "node:assert/strict";
-import { useState, type ReactNode } from "react";
+
+import { type ReactNode, useState } from "react";
 
 import { m } from "../src/paraglide/messages";
 import { DialogSession, FormDialog } from "../src/ui/FormDialog";
+import { body, button, press, pressKey, render, unmount, waitFor } from "./dom";
 
 /** A count the reader raises; it shows whether state survived a reopening. */
 function Counter({ label }: { label: string }) {

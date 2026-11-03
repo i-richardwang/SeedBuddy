@@ -1,20 +1,20 @@
 import { z } from "zod";
 
 import {
-  entryKind,
   DATASET_ARCHIVE_LIMITS,
+  entryKind,
 } from "../../domain/datasets/archive-format";
+import {
+  type DatasetManifest,
+  datasetManifestSchema,
+  encodeDatasetManifest,
+  MAX_DATASET_MANIFEST_BYTES,
+} from "../../domain/datasets/manifest";
+import { type Dataset, datasetSchema } from "../../domain/datasets/schema";
+import { imageDigestSchema } from "../../domain/images/schema";
 import { readStoredZip } from "../../lib/archive/zip";
 import { parseHttpJson } from "../../lib/http/json";
-import { imageDigestSchema } from "../../domain/images/schema";
 import { m } from "../../paraglide/messages";
-import {
-  encodeDatasetManifest,
-  datasetManifestSchema,
-  MAX_DATASET_MANIFEST_BYTES,
-  type DatasetManifest,
-} from "../../domain/datasets/manifest";
-import { datasetSchema, type Dataset } from "../../domain/datasets/schema";
 
 /** Why an archive cannot be imported as it stands. */
 export class DatasetArchiveError extends Error {}

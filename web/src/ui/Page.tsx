@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { IconProps } from "./kit/Icon";
 import { PageHeader } from "./kit/PageHeader";
 import { PageHeaderSkeleton, PageSkeleton } from "./kit/PageSkeleton";
-import { PreviewLayout, type Preview } from "./kit/PreviewLayout";
+import { type Preview, PreviewLayout } from "./kit/PreviewLayout";
 import { SectionHeader } from "./kit/SectionHeader";
 import { Skeleton } from "./kit/Skeleton";
 import { ShellTrail } from "./shell/Shell";

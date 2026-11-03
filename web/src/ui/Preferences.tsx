@@ -3,14 +3,14 @@ import { Check, Globe, Monitor, Moon, Sun } from "lucide-react";
 import { m } from "../paraglide/messages";
 import {
   getLocale,
+  type Locale,
   locales,
   setLocale,
-  type Locale,
 } from "../paraglide/runtime";
 import {
+  type ColorScheme,
   setColorScheme,
   useColorScheme,
-  type ColorScheme,
 } from "./colorScheme";
 import { ActionIcon, type ActionIconProps } from "./kit/ActionIcon";
 import { Button } from "./kit/Button";

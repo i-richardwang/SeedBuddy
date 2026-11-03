@@ -1,9 +1,9 @@
 import type { DetectionResult } from "../detection/schema";
 import {
-  newInstanceId,
-  type BoundingBox,
   type AnnotationInstance,
+  type BoundingBox,
   type ImageSize,
+  newInstanceId,
 } from "./schema";
 
 /**

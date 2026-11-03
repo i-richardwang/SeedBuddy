@@ -1,4 +1,4 @@
-import { businessFailureSchema, type BusinessFailure } from "../domain/errors";
+import { type BusinessFailure, businessFailureSchema } from "../domain/errors";
 import { imageAlreadyUsedDetailsSchema } from "../domain/experiments/errors";
 import { m } from "../paraglide/messages";
 import { formatDay } from "./Day";

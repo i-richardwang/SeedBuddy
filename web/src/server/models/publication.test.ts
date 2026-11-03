@@ -1,23 +1,24 @@
 import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import {
-  prepareModelUpload,
-  uploadModelWeights,
-  importModelUpload,
-  openModelWeights,
-  collectUnreferencedModelWeights,
-} from "./publication";
-import {
-  readCurrentVersionId,
-  createModel,
-  setCurrentVersion,
-} from "./registry";
+
+import type { ModelBundle } from "../../domain/models/bundle";
+import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
+import { blobExists } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { modelUploads } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
-import { blobExists } from "../infra/blobs/store";
-import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import type { ModelBundle } from "../../domain/models/bundle";
+import {
+  collectUnreferencedModelWeights,
+  importModelUpload,
+  openModelWeights,
+  prepareModelUpload,
+  uploadModelWeights,
+} from "./publication";
+import {
+  createModel,
+  readCurrentVersionId,
+  setCurrentVersion,
+} from "./registry";
 
 const weights = new TextEncoder().encode("already-trained-weights");
 function bundle(): ModelBundle {

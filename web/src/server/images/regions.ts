@@ -1,21 +1,22 @@
 import sharp from "sharp";
-import { imageOverview, imageRegions } from "../../domain/images/regions";
+
+import { MAX_SOURCE_IMAGE_PIXELS } from "../../domain/images/canonical";
+import type { ImageCoverage } from "../../domain/images/coverage";
 import type {
   ImageFrame,
-  ImageRegionLayout,
   ImageRectangle,
+  ImageRegionLayout,
 } from "../../domain/images/geometry";
-import type { ImageCoverage } from "../../domain/images/coverage";
-import { MAX_SOURCE_IMAGE_PIXELS } from "../../domain/images/canonical";
+import { imageOverview, imageRegions } from "../../domain/images/regions";
 import { createSingleFlight } from "../../lib/async/work";
 import { ByteCache } from "../../lib/cache/bytes";
 import { canonicalJson } from "../../lib/json/canonical";
-import { contentDigest } from "../infra/digest";
 import {
-  readBlob,
-  putImmutableBlob,
   type BlobStore,
+  putImmutableBlob,
+  readBlob,
 } from "../infra/blobs/store";
+import { contentDigest } from "../infra/digest";
 import { imageBlobKey, imageRegionsPrefix } from "./keys";
 import { processImage } from "./processing";
 

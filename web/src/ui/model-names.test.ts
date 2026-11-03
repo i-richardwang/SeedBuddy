@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { modelName, classLabel } from "./model-names";
+
 import { m } from "../paraglide/messages";
+import { classLabel, modelName } from "./model-names";
 
 test("user identifiers remain names even when Object has a property by that name", () => {
   for (const id of ["constructor", "toString", "hasOwnProperty", "__proto__"]) {

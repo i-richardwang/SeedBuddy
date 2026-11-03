@@ -1,8 +1,10 @@
 import { Worker } from "node:worker_threads";
+
 import { z } from "zod";
+
 import {
-  dishCircleSchema,
   type DishCircle,
+  dishCircleSchema,
 } from "../../domain/images/coverage";
 import { createWorkGate } from "../../lib/async/work";
 import type { DishRequest } from "./dish-recipe";

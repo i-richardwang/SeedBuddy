@@ -1,24 +1,17 @@
-import type { InferenceFailure } from "../../../domain/inference/tasks";
-import type { ModelBundle } from "../../../domain/models/bundle";
-import type { DishAnalysis } from "../../../domain/images/coverage";
-import type {
-  Region,
-  RegionProposal,
-} from "../../../domain/annotation-runs/tasks";
 import { sql } from "drizzle-orm";
 import {
-  check,
-  foreignKey,
   type AnyPgColumn,
   bigint,
   boolean,
+  check,
+  date,
+  doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
   pgTable,
   primaryKey,
-  date,
-  doublePrecision,
   real,
   text,
   timestamp,
@@ -33,14 +26,21 @@ import {
   type AnnotationContent,
   type AnnotationDefinition,
 } from "../../../domain/annotation-runs/schema";
+import type {
+  Region,
+  RegionProposal,
+} from "../../../domain/annotation-runs/tasks";
 import { USER_ROLES } from "../../../domain/auth/schema";
+import type { DetectionResult } from "../../../domain/detection/schema";
 import {
   CULTURE_EVENT_TYPES,
   type TreatmentFactor,
 } from "../../../domain/experiments/schema";
-import type { DetectionResult } from "../../../domain/detection/schema";
-import type { Tally } from "../../../domain/models/classes";
+import type { DishAnalysis } from "../../../domain/images/coverage";
 import type { RuntimeDescriptor } from "../../../domain/inference/schema";
+import type { InferenceFailure } from "../../../domain/inference/tasks";
+import type { ModelBundle } from "../../../domain/models/bundle";
+import type { Tally } from "../../../domain/models/classes";
 import type {
   ModelAnnotation,
   ModelArtifact,
@@ -48,11 +48,11 @@ import type {
 } from "../../../domain/models/schema";
 import {
   IMAGE_SPLITS,
-  TRAINING_PHASES,
   TRAINING_ATTEMPT_OUTCOMES,
+  TRAINING_PHASES,
   TRAINING_RUN_STATUSES,
-  type TrainingRecipe,
   type TrainingCheckpoint,
+  type TrainingRecipe,
 } from "../../../domain/training/schema";
 
 /**

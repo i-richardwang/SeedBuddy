@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+
 import { expect, test } from "bun:test";
 
 import {
-  datasetManifestSchema,
   DatasetManifestTooLargeError,
+  datasetManifestSchema,
   encodeDatasetManifest,
   MAX_DATASET_MANIFEST_BYTES,
 } from "./manifest";

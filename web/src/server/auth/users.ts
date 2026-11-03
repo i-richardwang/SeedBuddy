@@ -2,11 +2,11 @@ import { eq } from "drizzle-orm";
 
 import { UserNotFoundError, UserRejectedError } from "../../domain/auth/errors";
 import {
-  userAccountSchema,
-  workbenchUserSchema,
   type UserAccount,
   type UserRole,
+  userAccountSchema,
   type WorkbenchUser,
+  workbenchUserSchema,
 } from "../../domain/auth/schema";
 import { database } from "../infra/db/client";
 import { users } from "../infra/db/schema";

@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 
+import { Route as DiscoveryRoute } from "../../src/routes/[.]well-known.$";
 import { Route as AnnotationRoute } from "../../src/routes/api.annotation.mcp";
 import { Route as ExperimentsRoute } from "../../src/routes/api.experiments.mcp";
-import { Route as DiscoveryRoute } from "../../src/routes/[.]well-known.$";
-import { authorizeMcpClient, signInAs } from "../../src/server/testing/auth";
 import {
   disconnectMcpClient,
   listMcpClients,
 } from "../../src/server/auth/mcp-clients";
+import { authorizeMcpClient, signInAs } from "../../src/server/testing/auth";
 
 type HttpHandler = (context: { request: Request }) => Promise<Response>;
 

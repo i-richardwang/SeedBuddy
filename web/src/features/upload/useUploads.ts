@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { errorMessage } from "../../ui/errors";
-
 import { storeImage } from "./client";
 import type { ListedImage } from "./state";
 

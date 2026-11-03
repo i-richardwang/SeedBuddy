@@ -1,4 +1,4 @@
-import { sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { type AnyColumn, type SQL, sql } from "drizzle-orm";
 
 import type { Tally } from "../../domain/models/classes";
 

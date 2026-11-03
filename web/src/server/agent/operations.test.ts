@@ -13,8 +13,6 @@ import type {
   SheetCell,
   UnitRow,
 } from "../../domain/experiments/sheet";
-import { type AgentCallResult, executeAgentOperation } from "./execution";
-import { agentOperations, describeAgentOperations } from "./operations";
 import { storeAnnotation } from "../annotations/documents";
 import { createModel } from "../models/public";
 import {
@@ -23,6 +21,8 @@ import {
   observeImagesForModel,
   storeTexts,
 } from "../testing/fixtures";
+import { type AgentCallResult, executeAgentOperation } from "./execution";
+import { agentOperations, describeAgentOperations } from "./operations";
 
 function output(result: AgentCallResult): unknown {
   if (!result.ok) throw new Error(`Operation failed: ${result.message}`);

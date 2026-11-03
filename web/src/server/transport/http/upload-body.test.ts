@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
-import { exactLengthBody } from "./upload-body";
+
 import { handleImageUpload } from "./image-upload";
+import { exactLengthBody } from "./upload-body";
 
 function request(body?: string, length?: string): Request {
   return new Request("http://workbench/upload", {

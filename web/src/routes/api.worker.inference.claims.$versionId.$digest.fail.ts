@@ -1,7 +1,8 @@
-import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
+
 import { inferenceTargetSchema } from "../domain/inference/assignments";
 import { inferenceFailureSchema } from "../domain/inference/tasks";
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { failInferenceAttempt } from "../server/inference/public";
 import {
   parseWorkerSessionJson,

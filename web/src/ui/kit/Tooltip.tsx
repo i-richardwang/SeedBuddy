@@ -10,6 +10,7 @@ import {
   useEffect,
   useState,
 } from "react";
+
 import { defaultPortalContainer, triggerRender } from "./floating";
 import { Hotkey } from "./Hotkey";
 import {

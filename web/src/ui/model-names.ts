@@ -1,5 +1,5 @@
-import { m } from "../paraglide/messages";
 import type { Model } from "../domain/models/schema";
+import { m } from "../paraglide/messages";
 import { formatList } from "./lists";
 
 /**

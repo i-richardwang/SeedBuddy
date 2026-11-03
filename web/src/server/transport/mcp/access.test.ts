@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
-import { guardMcpRequest, serveAuthorized } from "./access";
-import { serveAnnotationMcp } from "./annotation";
-import { serveExperimentsMcp } from "./experiments";
-import { authorizeMcpClient, signInAs } from "../../testing/auth";
-import { createDpopKey } from "../../testing/dpop";
-import { modernRequest, requestEras } from "../../testing/mcp";
 import { issueApiKey, revokeApiKey } from "../../auth/api-keys";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
 import { banUser } from "../../auth/users";
+import { authorizeMcpClient, signInAs } from "../../testing/auth";
+import { createDpopKey } from "../../testing/dpop";
+import { modernRequest, requestEras } from "../../testing/mcp";
+import { guardMcpRequest, serveAuthorized } from "./access";
+import { serveAnnotationMcp } from "./annotation";
+import { serveExperimentsMcp } from "./experiments";
 
 describe("MCP request guard", () => {
   const request = (hostname: string, origin?: string): Request =>

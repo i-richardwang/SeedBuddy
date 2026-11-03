@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
+
+import { listBlobs, removeBlob } from "../infra/blobs/store";
 import { transaction } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";
-import { listBlobs, removeBlob } from "../infra/blobs/store";
 import { parseArtifactPartKey } from "./keys";
 
 /** Final-model parts live only while their execution attempt has a live lease. */

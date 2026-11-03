@@ -1,7 +1,7 @@
-import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { failTrainingRun } from "../server/training/public";
 import {
   parseWorkerSessionJson,

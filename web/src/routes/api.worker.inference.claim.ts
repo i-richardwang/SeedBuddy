@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { workerSessionSchema } from "../domain/workers/schema";
 import { claimInferenceAssignment } from "../server/inference/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { workerSessionSchema } from "../domain/workers/schema";
 
 export const Route = createFileRoute("/api/worker/inference/claim")({
   server: {

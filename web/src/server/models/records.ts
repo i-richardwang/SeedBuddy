@@ -11,8 +11,8 @@ import {
   annotations,
   datasets,
   experimentObservations,
-  modelVersions,
   modelUploads,
+  modelVersions,
   trainingRuns,
 } from "../infra/db/schema";
 

@@ -7,20 +7,20 @@ import { Lock, Mail } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
-import { AuthPage } from "../features/account/AuthPage";
-import { authClient, continuation } from "../features/account/client";
 import {
   carriesAuthorizationRequest,
   returnPath,
 } from "../domain/auth/navigation";
+import { AuthPage } from "../features/account/AuthPage";
+import { authClient, continuation } from "../features/account/client";
+import { m } from "../paraglide/messages";
+import { readSession, redirect } from "../server/transport/http/session";
+import { documentTitle } from "../ui/documentTitle";
 import { useAsyncAction } from "../ui/hooks/useAsyncAction";
 import { Button } from "../ui/kit/Button";
 import { Form } from "../ui/kit/Form";
 import { Icon } from "../ui/kit/Icon";
 import { Input, InputPassword } from "../ui/kit/Input";
-import { documentTitle } from "../ui/documentTitle";
-import { m } from "../paraglide/messages";
-import { readSession, redirect } from "../server/transport/http/session";
 import { Text } from "../ui/kit/Text";
 
 /**

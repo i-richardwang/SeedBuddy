@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+
 import { createSingleFlight, createWorkGate } from "./work";
 
 test("admission is FIFO and a failure releases capacity", async () => {

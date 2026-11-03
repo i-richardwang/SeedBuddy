@@ -1,7 +1,7 @@
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
-import { Outlet, createFileRoute } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { SignedInUser } from "../features/account/SignedInUser";
 import { getExperimentNames } from "../functions/experiments";
@@ -9,8 +9,8 @@ import { getSession } from "../functions/session";
 import { m } from "../paraglide/messages";
 import { errorMessage } from "../ui/errors";
 import { useRefreshOnReturn } from "../ui/hooks/useRouteRefresh";
-import { Shell } from "../ui/shell/Shell";
 import { RouteNotice } from "../ui/RouteNotice";
+import { Shell } from "../ui/shell/Shell";
 
 /** Remember which of the shell's side panels are folded. The server reads them so the first frame matches. */
 const NAV_COOKIE = "vitroflow_nav";

@@ -1,5 +1,6 @@
-import { timestampSchema } from "../identifiers/schema";
 import { z } from "zod";
+
+import { timestampSchema } from "../identifiers/schema";
 import { inferenceTargetSchema } from "./assignments";
 
 export const inferenceFailureSchema = z.strictObject({

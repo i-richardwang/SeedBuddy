@@ -5,8 +5,8 @@ import {
   isNull,
   notExists,
   or,
-  sql,
   type SQLWrapper,
+  sql,
 } from "drizzle-orm";
 
 import type { AnnotationRef } from "../../domain/annotation/schema";

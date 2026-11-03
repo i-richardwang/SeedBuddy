@@ -3,7 +3,7 @@ import { z } from "zod";
 import nanoManifest from "../../../../configs/yolo26/yolo26n-whole-v1.recipe.json";
 import smallManifest from "../../../../configs/yolo26/yolo26s-whole-2048-v1.recipe.json";
 import { trainingOverridesSchema } from "./parameters";
-import { trainingRecipeSchema, type TrainingRecipe } from "./schema";
+import { type TrainingRecipe, trainingRecipeSchema } from "./schema";
 
 const recipeManifestSchema = z.strictObject({
   schemaVersion: z.literal(1),

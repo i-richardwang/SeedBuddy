@@ -1,5 +1,3 @@
-import { authClient } from "./client";
-import { PasswordField } from "../users/PasswordField";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -8,6 +6,8 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { toast } from "../../ui/kit/Toast";
+import { PasswordField } from "../users/PasswordField";
+import { authClient } from "./client";
 
 const FORM_ID = "change-password";
 

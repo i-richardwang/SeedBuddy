@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 
 import {
   DEFAULT_TRAINING_PRESET_ID,
-  TRAINING_PRESETS,
   resolveTrainingRecipe,
+  TRAINING_PRESETS,
 } from "./recipes";
 
 test("presets resolve independent recipes with explicit accumulation settings", () => {

@@ -2,12 +2,9 @@ import { useRouter } from "@tanstack/react-router";
 import { KeyRound, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { API_SCOPE_LABELS } from "./labels";
-import { NewApiKeyDialog } from "./NewApiKeyDialog";
 import type { ApiKey } from "../../domain/auth/integrations";
 import { removeApiKey } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
-import { Timestamp } from "../../ui/Timestamp";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
@@ -23,8 +20,11 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { Tag } from "../../ui/kit/Tag";
-import { toast } from "../../ui/kit/Toast";
 import { Text } from "../../ui/kit/Text";
+import { toast } from "../../ui/kit/Toast";
+import { Timestamp } from "../../ui/Timestamp";
+import { API_SCOPE_LABELS } from "./labels";
+import { NewApiKeyDialog } from "./NewApiKeyDialog";
 
 /** The reader's API keys, and the one place a new key is created. */
 export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {

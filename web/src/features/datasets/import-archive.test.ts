@@ -1,12 +1,12 @@
 import { expect, spyOn, test } from "bun:test";
 
-import { storedZip, type ArchiveEntry } from "../../lib/archive/zip";
 import {
   blobEntryName,
   manifestEntryName,
 } from "../../domain/datasets/archive-format";
-import { DatasetArchiveError, importDatasetArchive } from "./import-archive";
 import type { DatasetManifest } from "../../domain/datasets/manifest";
+import { type ArchiveEntry, storedZip } from "../../lib/archive/zip";
+import { DatasetArchiveError, importDatasetArchive } from "./import-archive";
 
 const DIGEST = "a".repeat(64);
 

@@ -1,6 +1,7 @@
 import { Menu } from "@base-ui/react/menu";
 import type { LucideIcon } from "lucide-react";
 import type { Key, ReactElement } from "react";
+
 import { cn } from "./cn";
 import { defaultPortalContainer, triggerRender } from "./floating";
 import { Icon } from "./Icon";

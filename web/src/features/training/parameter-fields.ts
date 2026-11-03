@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import {
-  trainingOverridesSchema,
-  type TrainingParameters,
   type TrainingOverrides,
+  type TrainingParameters,
+  trainingOverridesSchema,
 } from "../../domain/training/parameters";
 import { m } from "../../paraglide/messages";
 

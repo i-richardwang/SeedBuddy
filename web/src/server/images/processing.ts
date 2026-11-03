@@ -1,4 +1,5 @@
 import sharp from "sharp";
+
 import { createWorkGate } from "../../lib/async/work";
 
 sharp.concurrency(2);

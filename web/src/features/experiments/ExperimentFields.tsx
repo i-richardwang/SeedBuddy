@@ -1,8 +1,8 @@
 import type { CalendarDay, Experiment } from "../../domain/experiments/schema";
+import { m } from "../../paraglide/messages";
 import { Form } from "../../ui/kit/Form";
 import { Input, TextArea } from "../../ui/kit/Input";
 import { Switch } from "../../ui/kit/Switch";
-import { m } from "../../paraglide/messages";
 import { DayField } from "./DayField";
 
 type NotebookPage = Pick<

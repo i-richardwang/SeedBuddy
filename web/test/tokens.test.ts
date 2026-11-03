@@ -4,8 +4,10 @@
  * every variable read is declared, every color has its dark value, and token
  * names are written in full.
  */
-import { describe, expect, test } from "bun:test";
+
 import { readFileSync } from "node:fs";
+
+import { describe, expect, test } from "bun:test";
 
 const WEB_DIR = `${import.meta.dir}/..`;
 const THEME = "src/styles/app.css";

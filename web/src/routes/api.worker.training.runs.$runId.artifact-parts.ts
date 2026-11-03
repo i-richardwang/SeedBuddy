@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+
 import { sha256Schema } from "../domain/identifiers/schema";
 import { artifactPartSize } from "../domain/training/artifact";
 import { saveTrainingArtifactPart } from "../server/training/public";
@@ -7,8 +8,8 @@ import {
   parseArtifactQuery,
   parseTrainingQuery,
   parseWorkerValue,
-  workerErrorResponse,
   WorkerRequestError,
+  workerErrorResponse,
 } from "../server/transport/http/worker";
 
 /** Receives one immutable part of an artifact upload. */

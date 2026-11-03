@@ -1,10 +1,19 @@
 export {
+  collectUnreferencedModelWeights,
+  importModelUpload,
+  openModelWeights,
+  prepareModelUpload,
+  registerUploadedModel,
+  uploadModelWeights,
+} from "./publication";
+export { modelRecordCounts, toModelRecords } from "./records";
+export {
   createModel,
   deleteModel,
   installBuiltinModels,
   listAllModelVersions,
-  listModelVersions,
   listModels,
+  listModelVersions,
   readCurrentVersionId,
   readModel,
   readModelVersion,
@@ -13,12 +22,3 @@ export {
   toModel,
   toModelVersion,
 } from "./registry";
-export { modelRecordCounts, toModelRecords } from "./records";
-export {
-  prepareModelUpload,
-  uploadModelWeights,
-  registerUploadedModel,
-  importModelUpload,
-  openModelWeights,
-  collectUnreferencedModelWeights,
-} from "./publication";

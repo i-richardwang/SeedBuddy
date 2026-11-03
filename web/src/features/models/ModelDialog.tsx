@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import type { ModelAnnotation } from "../../domain/models/schema";
 import { addModel } from "../../functions/models";
+import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -10,7 +11,6 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input, TextArea } from "../../ui/kit/Input";
-import { m } from "../../paraglide/messages";
 import { AnnotationAreaField } from "./AnnotationAreaField";
 
 const FORM_ID = "model";

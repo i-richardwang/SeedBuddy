@@ -2,8 +2,8 @@ import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
-  treatmentNameSchema,
   type Treatment,
+  treatmentNameSchema,
 } from "../../domain/experiments/schema";
 import {
   createReplicates,
@@ -13,8 +13,8 @@ import {
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";

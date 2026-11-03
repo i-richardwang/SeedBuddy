@@ -1,6 +1,7 @@
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import { CircleCheck, CircleX, type LucideIcon, X } from "lucide-react";
 import type { ReactNode } from "react";
+
 import { m } from "../../paraglide/messages";
 import { cn } from "./cn";
 import { defaultPortalContainer } from "./floating";

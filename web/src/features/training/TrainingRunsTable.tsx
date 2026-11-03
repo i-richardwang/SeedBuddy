@@ -1,8 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { m } from "../../paraglide/messages";
 import type { TrainingRunListing } from "../../domain/training/read-model";
+import { m } from "../../paraglide/messages";
+import { Absent } from "../../ui/Absent";
+import { IdentifierName } from "../../ui/IdentifierName";
+import { Progress } from "../../ui/kit/Progress";
 import {
   Table,
   TableBody,
@@ -12,10 +15,7 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
-import { Progress } from "../../ui/kit/Progress";
 import { Tooltip } from "../../ui/kit/Tooltip";
-import { Absent } from "../../ui/Absent";
-import { IdentifierName } from "../../ui/IdentifierName";
 import { Metric } from "../../ui/Metric";
 import { TrainingRunState } from "./TrainingRunState";
 

@@ -2,18 +2,13 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import { inTransaction, type Executor } from "../infra/db/client";
-import {
-  experimentCultureEvents,
-  experimentManualReadings,
-  experimentObservationImages,
-} from "../infra/db/schema";
+import type { Unit } from "../../domain/experiments/contracts";
 import {
   cultureEventIsTerminal,
+  type ObservationOrdinals,
   observationOrdinal,
   observationOrdinals,
   unitIsAvailableAt,
-  type ObservationOrdinals,
 } from "../../domain/experiments/culture-events";
 import {
   CultureEventNotFoundError,
@@ -21,14 +16,19 @@ import {
   UnitNotFoundError,
   UnitRejectedError,
 } from "../../domain/experiments/errors";
-import type { Unit } from "../../domain/experiments/contracts";
 import type {
-  ExperimentObservation,
   CultureEvent,
   CultureEventRef,
   CultureEventRequest,
   CultureEventsRequest,
+  ExperimentObservation,
 } from "../../domain/experiments/schema";
+import { type Executor, inTransaction } from "../infra/db/client";
+import {
+  experimentCultureEvents,
+  experimentManualReadings,
+  experimentObservationImages,
+} from "../infra/db/schema";
 import { listObservations, listUnits, lockExperiment } from "./records";
 
 export async function recordCultureEvent(

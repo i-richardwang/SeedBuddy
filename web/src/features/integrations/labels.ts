@@ -1,5 +1,5 @@
-import { m } from "../../paraglide/messages";
 import type { ApiScope, McpServerName } from "../../domain/auth/integrations";
+import { m } from "../../paraglide/messages";
 
 export const API_SCOPE_LABELS: Record<ApiScope, () => string> = {
   experiments: m.api_key_scope_experiments,

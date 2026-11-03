@@ -1,34 +1,34 @@
-import { shownDetectingVersion } from "../inference/public";
-import { readingsJoin } from "../readings/public";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 
-import { database, type Executor } from "../infra/db/client";
-import {
-  datasetImages,
-  datasets,
-  images,
-  inferenceOutcomes,
-  annotations,
-} from "../infra/db/schema";
+import type { AnnotationDocument } from "../../domain/annotation/schema";
 import type {
   DatasetContents,
   DatasetImageRef,
   DatasetSummary,
 } from "../../domain/datasets/schema";
-import type { AnnotationDocument } from "../../domain/annotation/schema";
-import { markedUnclear } from "../images/public";
 import type {
   DetectionQuality,
   DetectionResult,
 } from "../../domain/detection/schema";
+import { markedUnclear } from "../images/public";
+import { shownDetectingVersion } from "../inference/public";
+import { database, type Executor } from "../infra/db/client";
 import {
+  annotations,
+  datasetImages,
+  datasets,
+  images,
+  inferenceOutcomes,
+} from "../infra/db/schema";
+import { readingsJoin } from "../readings/public";
+import {
+  type DatasetImage,
   listDatasets,
   listDatasetsForModel,
+  type MembershipRow,
   membershipOrder,
   readDataset,
   toDatasetImage,
-  type DatasetImage,
-  type MembershipRow,
 } from "./memberships";
 
 export interface ImageSummary extends DatasetImageRef {

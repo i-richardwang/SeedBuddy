@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
+import { agentOperations } from "../../agent/operations";
+import { issueApiKey } from "../../auth/api-keys";
+import { apiKeyHeaders, signInAs } from "../../testing/auth";
 import {
   handleAgentInterface,
   handleAgentOperationCall,
   serveAgentInterface,
   serveAgentOperationCall,
 } from "./agent";
-import { agentOperations } from "../../agent/operations";
-import { issueApiKey } from "../../auth/api-keys";
-import { apiKeyHeaders, signInAs } from "../../testing/auth";
 
 function post(body?: string): Request {
   return new Request("http://workbench/api/agent/op", {

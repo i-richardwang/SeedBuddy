@@ -2,17 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
 
-import { inTransaction, type Executor } from "../infra/db/client";
-import { refusingUnique } from "../infra/db/errors";
-import {
-  experimentCultureEvents,
-  experimentManualReadings,
-  experimentObservationImages,
-  experimentObservations,
-  experimentTreatments,
-  experimentUnits,
-  experiments,
-} from "../infra/db/schema";
 import type { Unit } from "../../domain/experiments/contracts";
 import {
   ExperimentHasRecordsError,
@@ -40,6 +29,17 @@ import type {
   UnitsTreatmentUpdate,
   UnitUpdate,
 } from "../../domain/experiments/schema";
+import { type Executor, inTransaction } from "../infra/db/client";
+import { refusingUnique } from "../infra/db/errors";
+import {
+  experimentCultureEvents,
+  experimentManualReadings,
+  experimentObservationImages,
+  experimentObservations,
+  experiments,
+  experimentTreatments,
+  experimentUnits,
+} from "../infra/db/schema";
 import {
   atTreatment,
   atUnit,

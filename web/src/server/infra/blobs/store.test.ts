@@ -1,11 +1,12 @@
-import { expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 
+import { expect, test } from "bun:test";
+
 import {
+  type BlobStore,
   createMemoryBlobStore,
   createS3BlobStore,
   ImmutableBlobConflictError,
-  type BlobStore,
 } from "./store";
 
 async function contents(stream: ReadableStream<Uint8Array>): Promise<string> {

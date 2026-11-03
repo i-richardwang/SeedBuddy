@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { auth } from "./service";
+import { sessionHeaders, signInAs, TEST_PASSWORD } from "../testing/auth";
 import { readSession } from "../transport/http/session";
-import { TEST_PASSWORD, sessionHeaders, signInAs } from "../testing/auth";
+import { auth } from "./service";
 
 describe("personal account", () => {
   test("a user changes their own password and revokes other sessions", async () => {

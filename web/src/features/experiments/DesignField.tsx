@@ -1,16 +1,16 @@
 import { Plus, X } from "lucide-react";
 import { Fragment } from "react";
 
-import type { TreatmentDesignInput } from "../../domain/experiments/schema";
 import { replicateCodes } from "../../domain/experiments/naming";
+import type { TreatmentDesignInput } from "../../domain/experiments/schema";
+import { m } from "../../paraglide/messages";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
-import { m } from "../../paraglide/messages";
+import { Text } from "../../ui/kit/Text";
 import { DEFAULT_REPLICATES, ReplicatesInput } from "./ReplicatesField";
 import { TreatmentDot } from "./TreatmentDot";
-import { Text } from "../../ui/kit/Text";
 
 /** A treatment being designed; `id` keeps its inputs with it when rows are removed. */
 export type DesignRow = { id: number; name: string; replicates: number };

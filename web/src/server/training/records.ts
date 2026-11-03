@@ -1,6 +1,6 @@
 import {
-  trainingRunSchema,
   type TrainingRun,
+  trainingRunSchema,
 } from "../../domain/training/schema";
 import type { trainingRuns } from "../infra/db/schema";
 

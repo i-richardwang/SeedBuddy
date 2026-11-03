@@ -1,17 +1,17 @@
-import { WorkerSessionConflictError } from "../../domain/workers/errors";
-import { and, desc, eq, gt, lt, or, sql, type SQLWrapper } from "drizzle-orm";
+import { and, desc, eq, gt, lt, or, type SQLWrapper, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
-import { database, type Executor } from "../infra/db/client";
-import { workerSessions } from "../infra/db/schema";
+import { WorkerSessionConflictError } from "../../domain/workers/errors";
+import { workerPresence } from "../../domain/workers/presence";
 import {
   canTrain,
-  workerSchema,
   type Worker,
   type WorkerHeartbeat,
   type WorkerIdentity,
+  workerSchema,
 } from "../../domain/workers/schema";
-import { workerPresence } from "../../domain/workers/presence";
+import { database, type Executor } from "../infra/db/client";
+import { workerSessions } from "../infra/db/schema";
 
 function toWorker(row: typeof workerSessions.$inferSelect): Worker {
   return workerSchema.parse({

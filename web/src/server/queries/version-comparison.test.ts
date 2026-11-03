@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
 
 import { setCurrentVersion } from "../models/public";
-import { seedDetectionResult } from "../testing/inference";
 import {
   countedResult,
   registerTrainedVersion,
@@ -10,6 +9,7 @@ import {
   traditionalVersion,
   ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
+import { seedDetectionResult } from "../testing/inference";
 import { modelOverview } from "./model-overview";
 import { versionComparison } from "./version-comparison";
 

@@ -1,16 +1,16 @@
 import { and, eq } from "drizzle-orm";
 
 import {
-  annotationSchema,
   type AnnotationDocument,
   type AnnotationInstance,
   type AnnotationRef,
+  annotationSchema,
 } from "../../domain/annotation/schema";
-import { database, transaction, type Executor } from "../infra/db/client";
-import { annotations, images } from "../infra/db/schema";
-import { canonicalJson } from "../../lib/json/canonical";
 import { assertInstanceClasses } from "../../domain/models/classes";
+import { canonicalJson } from "../../lib/json/canonical";
 import { lockImage } from "../images/public";
+import { database, type Executor, transaction } from "../infra/db/client";
+import { annotations, images } from "../infra/db/schema";
 import { readModel } from "../models/public";
 
 export class AnnotationConflictError extends Error {

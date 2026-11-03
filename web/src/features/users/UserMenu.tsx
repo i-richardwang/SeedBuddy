@@ -11,6 +11,7 @@ import {
   suspendUser,
 } from "../../functions/users";
 import { m } from "../../paraglide/messages";
+import { RowMenu } from "../../ui/ActionsMenu";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -19,7 +20,6 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { toast } from "../../ui/kit/Toast";
-import { RowMenu } from "../../ui/ActionsMenu";
 import { PasswordField } from "./PasswordField";
 
 /** Everything an administrator does to another account, in one row menu. */

@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
-import { API_KEY_PREFIX } from "../../domain/auth/integrations";
 import { ApiKeyNotFoundError } from "../../domain/auth/errors";
+import { API_KEY_PREFIX } from "../../domain/auth/integrations";
+import { apiKeyHeaders, signInAs } from "../testing/auth";
 import {
   authorizeApiKey,
   issueApiKey,
   listApiKeys,
   revokeApiKey,
 } from "./api-keys";
-import { apiKeyHeaders, signInAs } from "../testing/auth";
 import { banUser } from "./users";
 
 function requestWith(secret: string | null): Request {

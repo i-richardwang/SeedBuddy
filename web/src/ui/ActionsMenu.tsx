@@ -2,7 +2,7 @@ import { Ellipsis } from "lucide-react";
 
 import { ActionIcon } from "./kit/ActionIcon";
 import { Button } from "./kit/Button";
-import { DropdownMenu, type DropdownItem } from "./kit/DropdownMenu";
+import { type DropdownItem, DropdownMenu } from "./kit/DropdownMenu";
 
 type ActionsMenuProps = {
   /** Names the trigger, e.g. "Actions for A1". */

@@ -3,20 +3,20 @@ import { useState } from "react";
 import type { Unit } from "../../domain/experiments/contracts";
 import { pairInOrder, suggestUnit } from "../../domain/experiments/naming";
 import {
-  photoConflicts,
   type PhotoConflict,
   type PlacedPhoto,
+  photoConflicts,
 } from "../../domain/experiments/photos";
 import type { UnitPhoto } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
+import { formatDay } from "../../ui/Day";
 import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
 import { Select } from "../../ui/kit/Select";
 import { Tag } from "../../ui/kit/Tag";
-import { formatDay } from "../../ui/Day";
 import { ImageDropZone } from "../upload/ImageDropZone";
 import type { ListedImage } from "../upload/state";
-import { useUploads, type Uploads } from "../upload/useUploads";
+import { type Uploads, useUploads } from "../upload/useUploads";
 
 /** Photographs being uploaded for one observation day and matched to its units. */
 export interface ObservationPhotos {

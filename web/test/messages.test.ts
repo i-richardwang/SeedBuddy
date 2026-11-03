@@ -1,5 +1,6 @@
-import { expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
+
+import { expect, test } from "bun:test";
 
 const WEB_DIR = `${import.meta.dir}/..`;
 const MESSAGES_DIR = `${WEB_DIR}/messages`;

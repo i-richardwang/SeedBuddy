@@ -6,11 +6,11 @@ import type {
   Treatment,
 } from "../../domain/experiments/schema";
 import {
-  summaryCell,
-  summaryMeasure,
   type ExperimentSummary,
   type Statistic,
   type SummaryMeasure,
+  summaryCell,
+  summaryMeasure,
   type TreatmentDaySummary,
 } from "../../domain/experiments/summary";
 import { m } from "../../paraglide/messages";

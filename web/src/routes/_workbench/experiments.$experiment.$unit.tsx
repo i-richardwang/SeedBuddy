@@ -2,19 +2,19 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { REVIEW_SOURCES } from "../../domain/annotation/schema";
+import type { UnitSeries } from "../../domain/experiments/contracts";
+import {
+  observationIdSchema,
+  unitRefSchema,
+} from "../../domain/experiments/schema";
 import {
   UnitWorkbench,
   UnitWorkbenchSkeleton,
 } from "../../features/experiments/UnitWorkbench";
-import {
-  unitRefSchema,
-  observationIdSchema,
-} from "../../domain/experiments/schema";
 import { getUnit } from "../../functions/experiments";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
-import { documentTitle } from "../../ui/documentTitle";
 import { m } from "../../paraglide/messages";
-import type { UnitSeries } from "../../domain/experiments/contracts";
+import { documentTitle } from "../../ui/documentTitle";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 
 /**
  * An observation the link cannot name is no observation: the newest with a

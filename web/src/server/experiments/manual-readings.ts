@@ -1,7 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { inTransaction, type Executor } from "../infra/db/client";
-import { experimentManualReadings } from "../infra/db/schema";
 import {
   observationOrdinals,
   unitIsAvailableAt,
@@ -16,6 +14,8 @@ import type {
   ManualReadingsRequest,
 } from "../../domain/experiments/schema";
 import type { Tally } from "../../domain/models/classes";
+import { type Executor, inTransaction } from "../infra/db/client";
+import { experimentManualReadings } from "../infra/db/schema";
 import { requireModel } from "./observations";
 import {
   listManualReadings,

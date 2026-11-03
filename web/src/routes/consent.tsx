@@ -5,9 +5,11 @@ import { z } from "zod";
 
 import { AuthPage } from "../features/account/AuthPage";
 import { authClient, continuation } from "../features/account/client";
-import { describeOAuthClient } from "../functions/integrations";
 import { MCP_SERVER_LABELS } from "../features/integrations/labels";
+import { describeOAuthClient } from "../functions/integrations";
+import { m } from "../paraglide/messages";
 import { BrandLogo } from "../ui/BrandLogo";
+import { documentTitle } from "../ui/documentTitle";
 import { useAsyncAction } from "../ui/hooks/useAsyncAction";
 import { AuthConnection } from "../ui/kit/AuthLayout";
 import { Block } from "../ui/kit/Block";
@@ -15,8 +17,6 @@ import { Button } from "../ui/kit/Button";
 import { Flexbox } from "../ui/kit/Flex";
 import { PageSkeleton } from "../ui/kit/PageSkeleton";
 import { Skeleton } from "../ui/kit/Skeleton";
-import { documentTitle } from "../ui/documentTitle";
-import { m } from "../paraglide/messages";
 import { Text } from "../ui/kit/Text";
 
 /**

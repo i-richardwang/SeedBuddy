@@ -4,20 +4,20 @@ import {
   type TrainingRun,
 } from "../../domain/training/schema";
 import { trainingRunStall } from "../../domain/training/stall";
-import {
-  activeTrainingRun,
-  listTrainingEpochs,
-  listTrainingAttempts,
-  readDatasetSnapshot,
-  readTrainingRun,
-  trainingLeaseHeld,
-} from "../training/public";
 import { readDataset } from "../datasets/public";
 import {
   readCurrentVersionId,
   readModel,
   readModelVersion,
 } from "../models/public";
+import {
+  activeTrainingRun,
+  listTrainingAttempts,
+  listTrainingEpochs,
+  readDatasetSnapshot,
+  readTrainingRun,
+  trainingLeaseHeld,
+} from "../training/public";
 import { trainingWorkerOptions } from "./training-workers";
 
 /**

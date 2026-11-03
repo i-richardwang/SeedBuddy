@@ -1,6 +1,6 @@
+import { m } from "../../paraglide/messages";
 import { Form } from "../../ui/kit/Form";
 import { InputNumber } from "../../ui/kit/Input";
-import { m } from "../../paraglide/messages";
 
 /** How many replicates a treatment is laid out with when nothing says otherwise. */
 export const DEFAULT_REPLICATES = 3;

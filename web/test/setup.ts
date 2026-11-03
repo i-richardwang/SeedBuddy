@@ -2,8 +2,9 @@ process.env.VITROFLOW_IMAGE_ANALYSIS_URL = new URL(
   "../src/server/images/dish-thread.ts",
   import.meta.url,
 ).href;
-import { bootstrap } from "../src/server/bootstrap";
+
 import { auth } from "../src/server/auth/public";
+import { bootstrap } from "../src/server/bootstrap";
 
 process.env.DATABASE_URL =
   process.env.VITROFLOW_TEST_DATABASE_URL ?? "pglite://";

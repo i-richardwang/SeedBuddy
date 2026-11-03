@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
-import { serveModelWeightsUpload } from "./model-upload";
-import { serveAgentOperationCall } from "./agent";
-import { issueApiKey } from "../../auth/api-keys";
-import { apiKeyHeaders, signInAs } from "../../testing/auth";
-import { createModel, readCurrentVersionId } from "../../models/public";
-import { trainingBundle } from "../../testing/model-bundle";
+
 import { YOLO26N_WHOLE_RECIPE } from "../../../domain/training/recipes";
-import { experimentsMcpHandler } from "../mcp/experiments";
+import { issueApiKey } from "../../auth/api-keys";
+import { createModel, readCurrentVersionId } from "../../models/public";
+import { apiKeyHeaders, signInAs } from "../../testing/auth";
 import { modernRequest, rpcMessage } from "../../testing/mcp";
+import { trainingBundle } from "../../testing/model-bundle";
+import { experimentsMcpHandler } from "../mcp/experiments";
+import { serveAgentOperationCall } from "./agent";
+import { serveModelWeightsUpload } from "./model-upload";
 
 test("HTTP uploads and MCP registration share a candidate without creating training or activating it", async () => {
   const model = await createModel({

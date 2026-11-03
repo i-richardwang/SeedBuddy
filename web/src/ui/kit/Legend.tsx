@@ -1,4 +1,5 @@
 import { Circle } from "lucide-react";
+
 import { Icon } from "./Icon";
 
 /* The series legend of the charts: a marker and a name per series. */

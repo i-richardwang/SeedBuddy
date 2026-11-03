@@ -2,17 +2,17 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ChangePasswordDialog } from "../../features/account/ChangePasswordDialog";
-import { documentTitle } from "../../ui/documentTitle";
+import { USER_ROLE_LABELS } from "../../features/users/labels";
 import { m } from "../../paraglide/messages";
-import { ColorSchemeSelect, LanguageSelect } from "../../ui/Preferences";
-import { SettingsPage } from "../../ui/Page";
+import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
 import {
   SettingsGroup,
   SettingsRow,
   SettingsValueRow,
 } from "../../ui/kit/Settings";
-import { USER_ROLE_LABELS } from "../../features/users/labels";
+import { SettingsPage } from "../../ui/Page";
+import { ColorSchemeSelect, LanguageSelect } from "../../ui/Preferences";
 
 const workbench = getRouteApi("/_workbench");
 

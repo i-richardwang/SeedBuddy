@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 import { eq, sql } from "drizzle-orm";
 import sharp from "sharp";
-import { storeImage, storeCanonicalImage } from "./store";
-import { canonicalize } from "./ingest";
-import { refreshImageAnalysis } from "./analysis-maintenance";
-import { DISH_RECIPE_ID } from "./dish-recipe";
+
+import { listBlobs } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { images } from "../infra/db/schema";
-import { listBlobs } from "../infra/blobs/store";
+import { refreshImageAnalysis } from "./analysis-maintenance";
+import { DISH_RECIPE_ID } from "./dish-recipe";
+import { canonicalize } from "./ingest";
+import { storeCanonicalImage, storeImage } from "./store";
 
 async function row(digest: string) {
   return (

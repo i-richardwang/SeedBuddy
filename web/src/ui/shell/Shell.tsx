@@ -8,18 +8,11 @@ import {
   Server,
   Users,
 } from "lucide-react";
-import { createContext, use, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, use, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { isAdmin, type WorkbenchUser } from "../../domain/auth/schema";
 import { m } from "../../paraglide/messages";
-import { useCrumbs } from "./crumbs";
-import { ColorSchemeMenu } from "../Preferences";
-import {
-  Breadcrumb,
-  type BreadcrumbItem,
-  type BreadcrumbLinkProps,
-} from "../kit/Breadcrumb";
 import {
   AppNav,
   type AppNavGroup,
@@ -32,6 +25,13 @@ import {
   type AppShellLinkProps,
   AppShellTrail,
 } from "../kit/AppShell";
+import {
+  Breadcrumb,
+  type BreadcrumbItem,
+  type BreadcrumbLinkProps,
+} from "../kit/Breadcrumb";
+import { ColorSchemeMenu } from "../Preferences";
+import { useCrumbs } from "./crumbs";
 
 const HOME = "/experiments";
 

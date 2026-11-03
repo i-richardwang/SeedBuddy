@@ -1,5 +1,6 @@
-import { timestampSchema } from "../identifiers/schema";
 import { z } from "zod";
+
+import { timestampSchema } from "../identifiers/schema";
 
 /**
  * Workbench accounts. Every signed-in person holds one role: administrators

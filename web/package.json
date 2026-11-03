@@ -18,7 +18,7 @@
     "format": "prettier --write \"**/*.{ts,tsx}\" \"messages/**/*.json\"",
     "format:check": "prettier --check \"**/*.{ts,tsx}\" \"messages/**/*.json\"",
     "architecture:check": "bun scripts/check-architecture.ts",
-    "lint": "biome lint --error-on-warnings",
+    "lint": "biome check --error-on-warnings",
     "images:analyze": "bun dist/analyze-images.js"
   },
   "dependencies": {

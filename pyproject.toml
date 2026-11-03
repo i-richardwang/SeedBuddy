@@ -64,6 +64,10 @@ markers = [
   "reference: requires the checksum-pinned private reference images",
 ]
 
+[tool.ruff.lint]
+# Imports stay sorted: a module reads the same whoever last touched it.
+extend-select = ["I"]
+
 [tool.pyright]
 include = ["src", "scripts", "packages/vitroflow/src", "tests", "packages/vitroflow/tests"]
 pythonVersion = "3.11"

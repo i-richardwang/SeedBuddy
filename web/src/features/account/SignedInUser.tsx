@@ -1,11 +1,11 @@
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { LogOut, Settings } from "lucide-react";
 
-import { authClient } from "./client";
 import type { WorkbenchUser } from "../../domain/auth/schema";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { AppShellAccount, useAppShell } from "../../ui/kit/AppShell";
+import { authClient } from "./client";
 
 /** The signed-in person atop the sidebar: settings and signing out. */
 export function SignedInUser({ user }: { user: WorkbenchUser }) {

@@ -1,5 +1,5 @@
-import { collectUnreferencedModelWeights } from "../models/public";
 import { collectImages } from "../images/public";
+import { collectUnreferencedModelWeights } from "../models/public";
 import { collectTrainingArtifactParts } from "../training/public";
 
 interface CollectedBlobs {

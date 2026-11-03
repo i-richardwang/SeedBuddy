@@ -1,50 +1,42 @@
 import { createHash } from "node:crypto";
-import sharp from "sharp";
+
 import { eq } from "drizzle-orm";
+import sharp from "sharp";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { makeResult } from "../../domain/annotation/testing";
 import type { Dataset } from "../../domain/datasets/schema";
 import type { DetectionResult } from "../../domain/detection/schema";
+import { filenameStem } from "../../domain/experiments/naming";
 import type {
   Experiment,
   ExperimentObservation,
   ObservationImageRef,
 } from "../../domain/experiments/schema";
 import type { RuntimeDescriptor } from "../../domain/inference/schema";
-import type { ModelVersion } from "../../domain/models/schema";
+import {
+  SEED_DETECTOR,
+  SEED_DETECTOR_BASELINE_VERSION_ID,
+} from "../../domain/models/builtins";
 import type { Tally } from "../../domain/models/classes";
+import type { ModelVersion } from "../../domain/models/schema";
+import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import type { Worker, WorkerHeartbeat } from "../../domain/workers/schema";
-import { recordWorkerHeartbeat } from "../workers/sessions";
-import { canonicalize } from "../images/ingest";
+import { readAnnotation, storeAnnotation } from "../annotations/documents";
 import {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
   createDataset,
   readDatasetByName,
 } from "../datasets/memberships";
-import { filenameStem } from "../../domain/experiments/naming";
-import { readExperimentGrid } from "../experiments/queries";
 import { createExperiment } from "../experiments/design";
 import { assignObservationImages } from "../experiments/observation-images";
 import { addObservation } from "../experiments/observations";
+import { readExperimentGrid } from "../experiments/queries";
 import { listUnits } from "../experiments/records";
+import { canonicalize } from "../images/ingest";
 import { storeImage } from "../images/store";
-import { readAnnotation, storeAnnotation } from "../annotations/documents";
-import { seedDetectionResult } from "./inference";
-import {
-  SEED_DETECTOR,
-  SEED_DETECTOR_BASELINE_VERSION_ID,
-} from "../../domain/models/builtins";
-import {
-  readCurrentVersionId,
-  readModel,
-  readModelVersion,
-  registerModel,
-  registerModelVersion,
-  setCurrentVersion,
-} from "../models/registry";
-import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { database, transaction } from "../infra/db/client";
 import {
   datasetSnapshotImages,
@@ -53,7 +45,16 @@ import {
   trainingRuns,
   workers,
 } from "../infra/db/schema";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import {
+  readCurrentVersionId,
+  readModel,
+  readModelVersion,
+  registerModel,
+  registerModelVersion,
+  setCurrentVersion,
+} from "../models/registry";
+import { recordWorkerHeartbeat } from "../workers/sessions";
+import { seedDetectionResult } from "./inference";
 
 export const TEST_RUNTIME: RuntimeDescriptor = {
   adapter: "traditional",

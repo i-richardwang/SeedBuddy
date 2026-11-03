@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
+import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
+import { createModel } from "../../models/public";
+import { authorizeMcpClient, signInAs } from "../../testing/auth";
+import { observeImagesForModel } from "../../testing/fixtures";
+import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
+import { annotationResourceMetadata } from "./access";
 import { serveAnnotationMcp } from "./annotation";
 import { serveExperimentsMcp } from "./experiments";
-import { annotationResourceMetadata } from "./access";
-import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
-import { observeImagesForModel } from "../../testing/fixtures";
-import { authorizeMcpClient, signInAs } from "../../testing/auth";
-import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
-import { createModel } from "../../models/public";
 
 const annotationEndpoint = () =>
   `${process.env.BETTER_AUTH_URL}/api/annotation/mcp`;

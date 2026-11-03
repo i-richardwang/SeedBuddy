@@ -1,12 +1,12 @@
-import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { trainingEpochReportSchema } from "../domain/training/schema";
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { recordTrainingEpoch } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { trainingEpochReportSchema } from "../domain/training/schema";
 
 const bodySchema = attemptOwnerSchema.extend(trainingEpochReportSchema.shape);
 

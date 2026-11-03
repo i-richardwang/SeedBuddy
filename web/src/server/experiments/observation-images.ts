@@ -2,13 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq, inArray } from "drizzle-orm";
 
-import { inTransaction, type Executor } from "../infra/db/client";
-import {
-  experimentObservationImages,
-  experimentObservations,
-  experimentUnits,
-  images,
-} from "../infra/db/schema";
 import {
   observationOrdinals,
   unitIsAvailableAt,
@@ -23,10 +16,21 @@ import {
 import type {
   ExperimentObservation,
   ObservationImageAssignment,
-  ObservationRecord,
   ObservationImageAssignmentResult,
   ObservationImageRef,
+  ObservationRecord,
 } from "../../domain/experiments/schema";
+import { lockImage, markImagesUnclear } from "../images/public";
+import { retryInferenceTask } from "../inference/public";
+import { type Executor, inTransaction } from "../infra/db/client";
+import {
+  experimentObservationImages,
+  experimentObservations,
+  experimentUnits,
+  images,
+} from "../infra/db/schema";
+import { addObservation } from "./observations";
+import { readExperimentObservationImage } from "./queries";
 import {
   atObservationImage,
   listObservations,
@@ -34,10 +38,6 @@ import {
   lockExperiment,
   requireObservation,
 } from "./records";
-import { addObservation } from "./observations";
-import { readExperimentObservationImage } from "./queries";
-import { lockImage, markImagesUnclear } from "../images/public";
-import { retryInferenceTask } from "../inference/public";
 
 /** Adds an observation day and matches the photographs taken on it to their units, together. */
 export async function recordObservation(

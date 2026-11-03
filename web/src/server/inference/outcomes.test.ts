@@ -1,36 +1,31 @@
+import { describe, expect, test } from "bun:test";
+import { and, eq, inArray } from "drizzle-orm";
+
+import { instancesFromDetection } from "../../domain/annotation/detection";
 import {
   DetectionConflictError,
   InvalidDetectionOutcomeError,
   ProducerMismatchError,
 } from "../../domain/inference/errors";
-import { listObservationImageRefs } from "../testing/fixtures";
-import { describe, expect, test } from "bun:test";
-import { and, eq, inArray } from "drizzle-orm";
-
-import { instancesFromDetection } from "../../domain/annotation/detection";
+import type { Worker } from "../../domain/workers/schema";
+import { storeAnnotation } from "../annotations/documents";
+import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
+import { listImageRecords } from "../datasets/records";
+import { retryObservationImageAnalysis } from "../experiments/observation-images";
 import { database } from "../infra/db/client";
 import { inferenceOutcomes, inferenceTasks } from "../infra/db/schema";
-
-import type { Worker } from "../../domain/workers/schema";
-
-import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
-import { retryObservationImageAnalysis } from "../experiments/observation-images";
-
-import { storeAnnotation } from "../annotations/documents";
-
+import {
+  listObservationImageRefs,
+  observeImages,
+  observeTextsIntoDataset,
+  resultFor,
+  testHeartbeat,
+  traditionalVersion,
+} from "../testing/fixtures";
 import {
   seedDetectionResult,
   seedInferenceTaskFailure,
 } from "../testing/inference";
-import { listImageRecords } from "../datasets/records";
-
-import {
-  testHeartbeat,
-  observeImages,
-  resultFor,
-  traditionalVersion,
-  observeTextsIntoDataset,
-} from "../testing/fixtures";
 
 const worker: Worker = {
   ...testHeartbeat("worker"),

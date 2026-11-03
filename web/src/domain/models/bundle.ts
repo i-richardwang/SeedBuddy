@@ -1,16 +1,17 @@
-import { inferenceSettingsSchema } from "./inference";
-import { MAX_MODEL_WEIGHTS_BYTES } from "./transfer";
+import { z } from "zod";
+
 import {
-  timestampSchema,
-  sha256Schema,
   resourceIdSchema,
+  sha256Schema,
+  timestampSchema,
 } from "../identifiers/schema";
-import { classListSchema } from "./classes";
 import {
   detectionValidationSchema,
   trainingRecipeSchema,
 } from "../training/schema";
-import { z } from "zod";
+import { classListSchema } from "./classes";
+import { inferenceSettingsSchema } from "./inference";
+import { MAX_MODEL_WEIGHTS_BYTES } from "./transfer";
 
 /** Executable settings supported by the whole-image adapter. Unsupported pipelines fail closed. */
 const bundleInferenceSchema = inferenceSettingsSchema.extend({

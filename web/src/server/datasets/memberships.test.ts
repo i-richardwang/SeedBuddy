@@ -2,13 +2,30 @@ import { describe, expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
+import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import type { Worker } from "../../domain/workers/schema";
+import { readAnnotation, storeAnnotation } from "../annotations/documents";
+import { collectImages } from "../images/collection";
+import { imageBlobKey } from "../images/keys";
+import { storeImage } from "../images/store";
+import { markImageUnclear } from "../images/unclear";
+import { blobExists, requireBlob } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { inferenceOutcomes } from "../infra/db/schema";
-
-import type { Worker } from "../../domain/workers/schema";
-import { blobExists, requireBlob } from "../infra/blobs/store";
-import { imageBlobKey } from "../images/keys";
 import { contentDigest } from "../infra/digest";
+import { createModel, registerModel } from "../models/registry";
+import {
+  FIXTURE_EDGE,
+  imageBytes,
+  imageDigest,
+  observeImages,
+  observeImagesForModel,
+  observeTextsIntoDataset,
+  registerTrainedVersion,
+  resultFor,
+  testHeartbeat,
+} from "../testing/fixtures";
+import { seedDetectionResult } from "../testing/inference";
 import {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
@@ -19,28 +36,7 @@ import {
   readDatasetByName,
   removeDatasetImages,
 } from "./memberships";
-
-import { readAnnotation, storeAnnotation } from "../annotations/documents";
-
-import { seedDetectionResult } from "../testing/inference";
 import { listImageRecords, readDatasetContents } from "./records";
-import { markImageUnclear } from "../images/unclear";
-import { collectImages } from "../images/collection";
-
-import { storeImage } from "../images/store";
-import {
-  testHeartbeat,
-  FIXTURE_EDGE,
-  imageBytes,
-  imageDigest,
-  observeImages,
-  observeImagesForModel,
-  registerTrainedVersion,
-  resultFor,
-  observeTextsIntoDataset,
-} from "../testing/fixtures";
-import { createModel, registerModel } from "../models/registry";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 
 const worker: Worker = {
   ...testHeartbeat("worker"),

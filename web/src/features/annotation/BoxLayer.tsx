@@ -1,27 +1,27 @@
 import { useState } from "react";
 
 import {
-  boxAround,
-  HANDLES,
-  handlePositions,
-  moveBox,
-  resizeBox,
-  sameBox,
-  type Handle,
-  type Point,
-} from "../../domain/annotation/geometry";
-import {
   initialBoxSide,
   instanceFromBox,
 } from "../../domain/annotation/detection";
+import {
+  boxAround,
+  HANDLES,
+  type Handle,
+  handlePositions,
+  moveBox,
+  type Point,
+  resizeBox,
+  sameBox,
+} from "../../domain/annotation/geometry";
 import type {
   AnnotationInstance,
   BoundingBox,
   ImageSize,
 } from "../../domain/annotation/schema";
 import { classColor } from "../../domain/models/classes";
-import { CANVAS_COLORS, nextClass, type LayerKey } from "./controls";
 import { usePanGesture, useViewport } from "../../ui/viewport/ImageViewport";
+import { CANVAS_COLORS, type LayerKey, nextClass } from "./controls";
 
 const HANDLE_SCREEN_SIZE = 8;
 

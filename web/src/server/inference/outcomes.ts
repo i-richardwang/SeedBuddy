@@ -1,21 +1,22 @@
+import { and, eq } from "drizzle-orm";
+
+import type { DetectionResult } from "../../domain/detection/schema";
 import {
   DetectionConflictError,
   DetectionImageNotFoundError,
   InvalidDetectionOutcomeError,
   ProducerMismatchError,
 } from "../../domain/inference/errors";
-import { and, eq } from "drizzle-orm";
+import { sameRuntimeDescriptor } from "../../domain/inference/schema";
+import { assertInstanceClasses } from "../../domain/models/classes";
+import { type Model, supportsRuntime } from "../../domain/models/schema";
+import type { Worker } from "../../domain/workers/schema";
+import { canonicalJson } from "../../lib/json/canonical";
+import { assertDocumentImage } from "../images/public";
 import type { Executor } from "../infra/db/client";
 import { images, inferenceOutcomes, modelVersions } from "../infra/db/schema";
-import type { DetectionResult } from "../../domain/detection/schema";
-import { sameRuntimeDescriptor } from "../../domain/inference/schema";
-import { canonicalJson } from "../../lib/json/canonical";
-import { assertInstanceClasses } from "../../domain/models/classes";
-import { supportsRuntime, type Model } from "../../domain/models/schema";
-import type { Worker } from "../../domain/workers/schema";
-import { lockDetection } from "./lock";
-import { assertDocumentImage } from "../images/public";
 import { readModel } from "../models/public";
+import { lockDetection } from "./lock";
 
 /** One image under one model version: the pair a detection is recorded for. */
 export interface DetectionTarget {

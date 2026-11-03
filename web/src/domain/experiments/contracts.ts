@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import { reviewSchema } from "../annotation/readings";
-import { inferenceTaskFailureSchema } from "../inference/tasks";
 import { imageDigestSchema } from "../images/schema";
+import { inferenceTaskFailureSchema } from "../inference/tasks";
 import { tallySchema } from "../models/classes";
 import { modelSchema } from "../models/schema";
 import {

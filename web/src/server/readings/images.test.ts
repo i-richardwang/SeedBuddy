@@ -1,10 +1,8 @@
 import { expect, test } from "bun:test";
 
-import { database } from "../infra/db/client";
-import { seedDetectionResult } from "../testing/inference";
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { storeAnnotation } from "../annotations/documents";
-import { readReview } from "./images";
+import { database } from "../infra/db/client";
 import { setCurrentVersion } from "../models/public";
 import {
   observeImages,
@@ -16,6 +14,8 @@ import {
   traditionalVersion,
   ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
+import { seedDetectionResult } from "../testing/inference";
+import { readReview } from "./images";
 
 test("a review shows the current version's detection and the stored annotation", async () => {
   const worker = await recordTestHeartbeat({

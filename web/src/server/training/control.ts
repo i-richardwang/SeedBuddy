@@ -1,13 +1,14 @@
 import { eq } from "drizzle-orm";
+
+import {
+  TrainingRunConflictError,
+  TrainingRunNotFoundError,
+} from "../../domain/training/errors";
 import {
   isTrainingRunResumable,
   type TrainingControl,
   type TrainingRun,
 } from "../../domain/training/schema";
-import {
-  TrainingRunConflictError,
-  TrainingRunNotFoundError,
-} from "../../domain/training/errors";
 import { readDataset } from "../datasets/public";
 import { transaction } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";

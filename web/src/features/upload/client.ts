@@ -1,5 +1,5 @@
-import { parseHttpJson } from "../../lib/http/json";
 import { imageRefSchema } from "../../domain/images/schema";
+import { parseHttpJson } from "../../lib/http/json";
 
 export function storeImage(
   file: File,

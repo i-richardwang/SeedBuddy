@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
 import { datasetRefSchema } from "../domain/datasets/schema";
 import { resourceIdSchema } from "../domain/identifiers/schema";
@@ -11,8 +11,8 @@ import {
 import { trainingControlSchema } from "../domain/training/schema";
 import { trainingRunDetail } from "../server/queries/public";
 import {
-  createTrainingRun,
   controlTrainingRun,
+  createTrainingRun,
 } from "../server/training/public";
 
 export const getTrainingRun = createServerFn({ method: "GET" })

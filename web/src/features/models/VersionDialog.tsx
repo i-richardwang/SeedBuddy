@@ -1,23 +1,23 @@
-import { digestLabel } from "../../ui/IdentifierName";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
+import { classCount, type Tally } from "../../domain/models/classes";
 import {
-  countError,
-  isCounted,
-  isReading,
   type ComparedImage,
   type ComparedReading,
   type CountAccuracy,
+  countError,
+  isCounted,
+  isReading,
   type VersionComparisonDetail,
 } from "../../domain/models/comparison";
-import { classCount, type Tally } from "../../domain/models/classes";
 import type { Model, ModelVersion } from "../../domain/models/schema";
 import { chooseCurrentVersion } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { digestLabel } from "../../ui/IdentifierName";
 import { Flexbox } from "../../ui/kit/Flex";
 import {
   Table,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { timestampSchema, resourceIdSchema } from "../identifiers/schema";
+import { resourceIdSchema, timestampSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema, tallySchema } from "../models/classes";
 

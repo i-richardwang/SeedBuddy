@@ -1,4 +1,4 @@
-import { NotFoundError, ConflictError, ValidationError } from "../errors";
+import { ConflictError, NotFoundError, ValidationError } from "../errors";
 
 export class DatasetNotFoundError extends NotFoundError {
   readonly code = "dataset_not_found";

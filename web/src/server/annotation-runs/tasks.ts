@@ -1,17 +1,19 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
+
 import type { AnnotationRef } from "../../domain/annotation/schema";
-import { prepareProposal } from "../../domain/annotation-runs/tasks";
-import { collectRegions } from "../../domain/annotation-runs/results";
 import { AnnotationRunConflictError } from "../../domain/annotation-runs/errors";
-import { documentDigest } from "../infra/digest";
+import { collectRegions } from "../../domain/annotation-runs/results";
+import { prepareProposal } from "../../domain/annotation-runs/tasks";
 import { database, transaction } from "../infra/db/client";
 import {
+  annotationPreviews,
   annotationRuns,
   annotationTasks,
-  annotationPreviews,
 } from "../infra/db/schema";
+import { documentDigest } from "../infra/digest";
 import { lockTask, readTask } from "./access";
 import { inProgress } from "./runs";
+
 const conflict = (message: string): never => {
   throw new AnnotationRunConflictError(message);
 };

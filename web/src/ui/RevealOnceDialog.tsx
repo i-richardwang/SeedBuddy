@@ -1,5 +1,5 @@
 import { CircleCheck } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { m } from "../paraglide/messages";
 import { Button } from "./kit/Button";

@@ -1,6 +1,6 @@
 import type { ImageSplit } from "../../domain/training/schema";
-import type { StatusTone } from "../../ui/kit/Status";
 import { m } from "../../paraglide/messages";
+import type { StatusTone } from "../../ui/kit/Status";
 
 const SPLIT_LABELS: Record<ImageSplit, () => string> = {
   train: m.image_split_train,

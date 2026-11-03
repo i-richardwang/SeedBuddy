@@ -1,12 +1,13 @@
 import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+
 import type { StartAnnotationRun } from "../../domain/annotation-runs/schema";
-import { readReview } from "../readings/public";
-import { createModel, setModelAnnotation } from "../models/public";
-import { annotationRuns } from "../infra/db/schema";
 import { database } from "../infra/db/client";
+import { annotationRuns } from "../infra/db/schema";
+import { createModel, setModelAnnotation } from "../models/public";
+import { readReview } from "../readings/public";
 import { observeImages } from "../testing/fixtures";
-import { createAnnotationRun, cancelAnnotationRun } from "./runs";
+import { cancelAnnotationRun, createAnnotationRun } from "./runs";
 import { nextAnnotationTask, savePreview, submitProposal } from "./tasks";
 
 async function stored(id: string) {

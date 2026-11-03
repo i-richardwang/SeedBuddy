@@ -1,5 +1,5 @@
-import traverse from "@babel/traverse";
 import { parse } from "@babel/parser";
+import traverse from "@babel/traverse";
 
 const RULES = "docs/interface.md";
 

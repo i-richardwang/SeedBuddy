@@ -1,5 +1,5 @@
 import { configureDatabase } from "./infra/db/client";
-import { connect, type Connection } from "./infra/db/connection";
+import { type Connection, connect } from "./infra/db/connection";
 import { installBuiltinModels } from "./models/public";
 
 /**

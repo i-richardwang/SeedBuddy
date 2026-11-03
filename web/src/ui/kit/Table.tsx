@@ -7,10 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { m } from "../../paraglide/messages";
 import { Checkbox } from "./Checkbox";
 import { cn } from "./cn";
-import { DropdownMenu, type DropdownItem } from "./DropdownMenu";
+import { type DropdownItem, DropdownMenu } from "./DropdownMenu";
 import { EmptyPlace } from "./Empty";
 import { Icon } from "./Icon";
 

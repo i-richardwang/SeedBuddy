@@ -1,25 +1,25 @@
 import { and, eq } from "drizzle-orm";
 
+import { sourceInstances } from "../../domain/annotation/readings";
+import {
+  type AnnotationRef,
+  annotationSchema,
+  type BoundingBox,
+  type ReviewSource,
+} from "../../domain/annotation/schema";
 import {
   AnnotationRunConflictError,
   AnnotationRunNotFoundError,
 } from "../../domain/annotation-runs/errors";
 import {
-  annotationDefinitionSchema,
   type AnnotationProgress,
+  annotationDefinitionSchema,
   type StartAnnotationRun,
 } from "../../domain/annotation-runs/schema";
 import { regions } from "../../domain/annotation-runs/tasks";
-import { sourceInstances } from "../../domain/annotation/readings";
-import {
-  annotationSchema,
-  type AnnotationRef,
-  type BoundingBox,
-  type ReviewSource,
-} from "../../domain/annotation/schema";
 import { assertInstanceClasses } from "../../domain/models/classes";
 import { lockImage, resolveDishCoverage } from "../images/public";
-import { database, transaction, type Executor } from "../infra/db/client";
+import { database, type Executor, transaction } from "../infra/db/client";
 import { annotationRuns, annotationTasks, images } from "../infra/db/schema";
 import { readModel } from "../models/public";
 import { readReadings } from "../readings/public";

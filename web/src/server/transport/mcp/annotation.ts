@@ -6,27 +6,27 @@ import {
 import { z } from "zod";
 
 import packageJson from "../../../../package.json";
-import { readAnnotationReading } from "../../readings/public";
-import { classifyAgentFailure } from "../../agent/public";
 import { annotationRefSchema } from "../../../domain/annotation/schema";
-import { resourceIdSchema } from "../../../domain/identifiers/schema";
 import { startAnnotationRunSchema } from "../../../domain/annotation-runs/schema";
 import {
-  annotationTaskInput,
   annotationPreviewInput,
   annotationSubmitInput,
+  annotationTaskInput,
 } from "../../../domain/annotation-runs/tasks";
+import { resourceIdSchema } from "../../../domain/identifiers/schema";
+import { classifyAgentFailure } from "../../agent/public";
 import {
-  createAnnotationRun,
-  cancelAnnotationRun,
-  nextAnnotationTask,
-  readAnnotationContext,
-  viewAnnotationTask,
-  previewAnnotationTask,
-  submitProposal,
   type AnnotationPanel,
+  cancelAnnotationRun,
+  createAnnotationRun,
+  nextAnnotationTask,
+  previewAnnotationTask,
+  readAnnotationContext,
+  submitProposal,
+  viewAnnotationTask,
 } from "../../annotation-runs/public";
 import { findImages, listPendingAnnotations } from "../../queries/public";
+import { readAnnotationReading } from "../../readings/public";
 import { guardMcpRequest, serveAuthorized } from "./access";
 
 const textContent = (value: unknown) => ({

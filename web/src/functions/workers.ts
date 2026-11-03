@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { workerRefSchema } from "../domain/workers/schema";
 import { listWorkerPresence } from "../server/queries/public";
-import { requireAdministrator } from "./access";
 import { enrollWorker, removeWorker } from "../server/workers/public";
+import { requireAdministrator } from "./access";
 
 export const getWorkers = createServerFn({ method: "GET" }).handler(
   listWorkerPresence,

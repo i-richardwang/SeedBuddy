@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { timestampSchema, resourceIdSchema } from "../identifiers/schema";
+import { resourceIdSchema, timestampSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";
 import {
-  modelArtifactSchema,
   type Model,
   type ModelVersion,
+  modelArtifactSchema,
 } from "../models/schema";
 
 export const inferenceModelManifestSchema = z.strictObject({

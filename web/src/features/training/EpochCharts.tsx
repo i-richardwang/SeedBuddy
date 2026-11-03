@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { ReferenceLine } from "recharts";
 
-import { m } from "../../paraglide/messages";
 import type { TrainingEpoch } from "../../domain/training/schema";
+import { m } from "../../paraglide/messages";
 import { LineChart } from "../../ui/kit/LineChart";
 import { Skeleton } from "../../ui/kit/Skeleton";
-import { formatDecimal } from "../../ui/numbers";
 import { Text } from "../../ui/kit/Text";
+import { formatDecimal } from "../../ui/numbers";
 
 interface Series {
   key: string;

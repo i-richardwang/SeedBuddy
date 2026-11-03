@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { command, query } from "./definition";
+import {
+  modelImportSchema,
+  modelUploadRefSchema,
+  modelUploadSchema,
+} from "../../domain/models/bundle";
 import {
   modelAnnotationRequestSchema,
   modelRefSchema,
@@ -9,11 +13,6 @@ import {
   modelVersionRefSchema,
   modelVersionSchema,
 } from "../../domain/models/schema";
-import {
-  modelImportSchema,
-  modelUploadRefSchema,
-  modelUploadSchema,
-} from "../../domain/models/bundle";
 import {
   createModel,
   deleteModel,
@@ -24,6 +23,7 @@ import {
   setCurrentVersion,
   setModelAnnotation,
 } from "../models/public";
+import { command, query } from "./definition";
 
 /**
  * A model is a recognition task: the question an observation asks of its

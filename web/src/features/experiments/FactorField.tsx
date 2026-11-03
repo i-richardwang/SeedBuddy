@@ -1,7 +1,7 @@
 import type { TreatmentFactor } from "../../domain/experiments/schema";
+import { m } from "../../paraglide/messages";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
-import { m } from "../../paraglide/messages";
 
 const EMPTY_FACTOR: TreatmentFactor = { name: "", level: "", unit: "" };
 

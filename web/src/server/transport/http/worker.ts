@@ -1,13 +1,13 @@
-import {
-  attemptOwnerSchema,
-  type AttemptOwner,
-} from "../../../domain/workers/schema";
-import { InvalidDetectionOutcomeError } from "../../../domain/inference/errors";
-import { artifactUploadSchema } from "../../../domain/training/artifact";
-import { DomainError } from "../../../domain/errors";
 import { createMiddleware } from "@tanstack/react-start";
 import type { ZodType } from "zod";
 
+import { DomainError } from "../../../domain/errors";
+import { InvalidDetectionOutcomeError } from "../../../domain/inference/errors";
+import { artifactUploadSchema } from "../../../domain/training/artifact";
+import {
+  type AttemptOwner,
+  attemptOwnerSchema,
+} from "../../../domain/workers/schema";
 import { bearerToken } from "../../auth/public";
 import { authenticateWorker } from "../../workers/public";
 

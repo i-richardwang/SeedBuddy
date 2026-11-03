@@ -1,5 +1,6 @@
 import {
   createContext,
+  type ReactNode,
   use,
   useCallback,
   useEffect,
@@ -8,31 +9,29 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 
 import type { Point } from "../../domain/annotation/geometry";
 import type { ImageSize } from "../../domain/annotation/schema";
 import { m } from "../../paraglide/messages";
 import { Button } from "../kit/Button";
+import { Text } from "../kit/Text";
+import { Toolbar, ToolbarSeparator } from "../kit/Toolbar";
 import { formatPercent } from "../numbers";
-import { Toolbar } from "../kit/Toolbar";
-import { ToolbarSeparator } from "../kit/Toolbar";
+import { loadPicture, pictureSrc, previewSrc } from "./picture";
 import {
   FILL,
   focusedOn,
   pannedTo,
   placedView,
+  type RelativeView,
   relativeView,
   resolveView,
-  zoomedAbout,
-  type RelativeView,
   type Size,
   type View,
   type ViewIntent,
+  zoomedAbout,
 } from "./viewport";
-import { Text } from "../kit/Text";
-import { loadPicture, pictureSrc, previewSrc } from "./picture";
 
 const ZOOM_PER_WHEEL_PIXEL = 0.0015;
 const CLICK_SLOP = 3;

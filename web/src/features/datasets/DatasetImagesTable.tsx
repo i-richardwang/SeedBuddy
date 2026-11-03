@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ImagePlus, PenLine, Search, SearchX } from "lucide-react";
+
 import type { getDatasetOverview } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
@@ -28,14 +29,14 @@ import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { formatCount } from "../../ui/numbers";
 import { previewSrc } from "../../ui/viewport/picture";
 import { UnclearTag } from "../annotation/unclear";
-import { RemoveImageButton } from "./RemoveImageButton";
 import {
   DATASET_IMAGE_STATE_TONE,
   DATASET_IMAGE_STATES,
+  type DatasetImageState,
   datasetImageState,
   datasetImageStateLabel,
-  type DatasetImageState,
 } from "./labels";
+import { RemoveImageButton } from "./RemoveImageButton";
 
 type DatasetOverview = NonNullable<
   Awaited<ReturnType<typeof getDatasetOverview>>

@@ -1,16 +1,16 @@
-import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import { expect, test } from "bun:test";
 
+import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import {
   WORKER_ONLINE_SECONDS,
   WORKER_STALE_SECONDS,
   workerPresence,
 } from "../../domain/workers/presence";
 import {
-  TEST_RUNTIME,
-  ULTRALYTICS_RUNTIME,
   recordTestHeartbeat,
+  TEST_RUNTIME,
   testHeartbeat,
+  ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
 import { currentWorkerSession, listOnlineTrainers } from "./sessions";
 

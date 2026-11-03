@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import { UserRejectedError } from "../../domain/auth/errors";
+import { sessionHeaders, signInAs, TEST_PASSWORD } from "../testing/auth";
 import { readSession } from "../transport/http/session";
-import { TEST_PASSWORD, sessionHeaders, signInAs } from "../testing/auth";
 import {
   banUser,
   createUser,

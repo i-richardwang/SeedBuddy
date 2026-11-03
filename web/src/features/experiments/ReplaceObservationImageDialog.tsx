@@ -2,10 +2,10 @@ import { useRouter } from "@tanstack/react-router";
 
 import type { ExperimentObservationImage } from "../../domain/experiments/contracts";
 import { assignImagesToObservation } from "../../functions/experiments";
+import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
-import { m } from "../../paraglide/messages";
 import { ImageDropZone } from "../upload/ImageDropZone";
 import { useUploads } from "../upload/useUploads";
 

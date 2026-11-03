@@ -3,22 +3,22 @@ import { expect, test } from "bun:test";
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { readAnnotation, storeAnnotation } from "../annotations/documents";
+import {
+  imageDigest,
+  observeTextsIntoDataset,
+  recordTestHeartbeat,
+  resultFor,
+  testHeartbeat,
+  ULTRALYTICS_RUNTIME,
+} from "../testing/fixtures";
 import { seedDetectionResult } from "../testing/inference";
-import { datasetOverview } from "./dataset-overview";
-import { modelOverview } from "./model-overview";
 import {
   claimTrainingRun,
   createTrainingRun,
   failTrainingRun,
 } from "../training/runs";
-import {
-  imageDigest,
-  recordTestHeartbeat,
-  resultFor,
-  testHeartbeat,
-  ULTRALYTICS_RUNTIME,
-  observeTextsIntoDataset,
-} from "../testing/fixtures";
+import { datasetOverview } from "./dataset-overview";
+import { modelOverview } from "./model-overview";
 
 /** This test's clock; workers heartbeating at wall-clock time are offline here. */
 const HEARTBEAT_AT = new Date(Date.now() + 24 * 60 * 60 * 1000);

@@ -9,11 +9,11 @@ import {
   Unplug,
 } from "lucide-react";
 
-import { m } from "../../paraglide/messages";
 import type {
   TrainingAttempt,
   TrainingRun,
 } from "../../domain/training/schema";
+import { m } from "../../paraglide/messages";
 import { Status, type StatusProps, type StatusTone } from "../../ui/kit/Status";
 
 interface Look {

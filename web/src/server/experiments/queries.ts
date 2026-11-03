@@ -1,19 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { inSnapshot, snapshot, type Executor } from "../infra/db/client";
-import {
-  annotations,
-  experimentObservationImages,
-  experimentObservations,
-  experimentTreatments,
-  experimentUnits,
-  experiments,
-  images as storedImages,
-  inferenceOutcomes,
-  inferenceTasks,
-  modelVersions,
-  models,
-} from "../infra/db/schema";
 import type {
   ExperimentGrid,
   ExperimentObservationImage,
@@ -27,12 +13,6 @@ import {
   imageReview,
   observationCells,
 } from "../../domain/experiments/readings";
-import {
-  experimentSheet,
-  unitRow,
-  type ExperimentSheet,
-  type UnitRow,
-} from "../../domain/experiments/sheet";
 import type {
   Experiment,
   ImageAnalysisState,
@@ -40,8 +20,32 @@ import type {
   UnitRef,
 } from "../../domain/experiments/schema";
 import {
-  listManualReadings,
+  type ExperimentSheet,
+  experimentSheet,
+  type UnitRow,
+  unitRow,
+} from "../../domain/experiments/sheet";
+import { markedUnclear } from "../images/public";
+import { currentVersion } from "../inference/public";
+import { type Executor, inSnapshot, snapshot } from "../infra/db/client";
+import {
+  annotations,
+  experimentObservationImages,
+  experimentObservations,
+  experiments,
+  experimentTreatments,
+  experimentUnits,
+  inferenceOutcomes,
+  inferenceTasks,
+  models,
+  modelVersions,
+  images as storedImages,
+} from "../infra/db/schema";
+import { toModel } from "../models/public";
+import { documentTally, readingsJoin, readReview } from "../readings/public";
+import {
   atObservationImage,
+  listManualReadings,
   listObservations,
   listTreatments,
   listUnits,
@@ -49,10 +53,6 @@ import {
   requireObservation,
   toExperiment,
 } from "./records";
-import { toModel } from "../models/public";
-import { documentTally, readReview, readingsJoin } from "../readings/public";
-import { currentVersion } from "../inference/public";
-import { markedUnclear } from "../images/public";
 
 function observationImageGridQuery(db: Executor) {
   const readings = readingsJoin({

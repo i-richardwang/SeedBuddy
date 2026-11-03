@@ -29,26 +29,26 @@ import {
 } from "../../functions/experiments";
 import { clearUnclear, markUnclear } from "../../functions/images";
 import { m } from "../../paraglide/messages";
-import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
+  type AsyncAction,
   runAction,
   useAsyncAction,
-  type AsyncAction,
 } from "../../ui/hooks/useAsyncAction";
+import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { Button } from "../../ui/kit/Button";
-import { DropdownMenu, type DropdownItem } from "../../ui/kit/DropdownMenu";
+import { type DropdownItem, DropdownMenu } from "../../ui/kit/DropdownMenu";
 import { Form } from "../../ui/kit/Form";
 import { Select } from "../../ui/kit/Select";
+import { Text } from "../../ui/kit/Text";
 import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { cultureEventLabel, observationLabel } from "./labels";
 import { RecordCultureEventDialog } from "./RecordCultureEventDialog";
 import { ReplaceObservationImageDialog } from "./ReplaceObservationImageDialog";
 import { UnitDialog } from "./UnitDialog";
-import { Text } from "../../ui/kit/Text";
 
 type Action = "replace" | "edit" | "dataset";
 

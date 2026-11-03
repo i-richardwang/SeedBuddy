@@ -1,4 +1,4 @@
-import { and, eq, or, sql, type SQLWrapper } from "drizzle-orm";
+import { and, eq, or, type SQLWrapper, sql } from "drizzle-orm";
 
 import type { AnnotationRef } from "../../domain/annotation/schema";
 import { datasetIdSchema } from "../../domain/datasets/schema";
@@ -14,8 +14,8 @@ import {
   datasets,
   experimentObservationImages,
   experimentObservations,
-  experimentUnits,
   experiments,
+  experimentUnits,
 } from "../infra/db/schema";
 
 /** Where a person sees an image: a unit's photograph of a day, or a dataset's. */

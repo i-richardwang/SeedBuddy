@@ -1,12 +1,6 @@
 import { expect, test } from "bun:test";
 
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import { controlTrainingRun } from "../training/control";
-import {
-  claimTrainingRun,
-  createTrainingRun,
-  renewTrainingLease,
-} from "../training/runs";
 import {
   recordTestHeartbeat,
   reviewedDataset,
@@ -14,6 +8,12 @@ import {
   traditionalVersion,
   ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
+import { controlTrainingRun } from "../training/control";
+import {
+  claimTrainingRun,
+  createTrainingRun,
+  renewTrainingLease,
+} from "../training/runs";
 import { trainingRunDetail } from "./training-run";
 
 test("a run's detail judges whether it has stalled as of its reading", async () => {

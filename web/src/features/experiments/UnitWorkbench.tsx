@@ -1,22 +1,27 @@
-import { STANDING_LABELS } from "../annotation/labels";
 import { Link, linkOptions, useRouter } from "@tanstack/react-router";
 import { Columns2, ImageOff } from "lucide-react";
 import { useCallback, useEffect, useEffectEvent } from "react";
 
-import type { NamedDataset } from "../../domain/datasets/schema";
-import { observationLabel, cultureEventLabel } from "./labels";
 import type { ReviewSource } from "../../domain/annotation/schema";
-import type { ObservationImageRef } from "../../domain/experiments/schema";
+import type { NamedDataset } from "../../domain/datasets/schema";
 import { unitExclusions } from "../../domain/experiments/analysis";
+import type {
+  ImageReview,
+  UnitSeries,
+  UnitStep,
+} from "../../domain/experiments/contracts";
 import {
   latestCultureEvent,
   observationOrdinals,
 } from "../../domain/experiments/culture-events";
+import { cellReading, imageReview } from "../../domain/experiments/readings";
+import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { retryObservationImageAnalysis } from "../../functions/experiments";
+import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { useStep } from "../../ui/hooks/useStep";
-import { Alert } from "../../ui/kit/Alert";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
+import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
 import {
   Descriptions,
@@ -25,15 +30,10 @@ import {
 } from "../../ui/kit/Descriptions";
 import { Skeleton } from "../../ui/kit/Skeleton";
 import { StatusDot } from "../../ui/kit/Status";
+import { Text } from "../../ui/kit/Text";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { m } from "../../paraglide/messages";
-import type {
-  ImageReview,
-  UnitSeries,
-  UnitStep,
-} from "../../domain/experiments/contracts";
-import { cellReading, imageReview } from "../../domain/experiments/readings";
 import { formatCount } from "../../ui/numbers";
+import { Stepper } from "../../ui/Stepper";
 import { ShellActions } from "../../ui/shell/Shell";
 import {
   Workbench,
@@ -44,20 +44,20 @@ import {
   WorkbenchSectionSkeleton,
   WorkbenchSkeleton,
 } from "../../ui/shell/Workbench";
-import { Stepper } from "../../ui/Stepper";
 import {
   ImageSubject,
   ImageWorkbenchSkeleton,
 } from "../annotation/ImageWorkbench";
 import { useWorkbenchKeys } from "../annotation/keys";
+import { STANDING_LABELS } from "../annotation/labels";
 import {
   DayComparison,
   DayComparisonSkeleton,
   DayCountsSection,
   referenceDay,
 } from "./DayComparison";
+import { cultureEventLabel, observationLabel } from "./labels";
 import { CultureMenu, UnitMenu } from "./UnitMenu";
-import { Text } from "../../ui/kit/Text";
 
 /**
  * One unit's photograph on one observation day. The footer steps along both

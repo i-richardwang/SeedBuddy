@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 
 import { checkArchitecture } from "./architecture";
-import { unusedPublicExports } from "./public-exports";
-import { checkOperationContracts } from "./operation-contracts";
 import { checkComposition } from "./composition";
+import { checkOperationContracts } from "./operation-contracts";
+import { unusedPublicExports } from "./public-exports";
 
 const root = resolve(import.meta.dir, "..");
 const paths = [

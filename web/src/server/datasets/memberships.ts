@@ -1,15 +1,30 @@
-import { ExperimentObservationImageNotFoundError } from "../../domain/experiments/errors";
 import { randomUUID } from "node:crypto";
 
-import { ModelNotFoundError } from "../../domain/models/errors";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+
 import {
   DatasetModelError,
   DatasetNameTakenError,
   DatasetNotFoundError,
 } from "../../domain/datasets/errors";
-import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
-
-import { database, inTransaction, type Executor } from "../infra/db/client";
+import {
+  type Dataset,
+  type DatasetImageAddition,
+  type DatasetImageAdditionResult,
+  type DatasetImageRef,
+  type DatasetImageRemoval,
+  type DatasetImageRemovalResult,
+  type DatasetRequest,
+  type DatasetUpdate,
+  datasetSchema,
+  type NewDatasetImageAddition,
+} from "../../domain/datasets/schema";
+import { ExperimentObservationImageNotFoundError } from "../../domain/experiments/errors";
+import type { ObservationImageRef } from "../../domain/experiments/schema";
+import { ModelNotFoundError } from "../../domain/models/errors";
+import type { ImageSplit } from "../../domain/training/schema";
+import { imageBlobKey, lockImage } from "../images/public";
+import { database, type Executor, inTransaction } from "../infra/db/client";
 import { refusingUnique } from "../infra/db/errors";
 import {
   datasetImages,
@@ -18,22 +33,7 @@ import {
   experimentObservations,
   type images as imageAssets,
 } from "../infra/db/schema";
-import {
-  datasetSchema,
-  type Dataset,
-  type DatasetImageRef,
-  type DatasetImageAddition,
-  type DatasetImageAdditionResult,
-  type DatasetRequest,
-  type NewDatasetImageAddition,
-  type DatasetUpdate,
-  type DatasetImageRemoval,
-  type DatasetImageRemovalResult,
-} from "../../domain/datasets/schema";
-import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { readModel } from "../models/public";
-import type { ImageSplit } from "../../domain/training/schema";
-import { imageBlobKey, lockImage } from "../images/public";
 
 export interface DatasetImage extends DatasetImageRef {
   filename: string;

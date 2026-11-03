@@ -1,9 +1,9 @@
-import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import { expect, test } from "bun:test";
 
 import {
   WorkerAlreadyEnrolledError,
   WorkerNotFoundError,
+  WorkerSessionConflictError,
 } from "../../domain/workers/errors";
 import { testHeartbeat } from "../testing/fixtures";
 import {

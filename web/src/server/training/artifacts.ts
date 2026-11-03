@@ -1,21 +1,20 @@
-import type { AttemptOwner } from "../../domain/workers/schema";
-
-import { TrainingArtifactValidationError } from "../../domain/training/errors";
 import {
-  artifactUploadSchema,
-  artifactPartSize,
-  TRAINING_ARTIFACT_PART_BYTES,
   type ArtifactUpload,
+  artifactPartSize,
+  artifactUploadSchema,
+  TRAINING_ARTIFACT_PART_BYTES,
 } from "../../domain/training/artifact";
-import { database } from "../infra/db/client";
+import { TrainingArtifactValidationError } from "../../domain/training/errors";
+import type { AttemptOwner } from "../../domain/workers/schema";
 import {
+  ImmutableBlobConflictError,
   putImmutableBlob,
   readBlob,
-  ImmutableBlobConflictError,
 } from "../infra/blobs/store";
+import { database } from "../infra/db/client";
 import { contentDigest } from "../infra/digest";
-import { readTrainingRun, requireOwnedRunningRun } from "./runs";
 import { artifactPartKey } from "./keys";
+import { readTrainingRun, requireOwnedRunningRun } from "./runs";
 
 export async function saveTrainingArtifactPart(
   runId: string,

@@ -1,8 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
 
-import { runAction } from "./useAsyncAction";
 import { errorMessage } from "../errors";
 import { toast } from "../kit/Toast";
+import { runAction } from "./useAsyncAction";
 
 describe("runAction", () => {
   test("preserves success and failure as different results", async () => {

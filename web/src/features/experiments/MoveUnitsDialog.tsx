@@ -7,8 +7,8 @@ import { editUnitsTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { TreatmentField } from "./TreatmentField";

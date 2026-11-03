@@ -1,17 +1,17 @@
 import { and, asc, eq, lte, sql } from "drizzle-orm";
 
+import { imageDigestSchema } from "../../domain/images/schema";
+import { listBlobs, removeBlob } from "../infra/blobs/store";
 import { database, transaction } from "../infra/db/client";
 import {
+  annotationRuns,
+  annotations,
   datasetImages,
   datasetSnapshotImages,
   experimentObservationImages,
   images,
-  annotations,
-  annotationRuns,
 } from "../infra/db/schema";
-import { imageDigestSchema } from "../../domain/images/schema";
 import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
-import { listBlobs, removeBlob } from "../infra/blobs/store";
 import { lockImage } from "./lock";
 
 /**

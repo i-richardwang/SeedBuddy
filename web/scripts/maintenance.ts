@@ -1,10 +1,12 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { maintainInferenceTasks } from "../src/server/inference/public";
+
 import sharp from "sharp";
+
 import { bootstrap } from "../src/server/bootstrap";
+import { refreshImageAnalysis } from "../src/server/images/public";
+import { maintainInferenceTasks } from "../src/server/inference/public";
 import { closeDatabase } from "../src/server/infra/db/client";
 import { collectUnreferencedBlobs } from "../src/server/maintenance/collection";
-import { refreshImageAnalysis } from "../src/server/images/public";
 
 process.env.VITROFLOW_IMAGE_ANALYSIS_URL ??= new URL(
   "./dish-thread.js",

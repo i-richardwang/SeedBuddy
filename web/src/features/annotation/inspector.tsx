@@ -7,23 +7,23 @@ import {
   classCount,
   countClasses,
   countsEveryClass,
-  tally,
   type Tally,
+  tally,
 } from "../../domain/models/classes";
 import { m } from "../../paraglide/messages";
 import { QualityAlert } from "../../ui/DetectionQuality";
+import { IdentifierName } from "../../ui/IdentifierName";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { ProgressMeter } from "../../ui/kit/Progress";
 import { StatisticHero } from "../../ui/kit/Statistic";
+import { Text } from "../../ui/kit/Text";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { formatCount, formatNumber } from "../../ui/numbers";
-import { IdentifierName } from "../../ui/IdentifierName";
 import { countedClassesName } from "../../ui/model-names";
+import { formatCount, formatNumber } from "../../ui/numbers";
 import { Stepper } from "../../ui/Stepper";
 import { WorkbenchSection } from "../../ui/shell/Workbench";
 import { ClassLabel } from "./controls";
 import { SOURCE_LABELS } from "./labels";
-import { Text } from "../../ui/kit/Text";
 
 /**
  * How many of each class the boxes on view hold, and the number the image

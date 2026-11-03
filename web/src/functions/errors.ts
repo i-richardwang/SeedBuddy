@@ -1,4 +1,5 @@
 import { createMiddleware } from "@tanstack/react-start";
+
 import { businessFailure, DomainError } from "../domain/errors";
 
 export const mapBusinessErrors = createMiddleware({ type: "function" }).server(

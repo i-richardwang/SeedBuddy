@@ -8,11 +8,13 @@ import {
   type VersionComparison,
 } from "../../domain/models/comparison";
 import {
-  validationMetric,
   type ModelVersion,
+  validationMetric,
 } from "../../domain/models/schema";
 import type { VersionOverview } from "../../domain/training/read-model";
 import { m } from "../../paraglide/messages";
+import { Absent } from "../../ui/Absent";
+import { IdentifierName } from "../../ui/IdentifierName";
 import { CopyButton } from "../../ui/kit/CopyButton";
 import { Flexbox } from "../../ui/kit/Flex";
 import { Status } from "../../ui/kit/Status";
@@ -26,11 +28,9 @@ import {
 } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
-import { Timestamp } from "../../ui/Timestamp";
-import { Absent } from "../../ui/Absent";
-import { IdentifierName } from "../../ui/IdentifierName";
 import { Metric } from "../../ui/Metric";
 import { formatCount } from "../../ui/numbers";
+import { Timestamp } from "../../ui/Timestamp";
 import { formatError, movement, movementTone, totalError } from "./comparison";
 
 /**

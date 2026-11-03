@@ -1,5 +1,6 @@
-import handler from "./dist/server/server.js";
 import { resolve } from "node:path";
+
+import handler from "./dist/server/server.js";
 import { MAX_MODEL_ARTIFACT_REQUEST_BYTES } from "./src/domain/models/transfer";
 
 process.env.VITROFLOW_IMAGE_ANALYSIS_URL ??= new URL(

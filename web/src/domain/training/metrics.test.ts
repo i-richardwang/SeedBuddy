@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
-import type { TrainingEpoch } from "./schema";
 import { bestEpoch } from "./metrics";
+import type { TrainingEpoch } from "./schema";
 
 function epoch(epoch: number, fitness: number): TrainingEpoch {
   return {

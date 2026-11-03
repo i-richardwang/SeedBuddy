@@ -3,8 +3,8 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { McpClientNotFoundError } from "../../domain/auth/errors";
 import {
   MCP_SERVERS,
-  mcpClientSchema,
   type McpClient,
+  mcpClientSchema,
 } from "../../domain/auth/integrations";
 import { database, transaction } from "../infra/db/client";
 import {

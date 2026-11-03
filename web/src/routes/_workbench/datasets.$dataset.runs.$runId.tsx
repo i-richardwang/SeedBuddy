@@ -1,14 +1,15 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ChartLine } from "lucide-react";
 
-import { Metric } from "../../ui/Metric";
+import { identifierLabel } from "../../domain/identifiers/schema";
+import { bestEpoch } from "../../domain/training/metrics";
+import type { TrainingRunDetail } from "../../domain/training/read-model";
 import {
-  Page,
-  PageColumnSkeleton,
-  PageSection,
-  PageSectionSkeleton,
-} from "../../ui/Page";
-import { Timestamp } from "../../ui/Timestamp";
+  isTrainingRunActive,
+  isTrainingRunResumable,
+  type TrainingRun,
+} from "../../domain/training/schema";
+import { datasetCrumbs } from "../../features/models/crumbs";
 import {
   EpochCharts,
   EpochChartsSkeleton,
@@ -18,10 +19,12 @@ import {
   ParametersListSkeleton,
 } from "../../features/training/ParametersList";
 import { ResumeTrainingDialog } from "../../features/training/ResumeTrainingDialog";
+import { useTrainingRunControl } from "../../features/training/run-control";
 import { TrainingAttempts } from "../../features/training/TrainingAttempts";
 import { TrainingRunMenu } from "../../features/training/TrainingRunMenu";
-import { useTrainingRunControl } from "../../features/training/run-control";
 import { getTrainingRun } from "../../functions/training";
+import { m } from "../../paraglide/messages";
+import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Card } from "../../ui/kit/Card";
@@ -29,17 +32,14 @@ import { Empty, EmptyPlace } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
 import { ProgressMeter } from "../../ui/kit/Progress";
 import { StatisticHero, StatisticHeroSkeleton } from "../../ui/kit/Statistic";
-import { documentTitle } from "../../ui/documentTitle";
-import { m } from "../../paraglide/messages";
-import type { TrainingRunDetail } from "../../domain/training/read-model";
-import { datasetCrumbs } from "../../features/models/crumbs";
-import { bestEpoch } from "../../domain/training/metrics";
-import { identifierLabel } from "../../domain/identifiers/schema";
+import { Metric } from "../../ui/Metric";
 import {
-  isTrainingRunActive,
-  isTrainingRunResumable,
-  type TrainingRun,
-} from "../../domain/training/schema";
+  Page,
+  PageColumnSkeleton,
+  PageSection,
+  PageSectionSkeleton,
+} from "../../ui/Page";
+import { Timestamp } from "../../ui/Timestamp";
 
 export const Route = createFileRoute(
   "/_workbench/datasets/$dataset/runs/$runId",

@@ -1,43 +1,47 @@
-import type { AttemptOwner } from "../../domain/workers/schema";
-import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
-import { transaction, type Executor } from "../infra/db/client";
+
 import {
-  inferenceTasks,
-  inferenceAttempts,
-  modelVersions,
-  trainingRuns,
-} from "../infra/db/schema";
+  type DetectionResult,
+  detectionResultSchema,
+} from "../../domain/detection/schema";
 import {
   inferenceAssignmentSchema,
   inferenceModelManifest,
 } from "../../domain/inference/assignments";
-import {
-  detectionResultSchema,
-  type DetectionResult,
-} from "../../domain/detection/schema";
+import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { InferenceFailure } from "../../domain/inference/tasks";
-import type { Worker, WorkerIdentity } from "../../domain/workers/schema";
-import { readModel, toModelVersion } from "../models/public";
-import { lockWorkerSession, leaseIsHeld } from "../workers/public";
-import { documentDigest } from "../infra/digest";
+import type {
+  AttemptOwner,
+  Worker,
+  WorkerIdentity,
+} from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
-import { storeInferenceOutcome, type DetectionTarget } from "./outcomes";
+import { type Executor, transaction } from "../infra/db/client";
+import {
+  inferenceAttempts,
+  inferenceTasks,
+  modelVersions,
+  trainingRuns,
+} from "../infra/db/schema";
+import { documentDigest } from "../infra/digest";
+import { readModel, toModelVersion } from "../models/public";
+import { leaseIsHeld, lockWorkerSession } from "../workers/public";
+import { type DetectionTarget, storeInferenceOutcome } from "./outcomes";
 import {
   INFERENCE_LEASE_SECONDS,
   INFERENCE_WORKER_COOLDOWN_SECONDS,
   inferenceBudgetSeconds,
 } from "./policy";
 import {
+  type Attempt,
   attemptIsActive,
   attemptKey,
-  maintainInferenceTasks,
   finishFailedAttempt,
   inferenceTime,
   lockTask,
-  taskKey,
-  type Attempt,
+  maintainInferenceTasks,
   type Task,
+  taskKey,
 } from "./tasks";
 
 async function assignment(

@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { UnknownClassError } from "./errors";
 
 const identifierSchema = z

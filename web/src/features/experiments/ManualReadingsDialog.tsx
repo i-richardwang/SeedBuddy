@@ -15,8 +15,8 @@ import { enterManualReadings } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Alert } from "../../ui/kit/Alert";
 import { Form } from "../../ui/kit/Form";
@@ -35,9 +35,9 @@ import { classLabel } from "../../ui/model-names";
 import { formatCount } from "../../ui/numbers";
 import { observationLabel } from "./labels";
 import {
+  type ManualReadingDraft,
   manualReadingDraft,
   manualReadingEntries,
-  type ManualReadingDraft,
 } from "./manual-readings";
 import { TreatmentName } from "./TreatmentsTable";
 

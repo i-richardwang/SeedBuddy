@@ -11,9 +11,28 @@
       "!src/routeTree.gen.ts",
     ],
   },
-  // Prettier formats; Biome only lints.
+  // Prettier formats; Biome lints and keeps imports in order:
+  // node built-ins, then packages, then paths, each group sorted.
   "formatter": { "enabled": false },
-  "assist": { "enabled": false },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              ":NODE:",
+              ":BLANK_LINE:",
+              [":PACKAGE:", ":PACKAGE_WITH_PROTOCOL:"],
+              ":BLANK_LINE:",
+              ":PATH:",
+            ],
+          },
+        },
+      },
+    },
+  },
   "css": { "parser": { "tailwindDirectives": true } },
   "overrides": [
     {

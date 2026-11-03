@@ -2,20 +2,31 @@ import { expect, test } from "bun:test";
 import postgres from "postgres";
 
 import {
-  modelVersionSchema,
-  sameModelVersion,
-} from "../../domain/models/schema";
-
-import {
   SEED_DETECTOR_BASELINE_VERSION_ID,
   SEED_DETECTOR_MODEL_ID,
 } from "../../domain/models/builtins";
 import {
-  ModelInUseError,
   ModelIdTakenError,
+  ModelInUseError,
   ModelNotFoundError,
   ModelVersionNotFoundError,
 } from "../../domain/models/errors";
+import {
+  DEFAULT_MODEL_ANNOTATION,
+  modelVersionSchema,
+  sameModelVersion,
+} from "../../domain/models/schema";
+import { storeAnnotation } from "../annotations/public";
+import { unassignObservationImage } from "../experiments/observation-images";
+import { deleteObservation } from "../experiments/public";
+import { database } from "../infra/db/client";
+import { connect } from "../infra/db/connection";
+import { modelVersions } from "../infra/db/schema";
+import {
+  observeImagesForModel,
+  registerTrainedVersion,
+  traditionalVersion,
+} from "../testing/fixtures";
 import {
   createModel,
   deleteModel,
@@ -28,18 +39,6 @@ import {
   registerModelVersion,
   setCurrentVersion,
 } from "./registry";
-import { storeAnnotation } from "../annotations/public";
-import { deleteObservation } from "../experiments/public";
-import { unassignObservationImage } from "../experiments/observation-images";
-import {
-  observeImagesForModel,
-  registerTrainedVersion,
-  traditionalVersion,
-} from "../testing/fixtures";
-import { connect } from "../infra/db/connection";
-import { database } from "../infra/db/client";
-import { modelVersions } from "../infra/db/schema";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 
 test("a version is registered once and its contents may not change", async () => {
   const model = await registerModel({

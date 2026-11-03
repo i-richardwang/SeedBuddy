@@ -8,14 +8,14 @@ import {
   userRoleUpdateSchema,
 } from "../domain/auth/schema";
 import {
-  listUsers,
-  createUser,
-  setUserRole,
-  setUserPassword,
   banUser,
-  unbanUser,
-  revokeUserSessions,
+  createUser,
   deleteUser,
+  listUsers,
+  revokeUserSessions,
+  setUserPassword,
+  setUserRole,
+  unbanUser,
 } from "../server/auth/public";
 
 export const getUsers = createServerFn({ method: "GET" }).handler(() =>

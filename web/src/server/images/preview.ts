@@ -4,10 +4,10 @@ import { MAX_SOURCE_IMAGE_PIXELS } from "../../domain/images/canonical";
 import { createSingleFlight } from "../../lib/async/work";
 import {
   blobExists,
+  type OpenBlob,
   openBlob,
   putImmutableBlob,
   readBlob,
-  type OpenBlob,
 } from "../infra/blobs/store";
 import { imageBlobKey, imagePreviewKey } from "./keys";
 import { processImage } from "./processing";

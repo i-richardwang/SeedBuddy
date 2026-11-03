@@ -7,6 +7,7 @@ import {
 } from "../../domain/datasets/schema";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { addToDataset, addToNewDataset } from "../../functions/datasets";
+import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -16,7 +17,6 @@ import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
 import { Select } from "../../ui/kit/Select";
 import { toast } from "../../ui/kit/Toast";
-import { m } from "../../paraglide/messages";
 
 const NEW_DATASET = "\0new";
 const FORM_ID = "add-to-dataset";

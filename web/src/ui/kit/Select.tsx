@@ -1,6 +1,7 @@
 import { Select as BaseSelect } from "@base-ui/react/select";
 import { Check, ChevronDown, X } from "lucide-react";
 import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
+
 import { m } from "../../paraglide/messages";
 import { cn } from "./cn";
 import { defaultPortalContainer } from "./floating";

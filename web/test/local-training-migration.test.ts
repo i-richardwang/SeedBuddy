@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
+
 import { SEED_DETECTOR } from "../src/domain/models/builtins";
 import { YOLO26N_WHOLE_RECIPE } from "../src/domain/training/recipes";
 

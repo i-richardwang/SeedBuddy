@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { openDraft, reduceDraft, type DraftAction } from "./draft";
+import { type DraftAction, openDraft, reduceDraft } from "./draft";
 import type { AnnotationInstance, ReviewSource } from "./schema";
 
 const from = (origin: ReviewSource, instances: AnnotationInstance[]) => ({

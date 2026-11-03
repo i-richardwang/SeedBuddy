@@ -1,16 +1,17 @@
 import sharp from "sharp";
+
+import { MAX_SOURCE_IMAGE_PIXELS } from "../../domain/images/canonical";
 import {
-  dishCoverage,
-  dishThumbnail,
   type DishAnalysis,
   type DishCircle,
+  dishCoverage,
+  dishThumbnail,
   type ImageCoverage,
 } from "../../domain/images/coverage";
-import { MAX_SOURCE_IMAGE_PIXELS } from "../../domain/images/canonical";
-import type { CanonicalImage } from "./ingest";
-import { processImage } from "./processing";
 import { detectDish } from "./dish";
 import { DISH_RECIPE_ID, type DishRequest } from "./dish-recipe";
+import type { CanonicalImage } from "./ingest";
+import { processImage } from "./processing";
 
 /** Analyze canonical bytes once, independently of models, runs and regional assets. */
 export function createImageAnalyzer(

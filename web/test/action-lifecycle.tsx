@@ -1,15 +1,16 @@
 /** Isolated harness for write completion and the destructive confirmation boundary. */
-import { render, unmount } from "./dom";
 
 import assert from "node:assert/strict";
+
 import { mock, spyOn } from "bun:test";
 import { act } from "react";
 
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../src/ui/hooks/useAsyncAction";
 import { toast } from "../src/ui/kit/Toast";
+import { render, unmount } from "./dom";
 
 let action: AsyncAction;
 function Action() {

@@ -11,13 +11,13 @@ export {
   updateTreatment,
   updateUnit,
 } from "./design";
+export { recordManualReadings } from "./manual-readings";
 export {
   assignObservationImages,
   recordObservation,
   retryObservationImageAnalysis,
   unassignObservationImage,
 } from "./observation-images";
-export { recordManualReadings } from "./manual-readings";
 export {
   addObservation,
   deleteObservation,

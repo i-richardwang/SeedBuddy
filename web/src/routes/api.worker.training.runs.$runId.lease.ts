@@ -1,5 +1,6 @@
-import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
+
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { renewTrainingLease } from "../server/training/public";
 import {
   parseWorkerSessionJson,

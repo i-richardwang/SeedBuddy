@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
 
-import { readStoredZip } from "../../lib/archive/zip";
 import { DATASET_ARCHIVE_LIMITS } from "../../domain/datasets/archive-format";
 import { datasetManifestSchema } from "../../domain/datasets/manifest";
+import { readStoredZip } from "../../lib/archive/zip";
 import { imageBlobKey } from "../images/keys";
 import { requireBlob } from "../infra/blobs/store";
-import { datasetArchive } from "./archive";
 import { reviewedDataset } from "../testing/fixtures";
+import { datasetArchive } from "./archive";
 
 test("an archive holds the manifest first and then every image by digest", async () => {
   const seeded = await reviewedDataset("archive-set", ["ar-a", "ar-b"]);

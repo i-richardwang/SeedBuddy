@@ -1,16 +1,17 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+
 import { isAdmin } from "../../domain/auth/schema";
 import { EnrollWorkerDialog } from "../../features/workers/EnrollWorkerDialog";
 import { WorkersTable } from "../../features/workers/WorkersTable";
 import { getWorkers } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
-import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
 import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { TableSkeleton } from "../../ui/kit/PageSkeleton";
+import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
 
 const workbench = getRouteApi("/_workbench");
 

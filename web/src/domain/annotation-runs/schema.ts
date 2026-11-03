@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import {
   annotationInstanceSchema,
   annotationRefSchema,
@@ -6,9 +7,9 @@ import {
   boundingBoxSchema,
   REVIEW_SOURCES,
 } from "../annotation/schema";
-import { timestampSchema, sha256Schema } from "../identifiers/schema";
-import { annotationConfigSchema } from "../models/annotation";
+import { sha256Schema, timestampSchema } from "../identifiers/schema";
 import { imageCoverageSchema } from "../images/coverage";
+import { annotationConfigSchema } from "../models/annotation";
 
 export const ANNOTATION_RUN_STATUSES = [
   "running",

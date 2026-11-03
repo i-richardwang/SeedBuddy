@@ -9,10 +9,10 @@ import type {
 import { m } from "../../paraglide/messages";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
+import { Text } from "../../ui/kit/Text";
 import { Toolbar, ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { MoveUnitsDialog } from "./MoveUnitsDialog";
 import { RecordCultureEventDialog } from "./RecordCultureEventDialog";
-import { Text } from "../../ui/kit/Text";
 
 /**
  * Commands for the selected units, shown while any unit is selected. With

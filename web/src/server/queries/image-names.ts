@@ -1,10 +1,10 @@
-import { asc, and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { database } from "../infra/db/client";
 import {
   datasetImages,
-  experimentObservations,
   experimentObservationImages,
+  experimentObservations,
 } from "../infra/db/schema";
 
 /**

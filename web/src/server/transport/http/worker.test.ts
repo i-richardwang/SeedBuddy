@@ -1,18 +1,17 @@
-import { WorkerSessionConflictError } from "../../../domain/workers/errors";
+import { expect, spyOn, test } from "bun:test";
+
 import {
   DetectionConflictError,
   DetectionImageNotFoundError,
   InvalidDetectionOutcomeError,
   ProducerMismatchError,
 } from "../../../domain/inference/errors";
-import { expect, spyOn, test } from "bun:test";
-
 import {
   TrainingArtifactValidationError,
   TrainingRunConflictError,
   TrainingRunNotFoundError,
 } from "../../../domain/training/errors";
-
+import { WorkerSessionConflictError } from "../../../domain/workers/errors";
 import { WorkerRequestError, workerErrorResponse } from "./worker";
 
 test("worker HTTP errors answer with the status the protocol acts on", () => {

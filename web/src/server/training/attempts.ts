@@ -1,7 +1,8 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
+
 import type {
-  TrainingRun,
   TrainingAttempt,
+  TrainingRun,
 } from "../../domain/training/schema";
 import { database, type Executor } from "../infra/db/client";
 import { trainingAttempts } from "../infra/db/schema";

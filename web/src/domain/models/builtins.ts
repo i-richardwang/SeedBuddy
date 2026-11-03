@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { SEED_ANNOTATION_CONFIG } from "./annotation";
 
 import traditionalManifest from "../../../../configs/traditional-v1.json";
-import { timestampSchema, sha256Schema } from "../identifiers/schema";
+import { sha256Schema, timestampSchema } from "../identifiers/schema";
+import { SEED_ANNOTATION_CONFIG } from "./annotation";
 import {
   DEFAULT_MODEL_ANNOTATION,
   modelSchema,

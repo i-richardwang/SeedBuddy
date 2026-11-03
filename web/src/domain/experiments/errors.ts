@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { ConflictError, NotFoundError } from "../errors";
-import { placedPhotoSchema, type PlacedPhoto } from "./photos";
+import { type PlacedPhoto, placedPhotoSchema } from "./photos";
 
 export class ExperimentNotFoundError extends NotFoundError {
   readonly code = "experiment_not_found";

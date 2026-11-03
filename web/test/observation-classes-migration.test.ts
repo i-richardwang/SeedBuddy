@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
+
 import { SEED_DETECTOR } from "../src/domain/models/builtins";
 
 test("an observation recorded before days named their classes counts every class its model recognizes", async () => {

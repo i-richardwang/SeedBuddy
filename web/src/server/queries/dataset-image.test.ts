@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 
-import { readDatasetImage } from "./dataset-image";
-import { seedDetectionResult } from "../testing/inference";
 import {
   imageDigest,
+  observeTextsIntoDataset,
   resultFor,
   testHeartbeat,
-  observeTextsIntoDataset,
 } from "../testing/fixtures";
+import { seedDetectionResult } from "../testing/inference";
+import { readDatasetImage } from "./dataset-image";
 
 test("a dataset image page steps through the dataset in its order", async () => {
   const { version, dataset } = await observeTextsIntoDataset("di", [

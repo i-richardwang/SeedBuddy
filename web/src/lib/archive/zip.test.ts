@@ -1,5 +1,6 @@
-import { expect, test } from "bun:test";
 import { deflateRawSync } from "node:zlib";
+
+import { expect, test } from "bun:test";
 
 import { ArchiveFormatError, crc32, readStoredZip, storedZip } from "./zip";
 

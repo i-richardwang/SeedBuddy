@@ -1,7 +1,7 @@
 import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
-import type { Crumb } from "../../ui/shell/crumbs";
 import { modelName } from "../../ui/model-names";
+import type { Crumb } from "../../ui/shell/crumbs";
 
 /** The way down to a model: the model list, then the model itself. */
 export function modelCrumbs(model: Model): Crumb[] {

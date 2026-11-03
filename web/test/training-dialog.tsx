@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+
 import { mock } from "bun:test";
 import { act } from "react";
+
 import { body, browser, byRole, press, render, unmount, waitFor } from "./dom";
 
 const submissions: unknown[] = [];

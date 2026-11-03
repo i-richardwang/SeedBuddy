@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+
 import { m } from "../../paraglide/messages";
 import { Skeleton } from "./Skeleton";
 

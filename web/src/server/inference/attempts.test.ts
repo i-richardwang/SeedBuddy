@@ -1,35 +1,36 @@
-import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import { expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
+
+import type { DetectionResult } from "../../domain/detection/schema";
+import type { InferenceAssignment } from "../../domain/inference/assignments";
+import { InferenceAttemptConflictError } from "../../domain/inference/errors";
+import type { Worker } from "../../domain/workers/schema";
+import { database } from "../infra/db/client";
+import { inferenceTasks } from "../infra/db/schema";
+import { listWorkerPresence } from "../queries/public";
+import {
+  FIXTURE_EDGE,
+  observeImages,
+  recordTestHeartbeat,
+  registerTrainedVersion,
+  snapshotImages,
+  testHeartbeat,
+  traditionalVersion,
+  ULTRALYTICS_RUNTIME,
+} from "../testing/fixtures";
+import { removeWorker } from "../workers/public";
 import {
   claimInferenceAssignment,
   completeInferenceClaim,
-  renewInferenceClaim,
   failInferenceAttempt,
+  renewInferenceClaim,
 } from "./attempts";
+import { INFERENCE_LEASE_SECONDS } from "./policy";
 import {
   maintainInferenceTasks,
   readInferenceTask,
   retryInferenceTask,
 } from "./tasks";
-import { INFERENCE_LEASE_SECONDS } from "./policy";
-import {
-  observeImages,
-  recordTestHeartbeat,
-  testHeartbeat,
-  FIXTURE_EDGE,
-  ULTRALYTICS_RUNTIME,
-  registerTrainedVersion,
-  snapshotImages,
-  traditionalVersion,
-} from "../testing/fixtures";
-import type { InferenceAssignment } from "../../domain/inference/assignments";
-import type { Worker } from "../../domain/workers/schema";
-import type { DetectionResult } from "../../domain/detection/schema";
-import { database } from "../infra/db/client";
-import { inferenceTasks } from "../infra/db/schema";
-import { listWorkerPresence } from "../queries/public";
-import { removeWorker } from "../workers/public";
 
 const start = new Date("2030-01-01T00:00:00Z");
 const later = (seconds: number) => new Date(start.getTime() + seconds * 1000);

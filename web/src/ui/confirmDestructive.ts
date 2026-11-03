@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { m } from "../paraglide/messages";
-import { runAction, type ActionSuccess } from "./hooks/useAsyncAction";
+import { type ActionSuccess, runAction } from "./hooks/useAsyncAction";
 import { confirmModal } from "./kit/Modal";
 
 /**

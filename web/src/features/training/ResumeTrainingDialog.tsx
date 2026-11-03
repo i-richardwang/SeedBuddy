@@ -6,8 +6,8 @@ import type { TrainingRunDetail } from "../../domain/training/read-model";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Text } from "../../ui/kit/Text";

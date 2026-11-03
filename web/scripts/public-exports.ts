@@ -1,6 +1,7 @@
+import { posix as path } from "node:path";
+
 import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
-import { posix as path } from "node:path";
 
 /** Public service barrels expose only names consumed outside their module. */
 export function unusedPublicExports(

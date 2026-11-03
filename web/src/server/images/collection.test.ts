@@ -1,13 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { blobExists, putImmutableBlob, listBlobs } from "../infra/blobs/store";
-import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
-
+import { blobExists, listBlobs, putImmutableBlob } from "../infra/blobs/store";
+import { imageBytes, observeImages } from "../testing/fixtures";
 import { collectImages } from "./collection";
 import { canonicalize } from "./ingest";
-import { storeImage } from "./store";
+import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
 import { readImageRegion } from "./regions";
-import { imageBytes, observeImages } from "../testing/fixtures";
+import { storeImage } from "./store";
 
 describe("collection", () => {
   /** A moment past the period an unclaimed image is kept for. */

@@ -2,12 +2,12 @@ import { useBlocker, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 
 import {
-  openDraft,
-  reduceDraft,
   type AnnotationDraft,
   type DraftAction,
+  openDraft,
+  reduceDraft,
 } from "../../domain/annotation/draft";
-import { sourceInstances, type Review } from "../../domain/annotation/readings";
+import { type Review, sourceInstances } from "../../domain/annotation/readings";
 import type {
   AnnotationInstance,
   ReviewSource,

@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 import sharp from "sharp";
-import { canonicalize } from "./ingest";
+
 import { createImageAnalyzer, resolveDishCoverage } from "./analysis";
 import { DISH_RECIPE_ID } from "./dish-recipe";
+import { canonicalize } from "./ingest";
 
 async function image() {
   const pixels = Buffer.alloc(1600 * 1000 * 3);

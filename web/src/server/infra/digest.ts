@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+
 import { canonicalJson } from "../../lib/json/canonical";
 
 /** The SHA-256 digest that identifies content, as lower-case hex. */

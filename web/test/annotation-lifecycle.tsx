@@ -1,5 +1,6 @@
 /** Isolated DOM harness: real workbench, draft, viewport, controls and keys. */
 import assert from "node:assert/strict";
+
 import { mock } from "bun:test";
 import { act, createElement, type ReactNode } from "react";
 

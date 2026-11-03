@@ -1,38 +1,19 @@
-import { trainingBundle } from "../testing/model-bundle";
-import { readTrainingRun } from "./runs";
-import { controlTrainingRun } from "./control";
-import { listTrainingAttempts } from "./attempts";
-import {
-  saveTrainingArtifactPart,
-  readTrainingArtifactParts,
-} from "./artifacts";
-import { artifactPartKey } from "./keys";
-import { TRAINING_ARTIFACT_PART_BYTES } from "../../domain/training/artifact";
-import { collectTrainingArtifactParts } from "./collection";
 import { expect, test } from "bun:test";
-import { TrainingRunConflictError } from "../../domain/training/errors";
-import { listTrainingRunSummaries } from "../queries/training-runs";
 
+import { TRAINING_ARTIFACT_PART_BYTES } from "../../domain/training/artifact";
+import { TrainingRunConflictError } from "../../domain/training/errors";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import { requireBlob } from "../infra/blobs/store";
-import { openModelWeights } from "../models/publication";
+import type {
+  WorkerHeartbeat,
+  WorkerIdentity,
+} from "../../domain/workers/schema";
 import { imageBlobKey } from "../images/keys";
-import { contentDigest } from "../infra/digest";
-import { readDatasetSnapshot } from "./snapshots";
-import { readModelVersion } from "../models/registry";
-import {
-  activeTrainingRun,
-  claimTrainingRun,
-  createTrainingRun,
-  enterTrainingPhase,
-  failTrainingRun,
-  listTrainingEpochs,
-  recordTrainingEpoch,
-  renewTrainingLease,
-} from "./runs";
-import { publishTrainingArtifact as publishTrainingBundle } from "./publication";
-import { removeWorker } from "../workers/public";
 import { markImageUnclear } from "../images/public";
+import { requireBlob } from "../infra/blobs/store";
+import { contentDigest } from "../infra/digest";
+import { openModelWeights } from "../models/publication";
+import { readModelVersion } from "../models/registry";
+import { listTrainingRunSummaries } from "../queries/training-runs";
 import {
   imageDigest,
   recordTestHeartbeat,
@@ -40,10 +21,29 @@ import {
   traditionalVersion,
   ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
-import type {
-  WorkerHeartbeat,
-  WorkerIdentity,
-} from "../../domain/workers/schema";
+import { trainingBundle } from "../testing/model-bundle";
+import { removeWorker } from "../workers/public";
+import {
+  readTrainingArtifactParts,
+  saveTrainingArtifactPart,
+} from "./artifacts";
+import { listTrainingAttempts } from "./attempts";
+import { collectTrainingArtifactParts } from "./collection";
+import { controlTrainingRun } from "./control";
+import { artifactPartKey } from "./keys";
+import { publishTrainingArtifact as publishTrainingBundle } from "./publication";
+import {
+  activeTrainingRun,
+  claimTrainingRun,
+  createTrainingRun,
+  enterTrainingPhase,
+  failTrainingRun,
+  listTrainingEpochs,
+  readTrainingRun,
+  recordTrainingEpoch,
+  renewTrainingLease,
+} from "./runs";
+import { readDatasetSnapshot } from "./snapshots";
 
 async function publishTrainingArtifact(
   runId: string,

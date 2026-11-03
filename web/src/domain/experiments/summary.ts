@@ -5,10 +5,10 @@ import type { ExperimentGrid } from "./contracts";
 import { observationOrdinals } from "./culture-events";
 import { cellKey, cellReading, observationCells, unitDays } from "./readings";
 import {
+  type ExperimentObservation,
   observationIdSchema,
   treatmentIdSchema,
   unitIdSchema,
-  type ExperimentObservation,
 } from "./schema";
 
 /**

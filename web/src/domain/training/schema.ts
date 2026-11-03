@@ -2,9 +2,9 @@ import { z } from "zod";
 
 import { annotationSchema } from "../annotation/schema";
 import {
-  timestampSchema,
   resourceIdSchema,
   sha256Schema,
+  timestampSchema,
 } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";

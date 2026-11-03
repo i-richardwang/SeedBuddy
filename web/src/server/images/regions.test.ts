@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
 import sharp from "sharp";
+
 import { dishCoverage } from "../../domain/images/coverage";
 import { imageOverview, imageRegions } from "../../domain/images/regions";
 import { createMemoryBlobStore } from "../infra/blobs/store";
-import { imageBlobKey } from "./keys";
 import { canonicalize } from "./ingest";
+import { imageBlobKey } from "./keys";
 import { createImageEvidence } from "./regions";
 
 async function fixture() {

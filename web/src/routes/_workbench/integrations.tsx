@@ -1,21 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { MCP_SERVERS } from "../../domain/auth/integrations";
 import { ApiKeysGroup } from "../../features/integrations/ApiKeysGroup";
 import { MCP_SERVER_LABELS } from "../../features/integrations/labels";
 import { McpClientsGroup } from "../../features/integrations/McpClientsGroup";
-import { MCP_SERVERS } from "../../domain/auth/integrations";
 import { getIntegrations } from "../../functions/integrations";
-import { documentTitle } from "../../ui/documentTitle";
 import { m } from "../../paraglide/messages";
-import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
+import { documentTitle } from "../../ui/documentTitle";
+import { CopyButton } from "../../ui/kit/CopyButton";
+import { TableSkeleton } from "../../ui/kit/PageSkeleton";
 import {
   SettingsGroup,
   SettingsGroupSkeleton,
   SettingsValueRow,
 } from "../../ui/kit/Settings";
-import { TableSkeleton } from "../../ui/kit/PageSkeleton";
-import { CopyButton } from "../../ui/kit/CopyButton";
 import { Text } from "../../ui/kit/Text";
+import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
 
 const MCP_SERVERS_ID = "mcp-servers";
 

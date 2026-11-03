@@ -38,8 +38,8 @@ import { ExperimentMenu } from "./ExperimentMenu";
 import { observationQuestion } from "./labels";
 import { RecordObservationDialog } from "./ObservationDialog";
 import { ObservationMenu } from "./ObservationMenu";
-import { TreatmentName, TreatmentsTable } from "./TreatmentsTable";
 import { TreatmentSummary } from "./TreatmentSummary";
+import { TreatmentName, TreatmentsTable } from "./TreatmentsTable";
 import { UnitDayCount } from "./UnitDayCount";
 import { UnitSelectionBar } from "./UnitSelectionBar";
 

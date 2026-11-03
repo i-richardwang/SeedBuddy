@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { photoConflicts, placedPhotos, type PlacedPhoto } from "./photos";
+import { type PlacedPhoto, photoConflicts, placedPhotos } from "./photos";
 
 const digest = (char: string) => char.repeat(64);
 

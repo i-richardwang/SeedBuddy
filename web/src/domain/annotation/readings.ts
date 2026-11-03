@@ -7,10 +7,10 @@ import {
 import { detectionResultSchema } from "../detection/schema";
 import { instancesFromDetection } from "./detection";
 import {
+  type AnnotationInstance,
   annotationRefSchema,
   annotationSchema,
   REVIEW_SOURCES,
-  type AnnotationInstance,
   type ReviewSource,
 } from "./schema";
 

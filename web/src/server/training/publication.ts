@@ -1,26 +1,25 @@
-import type { AttemptOwner } from "../../domain/workers/schema";
 import { modelBundleSchema } from "../../domain/models/bundle";
-import { database, transaction } from "../infra/db/client";
-import { canonicalJson } from "../../lib/json/canonical";
-
 import {
   TrainingArtifactValidationError,
   TrainingRunConflictError,
   TrainingRunNotFoundError,
 } from "../../domain/training/errors";
+import type { AttemptOwner } from "../../domain/workers/schema";
+import { canonicalJson } from "../../lib/json/canonical";
+import { database, transaction } from "../infra/db/client";
 import {
-  readModelVersion,
   prepareModelUpload,
-  uploadModelWeights,
+  readModelVersion,
   registerUploadedModel,
+  uploadModelWeights,
 } from "../models/public";
+import { readTrainingArtifactParts } from "./artifacts";
 import {
-  readTrainingRun,
   lockTrainingRun,
+  readTrainingRun,
   requireOwnedRunningRun,
   transitionTrainingRun,
 } from "./runs";
-import { readTrainingArtifactParts } from "./artifacts";
 import { readDatasetSnapshot } from "./snapshots";
 
 /** Training owns execution; the model registry owns its delivered artifact. */

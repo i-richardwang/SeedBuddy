@@ -6,9 +6,9 @@ import {
 
 import packageJson from "../../../../package.json";
 import {
-  executeAgentOperation,
   type AgentOperation,
   agentOperations,
+  executeAgentOperation,
 } from "../../agent/public";
 import { guardMcpRequest, serveAuthorized } from "./access";
 

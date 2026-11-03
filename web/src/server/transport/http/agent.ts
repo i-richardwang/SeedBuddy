@@ -1,9 +1,8 @@
 import {
   type AgentFailureCode,
-  executeAgentOperation,
   describeAgentOperations,
+  executeAgentOperation,
 } from "../../agent/public";
-
 import { authorizeApiKey } from "../../auth/public";
 
 type HttpFailureCode = AgentFailureCode | "unauthorized";

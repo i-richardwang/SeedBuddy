@@ -5,19 +5,19 @@ import { useState } from "react";
 import type { Model, ModelAnnotation } from "../../domain/models/schema";
 import { removeModel, updateModelAnnotation } from "../../functions/models";
 import { m } from "../../paraglide/messages";
-import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
+import { PageMenu } from "../../ui/ActionsMenu";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
   useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
+import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { Form } from "../../ui/kit/Form";
 import { TextArea } from "../../ui/kit/Input";
 import { toast } from "../../ui/kit/Toast";
 import { modelName } from "../../ui/model-names";
-import { PageMenu } from "../../ui/ActionsMenu";
 import { AnnotationAreaField } from "./AnnotationAreaField";
 
 const FORM_ID = "model-annotation";

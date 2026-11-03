@@ -3,28 +3,28 @@ import { useEffect, useEffectEvent } from "react";
 import { z } from "zod";
 
 import { REVIEW_SOURCES } from "../../domain/annotation/schema";
-import {
-  ImageWorkbench,
-  ImageWorkbenchSkeleton,
-} from "../../features/annotation/ImageWorkbench";
-import { datasetImageRefSchema } from "../../domain/datasets/schema";
-import { getDatasetImage } from "../../functions/datasets";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
-import { useStep } from "../../ui/hooks/useStep";
-import { DescriptionsItem } from "../../ui/kit/Descriptions";
-import { modelName } from "../../ui/model-names";
-import { useWorkbenchKeys } from "../../features/annotation/keys";
-import { WorkbenchFooter } from "../../ui/shell/Workbench";
-import { Stepper } from "../../ui/Stepper";
-import { splitLabel } from "../../features/datasets/labels";
-import { documentTitle } from "../../ui/documentTitle";
-import { m } from "../../paraglide/messages";
-import { datasetCrumbs } from "../../features/models/crumbs";
 import type {
   DatasetImageStep,
   DatasetImageView,
 } from "../../domain/datasets/image";
+import { datasetImageRefSchema } from "../../domain/datasets/schema";
+import {
+  ImageWorkbench,
+  ImageWorkbenchSkeleton,
+} from "../../features/annotation/ImageWorkbench";
+import { useWorkbenchKeys } from "../../features/annotation/keys";
+import { splitLabel } from "../../features/datasets/labels";
+import { datasetCrumbs } from "../../features/models/crumbs";
+import { getDatasetImage } from "../../functions/datasets";
+import { m } from "../../paraglide/messages";
+import { documentTitle } from "../../ui/documentTitle";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
+import { useStep } from "../../ui/hooks/useStep";
+import { DescriptionsItem } from "../../ui/kit/Descriptions";
 import { Text } from "../../ui/kit/Text";
+import { modelName } from "../../ui/model-names";
+import { Stepper } from "../../ui/Stepper";
+import { WorkbenchFooter } from "../../ui/shell/Workbench";
 
 /** `show` names the reading on view; the best shows otherwise. */
 const datasetImageSearchSchema = z.object({

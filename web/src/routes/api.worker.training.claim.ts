@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { workerSessionSchema } from "../domain/workers/schema";
 import { claimTrainingRun } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { workerSessionSchema } from "../domain/workers/schema";
 
 export const Route = createFileRoute("/api/worker/training/claim")({
   server: {

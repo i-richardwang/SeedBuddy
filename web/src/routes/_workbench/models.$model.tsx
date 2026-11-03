@@ -8,8 +8,8 @@ import { ChartLine, Images, Network, Upload } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
-import { ImportDatasetDialog } from "../../features/datasets/ImportDatasetDialog";
 import { DatasetCard } from "../../features/datasets/DatasetCard";
+import { ImportDatasetDialog } from "../../features/datasets/ImportDatasetDialog";
 import { ModelMenu } from "../../features/models/ModelMenu";
 import { modelIsFree } from "../../features/models/records";
 import { VersionDialog } from "../../features/models/VersionDialog";

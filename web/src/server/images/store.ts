@@ -1,22 +1,23 @@
 import { eq } from "drizzle-orm";
-import { database, transaction, type Executor } from "../infra/db/client";
-import { images } from "../infra/db/schema";
+
 import { MAX_IMAGE_BYTES } from "../../domain/images/canonical";
-import { contentDigest } from "../infra/digest";
-import { imageBlobKey } from "./keys";
+import type { DishAnalysis } from "../../domain/images/coverage";
+import { createSingleFlight } from "../../lib/async/work";
 import { putImmutableBlob } from "../infra/blobs/store";
+import { database, type Executor, transaction } from "../infra/db/client";
+import { images } from "../infra/db/schema";
+import { contentDigest } from "../infra/digest";
+import { analyzeImage } from "./analysis";
+import { DISH_RECIPE_ID } from "./dish-recipe";
 import {
+  type CanonicalImage,
   canonicalImageSize,
   canonicalize,
   ImageSourceError,
-  type CanonicalImage,
 } from "./ingest";
+import { imageBlobKey } from "./keys";
 import { lockImage } from "./lock";
-import { analyzeImage } from "./analysis";
 import { prepareImagePreview } from "./preview";
-import { DISH_RECIPE_ID } from "./dish-recipe";
-import type { DishAnalysis } from "../../domain/images/coverage";
-import { createSingleFlight } from "../../lib/async/work";
 
 /** A canonical image held independently of every dataset. */
 interface StoredImage {

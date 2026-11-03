@@ -6,8 +6,8 @@ import {
   MAX_SCALE,
   pannedTo,
   placedView,
-  resolveView,
   relativeView,
+  resolveView,
   zoomedAbout,
 } from "./viewport";
 

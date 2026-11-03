@@ -1,5 +1,6 @@
-import cases from "../../../../tests/fixtures/dish-geometry.json";
 import { expect, test } from "bun:test";
+
+import cases from "../../../../tests/fixtures/dish-geometry.json";
 import { dishCoverage, dishThumbnail, intersectsCoverage } from "./coverage";
 import { imageRegions } from "./regions";
 

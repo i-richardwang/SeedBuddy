@@ -1,18 +1,18 @@
 import { FileArchive, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 
-import { importDatasetArchive, type ImportProgress } from "./import-archive";
+import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
   useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
+import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { DropZone } from "../../ui/kit/DropZone";
 import { Icon } from "../../ui/kit/Icon";
 import { Progress } from "../../ui/kit/Progress";
-import { m } from "../../paraglide/messages";
-import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { Text } from "../../ui/kit/Text";
+import { type ImportProgress, importDatasetArchive } from "./import-archive";
 
 export function ImportDatasetDialog({
   open,

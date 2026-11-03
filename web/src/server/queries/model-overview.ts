@@ -1,20 +1,20 @@
+import type { DatasetSummary } from "../../domain/datasets/schema";
+import type {
+  VersionComparison,
+  VersionComparisonDetail,
+} from "../../domain/models/comparison";
 import type { ModelCatalogueEntry } from "../../domain/models/contracts";
 import type { ModelVersion } from "../../domain/models/schema";
 import type {
   TrainingRunListing,
   VersionOverview,
 } from "../../domain/training/read-model";
-import type { DatasetSummary } from "../../domain/datasets/schema";
 import { listDatasetSummaries } from "../datasets/public";
 import { listAllModelVersions, readCurrentVersionId } from "../models/public";
 import { datasetSnapshotSummaries } from "../training/public";
-import { listTrainingRunSummaries } from "./training-runs";
 import { modelCatalogue } from "./model-catalogue";
+import { listTrainingRunSummaries } from "./training-runs";
 import { versionComparisons } from "./version-comparison";
-import type {
-  VersionComparison,
-  VersionComparisonDetail,
-} from "../../domain/models/comparison";
 
 /** A model with what has been built for it. */
 interface ModelOverview extends ModelCatalogueEntry {

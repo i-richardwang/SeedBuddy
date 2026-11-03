@@ -1,9 +1,9 @@
 import { bootstrap } from "../src/server/bootstrap";
-import { closeDatabase } from "../src/server/infra/db/client";
 import {
-  refreshImageAnalysis,
   IMAGE_ANALYSIS_RETRY_MS,
+  refreshImageAnalysis,
 } from "../src/server/images/public";
+import { closeDatabase } from "../src/server/infra/db/client";
 
 process.env.VITROFLOW_IMAGE_ANALYSIS_URL ??= new URL(
   "./dish-thread.js",

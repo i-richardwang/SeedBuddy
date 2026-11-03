@@ -1,13 +1,13 @@
 import { ImageUp } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { ListedImage } from "./state";
 import {
   MAX_IMAGE_BYTES,
   MAX_SOURCE_IMAGE_PIXELS,
   SOURCE_IMAGE_EXTENSIONS,
   sourceImageFileError,
 } from "../../domain/images/canonical";
+import { m } from "../../paraglide/messages";
 import {
   DropZone,
   DropZoneFile,
@@ -16,7 +16,7 @@ import {
 } from "../../ui/kit/DropZone";
 import { toast } from "../../ui/kit/Toast";
 import { formatPercent } from "../../ui/numbers";
-import { m } from "../../paraglide/messages";
+import type { ListedImage } from "./state";
 
 const FILE_STATUS = {
   storing: "uploading",

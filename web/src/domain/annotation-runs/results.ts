@@ -1,11 +1,11 @@
 import type { AnnotationInstance, BoundingBox } from "../annotation/schema";
-import { annotationContentSchema, type AnnotationDefinition } from "./schema";
+import { type AnnotationDefinition, annotationContentSchema } from "./schema";
 import {
   owns,
-  regionBoxes,
-  tiles,
   type Region,
   type RegionProposal,
+  regionBoxes,
+  tiles,
 } from "./tasks";
 
 /** Overlap at which two regions' boxes are read as one object. */

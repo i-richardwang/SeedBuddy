@@ -1,27 +1,27 @@
-import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { startTrainingRun } from "../../functions/training";
-import { DialogSession, FormDialog } from "../../ui/FormDialog";
-import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { m } from "../../paraglide/messages";
-import type { DatasetTrainingReadiness } from "../../domain/training/read-model";
-import type {
-  TrainingPreset,
-  TrainingPresetId,
-} from "../../domain/training/recipes";
-import { Alert } from "../../ui/kit/Alert";
-import { Form } from "../../ui/kit/Form";
-import { toast } from "../../ui/kit/Toast";
-import { Select } from "../../ui/kit/Select";
-import { TrainingParametersForm } from "./TrainingParametersForm";
 import {
   effectiveOverrides,
   type TrainingOverrides,
   trainingOverridesSchema,
 } from "../../domain/training/parameters";
+import type { DatasetTrainingReadiness } from "../../domain/training/read-model";
+import type {
+  TrainingPreset,
+  TrainingPresetId,
+} from "../../domain/training/recipes";
 import { MIN_SNAPSHOT_IMAGES } from "../../domain/training/schema";
+import { startTrainingRun } from "../../functions/training";
+import { m } from "../../paraglide/messages";
+import { DialogSession, FormDialog } from "../../ui/FormDialog";
+import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { Alert } from "../../ui/kit/Alert";
+import { Form } from "../../ui/kit/Form";
+import { Select } from "../../ui/kit/Select";
+import { toast } from "../../ui/kit/Toast";
+import { TrainingParametersForm } from "./TrainingParametersForm";
+import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
 
 const FORM_ID = "train";
 

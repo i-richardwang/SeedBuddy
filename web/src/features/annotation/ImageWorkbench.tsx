@@ -1,4 +1,3 @@
-import { STANDING_LABELS } from "./labels";
 import { Lock, LockOpen } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
@@ -38,6 +37,7 @@ import { ChecksLayer, EditableBoxLayer } from "./BoxLayer";
 import type { LayerKey } from "./controls";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
 import { useSaveKey, useWorkbenchKeys } from "./keys";
+import { STANDING_LABELS } from "./labels";
 import { setEditLocked, useEditLocked } from "./lock";
 import { useImageSession } from "./session";
 import { EditTools, LayerControls } from "./tools";

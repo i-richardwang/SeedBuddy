@@ -1,4 +1,5 @@
 import { desc, eq, sql } from "drizzle-orm";
+
 import type { TrainingRunListing } from "../../domain/training/read-model";
 import { database } from "../infra/db/client";
 import {

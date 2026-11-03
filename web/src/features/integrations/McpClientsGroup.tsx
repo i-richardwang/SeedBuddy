@@ -1,13 +1,12 @@
 import { useRouter } from "@tanstack/react-router";
 import { Plug, Unplug } from "lucide-react";
 
-import { MCP_SERVER_LABELS } from "./labels";
 import type { McpClient } from "../../domain/auth/integrations";
 import { removeMcpClient } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
-import { Timestamp } from "../../ui/Timestamp";
 import { confirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
+import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { Flexbox } from "../../ui/kit/Flex";
 import { SettingsGroup } from "../../ui/kit/Settings";
@@ -20,8 +19,9 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { Tag } from "../../ui/kit/Tag";
-import { Button } from "../../ui/kit/Button";
 import { toast } from "../../ui/kit/Toast";
+import { Timestamp } from "../../ui/Timestamp";
+import { MCP_SERVER_LABELS } from "./labels";
 
 /** Approved MCP clients; `serversHref` leads to the server addresses a first client is given. */
 export function McpClientsGroup({

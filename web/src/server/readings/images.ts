@@ -1,23 +1,23 @@
-import { and, eq, sql, type SQLWrapper } from "drizzle-orm";
+import { and, eq, type SQLWrapper, sql } from "drizzle-orm";
 import { alias, type PgSelect } from "drizzle-orm/pg-core";
 
-import type { AnnotationProposal } from "../../domain/annotation-runs/schema";
-import {
-  annotationRuns,
-  images,
-  inferenceOutcomes,
-  annotations,
-} from "../infra/db/schema";
-import { database, type Executor } from "../infra/db/client";
 import {
   annotationReading,
   type ImageReadings,
   type Review,
 } from "../../domain/annotation/readings";
 import type { AnnotationRef } from "../../domain/annotation/schema";
-import type { DetectionResult } from "../../domain/detection/schema";
 import { AnnotationRunNotFoundError } from "../../domain/annotation-runs/errors";
+import type { AnnotationProposal } from "../../domain/annotation-runs/schema";
+import type { DetectionResult } from "../../domain/detection/schema";
 import { shownDetectingVersion } from "../inference/public";
+import { database, type Executor } from "../infra/db/client";
+import {
+  annotationRuns,
+  annotations,
+  images,
+  inferenceOutcomes,
+} from "../infra/db/schema";
 
 type Row = typeof annotationRuns.$inferSelect;
 

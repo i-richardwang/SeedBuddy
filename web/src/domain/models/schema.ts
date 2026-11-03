@@ -1,23 +1,23 @@
 import { z } from "zod";
 
 import {
-  timestampSchema,
   resourceIdSchema,
   sha256Schema,
+  timestampSchema,
 } from "../identifiers/schema";
 import type { RuntimeDescriptor } from "../inference/schema";
 import {
   detectionValidationSchema,
   trainingRecipeSchema,
 } from "../training/schema";
-import { inferenceSettingsSchema } from "./inference";
-import { bundleProvenanceSchema } from "./bundle";
-import { classListSchema } from "./classes";
 import {
-  annotationRegionSchema,
   annotationAreaSchema,
+  annotationRegionSchema,
   DEFAULT_ANNOTATION_REGION,
 } from "./annotation";
+import { bundleProvenanceSchema } from "./bundle";
+import { classListSchema } from "./classes";
+import { inferenceSettingsSchema } from "./inference";
 
 /**
  * How an agent annotates the task: the instructions that describe the bodies

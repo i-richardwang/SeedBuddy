@@ -1,14 +1,13 @@
 import type { AnnotationDocument } from "../../domain/annotation/schema";
 import type { Dataset } from "../../domain/datasets/schema";
-import type { TrainingRun } from "../../domain/training/schema";
 import type { DatasetTrainingReadiness } from "../../domain/training/read-model";
+import type { TrainingRun } from "../../domain/training/schema";
+import type { ImageRecord } from "../datasets/public";
 import {
-  readDatasetSnapshot,
   activeTrainingRun,
   latestTrainingRun,
+  readDatasetSnapshot,
 } from "../training/public";
-import type { ImageRecord } from "../datasets/public";
-
 import { listOnlineTrainers } from "../workers/public";
 import { trainingWorkerOptions } from "./training-workers";
 

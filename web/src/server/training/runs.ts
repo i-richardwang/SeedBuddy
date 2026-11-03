@@ -1,47 +1,48 @@
 import { randomUUID } from "node:crypto";
+
 import { and, asc, desc, eq, gt, inArray, isNull, not, or } from "drizzle-orm";
 
-import { database, transaction, type Executor } from "../infra/db/client";
+import { DatasetNotFoundError } from "../../domain/datasets/errors";
 import {
-  inferenceAttempts,
-  datasetSnapshots,
-  trainingEpochs,
-  trainingRuns,
-  trainingAttempts,
-} from "../infra/db/schema";
+  TrainingRunConflictError,
+  TrainingRunNotFoundError,
+} from "../../domain/training/errors";
 import {
   ACTIVE_TRAINING_RUN_STATUSES,
-  trainingEpochSchema,
-  trainingRecipeSchema,
-  trainingRunId,
   type TrainingEpoch,
   type TrainingEpochReport,
   type TrainingPhase,
   type TrainingRecipe,
   type TrainingRun,
+  trainingEpochSchema,
+  trainingRecipeSchema,
+  trainingRunId,
 } from "../../domain/training/schema";
 import {
   type AttemptOwner,
   canTrain,
   type WorkerIdentity,
 } from "../../domain/workers/schema";
-import { DatasetNotFoundError } from "../../domain/datasets/errors";
-import {
-  TrainingRunConflictError,
-  TrainingRunNotFoundError,
-} from "../../domain/training/errors";
-import { createDatasetSnapshot, readDatasetSnapshot } from "./snapshots";
-import { finishAttempt } from "./attempts";
-import { toTrainingRun } from "./records";
 import { readDataset } from "../datasets/public";
+import { database, type Executor, transaction } from "../infra/db/client";
+import {
+  datasetSnapshots,
+  inferenceAttempts,
+  trainingAttempts,
+  trainingEpochs,
+  trainingRuns,
+} from "../infra/db/schema";
 import {
   currentWorkerSession,
+  leaseIsHeld,
   listEnrolledWorkers,
   listWorkers,
-  leaseIsHeld,
   lockWorkerSession,
   sessionIsCurrent,
 } from "../workers/public";
+import { finishAttempt } from "./attempts";
+import { toTrainingRun } from "./records";
+import { createDatasetSnapshot, readDatasetSnapshot } from "./snapshots";
 
 const LEASE_MILLISECONDS = 5 * 60 * 1000;
 const PHASE_PROGRESS: Record<TrainingPhase, number> = {

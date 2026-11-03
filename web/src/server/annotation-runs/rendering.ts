@@ -1,15 +1,16 @@
 import sharp from "sharp";
-import { createSingleFlight, createWorkGate } from "../../lib/async/work";
-import { ByteCache } from "../../lib/cache/bytes";
-import { documentDigest } from "../infra/digest";
-import type { ImageRegionEvidence } from "../images/public";
+
 import type { BoundingBox } from "../../domain/annotation/schema";
 import type {
-  AnnotationDefinition,
   AnnotationContent,
+  AnnotationDefinition,
 } from "../../domain/annotation-runs/schema";
 import type { Region } from "../../domain/annotation-runs/tasks";
 import { classColor } from "../../domain/models/classes";
+import { createSingleFlight, createWorkGate } from "../../lib/async/work";
+import { ByteCache } from "../../lib/cache/bytes";
+import type { ImageRegionEvidence } from "../images/public";
+import { documentDigest } from "../infra/digest";
 export type AnnotationPanel =
   { kind: "image"; bytes: Buffer } | { kind: "description"; value: unknown };
 const image = (bytes: Buffer): AnnotationPanel => ({ kind: "image", bytes });

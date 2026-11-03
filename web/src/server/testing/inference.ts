@@ -1,11 +1,11 @@
 import type { DetectionResult } from "../../domain/detection/schema";
 import type { Worker } from "../../domain/workers/schema";
+import {
+  type DetectionTarget,
+  storeInferenceOutcome,
+} from "../inference/outcomes";
 import { transaction } from "../infra/db/client";
 import { inferenceTasks } from "../infra/db/schema";
-import {
-  storeInferenceOutcome,
-  type DetectionTarget,
-} from "../inference/outcomes";
 
 /** Seed a successful task and its canonical result without a worker lease. */
 export async function seedDetectionResult(

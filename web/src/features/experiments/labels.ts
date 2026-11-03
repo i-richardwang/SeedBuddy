@@ -1,13 +1,13 @@
-import { m } from "../../paraglide/messages";
-import { formatDay } from "../../ui/Day";
-import { countedClassesName, modelName } from "../../ui/model-names";
 import type {
-  ExperimentObservation,
   CultureEventType,
+  ExperimentObservation,
 } from "../../domain/experiments/schema";
 import type { SummaryMeasure } from "../../domain/experiments/summary";
 import { countsEveryClass } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";
+import { m } from "../../paraglide/messages";
+import { formatDay } from "../../ui/Day";
+import { countedClassesName, modelName } from "../../ui/model-names";
 
 /** An observation is named by the day it was made. */
 export function observationLabel(observation: ExperimentObservation): string {

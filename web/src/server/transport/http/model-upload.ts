@@ -1,8 +1,8 @@
-import { exactLengthBody, uploadFailure } from "./upload-body";
-import { MAX_MODEL_WEIGHTS_BYTES } from "../../../domain/models/transfer";
 import { DomainError } from "../../../domain/errors";
+import { MAX_MODEL_WEIGHTS_BYTES } from "../../../domain/models/transfer";
 import { uploadModelWeights } from "../../models/public";
 import { refuseWithoutAgentKey } from "./agent";
+import { exactLengthBody, uploadFailure } from "./upload-body";
 
 export async function serveModelWeightsUpload(
   uploadId: string,

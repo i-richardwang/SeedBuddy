@@ -1,22 +1,17 @@
-import {
-  cultureEventIsTerminal,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
-import { assertUnitRecordsEndAt } from "./culture-events";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import { inTransaction, type Executor } from "../infra/db/client";
-import { experimentObservations } from "../infra/db/schema";
 import {
-  ObservationNotFoundError,
+  cultureEventIsTerminal,
+  observationOrdinals,
+} from "../../domain/experiments/culture-events";
+import {
   ObservationModelHasCountsError,
+  ObservationNotFoundError,
   ObservationRejectedError,
 } from "../../domain/experiments/errors";
 import { resolveCountedClasses } from "../../domain/experiments/readings";
-import { ModelNotFoundError } from "../../domain/models/errors";
-import type { Model } from "../../domain/models/schema";
 import type {
   Experiment,
   ExperimentObservation,
@@ -24,15 +19,20 @@ import type {
   ObservationRequest,
   ObservationUpdate,
 } from "../../domain/experiments/schema";
+import { ModelNotFoundError } from "../../domain/models/errors";
+import type { Model } from "../../domain/models/schema";
+import { type Executor, inTransaction } from "../infra/db/client";
+import { experimentObservations } from "../infra/db/schema";
+import { readModel } from "../models/public";
+import { assertUnitRecordsEndAt } from "./culture-events";
 import {
   atObservation,
+  listManualReadings,
   listObservations,
   listUnits,
-  listManualReadings,
   lockExperiment,
   requireObservation,
 } from "./records";
-import { readModel } from "../models/public";
 
 function rejectBeforeInoculation(
   experiment: Experiment,

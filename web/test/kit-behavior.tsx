@@ -1,5 +1,6 @@
 /** Isolated DOM harness for kit components; the scenario to run is the first argument. */
 import assert from "node:assert/strict";
+
 import { useState } from "react";
 
 import { body, browser, byRole, press, render, unmount, waitFor } from "./dom";

@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
 import {
   Bar,
-  BarChart as RechartsBarChart,
   CartesianGrid,
   Cell,
   ErrorBar,
+  BarChart as RechartsBarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import type { AxisDomain } from "recharts/types/util/types";
+
 import { ChartTooltip, type ChartTooltipRow } from "./ChartTooltip";
 import { fitText } from "./chartText";
 

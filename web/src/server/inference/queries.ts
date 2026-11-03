@@ -1,4 +1,4 @@
-import { sql, type SQLWrapper } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
 
 /**
  * The version that reads for a model: the one a person made current. A

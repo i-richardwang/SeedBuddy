@@ -1,22 +1,22 @@
 /// <reference types="vite/client" />
-import type { ReactNode } from "react";
 
 import {
+  createRootRoute,
   HeadContent,
   Outlet,
   Scripts,
-  createRootRoute,
 } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 
-import { ModalHost } from "../ui/kit/Modal";
-import { Toaster } from "../ui/kit/Toast";
-import { TooltipGroup } from "../ui/kit/Tooltip";
-import { documentTitle } from "../ui/documentTitle";
-import { COLOR_SCHEME_SCRIPT } from "../ui/colorScheme";
-import { RouteNotice } from "../ui/RouteNotice";
 import { m } from "../paraglide/messages";
 import { getLocale } from "../paraglide/runtime";
 import appCss from "../styles/app.css?url";
+import { COLOR_SCHEME_SCRIPT } from "../ui/colorScheme";
+import { documentTitle } from "../ui/documentTitle";
+import { ModalHost } from "../ui/kit/Modal";
+import { Toaster } from "../ui/kit/Toast";
+import { TooltipGroup } from "../ui/kit/Tooltip";
+import { RouteNotice } from "../ui/RouteNotice";
 
 export const Route = createRootRoute({
   head: () => ({

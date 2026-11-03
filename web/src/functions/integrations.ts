@@ -5,22 +5,20 @@ import { APIError } from "better-auth/api";
 import { z } from "zod";
 
 import {
-  MCP_SERVERS,
   apiKeyCreateSchema,
   apiKeyRefSchema,
+  MCP_SERVERS,
   mcpClientRefSchema,
 } from "../domain/auth/integrations";
 import {
-  issueApiKey,
-  listApiKeys,
-  revokeApiKey,
   auth,
   disconnectMcpClient,
+  issueApiKey,
+  listApiKeys,
   listMcpClients,
+  revokeApiKey,
 } from "../server/auth/public";
-
 import { deploymentEndpoint } from "../server/infra/deployment";
-
 import { requireAccount } from "./access";
 
 export const getIntegrations = createServerFn({ method: "GET" }).handler(

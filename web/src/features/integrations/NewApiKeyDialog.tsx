@@ -1,23 +1,23 @@
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { API_SCOPE_LABELS } from "./labels";
 import {
   API_SCOPES,
-  MAX_API_KEY_DAYS,
   type ApiScope,
   type IssuedApiKey,
+  MAX_API_KEY_DAYS,
 } from "../../domain/auth/integrations";
 import { addApiKey } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
 import { CopyableCode } from "../../ui/CopyableCode";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { RevealOnceDialog } from "../../ui/RevealOnceDialog";
 import { CheckboxGroup } from "../../ui/kit/Checkbox";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
 import { Select } from "../../ui/kit/Select";
+import { RevealOnceDialog } from "../../ui/RevealOnceDialog";
+import { API_SCOPE_LABELS } from "./labels";
 
 const FORM_ID = "new-api-key";
 

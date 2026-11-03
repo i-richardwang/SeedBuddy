@@ -2,12 +2,12 @@ import { apiKey } from "@better-auth/api-key";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { mcp } from "@better-auth/mcp";
-import { count } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAccessControl } from "better-auth/plugins/access";
 import { admin, jwt } from "better-auth/plugins";
+import { createAccessControl } from "better-auth/plugins/access";
 import { adminAc, defaultStatements } from "better-auth/plugins/admin/access";
+import { count } from "drizzle-orm";
 
 import {
   API_KEY_PREFIX,

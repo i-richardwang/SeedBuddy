@@ -1,27 +1,29 @@
-import { trainingBundle } from "../../testing/model-bundle";
-import { collectTrainingArtifactParts } from "../../training/public";
-import { listBlobs } from "../../infra/blobs/store";
-import { readDatasetSnapshot } from "../../training/public";
 import { expect, test } from "bun:test";
 
-import {
-  TRAINING_PRESETS,
-  resolveTrainingRecipe,
-} from "../../../domain/training/recipes";
 import { MAX_MODEL_MANIFEST_BYTES } from "../../../domain/models/transfer";
+import {
+  resolveTrainingRecipe,
+  TRAINING_PRESETS,
+} from "../../../domain/training/recipes";
 import { trainingRunSchema } from "../../../domain/training/schema";
 import { Route as HeartbeatRoute } from "../../../routes/api.worker.heartbeat";
 import { Route as WeightsRoute } from "../../../routes/api.worker.inference.model-versions.$versionId.weights";
 import { Route as ClaimRoute } from "../../../routes/api.worker.training.claim";
 import { Route as ArtifactRoute } from "../../../routes/api.worker.training.runs.$runId.artifact";
-import { Route as EpochsRoute } from "../../../routes/api.worker.training.runs.$runId.epochs";
 import { Route as ArtifactPartsRoute } from "../../../routes/api.worker.training.runs.$runId.artifact-parts";
+import { Route as EpochsRoute } from "../../../routes/api.worker.training.runs.$runId.epochs";
 import { Route as ImageRoute } from "../../../routes/api.worker.training.runs.$runId.images.$digest";
 import { Route as LeaseRoute } from "../../../routes/api.worker.training.runs.$runId.lease";
 import { Route as PhaseRoute } from "../../../routes/api.worker.training.runs.$runId.phase";
 import { Route as SnapshotRoute } from "../../../routes/api.worker.training.runs.$runId.snapshot";
+import { listBlobs } from "../../infra/blobs/store";
 import { contentDigest } from "../../infra/digest";
-import { ULTRALYTICS_RUNTIME, reviewedDataset } from "../../testing/fixtures";
+import { reviewedDataset, ULTRALYTICS_RUNTIME } from "../../testing/fixtures";
+import { trainingBundle } from "../../testing/model-bundle";
+import {
+  collectTrainingArtifactParts,
+  readDatasetSnapshot,
+} from "../../training/public";
 import { createTrainingRun } from "../../training/runs";
 import { enrollWorker } from "../../workers/public";
 import { workerRoute } from "./testing";

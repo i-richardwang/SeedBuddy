@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { transaction } from "../infra/db/client";
 import {
   ConflictError,
   NotFoundError,
   ValidationError,
 } from "../../domain/errors";
+import { transaction } from "../infra/db/client";
 import type { AgentOperation } from "./definition";
 import { agentOperations } from "./operations";
 

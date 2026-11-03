@@ -1,6 +1,8 @@
-import { attemptIsActive } from "../inference/public";
 import { eq } from "drizzle-orm";
 
+import { workerPresence } from "../../domain/workers/presence";
+import type { WorkerActivity } from "../../domain/workers/schema";
+import { attemptIsActive } from "../inference/public";
 import { database } from "../infra/db/client";
 import {
   datasetSnapshots,
@@ -8,14 +10,12 @@ import {
   inferenceAttempts,
   trainingRuns,
 } from "../infra/db/schema";
-import { workerPresence } from "../../domain/workers/presence";
-import type { WorkerActivity } from "../../domain/workers/schema";
-import { imageFilenames } from "./image-names";
 import {
   leaseIsHeld,
   listEnrolledWorkers,
   listWorkers,
 } from "../workers/public";
+import { imageFilenames } from "./image-names";
 
 /**
  * A held lease belongs to its worker's current session, so each worker's

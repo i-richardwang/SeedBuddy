@@ -5,85 +5,34 @@ import { eq } from "drizzle-orm";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { makeResult } from "../../domain/annotation/testing";
-import { database } from "../infra/db/client";
 import {
-  experimentCultureEvents,
-  experimentUnits,
-  experimentObservations,
-  inferenceOutcomes,
-} from "../infra/db/schema";
-import type { Worker } from "../../domain/workers/schema";
-import type { ModelVersion } from "../../domain/models/schema";
-import {
-  UnitNotFoundError,
-  UnitRejectedError,
   ExperimentHasRecordsError,
-  ExperimentRejectedError,
   ExperimentNotFoundError,
   ExperimentObservationImageAlreadyUsedError,
+  ExperimentRejectedError,
   ManualReadingRejectedError,
   ObservationImageRejectedError,
-  ObservationNotFoundError,
   ObservationModelHasCountsError,
+  ObservationNotFoundError,
   ObservationRejectedError,
   TreatmentNotFoundError,
   TreatmentRejectedError,
+  UnitNotFoundError,
+  UnitRejectedError,
 } from "../../domain/experiments/errors";
-import {
-  experimentRequestSchema,
-  calendarDaySchema,
-  formatFactor,
-  treatmentRequestSchema,
-  type Experiment,
-  type ExperimentRequestInput,
-} from "../../domain/experiments/schema";
-import { storeAnnotation } from "../annotations/documents";
-import { imageBlobKey } from "../images/keys";
-import { collectImages } from "../images/collection";
-import { blobExists } from "../infra/blobs/store";
-import {
-  seedDetectionResult,
-  seedInferenceTaskFailure,
-} from "../testing/inference";
-import {
-  addReplicates,
-  addTreatment,
-  createExperiment as createExperimentRecord,
-  deleteUnit,
-  deleteExperiment,
-  deleteTreatment,
-  moveUnits,
-  updateUnit,
-  updateTreatment,
-  updateExperiment,
-} from "./design";
-import {
-  recordCultureEvent,
-  recordCultureEvents,
-  deleteCultureEvent,
-} from "./culture-events";
-import {
-  assignObservationImages,
-  recordObservation,
-  retryObservationImageAnalysis,
-  unassignObservationImage,
-} from "./observation-images";
-import { recordManualReadings } from "./manual-readings";
-import {
-  addObservation,
-  deleteObservation,
-  updateObservation,
-} from "./observations";
 import {
   observationCells,
   unitReading,
 } from "../../domain/experiments/readings";
 import {
-  listExperiments,
-  readUnit,
-  readExperimentGrid,
-  readExperimentObservationImage,
-} from "./queries";
+  calendarDaySchema,
+  type Experiment,
+  type ExperimentRequestInput,
+  experimentRequestSchema,
+  formatFactor,
+  treatmentRequestSchema,
+} from "../../domain/experiments/schema";
+import { ImageNotFoundError } from "../../domain/images/errors";
 import {
   SEED_DETECTOR,
   SEED_DETECTOR_BASELINE_VERSION_ID,
@@ -93,25 +42,76 @@ import {
   ModelNotFoundError,
   UnknownClassError,
 } from "../../domain/models/errors";
-import { readModel } from "../models/public";
-import { ImageNotFoundError } from "../../domain/images/errors";
+import type { ModelVersion } from "../../domain/models/schema";
+import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import type { Worker } from "../../domain/workers/schema";
+import { storeAnnotation } from "../annotations/documents";
+import { collectImages } from "../images/collection";
+import { imageBlobKey } from "../images/keys";
 import { clearImageUnclear, markImageUnclear } from "../images/unclear";
-import { listAllModelVersions } from "../models/registry";
+import { blobExists } from "../infra/blobs/store";
+import { database } from "../infra/db/client";
 import {
-  FIXTURE_EDGE,
-  ULTRALYTICS_RUNTIME,
+  experimentCultureEvents,
+  experimentObservations,
+  experimentUnits,
+  inferenceOutcomes,
+} from "../infra/db/schema";
+import { readModel } from "../models/public";
+import {
+  createModel,
+  listAllModelVersions,
+  registerModel,
+  setCurrentVersion,
+} from "../models/registry";
+import {
   baselineVersion,
+  FIXTURE_EDGE,
   imageDigest,
   registerTrainedVersion,
   storeTexts,
   testHeartbeat,
+  ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
 import {
-  createModel,
-  registerModel,
-  setCurrentVersion,
-} from "../models/registry";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+  seedDetectionResult,
+  seedInferenceTaskFailure,
+} from "../testing/inference";
+import {
+  deleteCultureEvent,
+  recordCultureEvent,
+  recordCultureEvents,
+} from "./culture-events";
+import {
+  addReplicates,
+  addTreatment,
+  createExperiment as createExperimentRecord,
+  deleteExperiment,
+  deleteTreatment,
+  deleteUnit,
+  moveUnits,
+  updateExperiment,
+  updateTreatment,
+  updateUnit,
+} from "./design";
+import { recordManualReadings } from "./manual-readings";
+import {
+  assignObservationImages,
+  recordObservation,
+  retryObservationImageAnalysis,
+  unassignObservationImage,
+} from "./observation-images";
+import {
+  addObservation,
+  deleteObservation,
+  updateObservation,
+} from "./observations";
+import {
+  listExperiments,
+  readExperimentGrid,
+  readExperimentObservationImage,
+  readUnit,
+} from "./queries";
 
 const INOCULATED = "2026-08-01";
 
