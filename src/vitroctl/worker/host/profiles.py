@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from vitroctl.io.files import atomic_file
-from vitroctl.worker.connection import WorkerConnection, validate_worker_process
+from vitroctl.worker.connection import validate_worker_settings
 
 PROFILE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 PROFILE_FIELDS = {"server_url", "token", "device", "poll_seconds"}
@@ -16,8 +16,7 @@ PROFILE_FIELDS = {"server_url", "token", "device", "poll_seconds"}
 
 @dataclass(frozen=True)
 class WorkerProfile:
-    """One native Worker process: which workbench it serves with which enrolled
-    worker's token, and on which accelerator."""
+    """The stored form of WorkerSettings, without its resolved work directory."""
 
     server_url: str
     token: str
@@ -25,8 +24,9 @@ class WorkerProfile:
     poll_seconds: float = 5.0
 
     def __post_init__(self) -> None:
-        WorkerConnection(server_url=self.server_url, token=self.token)
-        validate_worker_process(self.poll_seconds, self.device)
+        validate_worker_settings(
+            self.server_url, self.token, self.poll_seconds, self.device
+        )
 
     @classmethod
     def from_toml(cls, path: Path) -> WorkerProfile:

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from vitroctl.contracts.annotation import AnnotationDocument
+from vitroctl.contracts.annotation_set import AnnotatedImage, validate_annotation_set
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import DetectionResult
 from vitroctl.io.files import file_digest
@@ -60,42 +61,27 @@ class DatasetManifest:
     @classmethod
     def from_document(cls, value: Any, context: str = "manifest") -> DatasetManifest:
         validate_wire_contract("dataset-manifest", value, context)
-        document = value
-        dataset = document["dataset"]
-        model = document["model"]
+        dataset = value["dataset"]
+        model = value["model"]
         model_id = model["id"]
         classes = tuple(model["classes"])
         images = tuple(
             _image(raw, f"{context}.images[{index}]")
-            for index, raw in enumerate(document["images"])
+            for index, raw in enumerate(value["images"])
         )
-        digests = [image.digest for image in images]
-        if len(set(digests)) != len(digests):
-            raise ValueError(f"{context} lists an image digest more than once")
-        known_classes = set(classes)
-        for index, image in enumerate(images):
-            for field, payload in (
-                ("detection", image.detection),
-                ("annotation", image.annotation),
-            ):
-                if payload is None:
-                    continue
-                document_context = f"{context}.images[{index}].{field}"
-                if payload.digest != image.digest:
-                    raise ValueError(f"{document_context} describes another image")
-                if payload.width != image.width or payload.height != image.height:
-                    raise ValueError(
-                        f"{document_context} dimensions differ from the image"
-                    )
-                unknown = sorted(
-                    {instance.class_name for instance in payload.instances}
-                    - known_classes
+        validate_annotation_set(
+            (
+                AnnotatedImage(
+                    image.digest,
+                    image.width,
+                    image.height,
+                    {"detection": image.detection, "annotation": image.annotation},
                 )
-                if unknown:
-                    raise ValueError(
-                        f"{document_context} uses unknown class"
-                        f"{'es' if len(unknown) > 1 else ''}: {', '.join(unknown)}"
-                    )
+                for image in images
+            ),
+            classes,
+            context,
+        )
         return cls(dataset=dataset, model_id=model_id, classes=classes, images=images)
 
     def to_dict(self) -> dict[str, object]:
@@ -133,29 +119,26 @@ def manifest_path(data_root: str | Path, dataset: str) -> Path:
 
 
 def _image(value: Any, context: str) -> ManifestImage:
-    entry = value
     detection = None
-    if entry["detection"] is not None:
-        detection = DetectionResult.from_document(
-            entry["detection"], f"{context}.detection"
-        )
+    if value["detection"] is not None:
+        detection = DetectionResult.from_document(value["detection"])
     annotation = (
         None
-        if entry["annotation"] is None
+        if value["annotation"] is None
         else AnnotationDocument.from_document(
-            entry["annotation"], f"{context}.annotation"
+            value["annotation"], f"{context}.annotation"
         )
     )
     return ManifestImage(
-        digest=entry["digest"],
-        width=entry["width"],
-        height=entry["height"],
-        filename=entry["filename"],
-        bytes=entry["bytes"],
-        split=entry["split"],
+        digest=value["digest"],
+        width=value["width"],
+        height=value["height"],
+        filename=value["filename"],
+        bytes=value["bytes"],
+        split=value["split"],
         detection=detection,
         annotation=annotation,
-        unclear=entry.get("unclear", False),
+        unclear=value.get("unclear", False),
     )
 
 

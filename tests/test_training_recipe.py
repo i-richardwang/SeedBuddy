@@ -6,9 +6,8 @@ from pathlib import Path
 import pytest
 from conftest import PARAMETERS
 
-from vitroctl.training.recipe import (
-    TrainingRecipe,
-)
+from vitroctl.contracts.validation import validate_wire_contract
+from vitroctl.training.recipe import TrainingRecipe
 
 
 def _recipe() -> dict[str, object]:
@@ -40,11 +39,10 @@ def test_training_recipe_requires_the_ultralytics_runtime() -> None:
     "path",
     sorted((Path(__file__).parents[1] / "configs/yolo26").glob("*.recipe.json")),
 )
-def test_project_recipe_files_obey_the_workbench_manifest_contract(path: Path) -> None:
+def test_project_recipe_files_obey_the_training_recipe_contract(path: Path) -> None:
     document = json.loads(path.read_text())
-    assert set(document) == {"schemaVersion", "recipe"}
-    assert type(document["schemaVersion"]) is int and document["schemaVersion"] == 1
-    recipe = document["recipe"]
+    validate_wire_contract("training-recipe", document, str(path))
+    recipe = document
     parsed = TrainingRecipe.from_document(recipe, str(path))
     assert parsed.base_model_reference == recipe["baseModel"]["reference"]
     assert parsed.base_model_digest == recipe["baseModel"]["digest"]

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from vitroctl.contracts.annotation import BoundingBox
+from vitroctl.contracts.annotation_set import AnnotatedImage, validate_annotation_set
 
 DETECTION_SCHEMA_VERSION = 1
 
@@ -126,15 +127,14 @@ class DetectionResult:
                 raise ValueError("Detection bounding box exceeds image bounds")
 
     def require_image(self, digest: str, width: int, height: int) -> None:
-        if self.digest != digest:
-            raise ValueError("Detection describes another image")
-        if (self.width, self.height) != (width, height):
-            raise ValueError("Detection dimensions differ from the source image")
+        validate_annotation_set(
+            (AnnotatedImage(digest, width, height, {"detection": self}),),
+            None,
+            "detection",
+        )
 
     @classmethod
-    def from_document(
-        cls, payload: dict[str, Any], context: str = "detection"
-    ) -> DetectionResult:
+    def from_document(cls, payload: dict[str, Any]) -> DetectionResult:
         """Build a result from a schema-validated document; its constructor checks bounds and IDs."""
         image = payload["image"]
         producer = _producer(payload["producer"])

@@ -5,16 +5,9 @@ import smallManifest from "../../../../configs/yolo26/yolo26s-whole-2048-v1.reci
 import { trainingOverridesSchema } from "./parameters";
 import { type TrainingRecipe, trainingRecipeSchema } from "./schema";
 
-const recipeManifestSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  recipe: trainingRecipeSchema,
-});
+export const YOLO26N_WHOLE_RECIPE = trainingRecipeSchema.parse(nanoManifest);
 
-export const YOLO26N_WHOLE_RECIPE =
-  recipeManifestSchema.parse(nanoManifest).recipe;
-
-export const YOLO26S_WHOLE_RECIPE =
-  recipeManifestSchema.parse(smallManifest).recipe;
+export const YOLO26S_WHOLE_RECIPE = trainingRecipeSchema.parse(smallManifest);
 
 /** Versioned templates. Runs carry a resolved copy of their selected recipe. */
 export const TRAINING_PRESETS = [

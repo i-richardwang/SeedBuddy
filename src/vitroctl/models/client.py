@@ -1,4 +1,4 @@
-"""The operator HTTP surface shared by CLI and MCP operations."""
+"""The operator HTTP surface used by CLI model and training commands."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+from vitroctl.contracts.validation import outbound
 
 
 class WorkbenchClient:
@@ -25,7 +27,8 @@ class WorkbenchClient:
 
     def import_bundle(self, document: dict[str, Any], weights: Path, model: str) -> Any:
         reservation = self.call(
-            "prepare-model-upload", {"model": model, "bundle": document}
+            "prepare-model-upload",
+            {"model": model, "bundle": outbound("model-bundle", document)},
         )
         # The response's path is informative; credentials only go to the configured origin.
         upload_id = reservation["uploadId"]

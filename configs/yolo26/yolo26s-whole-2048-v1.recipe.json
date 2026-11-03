@@ -1,29 +1,26 @@
 {
-  "schemaVersion": 1,
-  "recipe": {
-    "baseModel": {
-      "reference": "yolo26s.pt",
-      "digest": "646f8bc3fe0a656803d95c294f7852321748cb29d13466a1af8862e2db384a1b"
-    },
-    "parameters": {
-      "epochs": 50,
-      "patience": 0,
-      "batch": 1,
-      "imgsz": 2048,
-      "optimizer": "AdamW",
-      "lr0": 0.001,
-      "warmup_epochs": 0,
-      "mosaic": 0.0,
-      "mixup": 0.0,
-      "copy_paste": 0.0,
-      "max_det": 500,
-      "seed": 0,
-      "deterministic": true,
-      "nbs": 8
-    },
-    "runtime": {
-      "framework": "ultralytics",
-      "version": "8.4.131"
-    }
+  "baseModel": {
+    "reference": "yolo26s.pt",
+    "digest": "646f8bc3fe0a656803d95c294f7852321748cb29d13466a1af8862e2db384a1b"
+  },
+  "parameters": {
+    "epochs": 50,
+    "patience": 0,
+    "batch": 1,
+    "imgsz": 2048,
+    "optimizer": "AdamW",
+    "lr0": 0.001,
+    "warmup_epochs": 0,
+    "mosaic": 0.0,
+    "mixup": 0.0,
+    "copy_paste": 0.0,
+    "max_det": 500,
+    "seed": 0,
+    "deterministic": true,
+    "nbs": 8
+  },
+  "runtime": {
+    "framework": "ultralytics",
+    "version": "8.4.131"
   }
 }

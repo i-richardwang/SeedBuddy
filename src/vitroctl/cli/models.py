@@ -20,7 +20,7 @@ from vitroctl.models.bundle import (
 )
 
 
-def verify_runtime(document: dict[str, Any], weights: Path) -> None:
+def _verify_runtime(document: dict[str, Any], weights: Path) -> None:
     required = document["training"]["runtime"]["version"]
     require_ultralytics_version(required)
     settings = document["inference"]
@@ -33,19 +33,19 @@ def verify_runtime(document: dict[str, Any], weights: Path) -> None:
     detector.validate_weights()
 
 
-def pack(args: argparse.Namespace) -> int:
+def _pack(args: argparse.Namespace) -> int:
     document = json.loads(Path(args.metadata).read_text())
     weights = Path(args.weights)
     document["weights"] = weights_descriptor(weights)
     validate_bundle(document, weights)
-    verify_runtime(document, weights)
+    _verify_runtime(document, weights)
     print(write_bundle(weights, document, Path(args.output)))
     return 0
 
 
-def import_bundle(args: argparse.Namespace) -> int:
+def _import_bundle(args: argparse.Namespace) -> int:
     document, weights = read_bundle(Path(args.bundle))
-    verify_runtime(document, weights)
+    _verify_runtime(document, weights)
     json_output(client(args).import_bundle(document, weights, args.model))
     return 0
 
@@ -66,14 +66,14 @@ def add_model_commands(commands: Any) -> None:
         help="Bundle manifest; weights descriptor is calculated from the file",
     )
     package.add_argument("--output", required=True)
-    package.set_defaults(handler=pack)
+    package.set_defaults(handler=_pack)
     upload = sub.add_parser(
         "import", help="Upload and register a candidate version without selecting it"
     )
     upload.add_argument("bundle")
     upload.add_argument("--model", required=True)
     connection_options(upload, "experiments")
-    upload.set_defaults(handler=import_bundle)
+    upload.set_defaults(handler=_import_bundle)
     for name, operation in [
         ("list", "list-model-versions"),
         ("use", "use-model-version"),
@@ -83,10 +83,10 @@ def add_model_commands(commands: Any) -> None:
         if name == "use":
             parser.add_argument("--version", required=True)
         connection_options(parser, "experiments")
-        parser.set_defaults(handler=remote_model, operation=operation)
+        parser.set_defaults(handler=_remote_model, operation=operation)
 
 
-def remote_model(args: argparse.Namespace) -> int:
+def _remote_model(args: argparse.Namespace) -> int:
     arguments = {"model": args.model}
     if args.operation == "use-model-version":
         arguments["version"] = args.version

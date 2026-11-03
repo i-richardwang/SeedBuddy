@@ -10,7 +10,13 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from conftest import PARAMETERS, annotation_document, encoded_image, write_blob
+from conftest import (
+    PARAMETERS,
+    annotation_document,
+    encoded_image,
+    model_bundle,
+    write_blob,
+)
 
 from vitroctl.detectors.ultralytics import (
     DetectionLosses,
@@ -747,7 +753,7 @@ def test_local_checkpoint_resume_validates_identity_and_requires_original_worker
 
 
 def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, recipe
 ):
     from hashlib import sha256
 
@@ -758,7 +764,7 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
     weights.write_bytes(payload)
     bundle = tmp_path / "bundle.json"
     descriptor = {"bytes": len(payload), "digest": sha256(payload).hexdigest()}
-    bundle.write_text(json.dumps({"weights": descriptor}))
+    bundle.write_text(json.dumps(model_bundle(weights, recipe)))
     requests = []
     stored = {}
     completions = 0
@@ -805,10 +811,9 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
 
 @pytest.mark.parametrize("cancelled", [False, True])
 def test_retry_delivers_retained_bundle_without_training_again(
-    tmp_path, monkeypatch, cancelled
+    tmp_path, monkeypatch, cancelled, recipe
 ):
     from dataclasses import replace
-    from hashlib import sha256
 
     from vitroctl.training.documents import TrainingCheckpoint
     from vitroctl.worker.local_training import prepare_local_training
@@ -820,7 +825,7 @@ def test_retry_delivers_retained_bundle_without_training_again(
     (source / "bundle").mkdir()
     (source / "bundle/weights.pt").write_bytes(b"finished")
     (source / "bundle/bundle.json").write_text(
-        json.dumps({"weights": {"bytes": 8, "digest": sha256(b"finished").hexdigest()}})
+        json.dumps(model_bundle(source / "bundle/weights.pt", recipe))
     )
     resumed = replace(
         claim,
@@ -994,3 +999,87 @@ def test_training_claim_follows_shared_attempt_and_worker_id_bounds() -> None:
     document["state"] = {**document["state"], "workerId": "w" * 129}
     with pytest.raises(ValueError, match="training run.state.*shared contract"):
         TrainingClaim.from_document(document)
+
+
+@pytest.mark.parametrize("precision", [float("nan"), 1.1])
+def test_epoch_report_rejects_invalid_metrics_before_send(precision):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200)
+
+    worker = WorkerClient(
+        "https://example.test",
+        "secret",
+        session(8192),
+        transport=httpx.MockTransport(respond),
+    )
+    report = EpochReport(
+        epoch=1,
+        train=DetectionLosses(1, 1, 1),
+        val=DetectionLosses(1, 1, 1),
+        precision=precision,
+        recall=0.5,
+        map50=0.5,
+        map50_to_95=0.5,
+        fitness=0.5,
+        learning_rate=0.001,
+    )
+    try:
+        with pytest.raises(ValueError, match="precision"):
+            TrainingClient(worker).report_epoch(
+                TrainingClaim.from_document(_run()), report
+            )
+    finally:
+        worker.close()
+    assert requests == []
+
+
+def test_publication_validates_the_document_read_from_disk(tmp_path, recipe):
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"weights")
+    document = model_bundle(weights, recipe)
+    document["inference"]["confidence"] = 2
+    bundle = tmp_path / "bundle.json"
+    bundle.write_text(json.dumps(document))
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200)
+
+    worker = WorkerClient(
+        "https://example.test",
+        "secret",
+        session(8192),
+        transport=httpx.MockTransport(respond),
+    )
+    try:
+        with pytest.raises(ValueError, match="confidence"):
+            TrainingClient(worker).publish_artifact(
+                TrainingClaim.from_document(_run()), weights, bundle
+            )
+    finally:
+        worker.close()
+    assert requests == []
+
+
+@pytest.mark.parametrize("violation", ["duplicate", "dimensions", "class"])
+def test_snapshot_rejects_inconsistent_annotation_sets(violation):
+    images = [
+        _snapshot_image("1" * 64, "train", [{"x": 1, "y": 1, "width": 2, "height": 2}]),
+        _snapshot_image("2" * 64, "val", []),
+    ]
+    document = _snapshot(images)
+    if violation == "duplicate":
+        images[1] = images[0]
+        reason = "more than once"
+    elif violation == "dimensions":
+        images[0]["width"] = 101
+        reason = "dimensions differ"
+    else:
+        document["classes"] = ["other"]
+        reason = "unknown class"
+    with pytest.raises(ValueError, match=reason):
+        TrainingSnapshot.from_document(document)

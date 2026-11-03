@@ -1,59 +1,19 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import httpx
 import pytest
+from conftest import model_bundle
 
 from vitroctl.cli import main
 from vitroctl.models.bundle import (
     read_bundle,
     training_bundle,
     validate_bundle,
-    weights_descriptor,
     write_bundle,
 )
 from vitroctl.models.client import WorkbenchClient
-
-
-def bundle(weights: Path, recipe):
-    return {
-        "schemaVersion": 1,
-        "classes": ["seed"],
-        "weights": weights_descriptor(weights),
-        "inference": {
-            "mode": "whole_image",
-            "iou": 0.7,
-            "confidence": 0.26,
-            "imageSize": 1536,
-            "maxDetections": 500,
-            "endToEnd": False,
-        },
-        "training": recipe,
-        "validation": {
-            "precision": 0.5,
-            "recall": 0.4,
-            "map50": 0.5,
-            "map50To95": 0.3,
-            "fitness": 0.3,
-        },
-        "provenance": {
-            "dataset": {
-                "fingerprint": None,
-                "snapshotId": None,
-                "description": "Independent experiment",
-            },
-            "selectedEpoch": 30,
-            "codeRevision": None,
-            "effectiveParameters": {"nbs": 8},
-            "evaluation": {
-                "description": "15 comparison images",
-                "calibration": "8 calibration images",
-                "metrics": {"countMae": 17.5},
-            },
-        },
-    }
 
 
 def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
@@ -62,7 +22,7 @@ def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
 ):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"trained once")
-    document = bundle(weights, recipe)
+    document = model_bundle(weights, recipe)
     target = write_bundle(weights, document, tmp_path / "bundle")
     actual, copied = read_bundle(target)
     assert actual == document
@@ -80,7 +40,7 @@ def test_import_only_prepares_uploads_and_registers_and_can_be_retried(
 ):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"trained once")
-    document = bundle(weights, recipe)
+    document = model_bundle(weights, recipe)
     operations = []
     uploaded = []
 
@@ -194,7 +154,7 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
         output.mkdir()
         weights = output / "best.pt"
         weights.write_bytes(b"trained once")
-        metadata = bundle(weights, recipe)
+        metadata = model_bundle(weights, recipe)
         (output / "training-context.json").write_text(
             json.dumps(
                 {
@@ -251,7 +211,7 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
 def test_high_resolution_bundle_roundtrips(tmp_path, size, recipe):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"high resolution weights")
-    document = bundle(weights, recipe)
+    document = model_bundle(weights, recipe)
     document["training"]["parameters"]["imgsz"] = size
     document["inference"]["imageSize"] = size
     target = write_bundle(weights, document, tmp_path / "bundle")
@@ -259,3 +219,11 @@ def test_high_resolution_bundle_roundtrips(tmp_path, size, recipe):
     document["training"]["parameters"]["imgsz"] = 3104
     with pytest.raises(ValueError, match="imgsz"):
         validate_bundle(document, weights)
+
+
+def test_training_bundle_refuses_unusable_validation(tmp_path):
+    summary = tmp_path / "inference.json"
+    summary.write_text(json.dumps({"inference": {"ready": False}}))
+    (tmp_path / "training-context.json").write_text("{}")
+    with pytest.raises(ValueError, match="usable validation"):
+        training_bundle(tmp_path / "best.pt", summary, ["seed"], {})

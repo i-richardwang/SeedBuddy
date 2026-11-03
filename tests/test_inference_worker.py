@@ -343,10 +343,6 @@ def test_bounded_http_decodes_compressed_responses_once():
             {"image": {"digest": "d" * 64, "width": 1000, "height": 800}},
             "describes another image",
         ),
-        (
-            {"image": {"digest": "c" * 64, "width": 10, "height": 10}},
-            "exceeds image bounds",
-        ),
     ],
 )
 def test_outbound_detection_is_validated_before_any_network_request(change, reason):

@@ -57,7 +57,7 @@ def test_package_member_imports_participate_in_cycles() -> None:
 
 
 def test_detector_contracts_have_only_their_designated_importers() -> None:
-    for layer in ("training", "image_geometry", "models", "worker.host"):
+    for layer in ("training", "image_geometry", "models", "worker.host", "cli"):
         errors = architecture.check_architecture(
             {
                 f"vitroctl.{layer}.consumer": "from vitroctl.detectors.contract import DetectionResult",
@@ -70,7 +70,6 @@ def test_detector_contracts_have_only_their_designated_importers() -> None:
         "detectors.traditional",
         "detectors.ultralytics",
         "worker",
-        "cli",
     ):
         assert not architecture.check_architecture(
             {

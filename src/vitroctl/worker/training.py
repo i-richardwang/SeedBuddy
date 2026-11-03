@@ -11,6 +11,7 @@ from concurrent.futures import CancelledError
 from hashlib import sha256
 from pathlib import Path
 
+from vitroctl.contracts.validation import outbound
 from vitroctl.detectors.ultralytics import (
     DatasetImage,
     EpochReport,
@@ -97,7 +98,10 @@ class TrainingClient:
         response = self.worker.request(
             "POST",
             f"api/worker/training/runs/{claim.run_id}/epochs",
-            json={**self._identity(claim), **report.to_json()},
+            json={
+                **self._identity(claim),
+                **outbound("training-epoch-report", report.to_json()),
+            },
         )
         self.worker.require_current_session(response)
 
@@ -113,7 +117,7 @@ class TrainingClient:
     def publish_artifact(
         self, claim: TrainingClaim, weights: Path, bundle: Path
     ) -> None:
-        document = json.loads(bundle.read_text())
+        document = outbound("model-bundle", json.loads(bundle.read_text()))
         descriptor = document["weights"]
         identity = self._identity(claim)
         url = f"api/worker/training/runs/{claim.run_id}/artifact"
