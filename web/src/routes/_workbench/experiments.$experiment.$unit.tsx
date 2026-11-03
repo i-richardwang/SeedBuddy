@@ -14,7 +14,6 @@ import {
 import { getUnit } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 
 /**
  * An observation the link cannot name is no observation: the newest with a
@@ -75,14 +74,6 @@ function UnitPage() {
   const { datasets, ...series } = Route.useLoaderData();
   const { show, compare } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { shown } = series;
-
-  useRouteRefresh(
-    5000,
-    shown !== null &&
-      ((shown.review.detection === null && shown.failure === null) ||
-        shown.review.progress !== null),
-  );
 
   return (
     <UnitWorkbench

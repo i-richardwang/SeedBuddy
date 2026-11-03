@@ -2,8 +2,6 @@ import {
   ChevronDown,
   CircleMinus,
   ClipboardPen,
-  Eye,
-  EyeOff,
   FolderPlus,
   ImageMinus,
   ImageUp,
@@ -26,7 +24,6 @@ import {
   removeObservationImage,
   removeUnit,
 } from "../../functions/experiments";
-import { createUnclearMark, removeUnclearMark } from "../../functions/images";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
@@ -70,7 +67,6 @@ export function UnitMenu({
   datasets: NamedDataset[];
 }) {
   const confirmDestructive = useConfirmDestructive();
-  const unclearAction = useAsyncAction();
   const navigateAfterWrite = useNavigateAfterWrite();
   const [open, setOpen] = useState<Action | null>(null);
   const close = () => setOpen(null);
@@ -83,28 +79,11 @@ export function UnitMenu({
       label: m.unit_menu_replace(),
       onClick: () => setOpen("replace"),
     });
-  }
-  if (image) {
     items.push({
       key: "dataset",
       icon: FolderPlus,
       label: m.dataset_add_menu(),
       onClick: () => setOpen("dataset"),
-    });
-    // Marks the photograph unclear or clears its mark; either only changes
-    // what counts.
-    const { unclear } = image;
-    const ref = { digest: image.review.ref.digest };
-    items.push({
-      key: "unclear",
-      icon: unclear ? Eye : EyeOff,
-      label: unclear ? m.unclear_clear() : m.unclear_mark(),
-      disabled: unclearAction.busy,
-      onClick: () =>
-        void unclearAction.run(async () => {
-          if (unclear) await removeUnclearMark({ data: ref });
-          else await createUnclearMark({ data: ref });
-        }, m.unclear_not_saved()),
     });
   }
   items.push({
@@ -155,9 +134,14 @@ export function UnitMenu({
           onConfirm: async () => {
             await removeUnit({ data: { experiment, unit: unit.id } });
           },
-          onSuccess: () => {
+          onSuccess: async () => {
             toast.success(m.unit_deleted({ code: unit.code }));
+            await navigateAfterWrite({
+              to: "/experiments/$experiment",
+              params: { experiment },
+            });
           },
+          invalidate: false,
         }),
     });
   }
