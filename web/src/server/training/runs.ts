@@ -653,10 +653,7 @@ export async function failTrainingRun(
   });
 }
 
-export async function snapshotForRun(
-  runId: string,
-  owner: AttemptOwner,
-) {
+export async function snapshotForRun(runId: string, owner: AttemptOwner) {
   const db = await database();
   const run = await requireOwnedRunningRun(
     runId,
