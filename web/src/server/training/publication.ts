@@ -8,18 +8,19 @@ import type { AttemptOwner } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
 import { database, operationTime, transaction } from "../infra/db/client";
 import {
+  modelBundleVersionId,
   prepareModelUpload,
   readModelVersion,
   registerUploadedModel,
   uploadModelWeights,
 } from "../models/public";
 import { readTrainingArtifactParts } from "./artifacts";
-import { requireOwnedRunningRun, requireTrainingRun } from "./ownership";
 import { lockTrainingRun, transitionTrainingRun } from "./runs";
+import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
 import { readDatasetSnapshot } from "./snapshots";
 
 /** Training owns execution; the model registry owns its delivered artifact. */
-export async function publishTrainingArtifact(
+export async function completeTrainingRun(
   runId: string,
   owner: AttemptOwner,
   bundle: unknown,
@@ -34,10 +35,6 @@ export async function publishTrainingArtifact(
     throw new TrainingArtifactInvalidError(
       "Training artifact identity does not match the run recipe",
     );
-  if (current.attempt !== owner.attempt)
-    throw new TrainingRunConflictError("Training attempt was superseded");
-  if (current.state.status !== "succeeded")
-    await requireOwnedRunningRun(current, owner, db);
   const snapshot = await readDatasetSnapshot(current.datasetSnapshotId, db);
   if (!snapshot)
     throw new TrainingRunNotFoundError("Training snapshot is missing");
@@ -45,17 +42,6 @@ export async function publishTrainingArtifact(
     throw new TrainingArtifactInvalidError(
       "Bundle does not describe this training snapshot",
     );
-  if (current.state.status === "succeeded") {
-    const version = await readModelVersion(current.state.modelVersionId);
-    if (
-      version?.artifact.kind !== "ultralytics" ||
-      canonicalJson(version.artifact.weights) !==
-        canonicalJson(document.weights)
-    )
-      throw new TrainingRunConflictError(
-        "Training already published different contents",
-      );
-  }
   const upload = await prepareModelUpload(current.modelId, document);
   if (current.state.status !== "succeeded") {
     const weights = await readTrainingArtifactParts(
@@ -68,10 +54,21 @@ export async function publishTrainingArtifact(
   return transaction(async (tx) => {
     const locked = await lockTrainingRun(runId, tx);
     const at = await operationTime(tx);
-    if (locked.attempt !== owner.attempt)
-      throw new TrainingRunConflictError("Training attempt was superseded");
-    if (locked.state.status !== "succeeded")
-      await requireOwnedRunningRun(locked, owner, tx, at);
+    if (locked.state.status === "succeeded") {
+      if (locked.attempt !== owner.attempt)
+        throw new TrainingRunConflictError("Training attempt was superseded");
+      const version = await readModelVersion(locked.state.modelVersionId, tx);
+      if (
+        !version ||
+        version.id !==
+          modelBundleVersionId(locked.modelId, document, version.source)
+      )
+        throw new TrainingRunConflictError(
+          "Training already published different contents",
+        );
+      return locked;
+    }
+    await requireOwnedRunningRun(locked, owner, tx, at);
     const version = await registerUploadedModel(
       upload.uploadId,
       {
@@ -80,20 +77,14 @@ export async function publishTrainingArtifact(
         trainingAttempt: owner.attempt,
         datasetSnapshotId: snapshot.id,
       },
+      at,
       tx,
     );
-    if (locked.state.status === "succeeded") {
-      if (locked.state.modelVersionId !== version.id)
-        throw new TrainingRunConflictError(
-          "Training already published different contents",
-        );
-      return locked;
-    }
     return transitionTrainingRun(
       runId,
       { status: "succeeded", modelVersionId: version.id },
-      tx,
       at,
+      tx,
     );
   });
 }

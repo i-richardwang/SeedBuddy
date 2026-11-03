@@ -3,12 +3,14 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "bun:test";
 
 import {
-  ExperimentObservationImageConflictError,
-  ObservationImageConflictError,
+  ExperimentImageAlreadyUsedError,
+  ObservationImageAssignmentConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import { imageBlobKey } from "../images/keys";
 import { blobExists } from "../infra/blobs/store";
+import { experimentGridDetail } from "../queries/experiment-details";
+import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
 import {
   assignImages,
   createExperiment,
@@ -17,12 +19,12 @@ import {
   trainedVersion,
   unitsOf,
 } from "../testing/experiments";
-import { imageDigest, storeTexts } from "../testing/images";
+import { countedImageResult, imageDigest, storeTexts } from "../testing/images";
 import {
   seedDetectionResult,
   seedInferenceTaskFailure,
 } from "../testing/inference";
-import { experimentObservationImageDetail } from "./observation-image";
+import { ultralyticsWorker as worker } from "../testing/workers";
 import {
   assignObservationImages,
   recordObservation,
@@ -30,8 +32,6 @@ import {
   unassignObservationImage,
 } from "./observation-images";
 import { createObservation } from "./observations";
-import { experimentGridDetail } from "./queries";
-import { countedImageResult, worker } from "./testing";
 
 test("image assignment rejects duplicate units and reused images", async () => {
   const version = await trainedVersion("exp-assignment");
@@ -72,7 +72,7 @@ test("image assignment rejects duplicate units and reused images", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ObservationImageConflictError);
+  ).rejects.toThrow(ObservationImageAssignmentConflictError);
   await expect(
     assignObservationImages({
       experiment: experiment.id,
@@ -90,7 +90,7 @@ test("image assignment rejects duplicate units and reused images", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ObservationImageConflictError);
+  ).rejects.toThrow(ObservationImageAssignmentConflictError);
   await expect(
     assignObservationImages({
       experiment: experiment.id,
@@ -132,8 +132,8 @@ test("image assignment rejects duplicate units and reused images", async () => {
     });
     throw new Error("Expected reused image to be rejected");
   } catch (error) {
-    expect(error).toBeInstanceOf(ExperimentObservationImageConflictError);
-    expect((error as ExperimentObservationImageConflictError).images).toEqual([
+    expect(error).toBeInstanceOf(ExperimentImageAlreadyUsedError);
+    expect((error as ExperimentImageAlreadyUsedError).images).toEqual([
       {
         digest: first!,
         filename: "IMG_0413.jpg",
@@ -190,7 +190,7 @@ test("a filled cell can be given a different image", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ExperimentObservationImageConflictError);
+  ).rejects.toThrow(ExperimentImageAlreadyUsedError);
 
   expect(
     (
@@ -285,7 +285,7 @@ test("an assignment can be unassigned and the image given to another unit", asyn
         },
       ],
     }),
-  ).rejects.toThrow(ExperimentObservationImageConflictError);
+  ).rejects.toThrow(ExperimentImageAlreadyUsedError);
 
   await unassignObservationImage({
     experiment: experiment.id,
@@ -435,7 +435,7 @@ test("an observation day is recorded with its photographs, or not at all", async
         { unit: units.get("A-1")!, digest: first!, filename: "A-1.jpg" },
       ],
     }),
-  ).rejects.toThrow(ExperimentObservationImageConflictError);
+  ).rejects.toThrow(ExperimentImageAlreadyUsedError);
   expect(
     (await experimentGridDetail(experiment.id))?.observations,
     "a refused photograph leaves no empty day behind",

@@ -47,7 +47,7 @@ export class TreatmentConflictError extends ConflictError {
 export class UnitConflictError extends ConflictError {
   readonly code = "unit_conflict";
 }
-export class ObservationImageConflictError extends ConflictError {
+export class ObservationImageAssignmentConflictError extends ConflictError {
   readonly code = "observation_image_conflict";
 }
 export class ManualReadingConflictError extends ConflictError {
@@ -59,7 +59,7 @@ export const imageAlreadyUsedDetailsSchema = z.strictObject({
   images: z.array(placedPhotoSchema).min(1),
 });
 
-export class ExperimentObservationImageConflictError extends ConflictError {
+export class ExperimentImageAlreadyUsedError extends ConflictError {
   readonly code = "experiment_observation_image_conflict";
   override get details() {
     return imageAlreadyUsedDetailsSchema.parse({ images: this.images });

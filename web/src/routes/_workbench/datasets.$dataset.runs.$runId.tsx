@@ -21,7 +21,7 @@ import { ResumeTrainingDialog } from "../../features/training/ResumeTrainingDial
 import { useTrainingRunControl } from "../../features/training/run-control";
 import { TrainingAttempts } from "../../features/training/TrainingAttempts";
 import { TrainingRunMenu } from "../../features/training/TrainingRunMenu";
-import { getTrainingRun } from "../../functions/training";
+import { getTrainingRunDetail } from "../../functions/training";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
@@ -44,7 +44,7 @@ export const Route = createFileRoute(
   "/_workbench/datasets/$dataset/runs/$runId",
 )({
   loader: async ({ params }) => {
-    const detail = await getTrainingRun({
+    const detail = await getTrainingRunDetail({
       data: { dataset: params.dataset, runId: params.runId },
     });
     if (!detail) throw notFound();

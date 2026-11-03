@@ -27,6 +27,10 @@ import { database } from "../infra/db/client";
 import { experimentUnits } from "../infra/db/schema";
 import { listAllModelVersions } from "../models/registry";
 import {
+  experimentGridDetail,
+  listExperimentOverviews,
+} from "../queries/experiment-details";
+import {
   assignImages,
   createExperiment,
   INOCULATED,
@@ -47,7 +51,6 @@ import {
   updateUnit,
 } from "./design";
 import { createObservation } from "./observations";
-import { experimentGridDetail, listExperimentOverviews } from "./queries";
 
 test("start on a fresh deployment with the builtin seed germination model", async () => {
   expect(calendarDaySchema.safeParse("2026-02-29").success).toBeFalse();

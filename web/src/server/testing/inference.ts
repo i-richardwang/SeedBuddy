@@ -14,8 +14,8 @@ export async function seedDetectionResult(
   worker: Pick<Worker, "runtimes">,
 ): Promise<DetectionResult> {
   return transaction(async (tx) => {
-    const stored = await storeInferenceOutcome(target, result, worker, tx);
     const at = new Date();
+    await storeInferenceOutcome(target, result, worker, at, tx);
     await tx
       .insert(inferenceTasks)
       .values({
@@ -30,7 +30,7 @@ export async function seedDetectionResult(
         target: [inferenceTasks.imageId, inferenceTasks.modelVersionId],
         set: { status: "succeeded", finishedAt: at, error: null },
       });
-    return stored;
+    return result;
   });
 }
 

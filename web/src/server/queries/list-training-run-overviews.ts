@@ -1,7 +1,7 @@
 import { desc, eq, sql } from "drizzle-orm";
 
 import type { TrainingRunOverview } from "../../domain/training/read-model";
-import { database } from "../infra/db/client";
+import { database, type Executor } from "../infra/db/client";
 import {
   datasetSnapshots,
   datasets,
@@ -16,18 +16,9 @@ const TRAINING_RUN_LIST_LIMIT = 100;
 /** The newest runs, of one training set or of every set training one model. */
 export async function listTrainingRunOverviews(
   of: { datasetId: string } | { modelId: string },
-  limit = TRAINING_RUN_LIST_LIMIT,
+  executor?: Executor,
 ): Promise<TrainingRunOverview[]> {
-  if (
-    !Number.isSafeInteger(limit) ||
-    limit < 1 ||
-    limit > TRAINING_RUN_LIST_LIMIT
-  ) {
-    throw new Error(
-      `Training run list limit must be between 1 and ${TRAINING_RUN_LIST_LIMIT}`,
-    );
-  }
-  const db = await database();
+  const db = executor ?? (await database());
   const rows = await db
     .select({
       dataset: { id: datasets.id, name: datasets.name },
@@ -67,7 +58,7 @@ export async function listTrainingRunOverviews(
         : eq(datasetSnapshots.modelId, of.modelId),
     )
     .orderBy(desc(trainingRuns.createdAt), desc(trainingRuns.id))
-    .limit(limit);
+    .limit(TRAINING_RUN_LIST_LIMIT);
   return rows.map((row) => ({
     dataset: row.dataset,
     run: toTrainingRun(row.run),

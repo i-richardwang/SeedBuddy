@@ -7,7 +7,7 @@ import {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
   readDatasetByName,
-} from "../datasets/memberships";
+} from "../datasets/datasets";
 import { database } from "../infra/db/client";
 import { datasetSnapshotImages } from "../infra/db/schema";
 import { type ObservedImages, observeImages } from "./experiments";

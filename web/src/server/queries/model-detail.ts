@@ -1,3 +1,5 @@
+import { desc, eq } from "drizzle-orm";
+
 import type {
   ModelDetail,
   VersionComparison,
@@ -6,10 +8,17 @@ import type {
 } from "../../domain/models/read-model";
 import type { ModelVersion } from "../../domain/models/schema";
 import { listDatasetOverviews } from "../datasets/public";
-import { listAllModelVersions, readCurrentVersionId } from "../models/public";
+import { type Executor, snapshot } from "../infra/db/client";
+import { models, modelVersions } from "../infra/db/schema";
+import {
+  modelRecordCounts,
+  readCurrentVersionId,
+  toModel,
+  toModelRecords,
+  toModelVersion,
+} from "../models/public";
 import { datasetSnapshotOverviews } from "../training/public";
 import { findVersionComparisons } from "./find-version-comparisons";
-import { listModelOverviews } from "./list-model-overviews";
 import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
 /**
@@ -20,33 +29,43 @@ import { listTrainingRunOverviews } from "./list-training-run-overviews";
 export async function modelDetail(
   modelId: string,
 ): Promise<ModelDetail | null> {
-  const entry = (await listModelOverviews()).find(
-    (item) => item.model.id === modelId,
-  );
-  if (!entry) return null;
-  const [versions, datasets, runs] = await Promise.all([
-    listVersionOverviews(modelId),
-    listDatasetOverviews(modelId),
-    listTrainingRunOverviews({ modelId }),
-  ]);
-  return { ...entry, versions, datasets, runs };
+  return snapshot(async (db) => {
+    const [row] = await db
+      .select({ model: models, ...modelRecordCounts(models.id, db) })
+      .from(models)
+      .where(eq(models.id, modelId));
+    if (!row) return null;
+    const entry = { model: toModel(row.model), records: toModelRecords(row) };
+    const [versions, datasets, runs] = await Promise.all([
+      listVersionOverviews(modelId, db),
+      listDatasetOverviews(modelId, db),
+      listTrainingRunOverviews({ modelId }, db),
+    ]);
+    return { ...entry, versions, datasets, runs };
+  });
 }
 
 async function listVersionOverviews(
   modelId: string,
+  db: Executor,
 ): Promise<VersionOverview[]> {
-  const versions = (await listAllModelVersions()).filter(
-    (version) => version.modelId === modelId,
-  );
+  const versions = (
+    await db
+      .select()
+      .from(modelVersions)
+      .where(eq(modelVersions.modelId, modelId))
+      .orderBy(desc(modelVersions.createdAt), desc(modelVersions.id))
+  ).map(toModelVersion);
   const [currentVersionId, comparisons, snapshots] = await Promise.all([
-    readCurrentVersionId(modelId),
-    findVersionComparisons(modelId),
+    readCurrentVersionId(modelId, db),
+    findVersionComparisons(modelId, undefined, db),
     datasetSnapshotOverviews(
       versions.flatMap((version) =>
         version.source.kind === "training_run"
           ? [version.source.datasetSnapshotId]
           : [],
       ),
+      db,
     ),
   ]);
   return versions.map((version) => ({

@@ -52,9 +52,8 @@ function prepareOperation(
 export async function executeAgentOperation(
   name: string,
   input: unknown,
-  registry: ReadonlyMap<string, AgentOperation> = agentOperations,
 ): Promise<AgentCallResult> {
-  const prepared = prepareOperation(name, input, registry);
+  const prepared = prepareOperation(name, input, agentOperations);
   if ("ok" in prepared) return prepared;
   const { operation, input: parsed } = prepared;
   try {

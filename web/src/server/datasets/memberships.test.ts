@@ -34,7 +34,7 @@ import {
   readDataset,
   readDatasetByName,
   removeDatasetImages,
-} from "./memberships";
+} from "./datasets";
 import { listImageRecords, readDatasetContents } from "./records";
 
 const worker: Worker = {

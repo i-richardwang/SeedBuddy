@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { and, eq } from "drizzle-orm";
 
 import { sourceInstances } from "../../domain/annotation/readings";
@@ -21,7 +23,7 @@ import { assertInstanceClasses } from "../../domain/models/classes";
 import { lockImage, resolveDishCoverage } from "../images/public";
 import { database, type Executor, transaction } from "../infra/db/client";
 import { annotationRuns, annotationTasks, images } from "../infra/db/schema";
-import { readModel } from "../models/public";
+import { requireModel } from "../models/public";
 import { readReadings } from "../readings/public";
 
 /** The image's run in progress for the model, of which there is at most one. */
@@ -58,7 +60,7 @@ export async function createAnnotationRun(
       throw new AnnotationRunConflictError(
         "Annotation requires too many regions; increase the model's core size",
       );
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const now = new Date();
     await tx.insert(annotationRuns).values({
       id,
@@ -80,7 +82,7 @@ export async function createAnnotationRun(
       );
     }
     if (fallback)
-      process.stderr.write(
+      console.info(
         `${JSON.stringify({
           event: "annotation-run.full-image-coverage",
           runId: id,
@@ -121,9 +123,8 @@ async function freezeDefinition(request: StartAnnotationRun, tx: Executor) {
     .select()
     .from(images)
     .where(eq(images.id, request.ref.digest));
-  const model = await readModel(request.ref.modelId, tx);
-  if (!image || !model)
-    throw new AnnotationRunNotFoundError("Image or labeling model not found");
+  const model = await requireModel(request.ref.modelId, tx);
+  if (!image) throw new AnnotationRunNotFoundError("Image not found");
   const frame = { digest: image.id, width: image.width, height: image.height };
   const initial =
     typeof request.input === "string"

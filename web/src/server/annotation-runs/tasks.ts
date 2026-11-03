@@ -11,7 +11,7 @@ import {
   annotationTasks,
 } from "../infra/db/schema";
 import { documentDigest } from "../infra/digest";
-import { lockTask, readTask } from "./access";
+import { lockAnnotationTask, readTask } from "./access";
 import { inProgress } from "./runs";
 
 const conflict = (message: string): never => {
@@ -76,7 +76,7 @@ export async function savePreview(taskId: string, value: unknown) {
 
 export async function submitProposal(taskId: string, proposalId: string) {
   return transaction(async (tx) => {
-    const { run, task } = await lockTask(taskId, tx);
+    const { run, task } = await lockAnnotationTask(taskId, tx);
     const runId = run.id;
     if (task.response) {
       if (task.acceptedProposalId !== proposalId)
@@ -122,8 +122,6 @@ export async function submitProposal(taskId: string, proposalId: string) {
       })
       .where(eq(annotationRuns.id, runId))
       .returning();
-    if (!updated)
-      throw new AnnotationRunConflictError("Annotation run was not updated");
-    return acceptance(taskId, updated);
+    return acceptance(taskId, updated!);
   });
 }

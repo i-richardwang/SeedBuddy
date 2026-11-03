@@ -10,7 +10,7 @@ import { modelRecordCounts, toModel, toModelRecords } from "../models/public";
 export function listModelOverviews(): Promise<ModelOverview[]> {
   return snapshot(async (db) => {
     const rows = await db
-      .select({ model: models, ...modelRecordCounts(db, models.id) })
+      .select({ model: models, ...modelRecordCounts(models.id, db) })
       .from(models)
       .orderBy(models.id);
     return rows.map((row) => ({

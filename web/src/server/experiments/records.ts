@@ -8,6 +8,7 @@ import {
 import {
   ExperimentNotFoundError,
   ObservationNotFoundError,
+  UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import type { Unit } from "../../domain/experiments/read-model";
 import {
@@ -69,7 +70,7 @@ export function toUnit(
   };
 }
 
-function toCultureEvent(
+export function toCultureEvent(
   row: typeof experimentCultureEvents.$inferSelect,
 ): CultureEvent {
   return cultureEventSchema.parse({
@@ -335,4 +336,21 @@ export async function hasRecords(
     )
     .limit(1);
   return event !== undefined;
+}
+
+export function requireUnit(units: readonly Unit[], unitId: string): Unit {
+  const unit = units.find((item) => item.id === unitId);
+  if (!unit) throw new UnitNotFoundError(`Unknown unit: ${unitId}`);
+  return unit;
+}
+
+/** The observation an image was taken at. */
+export function atImageObservation() {
+  return and(
+    eq(
+      experimentObservations.experimentId,
+      experimentObservationImages.experimentId,
+    ),
+    eq(experimentObservations.id, experimentObservationImages.observationId),
+  );
 }

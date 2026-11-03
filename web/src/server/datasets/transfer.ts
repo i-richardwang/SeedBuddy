@@ -1,35 +1,22 @@
-import { randomUUID } from "node:crypto";
-
 import { eq, inArray } from "drizzle-orm";
 
-import { DatasetImportInvalidError } from "../../domain/datasets/errors";
+import {
+  DatasetImportInvalidError,
+  DatasetNameTakenError,
+} from "../../domain/datasets/errors";
 import {
   type DatasetManifest,
   datasetManifestSchema,
 } from "../../domain/datasets/manifest";
 import type { Dataset } from "../../domain/datasets/schema";
 import { sameClasses } from "../../domain/models/classes";
+import { insertImportedAnnotations } from "../annotations/public";
 import { lockImage, markImagesUnclear } from "../images/public";
-import { transaction } from "../infra/db/client";
-import { refusingUnique } from "../infra/db/errors";
-import {
-  annotations,
-  datasetImages,
-  datasets,
-  images,
-} from "../infra/db/schema";
-import { readModel } from "../models/public";
-import { readDatasetByName } from "./memberships";
+import { database, transaction } from "../infra/db/client";
+import { annotations, datasetImages, images } from "../infra/db/schema";
+import { requireModel } from "../models/public";
+import { createDataset, readDatasetByName } from "./datasets";
 import { listImageRecords } from "./records";
-
-/**
- * A dataset leaves and enters the workbench as a manifest and the images it
- * names. The manifest carries what the workbench keeps for the dataset: the
- * memberships, the reviews recorded for its model, and which photographs a
- * person found unclear. Images travel by digest ahead of the manifest, so
- * importing it is one atomic step that either creates the whole dataset or
- * nothing.
- */
 
 /**
  * The manifest of the dataset of this name: its images with their detection
@@ -47,8 +34,7 @@ export async function readDatasetManifest(
 export async function datasetManifest(
   dataset: Dataset,
 ): Promise<DatasetManifest> {
-  const model = await readModel(dataset.modelId);
-  if (!model) throw new Error(`Unknown model: ${dataset.modelId}`);
+  const model = await requireModel(dataset.modelId, await database());
   const records = await listImageRecords(dataset.id);
   return datasetManifestSchema.parse({
     schemaVersion: 1,
@@ -87,30 +73,25 @@ export async function importDataset(
 ): Promise<Dataset> {
   const addedAt = new Date();
   return transaction(async (tx) => {
-    const model = await readModel(manifest.model.id, tx);
-    if (!model) {
-      throw new DatasetImportInvalidError(
-        `Unknown model: ${manifest.model.id}`,
-      );
-    }
+    const model = await requireModel(manifest.model.id, tx);
     if (!sameClasses(model.classes, manifest.model.classes)) {
       throw new DatasetImportInvalidError(
         `Model ${model.id} has classes ${listed(model.classes)}, not ${listed(manifest.model.classes)}`,
       );
     }
-    const dataset: Dataset = {
-      id: randomUUID(),
-      name: manifest.dataset,
-      modelId: model.id,
-    };
-    await refusingUnique(
-      "datasets_name",
-      () =>
-        new DatasetImportInvalidError(
+    let dataset: Dataset;
+    try {
+      dataset = await createDataset(
+        { name: manifest.dataset, modelId: model.id },
+        tx,
+      );
+    } catch (error) {
+      if (error instanceof DatasetNameTakenError)
+        throw new DatasetImportInvalidError(
           `Dataset ${manifest.dataset} already exists`,
-        ),
-      () => tx.insert(datasets).values({ ...dataset, createdAt: addedAt }),
-    );
+        );
+      throw error;
+    }
     const digests = manifest.images.map((image) => image.digest).sort();
     for (const digest of digests) await lockImage(digest, tx);
     const stored = new Map(
@@ -186,16 +167,12 @@ export async function importDataset(
         .map((image) => image.digest),
       tx,
     );
-    if (reviewing.length > 0) {
-      await tx.insert(annotations).values(
-        reviewing.map((image) => ({
-          imageId: image.digest,
-          modelId: model.id,
-          document: image.annotation,
-          updatedAt: addedAt,
-        })),
-      );
-    }
+    await insertImportedAnnotations(
+      model.id,
+      reviewing.map((image) => image.annotation),
+      addedAt,
+      tx,
+    );
     return dataset;
   });
 }

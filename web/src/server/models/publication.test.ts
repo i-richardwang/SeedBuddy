@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
 import type { ModelBundle } from "../../domain/models/bundle";
+import { ModelUploadNotFoundError } from "../../domain/models/errors";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { blobExists } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
@@ -141,4 +142,13 @@ test("only expired unregistered reservations are collected; renewal and committe
     row!.weightsKey,
   );
   expect((await openModelWeights(v.id)).size).toBe(weights.length);
+});
+
+test("an unknown upload has its own typed refusal", async () => {
+  await expect(
+    uploadModelWeights("unknown-upload", weights),
+  ).rejects.toBeInstanceOf(ModelUploadNotFoundError);
+  await expect(importModelUpload("unknown-upload")).rejects.toMatchObject({
+    code: "model_upload_not_found",
+  });
 });

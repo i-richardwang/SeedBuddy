@@ -29,9 +29,6 @@ test("training overviews list the dataset's runs and bound the requested page", 
       .map(({ run }) => run.id)
       .sort(),
   ).toEqual([first.id, next.id].sort());
-  await expect(
-    listTrainingRunOverviews({ datasetId: dataset.id }, 101),
-  ).rejects.toThrow(/between 1 and 100/);
 });
 
 test("training overviews count epochs and select metrics only from the current attempt", async () => {
@@ -49,7 +46,7 @@ test("training overviews count epochs and select metrics only from the current a
   await enterTrainingPhase(run.id, nextOwner, "training", expired);
   await recordTrainingEpoch(run.id, nextOwner, epochReport(1), expired);
   expect(
-    await listTrainingRunOverviews({ datasetId: dataset.id }, 1),
+    await listTrainingRunOverviews({ datasetId: dataset.id }),
   ).toMatchObject([
     {
       dataset: { id: dataset.id, name: "overview-epochs" },

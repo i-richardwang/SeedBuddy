@@ -10,7 +10,7 @@ import {
   type TrainingRun,
 } from "../../domain/training/schema";
 import { readDataset } from "../datasets/public";
-import { transaction } from "../infra/db/client";
+import { operationTime, transaction } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";
 import {
   activeTrainingRun,
@@ -31,6 +31,7 @@ export async function controlTrainingRun(
     await validateTrainingTarget(control.targetWorkerId);
   return transaction(async (tx) => {
     const run = await lockTrainingRun(runId, tx);
+    const at = await operationTime(tx);
     const dataset = await readDataset(datasetId, tx);
     const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, tx);
     if (!dataset || snapshot?.datasetId !== dataset.id)
@@ -70,7 +71,7 @@ export async function controlTrainingRun(
           lastProgressAt: null,
         })
         .where(eq(trainingRuns.id, runId));
-      return transitionTrainingRun(runId, { status: "queued" }, tx);
+      return transitionTrainingRun(runId, { status: "queued" }, at, tx);
     }
     const next = control.action === "pause" ? "paused" : "cancelled";
     if (status === next) return run;
@@ -83,6 +84,6 @@ export async function controlTrainingRun(
         `Cannot ${control.action} ${status} training`,
       );
     }
-    return transitionTrainingRun(runId, { status: next }, tx);
+    return transitionTrainingRun(runId, { status: next }, at, tx);
   });
 }

@@ -15,7 +15,7 @@ import { canonicalJson } from "../../lib/json/canonical";
 import { assertDocumentImage } from "../images/public";
 import type { Executor } from "../infra/db/client";
 import { images, inferenceOutcomes, modelVersions } from "../infra/db/schema";
-import { readModel } from "../models/public";
+import { requireModel } from "../models/public";
 import { lockDetection } from "./lock";
 
 /** One image under one model version: the pair a detection is recorded for. */
@@ -72,10 +72,7 @@ async function assertProducer(
       "Outcome was produced by a runtime the worker does not advertise",
     );
   }
-  const model = await readModel(version.modelId, tx);
-  if (!model) {
-    throw new ProducerMismatchError(`Unknown model: ${version.modelId}`);
-  }
+  const model = await requireModel(version.modelId, tx);
   return model;
 }
 
@@ -87,8 +84,9 @@ export async function storeInferenceOutcome(
   target: DetectionTarget,
   outcome: DetectionResult,
   worker: Pick<Worker, "runtimes">,
+  at: Date,
   tx: Executor,
-): Promise<DetectionResult> {
+): Promise<void> {
   await lockDetection(target.digest, target.versionId, tx);
   const [image] = await tx
     .select({ digest: images.id, width: images.width, height: images.height })
@@ -128,13 +126,12 @@ export async function storeInferenceOutcome(
     if (!sameDocument(existing, outcome)) {
       throw new DetectionConflictError(target);
     }
-    return existing;
+    return;
   }
   await tx.insert(inferenceOutcomes).values({
     imageId: target.digest,
     modelVersionId: target.versionId,
     document: outcome,
-    recordedAt: new Date(),
+    recordedAt: at,
   });
-  return outcome;
 }

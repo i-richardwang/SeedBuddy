@@ -2,6 +2,7 @@ import { MAX_IMAGE_BYTES } from "../../../domain/images/canonical";
 import { ImageSourceInvalidError } from "../../../domain/images/errors";
 import { imageDigestSchema } from "../../../domain/images/schema";
 import { storeCanonicalImage, storeImage } from "../../images/public";
+import { refuseWithoutAgentKey } from "./agent";
 import { agentUploadFailure, agentUploadRefusal } from "./agent-upload";
 import { exactLengthBody, uploadFailure } from "./upload-body";
 
@@ -57,4 +58,11 @@ export async function handleCanonicalImageUpload(
       return uploadFailure("Could not store image", 500);
     },
   );
+}
+
+/** Agent authentication stays at the transport boundary, like model uploads. */
+export async function serveAgentImageUpload(
+  request: Request,
+): Promise<Response> {
+  return (await refuseWithoutAgentKey(request)) ?? handleImageUpload(request);
 }

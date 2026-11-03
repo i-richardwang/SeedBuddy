@@ -11,7 +11,7 @@ import { bearerToken } from "../../auth/public";
 import { authenticateWorker } from "../../workers/public";
 
 /** Worker protocol refusals are plain text under the actionable HTTP status. */
-function workerFailure(message: string, status: number): Response {
+export function workerFailure(message: string, status: number): Response {
   return new Response(message, { status });
 }
 

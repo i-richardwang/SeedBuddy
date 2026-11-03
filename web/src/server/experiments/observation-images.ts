@@ -8,10 +8,10 @@ import {
   unitIsAvailableAt,
 } from "../../domain/experiments/culture-events";
 import {
-  ExperimentObservationImageConflictError,
+  ExperimentImageAlreadyUsedError,
   ExperimentObservationImageNotFoundError,
   ImageStorageConflictError,
-  ObservationImageConflictError,
+  ObservationImageAssignmentConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import type {
@@ -22,7 +22,7 @@ import type {
   ObservationRecord,
 } from "../../domain/experiments/schema";
 import { lockImage, markImagesUnclear } from "../images/public";
-import { retryInferenceTask } from "../inference/public";
+import { currentVersion, retryInferenceTask } from "../inference/public";
 import { type Executor, inTransaction } from "../infra/db/client";
 import {
   experimentObservationImages,
@@ -30,9 +30,9 @@ import {
   experimentUnits,
   images,
 } from "../infra/db/schema";
-import { experimentObservationImageDetail } from "./observation-image";
 import { createObservation } from "./observations";
 import {
+  atImageObservation,
   atObservationImage,
   listObservations,
   listUnits,
@@ -71,7 +71,7 @@ export async function assignObservationImages(
   } = value;
   const unitIds = assignments.map((assignment) => assignment.unit);
   if (new Set(unitIds).size !== unitIds.length) {
-    throw new ObservationImageConflictError(
+    throw new ObservationImageAssignmentConflictError(
       "Two images cannot be assigned to the same unit",
     );
   }
@@ -79,7 +79,9 @@ export async function assignObservationImages(
     ...new Set(assignments.map((assignment) => assignment.digest)),
   ].sort();
   if (digests.length !== assignments.length) {
-    throw new ObservationImageConflictError("The same image is assigned twice");
+    throw new ObservationImageAssignmentConflictError(
+      "The same image is assigned twice",
+    );
   }
 
   return inTransaction(executor, async (tx) => {
@@ -99,7 +101,7 @@ export async function assignObservationImages(
       .map((unitId) => byId.get(unitId)!)
       .filter((unit) => !unitIsAvailableAt(unit.events, observation, ordinals));
     if (unavailable.length > 0) {
-      throw new ObservationImageConflictError(
+      throw new ObservationImageAssignmentConflictError(
         `Images cannot be assigned to units removed before this observation: ${unavailable.map((unit) => unit.code).join(", ")}`,
       );
     }
@@ -157,19 +159,7 @@ export async function assignObservationImages(
           eq(experimentUnits.id, experimentObservationImages.unitId),
         ),
       )
-      .innerJoin(
-        experimentObservations,
-        and(
-          eq(
-            experimentObservations.experimentId,
-            experimentObservationImages.experimentId,
-          ),
-          eq(
-            experimentObservations.id,
-            experimentObservationImages.observationId,
-          ),
-        ),
-      )
+      .innerJoin(experimentObservations, atImageObservation())
       .where(
         and(
           eq(experimentObservationImages.experimentId, experimentId),
@@ -177,7 +167,7 @@ export async function assignObservationImages(
         ),
       );
     if (used.length > 0) {
-      throw new ExperimentObservationImageConflictError(
+      throw new ExperimentImageAlreadyUsedError(
         used.map((row) => ({
           digest: row.digest,
           filename: row.filename,
@@ -240,17 +230,26 @@ export async function retryObservationImageAnalysis(
   executor?: Executor,
 ): Promise<void> {
   await inTransaction(executor, async (tx) => {
-    const image = await experimentObservationImageDetail(ref, tx);
+    const [image] = await tx
+      .select({
+        digest: experimentObservationImages.imageId,
+        versionId: currentVersion(experimentObservations.modelId).mapWith(
+          String,
+        ),
+      })
+      .from(experimentObservationImages)
+      .innerJoin(experimentObservations, atImageObservation())
+      .where(atObservationImage(ref.experiment, ref.observationImage));
     if (!image) {
       throw new ExperimentObservationImageNotFoundError(
         `Unknown observation image: ${ref.observationImage}`,
       );
     }
-    if (!image.failure) return;
+    if (!image.versionId) return;
     await retryInferenceTask(
       {
-        digest: image.review.ref.digest,
-        versionId: image.failure.versionId,
+        digest: image.digest,
+        versionId: image.versionId,
       },
       tx,
     );

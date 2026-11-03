@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { inferenceTargetSchema } from "../domain/inference/assignments";
 import { inferenceFailureSchema } from "../domain/inference/tasks";
 import { attemptClaimSchema } from "../domain/workers/schema";
-import { failInferenceAttempt } from "../server/inference/public";
+import { failInferenceTask } from "../server/inference/public";
 import {
   parseWorkerSessionJson,
   parseWorkerValue,
@@ -29,7 +29,7 @@ export const Route = createFileRoute(
             }),
             context.workerId,
           );
-          await failInferenceAttempt(target, failure, owner);
+          await failInferenceTask(target, failure, owner);
           return Response.json({});
         } catch (error) {
           return workerErrorResponse(

@@ -1,18 +1,9 @@
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadBucketCommand,
-  HeadObjectCommand,
-  PutObjectCommand,
-  paginateListObjectsV2,
-  S3Client,
-} from "@aws-sdk/client-s3";
-
 /**
  * Binary content the database only references, addressed by a key in one
  * S3-compatible bucket:
  *
  *   images/<xx>/<sha256>                         images, by content digest
+ *   image-previews/<xx>/<sha256>                 derived workbench previews
  *   image-regions/<sha256>/<recipe>/<region>.png  derived image evidence
  *   model-artifacts/<upload-id>/<sha256>         immutable model delivery
  *   training-artifact-parts/<run>/<attempt>/... pending final-model parts
@@ -22,6 +13,15 @@ import {
  * key is written once and read until nothing refers to it any more, so a
  * reader never observes a partial write and no key needs a version.
  */
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadBucketCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  paginateListObjectsV2,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 /** An object store addressed by key; modules never depend on the driver. */
 export interface BlobStore {
@@ -87,8 +87,6 @@ function blobs(): BlobStore {
 export function reachBlobStore(): Promise<void> {
   return blobs().reach();
 }
-
-export class BlobStoreResponseError extends Error {}
 
 export class ImmutableBlobConflictError extends Error {}
 
@@ -186,7 +184,6 @@ function unreachable(store: string, error: unknown): Error {
 interface S3BlobStoreOptions {
   endpoint: string;
   bucket: string;
-  region?: string;
 }
 
 export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
@@ -204,8 +201,7 @@ export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
       const object = await client.send(
         new GetObjectCommand({ Bucket: bucket, Key: assertKey(key) }),
       );
-      if (!object.Body)
-        throw new BlobStoreResponseError(`Blob ${key} has no body`);
+      if (!object.Body) throw new Error(`Blob ${key} has no body`);
       return { ...object, Body: object.Body };
     } catch (error) {
       if (absent(error)) return null;
@@ -224,9 +220,7 @@ export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
       if (!object) return null;
       const size = object.ContentLength;
       if (size === undefined || !Number.isSafeInteger(size) || size < 0)
-        throw new BlobStoreResponseError(
-          `Blob ${key} has no valid content length`,
-        );
+        throw new Error(`Blob ${key} has no valid content length`);
       return { stream: object.Body.transformToWebStream(), size };
     },
     async putImmutable(key, contents) {
@@ -279,8 +273,7 @@ export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
       );
       for await (const page of pages) {
         for (const object of page.Contents ?? []) {
-          if (!object.Key)
-            throw new BlobStoreResponseError("Listed blob has no key");
+          if (!object.Key) throw new Error("Listed blob has no key");
           keys.push(object.Key);
         }
       }
@@ -328,13 +321,13 @@ function s3Configuration(options: S3BlobStoreOptions): S3Configuration {
   ) {
     throw new Error("VITROFLOW_BLOB_ENDPOINT must name only an HTTP(S) origin");
   }
-  if (!options.bucket || options.bucket.includes("/")) {
+  if (options.bucket.includes("/")) {
     throw new Error("VITROFLOW_BLOB_BUCKET must name exactly one bucket");
   }
   return {
     bucket: options.bucket,
     endpoint: parsed.origin,
-    region: options.region ?? process.env.AWS_REGION ?? "us-east-1",
+    region: process.env.AWS_REGION ?? "us-east-1",
   };
 }
 

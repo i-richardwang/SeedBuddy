@@ -2,6 +2,7 @@ import { readImageOverview, readImageRegion } from "../images/public";
 import { readTask } from "./access";
 import { renderContext, renderTask } from "./rendering";
 import { savePreview } from "./tasks";
+
 export async function readAnnotationContext(taskId: string) {
   const { run } = await readTask(taskId);
   return renderContext(

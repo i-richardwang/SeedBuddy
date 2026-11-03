@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { database } from "../infra/db/client";
+import { database, type Executor } from "../infra/db/client";
 import {
   datasetImages,
   experimentObservationImages,
@@ -14,9 +14,10 @@ import {
  */
 export async function imageFilenames(
   digests: string[],
+  db?: Executor,
 ): Promise<Map<string, string>> {
   if (digests.length === 0) return new Map();
-  const executor = await database();
+  const executor = db ?? (await database());
   const [experimentRows, datasetRows] = await Promise.all([
     executor
       .select({

@@ -1,3 +1,4 @@
+import "./image-analysis-runtime";
 import { bootstrap } from "../src/server/bootstrap";
 import {
   IMAGE_ANALYSIS_RETRY_MS,
@@ -5,10 +6,6 @@ import {
 } from "../src/server/images/public";
 import { closeDatabase } from "../src/server/infra/db/client";
 
-process.env.VITROFLOW_IMAGE_ANALYSIS_URL ??= new URL(
-  "./dish-thread.js",
-  import.meta.url,
-).href;
 bootstrap();
 const stop = new AbortController();
 process.once("SIGTERM", () => stop.abort());

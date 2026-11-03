@@ -1,12 +1,22 @@
 import { expect, test } from "bun:test";
 
+import { issueApiKey } from "../../auth/api-keys";
+import { apiKeyHeaders, signInAs } from "../../testing/auth";
 import { handleCanonicalImageUpload, handleImageUpload } from "./image-upload";
 
 test("agent image uploads use structured errors while transfer uploads retain string errors", async () => {
+  const { user } = await signInAs("member");
+  const key = await issueApiKey(user.id, {
+    name: "Image upload",
+    scopes: ["experiments"],
+    expiresInDays: null,
+  });
+  const headers = apiKeyHeaders(key.secret);
+  headers.set("content-length", "3");
   const request = () =>
     new Request("http://localhost/upload", {
       method: "POST",
-      headers: { "content-length": "3" },
+      headers,
       body: "bad",
     });
   const agent = await handleImageUpload(request());

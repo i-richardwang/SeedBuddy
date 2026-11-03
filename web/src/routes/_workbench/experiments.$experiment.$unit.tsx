@@ -11,7 +11,7 @@ import {
   UnitWorkbench,
   UnitWorkbenchSkeleton,
 } from "../../features/experiments/UnitWorkbench";
-import { getUnit } from "../../functions/experiments";
+import { getUnitDetail } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 
@@ -37,7 +37,7 @@ export const Route = createFileRoute(
       unit: params.unit,
     });
     if (!ref.success) throw notFound();
-    const series = await getUnit({
+    const series = await getUnitDetail({
       data: { ...ref.data, ...deps },
     });
     if (!series) throw notFound();

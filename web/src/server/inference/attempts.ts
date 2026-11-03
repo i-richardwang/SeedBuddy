@@ -10,11 +10,7 @@ import {
 } from "../../domain/inference/assignments";
 import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { InferenceFailure } from "../../domain/inference/tasks";
-import type {
-  AttemptOwner,
-  Worker,
-  WorkerIdentity,
-} from "../../domain/workers/schema";
+import type { AttemptOwner, WorkerIdentity } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
 import { type Executor, operationTime, transaction } from "../infra/db/client";
 import {
@@ -24,7 +20,7 @@ import {
   trainingRuns,
 } from "../infra/db/schema";
 import { documentDigest } from "../infra/digest";
-import { readModel, toModelVersion } from "../models/public";
+import { requireModel, toModelVersion } from "../models/public";
 import { leaseIsHeld, lockWorkerSession } from "../workers/public";
 import { type DetectionTarget, storeInferenceOutcome } from "./outcomes";
 import {
@@ -37,7 +33,7 @@ import {
   attemptIsActive,
   attemptKey,
   finishFailedAttempt,
-  lockTask,
+  lockInferenceTask,
   maintainInferenceTasks,
   type Task,
   taskKey,
@@ -55,8 +51,7 @@ async function assignment(
     .where(eq(modelVersions.id, task.modelVersionId));
   if (!row) throw new Error(`Missing model version ${task.modelVersionId}`);
   const version = toModelVersion(row);
-  const model = await readModel(version.modelId, tx);
-  if (!model) throw new Error(`Missing model ${version.modelId}`);
+  const model = await requireModel(version.modelId, tx);
   return inferenceAssignmentSchema.parse({
     manifest: inferenceModelManifest(version, model),
     image: task.imageId,
@@ -68,7 +63,7 @@ async function assignment(
 }
 
 /** One execution slot, with idempotent claim delivery and no private backlog. */
-export async function claimInferenceAssignment(
+export async function claimInferenceTask(
   owner: WorkerIdentity,
   suppliedAt?: Date,
 ) {
@@ -87,10 +82,13 @@ export async function claimInferenceAssignment(
         ),
       );
     if (held) {
-      const task = await lockTask(tx, {
-        digest: held.imageId,
-        versionId: held.modelVersionId,
-      });
+      const task = await lockInferenceTask(
+        {
+          digest: held.imageId,
+          versionId: held.modelVersionId,
+        },
+        tx,
+      );
 
       const at = await operationTime(tx, suppliedAt);
       const [live] = await tx
@@ -235,14 +233,14 @@ function requireLive(task: Task, attempt: Attempt, at: Date): void {
     );
 }
 
-export async function renewInferenceClaim(
+export async function renewInferenceTask(
   target: DetectionTarget,
   owner: AttemptOwner,
   suppliedAt?: Date,
 ) {
   return transaction(async (tx) => {
     await lockWorkerSession(owner, tx);
-    const task = await lockTask(tx, target);
+    const task = await lockInferenceTask(target, tx);
     const attempt = await ownedAttempt(tx, target, owner);
     const at = await operationTime(tx, suppliedAt);
     requireLive(task, attempt, at);
@@ -265,15 +263,15 @@ export async function renewInferenceClaim(
 }
 
 /** Receipt replay remains safe after expiry; uncommitted stale results never land. */
-export async function completeInferenceClaim(
+export async function completeInferenceTask(
   target: DetectionTarget,
   result: DetectionResult,
   owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<void> {
   await transaction(async (tx) => {
-    const worker: Worker = await lockWorkerSession(owner, tx);
-    const task = await lockTask(tx, target);
+    const worker = await lockWorkerSession(owner, tx);
+    const task = await lockInferenceTask(target, tx);
     const attempt = await ownedAttempt(tx, target, owner);
     const parsed = detectionResultSchema.parse(result);
     const digest = documentDigest(parsed);
@@ -281,7 +279,7 @@ export async function completeInferenceClaim(
       return;
     const at = await operationTime(tx, suppliedAt);
     requireLive(task, attempt, at);
-    await storeInferenceOutcome(target, parsed, worker, tx);
+    await storeInferenceOutcome(target, parsed, worker, at, tx);
     await tx
       .update(inferenceAttempts)
       .set({ status: "succeeded", finishedAt: at, resultDigest: digest })
@@ -293,7 +291,7 @@ export async function completeInferenceClaim(
   });
 }
 
-export async function failInferenceAttempt(
+export async function failInferenceTask(
   target: DetectionTarget,
   failure: InferenceFailure,
   owner: AttemptOwner,
@@ -301,7 +299,7 @@ export async function failInferenceAttempt(
 ): Promise<void> {
   await transaction(async (tx) => {
     await lockWorkerSession(owner, tx);
-    const task = await lockTask(tx, target);
+    const task = await lockInferenceTask(target, tx);
     const attempt = await ownedAttempt(tx, target, owner);
     if (
       attempt.status === "failed" &&
@@ -310,6 +308,6 @@ export async function failInferenceAttempt(
       return;
     const at = await operationTime(tx, suppliedAt);
     requireLive(task, attempt, at);
-    await finishFailedAttempt(tx, task, attempt, failure, at);
+    await finishFailedAttempt(task, attempt, failure, at, tx);
   });
 }

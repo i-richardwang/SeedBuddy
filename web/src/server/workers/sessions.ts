@@ -144,10 +144,8 @@ export function leaseIsHeld(
 }
 
 /** The latest session of every worker that has connected, newest first. */
-export async function listWorkers(): Promise<Worker[]> {
-  const rows = await (
-    await database()
-  )
+export async function listWorkers(executor?: Executor): Promise<Worker[]> {
+  const rows = await (executor ?? (await database()))
     .select()
     .from(workerSessions)
     .orderBy(desc(workerSessions.lastSeenAt));
@@ -156,9 +154,10 @@ export async function listWorkers(): Promise<Worker[]> {
 
 /** Workers online now that could take a training run. */
 export async function listOnlineTrainers(
-  at: Date = new Date(),
+  at: Date,
+  executor?: Executor,
 ): Promise<Worker[]> {
-  return (await listWorkers()).filter(
+  return (await listWorkers(executor)).filter(
     (worker) =>
       canTrain(worker) && workerPresence(worker.lastSeenAt, at) === "online",
   );

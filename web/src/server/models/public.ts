@@ -1,7 +1,8 @@
-export { prepareDatabase } from "./preparation";
+export { prepareDatabase } from "./bootstrap";
 export {
   collectUnreferencedModelWeights,
   importModelUpload,
+  modelBundleVersionId,
   openModelWeights,
   prepareModelUpload,
   registerUploadedModel,
@@ -11,12 +12,11 @@ export { modelRecordCounts, toModelRecords } from "./records";
 export {
   createModel,
   deleteModel,
-  listAllModelVersions,
   listModels,
   listModelVersions,
   readCurrentVersionId,
-  readModel,
   readModelVersion,
+  requireModel,
   setCurrentVersion,
   setModelAnnotation,
   toModel,

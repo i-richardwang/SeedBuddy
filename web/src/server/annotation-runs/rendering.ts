@@ -10,6 +10,7 @@ import { createSingleFlight, createWorkGate } from "../../lib/async/work";
 import { ByteCache } from "../../lib/cache/bytes";
 import type { ImageRegionEvidence } from "../images/public";
 import { documentDigest } from "../infra/digest";
+
 export type AnnotationPanel =
   { kind: "image"; bytes: Buffer } | { kind: "description"; value: unknown };
 const image = (bytes: Buffer): AnnotationPanel => ({ kind: "image", bytes });

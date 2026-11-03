@@ -16,7 +16,6 @@ import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { createExperiment as createExperimentRecord } from "../experiments/design";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
-import { experimentGridDetail } from "../experiments/queries";
 import { listUnits } from "../experiments/records";
 import { database } from "../infra/db/client";
 import { experimentObservationImages } from "../infra/db/schema";
@@ -25,6 +24,7 @@ import {
   registerModel,
   setCurrentVersion,
 } from "../models/registry";
+import { experimentGridDetail } from "../queries/experiment-details";
 import { storeTexts } from "./images";
 import { baselineVersion, registerTrainedVersion } from "./models";
 

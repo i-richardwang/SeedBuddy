@@ -35,22 +35,24 @@ import {
   deleteObservation,
   deleteTreatment,
   deleteUnit,
-  experimentGridDetail,
-  findExperimentNames,
-  listExperimentOverviews,
   moveUnits,
   recordCultureEvents,
   recordManualReadings,
   recordObservation,
   retryObservationImageAnalysis,
   unassignObservationImage,
-  unitDetail,
   updateExperiment as updateExperimentService,
   updateObservation as updateObservationService,
   updateTreatment as updateTreatmentService,
   updateUnit as updateUnitService,
 } from "../server/experiments/public";
 import { listModels } from "../server/models/public";
+import {
+  experimentGridDetail,
+  findExperimentNames,
+  listExperimentOverviews,
+  unitDetail,
+} from "../server/queries/public";
 
 async function datasetsTraining(modelId: string): Promise<NamedDataset[]> {
   return (await listDatasetsForModel(modelId)).map(({ id, name }) => ({
@@ -111,7 +113,7 @@ export const createReplicates = createServerFn({ method: "POST" })
   .validator(replicateRequestSchema)
   .handler(({ data }) => addReplicates(data));
 
-export const getUnit = createServerFn({ method: "GET" })
+export const getUnitDetail = createServerFn({ method: "GET" })
   .validator(unitRequestSchema)
   .handler(async ({ data: { observation, ...ref } }) => {
     const series = await unitDetail(ref, observation);
@@ -166,7 +168,7 @@ export const removeObservationImage = createServerFn({ method: "POST" })
   .validator(observationImageRefSchema)
   .handler(({ data }) => unassignObservationImage(data));
 
-export const updateImageAnalysis = createServerFn({ method: "POST" })
+export const createImageAnalysisRetry = createServerFn({ method: "POST" })
   .validator(observationImageRefSchema)
   .handler(async ({ data }) => {
     await retryObservationImageAnalysis(data);

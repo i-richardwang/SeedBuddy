@@ -7,7 +7,7 @@ import { datasetImageRefSchema } from "../../domain/datasets/schema";
 import { ImageWorkbenchSkeleton } from "../../features/annotation/ImageWorkbench";
 import { DatasetImageWorkbench } from "../../features/datasets/DatasetImageWorkbench";
 import { datasetCrumbs } from "../../features/models/crumbs";
-import { getDatasetImage } from "../../functions/datasets";
+import { getDatasetImageDetail } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/$digest")({
   loader: async ({ params }) => {
     const ref = datasetImageRefSchema.safeParse(params);
     if (!ref.success) throw notFound();
-    const view = await getDatasetImage({ data: ref.data });
+    const view = await getDatasetImageDetail({ data: ref.data });
     if (!view) throw notFound();
     return view;
   },

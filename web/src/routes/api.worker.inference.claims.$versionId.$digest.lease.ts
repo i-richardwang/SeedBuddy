@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { inferenceTargetSchema } from "../domain/inference/assignments";
 import { attemptClaimSchema } from "../domain/workers/schema";
-import { renewInferenceClaim } from "../server/inference/public";
+import { renewInferenceTask } from "../server/inference/public";
 import {
   parseWorkerSessionJson,
   parseWorkerValue,
@@ -36,7 +36,7 @@ export const Route = createFileRoute(
             request,
             context.workerId,
           );
-          return Response.json(await renewInferenceClaim(target, owner));
+          return Response.json(await renewInferenceTask(target, owner));
         } catch (error) {
           return workerErrorResponse(error, "Could not renew inference lease");
         }

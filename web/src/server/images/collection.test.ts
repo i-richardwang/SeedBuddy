@@ -36,6 +36,8 @@ describe("collection", () => {
       image,
       { coreSize: 512, halo: 32, displayScale: 1 },
       "tile-000-000",
+      null,
+      null,
     );
     expect(
       (await listBlobs(imageRegionsPrefix(digest))).length,
@@ -53,6 +55,8 @@ describe("collection", () => {
       frame,
       { coreSize: 512, halo: 32, displayScale: 1 },
       "tile-000-000",
+      null,
+      null,
     );
     expect(await collectImages(later())).not.toContain(digests[0]);
     expect(await blobExists(imageBlobKey(digests[0]!))).toBe(true);
@@ -66,6 +70,8 @@ describe("collection", () => {
       orphan,
       { coreSize: 512, halo: 32, displayScale: 1 },
       "tile-000-000",
+      null,
+      null,
     );
 
     expect(await collectImages()).toContain(orphan.digest);

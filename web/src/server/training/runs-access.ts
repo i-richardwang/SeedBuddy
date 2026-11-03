@@ -6,10 +6,11 @@ import {
 } from "../../domain/training/errors";
 import type { TrainingRun } from "../../domain/training/schema";
 import type { AttemptOwner } from "../../domain/workers/schema";
-import { database, type Executor, operationTime } from "../infra/db/client";
+import { type Executor, operationTime } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";
 import { currentWorkerSession } from "../workers/public";
 import { toTrainingRun } from "./records";
+
 export type RunningTrainingRun = TrainingRun & {
   state: Extract<TrainingRun["state"], { status: "running" }>;
 };
@@ -22,9 +23,9 @@ export function ownershipConflict(runId: string, owner: AttemptOwner) {
 
 export async function readTrainingRun(
   runId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<TrainingRun | null> {
-  const [row] = await (db ?? (await database()))
+  const [row] = await db
     .select()
     .from(trainingRuns)
     .where(eq(trainingRuns.id, runId));

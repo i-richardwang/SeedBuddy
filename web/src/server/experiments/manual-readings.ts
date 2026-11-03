@@ -16,7 +16,7 @@ import type {
 import type { Tally } from "../../domain/models/classes";
 import { type Executor, inTransaction } from "../infra/db/client";
 import { experimentManualReadings } from "../infra/db/schema";
-import { requireModel } from "./observations";
+import { requireModel } from "../models/public";
 import {
   listManualReadings,
   listObservations,

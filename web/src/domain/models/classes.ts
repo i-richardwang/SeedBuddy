@@ -2,11 +2,9 @@ import { z } from "zod";
 
 import { ClassInvalidError } from "./errors";
 
-const identifierSchema = z
+export const classNameSchema = z
   .string()
   .regex(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/, "Use lower_snake_case");
-
-export const classNameSchema = identifierSchema;
 
 export const classListSchema = z
   .array(classNameSchema)

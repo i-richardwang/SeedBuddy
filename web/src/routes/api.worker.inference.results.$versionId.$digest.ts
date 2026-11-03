@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { detectionResultSchema } from "../domain/detection/schema";
 import { inferenceTargetSchema } from "../domain/inference/assignments";
-import { completeInferenceClaim } from "../server/inference/public";
+import { completeInferenceTask } from "../server/inference/public";
 import {
   parseAttemptOwner,
   parseWorkerJson,
@@ -23,7 +23,7 @@ export const Route = createFileRoute(
             inferenceTargetSchema,
             "Inference target",
           );
-          await completeInferenceClaim(
+          await completeInferenceTask(
             target,
             await parseWorkerJson(request, detectionResultSchema),
             worker,

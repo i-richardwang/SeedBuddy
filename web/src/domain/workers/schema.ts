@@ -46,8 +46,8 @@ export const workerSchema = workerReportSchema.extend({
 export const workerRefSchema = z.strictObject({ workerId: resourceIdSchema });
 
 export type WorkerActivity =
-  | { kind: "inference"; image: string }
-  | { kind: "training"; runId: string; dataset: NamedDataset };
+  | { kind: "inference"; subject: { digest: string; filename: string | null } }
+  | { kind: "training"; subject: { runId: string; dataset: NamedDataset } };
 
 /** A worker session as the server knows it: the enrolled worker and its process. */
 export interface WorkerIdentity {

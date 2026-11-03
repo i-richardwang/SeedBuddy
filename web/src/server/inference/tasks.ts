@@ -11,7 +11,7 @@ import {
   transaction,
 } from "../infra/db/client";
 import { inferenceAttempts, inferenceTasks } from "../infra/db/schema";
-import { sessionIsCurrent } from "../workers/public";
+import { leaseIsHeld } from "../workers/public";
 import { materializeInferenceDemand } from "./demand";
 import type { DetectionTarget } from "./outcomes";
 import { INFERENCE_MAX_ATTEMPTS, retryDelaySeconds } from "./policy";
@@ -33,11 +33,11 @@ export function attemptKey(target: DetectionTarget, attempt: number) {
   );
 }
 export function attemptIsActive(at: Date) {
-  return sql`(${eq(inferenceAttempts.status, "running")} and ${gt(inferenceAttempts.leaseExpiresAt, at)} and ${gt(inferenceAttempts.deadlineAt, at)} and ${sessionIsCurrent(inferenceAttempts)})`;
+  return sql`(${eq(inferenceAttempts.status, "running")} and ${leaseIsHeld(inferenceAttempts, at)} and ${gt(inferenceAttempts.deadlineAt, at)})`;
 }
-export async function lockTask(
-  tx: Executor,
+export async function lockInferenceTask(
   target: DetectionTarget,
+  tx: Executor,
 ): Promise<Task> {
   const [task] = await tx
     .select()
@@ -51,11 +51,11 @@ export async function lockTask(
 
 /** Finish one attempt and retain its history; a failure is not a model result. */
 export async function finishFailedAttempt(
-  tx: Executor,
   task: Task,
   attempt: Attempt,
   failure: InferenceFailure,
   at: Date,
+  tx: Executor,
 ): Promise<void> {
   const target = { digest: task.imageId, versionId: task.modelVersionId };
   await tx
@@ -105,7 +105,7 @@ async function expireInferenceAttempts(
       digest: row.task.imageId,
       versionId: row.task.modelVersionId,
     };
-    const task = await lockTask(tx, target);
+    const task = await lockInferenceTask(target, tx);
     if (task.status !== "running") continue;
     const [attempt] = await tx
       .select()
@@ -124,7 +124,6 @@ async function expireInferenceAttempts(
           ? "lease_expired"
           : "session_replaced";
     await finishFailedAttempt(
-      tx,
       task,
       attempt,
       {
@@ -137,16 +136,19 @@ async function expireInferenceAttempts(
               : "Worker session ended",
       },
       at,
+      tx,
     );
     expired += 1;
   }
   return expired;
 }
 
-export async function maintainInferenceTasks(at?: Date): Promise<number> {
+export async function maintainInferenceTasks(
+  suppliedAt?: Date,
+): Promise<number> {
   return transaction(async (tx) => {
-    const now = await operationTime(tx, at);
-    await materializeInferenceDemand(tx, now);
+    const now = await operationTime(tx, suppliedAt);
+    await materializeInferenceDemand(now, tx);
     return expireInferenceAttempts(tx, now);
   });
 }
@@ -196,7 +198,7 @@ export async function retryInferenceTask(
   executor?: Executor,
 ): Promise<void> {
   await inTransaction(executor, async (tx) => {
-    const task = await lockTask(tx, target);
+    const task = await lockInferenceTask(target, tx);
     if (task.status !== "failed") return;
     const at = await operationTime(tx);
     await tx

@@ -4,32 +4,35 @@ import {
   TRAINING_PRESETS,
 } from "../../domain/training/recipes";
 import {
-  countReviewed,
+  countReviewedDatasetImages,
   listImageRecords,
   readDataset,
-  summarize,
+  summarizeDatasetImage,
 } from "../datasets/public";
-import { readModel } from "../models/public";
+import { operationTime, snapshot } from "../infra/db/client";
+import { requireModel } from "../models/public";
 import { datasetTrainingReadiness } from "./dataset-training-readiness";
 import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
 export async function datasetDetail(
   datasetId: string,
-  at: Date = new Date(),
+  suppliedAt?: Date,
 ): Promise<DatasetDetail | null> {
-  const dataset = await readDataset(datasetId);
-  if (!dataset) return null;
-  const model = await readModel(dataset.modelId);
-  if (!model) throw new Error(`Unknown model: ${dataset.modelId}`);
-  const records = await listImageRecords(datasetId);
-  return {
-    dataset,
-    model,
-    images: records.map(summarize),
-    reviewedCount: countReviewed(records),
-    training: await datasetTrainingReadiness(dataset, records, at),
-    trainingPresets: TRAINING_PRESETS,
-    defaultTrainingPresetId: DEFAULT_TRAINING_PRESET_ID,
-    runs: await listTrainingRunOverviews({ datasetId: dataset.id }),
-  };
+  return snapshot(async (db) => {
+    const at = await operationTime(db, suppliedAt);
+    const dataset = await readDataset(datasetId, db);
+    if (!dataset) return null;
+    const model = await requireModel(dataset.modelId, db);
+    const records = await listImageRecords(datasetId, db);
+    return {
+      dataset,
+      model,
+      images: records.map(summarizeDatasetImage),
+      reviewedCount: countReviewedDatasetImages(records),
+      training: await datasetTrainingReadiness(dataset, records, at, db),
+      trainingPresets: TRAINING_PRESETS,
+      defaultTrainingPresetId: DEFAULT_TRAINING_PRESET_ID,
+      runs: await listTrainingRunOverviews({ datasetId: dataset.id }, db),
+    };
+  });
 }

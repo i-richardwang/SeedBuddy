@@ -16,7 +16,7 @@ import type {
   UnitStep,
 } from "../../domain/experiments/read-model";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
-import { updateImageAnalysis } from "../../functions/experiments";
+import { createImageAnalysisRetry } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
@@ -457,7 +457,7 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
       loading={action.busy}
       onClick={() => {
         void action.run(
-          () => updateImageAnalysis({ data: image }),
+          () => createImageAnalysisRetry({ data: image }),
           m.unit_photo_not_recounted(),
         );
       }}

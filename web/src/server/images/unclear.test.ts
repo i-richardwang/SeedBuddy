@@ -3,7 +3,10 @@ import { expect, test } from "bun:test";
 import { ImageNotFoundError } from "../../domain/images/errors";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
-import { experimentGridDetail, unitDetail } from "../experiments/queries";
+import {
+  experimentGridDetail,
+  unitDetail,
+} from "../queries/experiment-details";
 import {
   createExperiment,
   INOCULATED,
