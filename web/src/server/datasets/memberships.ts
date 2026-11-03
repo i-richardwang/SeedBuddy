@@ -1,8 +1,8 @@
+import { ExperimentObservationImageNotFoundError } from "../../domain/experiments/errors";
 import { randomUUID } from "node:crypto";
 
 import { ModelNotFoundError } from "../../domain/models/errors";
 import {
-  ObservationImageNotFoundError,
   DatasetModelError,
   DatasetNameTakenError,
   DatasetNotFoundError,
@@ -235,7 +235,7 @@ async function resolveObservedImages(
     (image) => !byRef.has(describeObservationImage(image)),
   );
   if (missing.length > 0) {
-    throw new ObservationImageNotFoundError(
+    throw new ExperimentObservationImageNotFoundError(
       `Not experiment observation images: ${missing.map(describeObservationImage).join(", ")}`,
     );
   }

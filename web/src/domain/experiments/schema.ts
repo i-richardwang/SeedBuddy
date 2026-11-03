@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { resourceIdSchema } from "../identifiers/schema";
+import { timestampSchema, resourceIdSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema, tallySchema } from "../models/classes";
 
@@ -133,7 +133,7 @@ export const experimentSchema = z.strictObject({
    * Unless it does, the unit is out of it on every day.
    */
   countsUnclear: z.boolean(),
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: timestampSchema,
 });
 
 export type Experiment = z.infer<typeof experimentSchema>;
@@ -273,12 +273,12 @@ export const cultureEventSchema = z.strictObject({
   id: cultureEventIdSchema,
   type: cultureEventTypeSchema,
   observation: observationIdSchema,
-  recordedAt: z.string().datetime({ offset: true }),
+  recordedAt: timestampSchema,
 });
 
 export type CultureEvent = z.infer<typeof cultureEventSchema>;
 
-export const cultureEventRequestSchema = unitRefSchema.extend({
+const cultureEventRequestSchema = unitRefSchema.extend({
   type: cultureEventTypeSchema,
   observation: observationIdSchema,
 });
@@ -316,7 +316,7 @@ export const manualReadingSchema = z.strictObject({
   unit: unitIdSchema,
   observation: observationIdSchema,
   tally: tallySchema,
-  recordedAt: z.string().datetime({ offset: true }),
+  recordedAt: timestampSchema,
 });
 
 export type ManualReading = z.infer<typeof manualReadingSchema>;
@@ -373,7 +373,7 @@ export const observationRefSchema = z.strictObject({
 
 export type ObservationRef = z.infer<typeof observationRefSchema>;
 
-export const observationRequestSchema = z.strictObject({
+const observationRequestSchema = z.strictObject({
   experiment: experimentIdSchema,
   observedOn: calendarDaySchema,
   note: observationNoteSchema.default(""),

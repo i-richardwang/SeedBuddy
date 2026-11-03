@@ -1,3 +1,4 @@
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -7,9 +8,8 @@ import {
   workerErrorResponse,
 } from "../server/transport/http/worker";
 import { TRAINING_PHASES } from "../domain/training/schema";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
-const bodySchema = trainingAttemptOwnerSchema.extend({
+const bodySchema = attemptOwnerSchema.extend({
   phase: z.enum(TRAINING_PHASES),
 });
 

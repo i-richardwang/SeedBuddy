@@ -10,7 +10,7 @@ import {
   type StartAnnotationRun,
 } from "../../domain/annotation-runs/schema";
 import { regions } from "../../domain/annotation-runs/tasks";
-import { sourceInstances } from "../../domain/annotation/review";
+import { sourceInstances } from "../../domain/annotation/readings";
 import {
   annotationSchema,
   type AnnotationRef,

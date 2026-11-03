@@ -26,7 +26,7 @@ import {
  */
 
 /** How the numbers of a treatment's units fall: how many, their mean, and their spread. */
-export const statisticSchema = z.strictObject({
+const statisticSchema = z.strictObject({
   n: z.number().int().min(1),
   mean: z.number(),
   /** The sample standard deviation, or null for a single unit, which has no spread. */
@@ -38,7 +38,7 @@ export const statisticSchema = z.strictObject({
 export type Statistic = z.infer<typeof statisticSchema>;
 
 /** One unit's numbers on a day, as the summary takes them. */
-export const summaryUnitSchema = z.strictObject({
+const summaryUnitSchema = z.strictObject({
   unit: unitIdSchema,
   count: z.number().int().min(0),
   rate: z.number().nullable(),
@@ -51,7 +51,7 @@ export type SummaryUnit = z.infer<typeof summaryUnitSchema>;
  * analysis that day with a number; `count` and `rate` summarise them, and
  * are null where no unit has that number.
  */
-export const treatmentDaySummarySchema = z.strictObject({
+const treatmentDaySummarySchema = z.strictObject({
   treatment: treatmentIdSchema,
   observation: observationIdSchema,
   units: z.array(summaryUnitSchema),

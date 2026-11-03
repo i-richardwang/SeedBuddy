@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { resourceIdSchema } from "../identifiers/schema";
+import { timestampSchema, resourceIdSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";
 import {
@@ -20,9 +20,9 @@ export const inferenceAssignmentSchema = z.strictObject({
   manifest: inferenceModelManifestSchema,
   image: imageDigestSchema,
   attempt: z.number().int().positive(),
-  leaseExpiresAt: z.iso.datetime(),
-  deadlineAt: z.iso.datetime(),
-  serverTime: z.iso.datetime(),
+  leaseExpiresAt: timestampSchema,
+  deadlineAt: timestampSchema,
+  serverTime: timestampSchema,
 });
 
 export const inferenceTargetSchema = z.strictObject({

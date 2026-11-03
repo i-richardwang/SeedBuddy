@@ -112,7 +112,9 @@ export function encodeDatasetManifest(
   const document = datasetManifestSchema.parse(manifest);
   const bytes = new TextEncoder().encode(`${JSON.stringify(document)}\n`);
   if (bytes.byteLength > MAX_DATASET_MANIFEST_BYTES) {
-    throw new DatasetManifestTooLargeError("Dataset manifest exceeds 16 MiB");
+    throw new DatasetManifestTooLargeError(
+      `Dataset manifest exceeds ${MAX_DATASET_MANIFEST_BYTES / (1024 * 1024)} MiB`,
+    );
   }
   return bytes;
 }

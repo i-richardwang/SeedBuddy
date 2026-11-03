@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { unitExclusions } from "./analysis";
+import { exclusionSchema, unitExclusions } from "./analysis";
 import {
   type ExperimentGrid,
   observationImageCellSchema,
@@ -15,12 +15,11 @@ import {
 import {
   cellReading,
   observationCells,
-  READING_SOURCES,
+  readingSchema,
   unitDays,
   type ObservationCells,
 } from "./readings";
 import {
-  cultureEventSchema,
   experimentObservationSchema,
   experimentSchema,
   manualReadingSchema,
@@ -41,18 +40,6 @@ import { experimentSummary, experimentSummarySchema } from "./summary";
  * is a different view.
  */
 
-/** What a cell reads: the count, and who stood behind it. */
-export const readingSchema = z.strictObject({
-  count: z.number().int().min(0),
-  source: z.enum(READING_SOURCES),
-});
-
-/** Why a cell's day stays out of the analysis. */
-export const exclusionSchema = z.discriminatedUnion("reason", [
-  z.strictObject({ reason: z.literal("event"), event: cultureEventSchema }),
-  z.strictObject({ reason: z.literal("unclear") }),
-]);
-
 /** The cell's photograph, named so datasets and marks can find it. */
 const cellImageSchema = observationImageCellSchema.omit({
   unit: true,
@@ -70,7 +57,7 @@ const cellManualSchema = manualReadingSchema.omit({
  * `exclusion` why it would not; both are null for a day with nothing yet.
  * The photograph and the entered count are what the reading came from.
  */
-export const sheetCellSchema = z.strictObject({
+const sheetCellSchema = z.strictObject({
   unit: unitIdSchema,
   observation: observationIdSchema,
   reading: readingSchema.nullable(),

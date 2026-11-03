@@ -5,12 +5,10 @@ import { sha256Schema } from "../identifiers/schema";
 /** Fixed wire size, shared with vitroctl.worker.training. */
 export const TRAINING_ARTIFACT_PART_BYTES = 8 * 1024 * 1024;
 
-export const artifactUploadSchema = z
-  .object({
-    bytes: z.number().int().positive().max(MAX_MODEL_WEIGHTS_BYTES),
-    digest: sha256Schema,
-  })
-  .strict();
+export const artifactUploadSchema = z.strictObject({
+  bytes: z.number().int().positive().max(MAX_MODEL_WEIGHTS_BYTES),
+  digest: sha256Schema,
+});
 
 export type ArtifactUpload = z.infer<typeof artifactUploadSchema>;
 

@@ -1,4 +1,4 @@
-import type { Review } from "../annotation/review";
+import type { Review } from "../annotation/readings";
 import type { Model } from "../models/schema";
 import type { ImageSplit } from "../training/schema";
 import type { Dataset } from "./schema";

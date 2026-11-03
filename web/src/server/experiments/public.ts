@@ -1,8 +1,4 @@
-export {
-  deleteCultureEvent,
-  recordCultureEvent,
-  recordCultureEvents,
-} from "./culture-events";
+export { deleteCultureEvent, recordCultureEvents } from "./culture-events";
 export {
   addReplicates,
   addTreatment,

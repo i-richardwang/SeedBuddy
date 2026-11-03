@@ -20,3 +20,6 @@ export function identifierLabel(id: string): string {
   const generated = GENERATED_ID.exec(id)?.[1];
   return generated ? generated.replaceAll("-", "").slice(0, 8) : id;
 }
+
+/** An ISO 8601 instant with UTC Z or an explicit offset. */
+export const timestampSchema = z.iso.datetime({ offset: true });

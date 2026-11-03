@@ -1,3 +1,4 @@
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { inferenceTargetSchema } from "../domain/inference/assignments";
@@ -7,7 +8,6 @@ import {
   parseWorkerValue,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { inferenceAttemptOwnerSchema } from "../domain/inference/tasks";
 
 /** The claim a request speaks for: its target, held by the calling session. */
 async function claimOf(params: unknown, request: Request, workerId: string) {
@@ -18,7 +18,7 @@ async function claimOf(params: unknown, request: Request, workerId: string) {
   );
   const owner = await parseWorkerSessionJson(
     request,
-    inferenceAttemptOwnerSchema,
+    attemptOwnerSchema,
     workerId,
   );
   return { target, owner };

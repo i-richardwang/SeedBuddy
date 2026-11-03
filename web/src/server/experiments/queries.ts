@@ -17,7 +17,7 @@ import {
 import type {
   ExperimentGrid,
   ExperimentObservationImage,
-  ExperimentSummary,
+  ExperimentOverview,
   ObservationImageCell,
   UnitSeries,
 } from "../../domain/experiments/contracts";
@@ -281,7 +281,7 @@ async function readImageSizes(
   return new Map(rows.map(({ digest, ...size }) => [digest, size]));
 }
 
-export function listExperiments(): Promise<ExperimentSummary[]> {
+export function listExperiments(): Promise<ExperimentOverview[]> {
   return snapshot(listExperimentSummaries);
 }
 
@@ -319,7 +319,7 @@ function countOf(
 
 async function listExperimentSummaries(
   db: Executor,
-): Promise<ExperimentSummary[]> {
+): Promise<ExperimentOverview[]> {
   const rows = await db
     .select({
       experiment: experiments,

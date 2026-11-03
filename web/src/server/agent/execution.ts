@@ -21,7 +21,10 @@ interface PreparedOperation {
   input: unknown;
 }
 
-function failure(code: AgentFailureCode, message: string): AgentCallResult {
+function failure(
+  code: AgentFailureCode,
+  message: string,
+): Extract<AgentCallResult, { ok: false }> {
   return { ok: false, code, message };
 }
 
@@ -68,15 +71,23 @@ export async function executeAgentOperation(
         : validate(await operation.handler(parsed));
     return { ok: true, output };
   } catch (error) {
-    if (error instanceof ValidationError)
-      return failure("invalid_request", error.message);
-    if (error instanceof NotFoundError) {
-      return failure("not_found", error.message);
-    }
-    if (error instanceof ConflictError) {
-      return failure("conflict", error.message);
-    }
-    console.error(`Agent operation ${operation.name} failed:`, error);
-    return failure("internal_error", "Internal error");
+    return classifyAgentFailure(error, operation.name);
   }
+}
+
+/** Classifies service failures for every agent protocol adapter. */
+export function classifyAgentFailure(
+  error: unknown,
+  operation: string,
+): Extract<AgentCallResult, { ok: false }> {
+  if (error instanceof ValidationError)
+    return failure("invalid_request", error.message);
+  if (error instanceof NotFoundError) {
+    return failure("not_found", error.message);
+  }
+  if (error instanceof ConflictError) {
+    return failure("conflict", error.message);
+  }
+  console.error(`Agent operation ${operation} failed:`, error);
+  return failure("internal_error", "Internal error");
 }

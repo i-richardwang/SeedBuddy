@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { command, query } from "./definition";
 import {
-  experimentSummarySchema,
+  experimentOverviewSchema,
   unitSchema,
 } from "../../domain/experiments/contracts";
 import {
@@ -83,7 +83,7 @@ export const experimentOperations = [
     description:
       "List every experiment with the size of its design and how far its observations have come",
     input: z.strictObject({}),
-    output: z.array(experimentSummarySchema),
+    output: z.array(experimentOverviewSchema),
     handler: () => listExperiments(),
   }),
   query({

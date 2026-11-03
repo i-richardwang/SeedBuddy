@@ -276,3 +276,19 @@ test("queries and service-owned commands receive no operation executor", async (
     output: null,
   });
 });
+
+test("missing dataset source images use the experiment-owned refusal", async () => {
+  const { addExperimentObservationImagesToNewDataset } =
+    await import("../datasets/public");
+  await expect(
+    addExperimentObservationImagesToNewDataset({
+      name: `Missing source ${crypto.randomUUID()}`,
+      images: [
+        {
+          experiment: crypto.randomUUID(),
+          observationImage: crypto.randomUUID(),
+        },
+      ],
+    }),
+  ).rejects.toMatchObject({ code: "experiment_observation_image_not_found" });
+});

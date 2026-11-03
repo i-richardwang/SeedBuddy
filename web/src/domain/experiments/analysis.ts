@@ -1,6 +1,12 @@
+import { z } from "zod";
 import { excludingEvent, type ObservationOrdinals } from "./culture-events";
 import type { UnitDay } from "./readings";
-import type { CultureEvent, Experiment, ExperimentObservation } from "./schema";
+import {
+  cultureEventSchema,
+  type CultureEvent,
+  type Experiment,
+  type ExperimentObservation,
+} from "./schema";
 
 /**
  * Why a unit's day stays out of the analysis. A culture event takes the unit
@@ -11,8 +17,11 @@ import type { CultureEvent, Experiment, ExperimentObservation } from "./schema";
  * day with no photograph is no exclusion; the unit only has no number that
  * day.
  */
-export type Exclusion =
-  { reason: "event"; event: CultureEvent } | { reason: "unclear" };
+export const exclusionSchema = z.discriminatedUnion("reason", [
+  z.strictObject({ reason: z.literal("event"), event: cultureEventSchema }),
+  z.strictObject({ reason: z.literal("unclear") }),
+]);
+export type Exclusion = z.infer<typeof exclusionSchema>;
 
 /**
  * Why each of a unit's days stays out of the analysis, or nothing for a day

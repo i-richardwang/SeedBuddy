@@ -1,7 +1,8 @@
+import type { AttemptOwner } from "../../domain/workers/schema";
 import { modelBundleSchema } from "../../domain/models/bundle";
 import { database, transaction } from "../infra/db/client";
 import { canonicalJson } from "../../lib/json/canonical";
-import type { TrainingAttemptOwner } from "../../domain/training/schema";
+
 import {
   TrainingArtifactValidationError,
   TrainingRunConflictError,
@@ -25,7 +26,7 @@ import { readDatasetSnapshot } from "./snapshots";
 /** Training owns execution; the model registry owns its delivered artifact. */
 export async function publishTrainingArtifact(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   bundle: unknown,
 ) {
   const parsed = modelBundleSchema.safeParse(bundle);

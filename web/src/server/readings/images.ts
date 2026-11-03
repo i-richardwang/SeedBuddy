@@ -11,9 +11,9 @@ import {
 import { database, type Executor } from "../infra/db/client";
 import {
   annotationReading,
-  type Readings,
+  type ImageReadings,
   type Review,
-} from "../../domain/annotation/review";
+} from "../../domain/annotation/readings";
 import type { AnnotationRef } from "../../domain/annotation/schema";
 import type { DetectionResult } from "../../domain/detection/schema";
 import { AnnotationRunNotFoundError } from "../../domain/annotation-runs/errors";
@@ -119,7 +119,7 @@ export async function readAnnotationReading(ref: AnnotationRef) {
 export async function readReadings(
   ref: AnnotationRef,
   db: Executor,
-): Promise<Readings | null> {
+): Promise<ImageReadings | null> {
   const readings = readingsJoin({
     imageId: images.id,
     modelId: ref.modelId,

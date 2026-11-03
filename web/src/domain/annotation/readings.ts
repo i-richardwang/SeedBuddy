@@ -24,7 +24,7 @@ import {
  * ranking decides which one an image reads by. `progress` is that of the
  * run an agent is still at work on.
  */
-export const readingsSchema = z.strictObject({
+const imageReadingsSchema = z.strictObject({
   ref: annotationRefSchema,
   width: z.number().int().min(1),
   height: z.number().int().min(1),
@@ -34,15 +34,17 @@ export const readingsSchema = z.strictObject({
   progress: annotationProgressSchema.nullable(),
 });
 
-export type Readings = z.infer<typeof readingsSchema>;
+export type ImageReadings = z.infer<typeof imageReadingsSchema>;
 
 /** The readings as a page shows them, under the name the page knows the file by. */
-export const reviewSchema = readingsSchema.extend({ filename: z.string() });
+export const reviewSchema = imageReadingsSchema.extend({
+  filename: z.string(),
+});
 
 export type Review = z.infer<typeof reviewSchema>;
 
 export function sourceInstances(
-  readings: Readings,
+  readings: ImageReadings,
   source: ReviewSource,
 ): AnnotationInstance[] | null {
   switch (source) {
@@ -57,24 +59,14 @@ export function sourceInstances(
   }
 }
 
-export function availableSources(readings: Readings): ReviewSource[] {
+export function availableSources(readings: ImageReadings): ReviewSource[] {
   return REVIEW_SOURCES.filter(
     (source) => sourceInstances(readings, source) !== null,
   );
 }
 
-function readingSource(readings: Readings): ReviewSource | null {
+function readingSource(readings: ImageReadings): ReviewSource | null {
   return availableSources(readings)[0] ?? null;
-}
-
-/**
- * The instances the image reads by: those of its best reading. An image nothing
- * has read begins from none, which is how a reviewer counts for a model that
- * has never been trained.
- */
-export function reviewInstances(readings: Readings): AnnotationInstance[] {
-  const source = readingSource(readings);
-  return source ? (sourceInstances(readings, source) ?? []) : [];
 }
 
 /**
@@ -82,7 +74,7 @@ export function reviewInstances(readings: Readings): AnnotationInstance[] {
  * pixels, and which one the image reads by. A run names one of these
  * readings as the boxes it begins from.
  */
-export function annotationReading(readings: Readings) {
+export function annotationReading(readings: ImageReadings) {
   return {
     ref: readings.ref,
     width: readings.width,

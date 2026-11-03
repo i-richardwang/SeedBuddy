@@ -2,7 +2,10 @@ import { Lock, LockOpen } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { openChecks } from "../../domain/annotation/checks";
-import { availableSources, type Review } from "../../domain/annotation/review";
+import {
+  availableSources,
+  type Review,
+} from "../../domain/annotation/readings";
 import type { ReviewSource } from "../../domain/annotation/schema";
 import { tally } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";

@@ -19,9 +19,12 @@ import {
   type TrainingPhase,
   type TrainingRecipe,
   type TrainingRun,
-  type TrainingAttemptOwner,
 } from "../../domain/training/schema";
-import { canTrain, type WorkerIdentity } from "../../domain/workers/schema";
+import {
+  type AttemptOwner,
+  canTrain,
+  type WorkerIdentity,
+} from "../../domain/workers/schema";
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
 import {
   TrainingRunConflictError,
@@ -183,7 +186,7 @@ export async function validateTrainingTarget(targetWorkerId: string | null) {
   }
 }
 
-function ownedBy(owner: TrainingAttemptOwner, at: Date) {
+function ownedBy(owner: AttemptOwner, at: Date) {
   return and(
     eq(trainingRuns.status, "running"),
     eq(trainingRuns.workerId, owner.workerId),
@@ -194,7 +197,7 @@ function ownedBy(owner: TrainingAttemptOwner, at: Date) {
   );
 }
 
-function ownershipConflict(runId: string, owner: TrainingAttemptOwner) {
+function ownershipConflict(runId: string, owner: AttemptOwner) {
   return new TrainingRunConflictError(
     `Training run ${runId} is not owned by ${owner.workerId}/${owner.sessionId}`,
   );
@@ -203,7 +206,7 @@ function ownershipConflict(runId: string, owner: TrainingAttemptOwner) {
 /** The update itself fences writes from expired or replaced owners. */
 async function ownedTransition(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   changes: Partial<Pick<Row, keyof ReturnType<typeof stateColumns>>>,
   db: Executor,
 ): Promise<TrainingRun> {
@@ -423,7 +426,7 @@ export async function lockTrainingRun(
 /** The run as its leaseholder sees it; any other caller gets a conflict. */
 async function lockOwnedTrainingRun(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   db: Executor,
 ): Promise<RunningTrainingRun> {
   const run = await lockTrainingRun(runId, db).catch((error: unknown) => {
@@ -436,7 +439,7 @@ async function lockOwnedTrainingRun(
 export async function requireOwnedRunningRun(
   runId: string,
   run: TrainingRun | null,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   db: Executor,
 ): Promise<RunningTrainingRun> {
   await currentWorkerSession(owner, db);
@@ -451,7 +454,7 @@ export async function requireOwnedRunningRun(
 /** Renew ownership without changing the run's phase or business progress. */
 export async function renewTrainingLease(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
   return ownedTransition(
@@ -465,7 +468,7 @@ export async function renewTrainingLease(
 /** Advance through the ordered execution phases; retries are idempotent. */
 export async function enterTrainingPhase(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   phase: TrainingPhase,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
@@ -506,7 +509,7 @@ export async function enterTrainingPhase(
  */
 export async function recordTrainingEpoch(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   report: TrainingEpochReport,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
@@ -637,7 +640,7 @@ export async function listTrainingEpochs(
 
 export async function failTrainingRun(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   error: string,
 ): Promise<TrainingRun> {
   return transaction(async (tx) => {
@@ -652,7 +655,7 @@ export async function failTrainingRun(
 
 export async function snapshotForRun(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
 ) {
   const db = await database();
   const run = await requireOwnedRunningRun(

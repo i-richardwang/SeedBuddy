@@ -1,3 +1,4 @@
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -6,9 +7,8 @@ import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
-const bodySchema = trainingAttemptOwnerSchema.extend({
+const bodySchema = attemptOwnerSchema.extend({
   error: z.string().min(1).max(2000),
 });
 

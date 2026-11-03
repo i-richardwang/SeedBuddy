@@ -1,10 +1,10 @@
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
 import { renewTrainingLease } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
 export const Route = createFileRoute("/api/worker/training/runs/$runId/lease")({
   server: {
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/lease")({
         try {
           const owner = await parseWorkerSessionJson(
             request,
-            trainingAttemptOwnerSchema,
+            attemptOwnerSchema,
             context.workerId,
           );
           return Response.json(await renewTrainingLease(params.runId, owner));
