@@ -9,6 +9,8 @@ uvx vitroflow photos sort ~/plates -o ~/plates/plates.json
 uvx vitroflow photos review ~/plates/plates.json
 ```
 
+`python -m vitroflow` is the module entry point and accepts the same commands.
+
 `sort` reads the folder's JPEG, PNG and TIFF files, prints JSON, writes the same JSON to the file given with `-o`, and leaves every photograph where it is:
 
 ```json
