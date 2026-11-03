@@ -10,6 +10,7 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Text } from "../../ui/kit/Text";
+import { toast } from "../../ui/kit/Toast";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { controlRun } from "./run-control";
 import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
@@ -41,7 +42,7 @@ export function ResumeTrainingDialog({
           ? m.training_retry_title({ run })
           : m.training_resume_title({ run })
       }
-      okText={retry ? m.training_retry() : m.training_resume()}
+      okText={retry ? m.retry_action() : m.training_resume()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -81,9 +82,14 @@ function ResumeTrainingForm({
               targetWorkerId: workerId,
               restart: from === "start",
             }),
-          m.training_not_continued(),
+          run.state.status === "failed"
+            ? m.training_not_retried()
+            : m.training_not_continued(),
           {
-            onSuccess: onDone,
+            onSuccess: () => {
+              toast.success(m.training_queued());
+              onDone();
+            },
           },
         );
       }}

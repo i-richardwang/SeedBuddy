@@ -210,6 +210,7 @@ function SummaryCells({
 }
 
 const CHART_HEIGHT = 280;
+
 /** A rate's axis is marked by quarters. */
 const RATE_TICK = 0.25;
 

@@ -18,6 +18,7 @@ const USER_STATUS = {
   "active" | "suspended",
   { label: () => string; tone: StatusTone }
 >;
+
 export function userStatusLabel(account: UserAccount) {
   return USER_STATUS[account.banned ? "suspended" : "active"].label();
 }

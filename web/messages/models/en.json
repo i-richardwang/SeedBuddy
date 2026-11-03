@@ -18,6 +18,9 @@
   "model_menu_delete": "Delete model…",
   "model_new": "New model",
   "model_not_created": "Model not created",
+  "model_not_deleted": "Model not deleted",
+  "model_open": "Open model",
+  "model_open_training_dataset": "Open dataset to train",
   "model_versions": "Versions",
   "models_description": "Each model names the classes it counts; its datasets train ever more accurate versions.",
   "models_empty": "No models yet",
@@ -32,19 +35,35 @@
   "version_dialog_column_current": "Current {version}",
   "version_dialog_confirm": "Make current",
   "version_dialog_effect": "Once current, the observation photos of this model are counted again by it; reviewed and AI-proposed counts stay as they are. Any other version can be chosen back at any time, and its counts return at once without reading again.",
-  "version_dialog_failed": "{count} images could not be read and are left out of the comparison.",
+  "version_dialog_failed": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
+      "match": {
+        "countPlural=one": "{formattedCount} image could not be read and is left out of the comparison.",
+        "countPlural=other": "{formattedCount} images could not be read and are left out of the comparison."
+      },
+      "selectors": ["countPlural"]
+    }
+  ],
   "version_dialog_failed_cell": "Not read",
   "version_dialog_held_out": [
     {
       "declarations": [
         "input count",
         "input hasCurrent",
-        "local formattedCount = count: number"
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
       ],
-      "selectors": ["hasCurrent"],
+      "selectors": ["hasCurrent", "countPlural"],
       "match": {
-        "hasCurrent=no": "Compared with the reviewers' counts on {formattedCount} reviewed images this version never trained on. Lower error is better. This model has no current version yet; only this version's results are shown.",
-        "hasCurrent=*": "Compared with the reviewers' counts on {formattedCount} reviewed images this version never trained on. Lower error is better."
+        "hasCurrent=no, countPlural=one": "Compared with the reviewers' counts on {formattedCount} reviewed image this version never trained on. Lower error is better. This model has no current version yet; only this version's results are shown.",
+        "hasCurrent=no, countPlural=other": "Compared with the reviewers' counts on {formattedCount} reviewed images this version never trained on. Lower error is better. This model has no current version yet; only this version's results are shown.",
+        "hasCurrent=*, countPlural=one": "Compared with the reviewers' counts on {formattedCount} reviewed image this version never trained on. Lower error is better.",
+        "hasCurrent=*, countPlural=other": "Compared with the reviewers' counts on {formattedCount} reviewed images this version never trained on. Lower error is better."
       }
     }
   ],
@@ -54,30 +73,72 @@
   "version_dialog_metric": "Measure",
   "version_dialog_no_comparison": "This version has no held-out validation images, so it cannot be compared with the current one.",
   "version_dialog_pending": "Waiting",
-  "version_dialog_reading": "Still reading: this version {candidate}/{total}, current version {current}/{total}. Results count only the images both have read.",
-  "version_dialog_reading_alone": "Still reading: {candidate}/{total}.",
+  "version_dialog_reading": [
+    {
+      "declarations": [
+        "input candidate",
+        "local formattedCandidate = candidate: number",
+        "input total",
+        "local formattedTotal = total: number",
+        "input current",
+        "local formattedCurrent = current: number"
+      ],
+      "match": {
+        "candidate=*": "Still reading: this version {formattedCandidate}/{formattedTotal}, current version {formattedCurrent}/{formattedTotal}. Results count only the images both have read."
+      }
+    }
+  ],
+  "version_dialog_reading_alone": [
+    {
+      "declarations": [
+        "input candidate",
+        "local formattedCandidate = candidate: number",
+        "input total",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "candidate=*": "Still reading: {formattedCandidate}/{formattedTotal}."
+      }
+    }
+  ],
   "version_dialog_title": "Compare and choose version {version}",
   "version_dialog_total_error": "Total error per image",
   "version_dialog_waiting": "The comparison appears here once the images are read, which needs a Worker online.",
   "version_imported_provenance": "External training: {description}",
-  "version_made_current": "Version {version} made current",
   "version_not_made_current": "Version not made current",
   "version_source_builtin": "Built in",
   "version_source_import": "Imported",
   "version_source_training": "Training run {run}",
   "versions_compare": "Compare and choose…",
-  "versions_comparing": "Comparing {read}/{total}",
+  "versions_comparing": [
+    {
+      "declarations": [
+        "input read",
+        "local formattedRead = read: number",
+        "input total",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "read=*": "Comparing {formattedRead}/{formattedTotal}"
+      }
+    }
+  ],
   "versions_comparison_error": "{current} → {candidate}",
-  "versions_comparison_images": "{count} images",
   "versions_current": "Current",
   "versions_empty": "No versions yet",
   "versions_empty_description": "A version appears here when a training run succeeds.",
-  "versions_trained_images": [
+  "versions_image_count": [
     {
-      "declarations": ["input count", "local formattedCount = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
       "match": {
-        "count=*": "{formattedCount} images"
-      }
+        "countPlural=one": "{formattedCount} image",
+        "countPlural=other": "{formattedCount} images"
+      },
+      "selectors": ["countPlural"]
     }
   ]
 }

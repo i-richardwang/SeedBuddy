@@ -26,6 +26,7 @@
   "api_key_issued_title": "保存密钥",
   "api_key_never_used": "从未使用",
   "api_key_not_created": "API 密钥未创建",
+  "api_key_not_revoked": "密钥未撤销",
   "api_key_revoke": "吊销",
   "api_key_revoke_title": "吊销 {name}？",
   "api_key_revoked": "已吊销 {name}",
@@ -54,6 +55,7 @@
   "mcp_empty": "还没有 MCP 客户端",
   "mcp_empty_description": "把服务地址加到 MCP 客户端，批准后显示在这里。",
   "mcp_empty_show_servers": "查看服务地址",
+  "mcp_not_disconnected": "客户端未断开",
   "mcp_server_annotation": "标注 MCP",
   "mcp_server_experiments": "实验 MCP"
 }

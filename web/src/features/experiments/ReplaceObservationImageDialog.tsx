@@ -6,7 +6,7 @@ import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { ImageDropZone } from "../upload/ImageDropZone";
 import { useUploads } from "../upload/useUploads";
-import { storedPhotos } from "./ObservationPhotos";
+import { storedPhotos } from "./observation-photos";
 
 const FORM_ID = "replace-image";
 
@@ -49,7 +49,7 @@ function ReplaceObservationImageSession({
       afterClose={afterClose}
       title={m.unit_replace_heading({ file: image.review.filename })}
       okText={
-        uploads.storing ? m.observation_images_uploading() : m.unit_replace()
+        uploads.storing ? m.observation_photos_uploading() : m.unit_replace()
       }
       formId={FORM_ID}
       busy={action.busy}

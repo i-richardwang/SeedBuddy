@@ -1,9 +1,18 @@
 /** Isolated DOM harness for kit components; the scenario to run is the first argument. */
 import assert from "node:assert/strict";
 
-import { useState } from "react";
+import { act, useState } from "react";
 
-import { body, browser, byRole, press, render, unmount, waitFor } from "./dom";
+import {
+  body,
+  browser,
+  byRole,
+  press,
+  pressKey,
+  render,
+  unmount,
+  waitFor,
+} from "./dom";
 
 const scenarios: Record<string, () => Promise<void>> = {
   async modal() {
@@ -53,6 +62,51 @@ const scenarios: Record<string, () => Promise<void>> = {
     );
     await press(beta);
     assert.deepEqual(chosen, ["b"], "choosing an option reports its value");
+  },
+
+  async toolbarSelect() {
+    const { Select } = await import("../src/ui/kit/Select");
+    const { Toolbar, ToolbarButton } = await import("../src/ui/kit/Toolbar");
+    const { ActionIcon } = await import("../src/ui/kit/ActionIcon");
+    const { Lock } = await import("lucide-react");
+    const chosen: string[] = [];
+    await render(
+      <Toolbar aria-label="Photo controls">
+        <ToolbarButton render={<ActionIcon icon={Lock} title="Lock" />} />
+        <Select
+          aria-label="Day"
+          triggerRender={<ToolbarButton />}
+          value="a"
+          options={[
+            { value: "a", label: "First" },
+            { value: "b", label: "Second" },
+          ]}
+          onChange={(value) => chosen.push(value)}
+        />
+      </Toolbar>,
+    );
+    const lock = body.querySelector('[aria-label="Lock"]');
+    const day = body.querySelector('[aria-label="Day"]');
+    assert.ok(lock && day);
+    assert.equal(
+      body.querySelector("button button"),
+      null,
+      "composition creates one native button per control",
+    );
+    await act(async () => (lock as unknown as HTMLElement).focus());
+    await pressKey("ArrowRight");
+    assert.equal(
+      browser.document.activeElement,
+      day,
+      "toolbar arrows reach the day selector",
+    );
+    await press(day);
+    const second = await waitFor(
+      () => byRole("option").find((option) => option.textContent === "Second"),
+      "day choices open",
+    );
+    await press(second);
+    assert.deepEqual(chosen, ["b"]);
   },
 
   async dropdownMenu() {

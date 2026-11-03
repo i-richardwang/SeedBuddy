@@ -8,7 +8,6 @@ import { WorkersTable } from "../../features/workers/WorkersTable";
 import { getWorkers } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { TableSkeleton } from "../../ui/kit/PageSkeleton";
@@ -36,7 +35,6 @@ function WorkersPage() {
   const [enrolling, setEnrolling] = useState(false);
   const administers = isAdmin(user);
   const enroll = () => setEnrolling(true);
-  useRouteRefresh(5000);
 
   return (
     <SettingsPage

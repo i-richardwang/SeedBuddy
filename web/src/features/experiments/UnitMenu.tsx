@@ -72,19 +72,20 @@ export function UnitMenu({
       key: "unassign",
       icon: ImageMinus,
       danger: true,
-      label: m.unit_menu_unassign(),
+      label: m.unit_menu_unmatch(),
       onClick: () =>
         confirmDestructive({
-          title: m.unit_unassign_title({
+          title: m.unit_unmatch_title({
             file: image.review.filename,
             code: unit.code,
           }),
-          content: m.unit_unassign_note(),
-          confirmLabel: m.unit_unassign(),
+          content: m.unit_unmatch_note(),
+          confirmLabel: m.unit_unmatch(),
+          failure: m.unit_photo_not_unmatched(),
           onConfirm: async () => {
             await removeObservationImage({ data: image.ref });
           },
-          onSuccess: () => toast.success(m.unit_image_unassigned()),
+          onSuccess: () => toast.success(m.unit_photo_unmatched()),
         }),
     });
   }
@@ -98,6 +99,7 @@ export function UnitMenu({
         confirmDestructive({
           title: m.item_delete_title({ name: unit.code }),
           confirmLabel: m.unit_delete(),
+          failure: m.unit_not_deleted(),
           onConfirm: async () => {
             await removeUnit({ data: { experiment, unit: unit.id } });
           },

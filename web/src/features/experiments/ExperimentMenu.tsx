@@ -51,6 +51,7 @@ export function ExperimentMenu({
         confirmDestructive({
           title: m.item_delete_title({ name: experiment.name }),
           confirmLabel: m.experiment_delete(),
+          failure: m.experiment_not_deleted(),
           onConfirm: async () => {
             await removeExperiment({ data: { experiment: experiment.id } });
           },

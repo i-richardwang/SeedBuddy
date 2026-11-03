@@ -1,9 +1,4 @@
-import {
-  createFileRoute,
-  Link,
-  notFound,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ChartLine, Images, Network, Upload } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
@@ -19,7 +14,6 @@ import { TrainingRunsTable } from "../../features/training/TrainingRunsTable";
 import { getModelDetail, getVersionComparison } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
@@ -85,14 +79,28 @@ function ModelPage() {
   const { model, records, versions, datasets, runs, comparison } =
     Route.useLoaderData();
   const { version: selectedVersion } = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
+  const navigate = Route.useNavigate();
   const [importing, setImporting] = useState(false);
   const compared = versions.find(
     ({ version, current }) => version.id === selectedVersion && !current,
   );
 
-  useRouteRefresh(10_000);
-
+  const train = datasets[0] ? (
+    <Button
+      render={
+        <Link
+          to="/datasets/$dataset"
+          params={{ dataset: datasets[0].dataset.id }}
+        />
+      }
+    >
+      {m.model_open_training_dataset()}
+    </Button>
+  ) : (
+    <Button render={<Link to="/experiments" />}>
+      {m.dataset_open_experiments()}
+    </Button>
+  );
   return (
     <Page
       title={modelName(model)}
@@ -108,6 +116,7 @@ function ModelPage() {
               icon={Network}
               title={m.versions_empty()}
               description={m.versions_empty_description()}
+              action={train}
             />
           }
         />
@@ -147,6 +156,7 @@ function ModelPage() {
               icon={ChartLine}
               title={m.run_empty_title()}
               description={m.run_empty_description()}
+              action={train}
             />
           }
         />

@@ -8,12 +8,9 @@ import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { PreviewMedia } from "../../ui/kit/PreviewLayout";
 import { Status } from "../../ui/kit/Status";
 import { previewSrc } from "../../ui/viewport/picture";
-import { BoxCount, hasQualityNotes, ImageQuality } from "./ImageFacts";
-import {
-  datasetImageState,
-  datasetImageStateLabel,
-  datasetImageStateTone,
-} from "./labels";
+import { BoxCount, hasQualityNotes, ImageQuality } from "./image-facts";
+import { datasetImageState } from "./image-state";
+import { datasetImageStateLabel, datasetImageStateTone } from "./labels";
 
 /** One image beside the list: the photograph, where it stands, and the way into its annotation. */
 export function ImagePreview({

@@ -1,5 +1,13 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "account_color_scheme": "外观",
+  "account_color_scheme_dark": "深色",
+  "account_color_scheme_light": "浅色",
+  "account_color_scheme_system": "自动",
+  "account_language": "语言",
+  "account_language_en": "English",
+  "account_language_zh_cn": "简体中文",
+  "details_label": "详细信息",
   "ui_breadcrumb_label": "面包屑导航",
   "ui_cancel": "取消",
   "ui_close": "关闭",
@@ -69,19 +77,6 @@
   "ui_shell_open_navigation": "打开导航",
   "ui_shell_sidebar": "侧栏",
   "ui_shell_skip_to_content": "跳到主要内容",
-  "ui_step_position": [
-    {
-      "declarations": [
-        "input index",
-        "input total",
-        "local formattedIndex = index: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "index=*": "{formattedIndex} / {formattedTotal}"
-      }
-    }
-  ],
   "ui_table_select_all": "全选",
   "ui_text_not_copied": "文字未复制，请选中文字后手动复制",
   "ui_viewport_fill": "铺满画面",

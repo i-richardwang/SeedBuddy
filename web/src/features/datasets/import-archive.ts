@@ -17,7 +17,7 @@ import { parseHttpJson } from "../../lib/http/json";
 import { m } from "../../paraglide/messages";
 
 /** Why an archive cannot be imported as it stands. */
-export class DatasetArchiveError extends Error {}
+class DatasetArchiveError extends Error {}
 
 export type ImportProgress =
   | { phase: "reading" }
@@ -80,7 +80,11 @@ export async function importDatasetArchive(
         throw new DatasetArchiveError(m.dataset_archive_multiple_datasets());
       }
       if (entry.bytes.byteLength > MAX_DATASET_MANIFEST_BYTES) {
-        throw new DatasetArchiveError(m.dataset_archive_manifest_too_large());
+        throw new DatasetArchiveError(
+          m.dataset_archive_manifest_too_large({
+            megabytes: MAX_DATASET_MANIFEST_BYTES / (1024 * 1024),
+          }),
+        );
       }
       let document: unknown;
       try {

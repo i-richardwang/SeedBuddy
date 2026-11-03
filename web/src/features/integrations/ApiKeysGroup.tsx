@@ -89,7 +89,7 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
     <TableRow>
       <TableCell cellSlot="title">{apiKey.name}</TableCell>
       <TableCell cellLabel={m.api_key_column_key()}>
-        <Text as="span" size="xs" className="font-mono">
+        <Text as="code" size="xs">
           {m.api_key_start({ start: apiKey.start })}
         </Text>
       </TableCell>
@@ -129,6 +129,7 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
             confirmDestructive({
               title: m.api_key_revoke_title({ name: apiKey.name }),
               confirmLabel: m.api_key_revoke(),
+              failure: m.api_key_not_revoked(),
               onConfirm: async () => {
                 await removeApiKey({ data: { key: apiKey.id } });
               },

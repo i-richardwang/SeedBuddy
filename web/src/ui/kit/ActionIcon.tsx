@@ -59,7 +59,7 @@ export function ActionIcon({
         <Icon
           icon={icon}
           size={preset.glyph}
-          style={{ pointerEvents: "none" }}
+          className="ui-action-icon-glyph"
         />
       }
       size={preset.button}

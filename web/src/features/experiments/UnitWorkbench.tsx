@@ -32,8 +32,8 @@ import {
 import { Skeleton } from "../../ui/kit/Skeleton";
 import { StatusDot } from "../../ui/kit/Status";
 import { Text } from "../../ui/kit/Text";
+import { toast } from "../../ui/kit/Toast";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { formatCount } from "../../ui/numbers";
 import { Stepper } from "../../ui/Stepper";
 import { ShellActions } from "../../ui/shell/Shell";
 import {
@@ -309,6 +309,7 @@ export function UnitWorkbench({
     );
   }
 
+  // In-workbench panels own their empty states and retain the surrounding navigation.
   if (!shown) {
     // A day in view is one this unit was not photographed on, though a
     // person may have counted it; without one, it has not been photographed
@@ -318,7 +319,7 @@ export function UnitWorkbench({
       ? {
           title: m.unit_no_image_on_day(),
           description: counted
-            ? m.unit_counted_on_day({ count: formatCount(counted.count) })
+            ? m.unit_counted_on_day({ count: counted.count })
             : m.unit_no_image_on_day_description(),
         }
       : {
@@ -459,6 +460,7 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
         void action.run(
           () => createImageAnalysisRetry({ data: image }),
           m.unit_photo_not_recounted(),
+          { onSuccess: () => toast.success(m.unit_photo_count_queued()) },
         );
       }}
     >

@@ -24,7 +24,6 @@ import { TrainingRunMenu } from "../../features/training/TrainingRunMenu";
 import { getTrainingRunDetail } from "../../functions/training";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Card } from "../../ui/kit/Card";
 import { Empty, EmptyPlace } from "../../ui/kit/Empty";
@@ -99,12 +98,14 @@ function TrainingRunPage() {
   const live = isTrainingRunActive(run);
   const control = useTrainingRunControl(detail);
 
-  // A run waiting for another of its model reads again as that one moves.
-  useRouteRefresh(10_000, live || detail.blockedBy !== null);
-
   const { best, total, published, placement, facts } =
     trainingRunPresentation(detail);
 
+  const openModel = (
+    <Button render={<Link to="/models/$model" params={{ model: model.id }} />}>
+      {m.model_open()}
+    </Button>
+  );
   return (
     <Page
       title={identifierLabel(run.id)}
@@ -164,6 +165,7 @@ function TrainingRunPage() {
           <EmptyPlace variant="outlined">
             <Empty
               icon={ChartLine}
+              action={openModel}
               title={
                 live
                   ? m.training_waiting_first_epoch()
@@ -178,7 +180,13 @@ function TrainingRunPage() {
         <TrainingAttempts
           detail={detail}
           control={control}
-          empty={<Empty icon={Server} title={m.attempt_empty_title()} />}
+          empty={
+            <Empty
+              icon={Server}
+              title={m.attempt_empty_title()}
+              action={openModel}
+            />
+          }
         />
       </PageSection>
 

@@ -2,6 +2,7 @@ import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
 
+import { ToolbarButton } from "./Toolbar";
 import { Tooltip } from "./Tooltip";
 
 /*
@@ -55,6 +56,7 @@ interface ToggleGroupProps<Value extends string> {
   /** Nothing is selected while undefined. */
   value: Value | undefined;
   variant?: "ghost" | "outlined";
+  toolbar?: boolean;
 }
 
 export function ToggleGroup<Value extends string>({
@@ -63,6 +65,7 @@ export function ToggleGroup<Value extends string>({
   options,
   value,
   variant = "ghost",
+  toolbar = false,
 }: ToggleGroupProps<Value>) {
   const groupRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +98,7 @@ export function ToggleGroup<Value extends string>({
       {options.map((option) => (
         <Tooltip hotkey={option.hotkey} key={option.value} placement="bottom">
           <Toggle<Value>
+            render={toolbar ? <ToolbarButton /> : undefined}
             className="ui-toggle-group-item"
             disabled={option.disabled}
             value={option.value}

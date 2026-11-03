@@ -13,13 +13,13 @@
   "culture_event_record": "Record culture status",
   "culture_event_record_action": "Record",
   "culture_event_remove": "Remove culture status",
+  "culture_event_remove_title": "Remove {event}?",
   "culture_event_removed": "{event} removed",
+  "dataset_add_menu": "Add to dataset…",
   "experiment_cell_excluded_event": "Excluded from analysis at this observation",
   "experiment_cell_excluded_unclear": "The unit has an unclear photo, so it is out of the analysis on every day",
   "experiment_cell_manual": "Entered by hand",
   "experiment_cell_manual_unanswered": "The count entered leaves out a class this day counts; enter it again",
-  "experiment_cell_unread": "The model has no current version yet; choose one on its page, or open the photo to count it by hand",
-  "experiment_cell_unreviewed": "Not reviewed yet",
   "experiment_cell_waiting": "Waiting for the model to count",
   "experiment_column_experiment": "Experiment",
   "experiment_column_last_observed": "Last observed",
@@ -51,6 +51,7 @@
   "experiment_meta_inoculated": "Inoculated {day}",
   "experiment_move_units": "Change treatment",
   "experiment_new": "New experiment",
+  "experiment_not_deleted": "Experiment not deleted",
   "experiment_not_saved": "Experiment not saved",
   "experiment_not_started": "Experiment not started",
   "experiment_selection": "Selected units",
@@ -71,8 +72,8 @@
   ],
   "experiment_start": "Start",
   "experiment_summary": "Summary",
+  "experiment_treatment_not_changed": "Treatment not changed",
   "experiment_units_all_treatments": "All treatments",
-  "experiment_units_not_moved": "Units not moved",
   "experiments_description": "Lay out treatments and units, take photos on each observation day, and read the results.",
   "experiments_empty": "No experiments yet",
   "experiments_empty_description": "Start an experiment to lay out its treatments and units.",
@@ -96,15 +97,18 @@
   "observation_delete": "Delete observation",
   "observation_edit": "Edit observation",
   "observation_heading": "{day} · {question}",
-  "observation_images_assign_count": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "Match {formattedCount}"
-      }
-    }
-  ],
-  "observation_images_conflicting": [
+  "observation_label": "Observation",
+  "observation_list_label": "Observations",
+  "observation_menu_add_photos": "Add photos…",
+  "observation_menu_add_to_dataset": "Add photos to dataset…",
+  "observation_menu_delete": "Delete empty observation…",
+  "observation_menu_edit": "Edit observation…",
+  "observation_menu_manual_readings": "Enter counts…",
+  "observation_model_label": "Model",
+  "observation_not_deleted": "Observation not deleted",
+  "observation_not_recorded": "Observation not recorded",
+  "observation_not_saved": "Observation not saved",
+  "observation_photos_conflicting": [
     {
       "declarations": [
         "input count",
@@ -118,10 +122,19 @@
       }
     }
   ],
-  "observation_images_fill_in_order": "Match in order",
-  "observation_images_heading": "Photos for {observation}",
-  "observation_images_placed": "Already {unit}, {day}",
-  "observation_images_remaining": [
+  "observation_photos_fill_in_order": "Match in order",
+  "observation_photos_heading": "Photos for {observation}",
+  "observation_photos_match_count": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "Match {formattedCount}"
+      }
+    }
+  ],
+  "observation_photos_not_matched": "Photos not matched",
+  "observation_photos_placed": "Already {unit}, {day}",
+  "observation_photos_remaining": [
     {
       "declarations": [
         "input count",
@@ -135,28 +148,23 @@
       }
     }
   ],
-  "observation_images_repeated": "Same as {file}",
-  "observation_images_unassigned": "Unmatched",
-  "observation_images_unit_label": "Unit shown by {file}",
-  "observation_images_uploading": "Uploading…",
-  "observation_label": "Observation",
-  "observation_list_label": "Observations",
-  "observation_menu_add_photos": "Add photos…",
-  "observation_menu_add_to_dataset": "Add photos to dataset…",
-  "observation_menu_delete": "Delete empty observation…",
-  "observation_menu_edit": "Edit observation…",
-  "observation_menu_manual_readings": "Enter counts…",
-  "observation_model_label": "Model",
-  "observation_not_added": "Observation not added",
-  "observation_not_saved": "Observation not saved",
-  "observation_photos_not_matched": "Photos not matched",
+  "observation_photos_repeated": "Same as {file}",
+  "observation_photos_unit_label": "Unit shown by {file}",
+  "observation_photos_unmatched": "Unmatched",
+  "observation_photos_uploading": "Uploading…",
   "observation_record": "Record observation",
   "observation_record_count": [
     {
-      "declarations": ["input count", "local formattedCount = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
       "match": {
-        "count=*": "Record with {formattedCount} photos"
-      }
+        "countPlural=one": "Record with {formattedCount} photo",
+        "countPlural=other": "Record with {formattedCount} photos"
+      },
+      "selectors": ["countPlural"]
     }
   ],
   "summary_chart_day": "Observation day",
@@ -170,7 +178,14 @@
   "summary_mean_sd": "{mean} ± {sd}",
   "summary_measure_count": "Count",
   "summary_measure_rate": "Rate",
-  "summary_n": "n = {count}",
+  "summary_n": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "n = {formattedCount}"
+      }
+    }
+  ],
   "summary_note_rate": "Rate = the day's count ÷ the same unit's count on the first observation ({day}). The first observation is summarised as a count.",
   "summary_note_statistics": "Mean ± standard deviation over the treatment's units in the analysis; n is how many.",
   "summary_tooltip_mean": "Mean ± SD",
@@ -188,6 +203,7 @@
   "treatment_name_placeholder": "T1",
   "treatment_new": "New treatment",
   "treatment_not_added": "Treatment not added",
+  "treatment_not_deleted": "Treatment not deleted",
   "treatment_not_saved": "Treatment not saved",
   "treatment_replicates_label": "Replicates",
   "treatment_replicates_not_added": "Replicates not added",
@@ -196,34 +212,44 @@
   "unit_code_label": "Code",
   "unit_compare": "Compare with another day",
   "unit_compare_reference": "Day to compare with",
-  "unit_counted_on_day": "Counted by hand: {count}. A photo from this day can still be matched to it in the experiment.",
+  "unit_counted_on_day": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "Counted by hand: {formattedCount}. A photo from this day can still be matched to it in the experiment."
+      }
+    }
+  ],
   "unit_culture_status": "Culture status",
   "unit_delete": "Delete unit",
   "unit_detection_failed": "Counting failed",
   "unit_edit": "Edit unit",
   "unit_image_not_replaced": "Photo not replaced",
-  "unit_image_unassigned": "Photo unmatched",
   "unit_menu_delete": "Delete unit…",
   "unit_menu_edit": "Edit unit…",
   "unit_menu_replace": "Replace photo…",
-  "unit_menu_unassign": "Unmatch photo…",
+  "unit_menu_unmatch": "Unmatch photo…",
   "unit_next": "Next unit",
   "unit_no_image": "No photos of this unit yet",
   "unit_no_image_description": "Match a photo to it from an observation day in the experiment.",
   "unit_no_image_on_day": "No photo of this unit on this day",
   "unit_no_image_on_day_description": "Match one to it from this day in the experiment.",
+  "unit_not_deleted": "Unit not deleted",
   "unit_not_saved": "Unit not saved",
   "unit_open_experiment": "Open experiment",
+  "unit_photo_count_queued": "Photo count queued",
   "unit_photo_not_recounted": "Photo not recounted",
+  "unit_photo_not_unmatched": "Photo not unmatched",
+  "unit_photo_unmatched": "Photo unmatched",
   "unit_previous": "Previous unit",
   "unit_replace": "Replace",
   "unit_replace_heading": "Replace {file}",
   "unit_retry": "Count again",
   "unit_steps": "Units and observation days",
   "unit_title": "Unit {code} of {experiment}",
-  "unit_unassign": "Unmatch",
-  "unit_unassign_note": "The photo stays stored. Matching it again brings its reading back.",
-  "unit_unassign_title": "Unmatch {file} from {code}?",
+  "unit_unmatch": "Unmatch",
+  "unit_unmatch_note": "The photo stays stored. Matching it again brings its reading back.",
+  "unit_unmatch_title": "Unmatch {file} from {code}?",
   "unit_unreviewed_count": [
     {
       "declarations": ["input count", "local formattedCount = count: number"],

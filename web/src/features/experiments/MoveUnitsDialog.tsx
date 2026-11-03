@@ -89,7 +89,7 @@ function MoveForm({
                 treatment,
               },
             }),
-          m.experiment_units_not_moved(),
+          m.experiment_treatment_not_changed(),
           {
             onSuccess: onDone,
           },

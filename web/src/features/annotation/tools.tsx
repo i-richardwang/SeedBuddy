@@ -9,7 +9,7 @@ import { m } from "../../paraglide/messages";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { ColorSwatch } from "../../ui/kit/ColorSwatch";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { ToolbarSeparator } from "../../ui/kit/Toolbar";
+import { ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { classLabel } from "../../ui/model-names";
 import { classShortcut } from "./class-keys";
 import { layerLabel } from "./labels";
@@ -46,6 +46,7 @@ export function EditTools({
       {classes.length > 1 ? (
         <>
           <ToggleGroup
+            toolbar
             aria-label={m.annotation_box_class()}
             value={boxClass}
             options={classes.map((name) => ({
@@ -62,29 +63,41 @@ export function EditTools({
           <ToolbarSeparator />
         </>
       ) : null}
-      <ActionIcon
-        icon={Undo2}
-        size="small"
-        title={m.annotation_undo()}
-        tooltipProps={{ hotkey: "mod+z", placement: "bottom" }}
-        disabled={!history.canUndo}
-        onClick={onUndo}
+      <ToolbarButton
+        render={
+          <ActionIcon
+            icon={Undo2}
+            size="small"
+            title={m.annotation_undo()}
+            tooltipProps={{ hotkey: "mod+z", placement: "bottom" }}
+            disabled={!history.canUndo}
+            onClick={onUndo}
+          />
+        }
       />
-      <ActionIcon
-        icon={Redo2}
-        size="small"
-        title={m.annotation_redo()}
-        tooltipProps={{ hotkey: "shift+mod+z", placement: "bottom" }}
-        disabled={!history.canRedo}
-        onClick={onRedo}
+      <ToolbarButton
+        render={
+          <ActionIcon
+            icon={Redo2}
+            size="small"
+            title={m.annotation_redo()}
+            tooltipProps={{ hotkey: "shift+mod+z", placement: "bottom" }}
+            disabled={!history.canRedo}
+            onClick={onRedo}
+          />
+        }
       />
-      <ActionIcon
-        icon={Trash2}
-        size="small"
-        title={m.delete_action()}
-        tooltipProps={{ hotkey: "backspace", placement: "bottom" }}
-        disabled={!canDelete}
-        onClick={onDelete}
+      <ToolbarButton
+        render={
+          <ActionIcon
+            icon={Trash2}
+            size="small"
+            title={m.delete_action()}
+            tooltipProps={{ hotkey: "backspace", placement: "bottom" }}
+            disabled={!canDelete}
+            onClick={onDelete}
+          />
+        }
       />
     </>
   );
@@ -105,18 +118,22 @@ export function LayerControls({
   return available.map((key) => {
     const on = layers.has(key);
     return (
-      <ActionIcon
+      <ToolbarButton
         key={key}
-        icon={LAYER_ICONS[key]}
-        size="small"
-        title={layerLabel(key)}
-        pressed={on}
-        onClick={() => {
-          const next = new Set(layers);
-          if (on) next.delete(key);
-          else next.add(key);
-          onLayersChange(next);
-        }}
+        render={
+          <ActionIcon
+            icon={LAYER_ICONS[key]}
+            size="small"
+            title={layerLabel(key)}
+            pressed={on}
+            onClick={() => {
+              const next = new Set(layers);
+              if (on) next.delete(key);
+              else next.add(key);
+              onLayersChange(next);
+            }}
+          />
+        }
       />
     );
   });

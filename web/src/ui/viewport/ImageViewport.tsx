@@ -16,7 +16,7 @@ import type { ImageSize } from "../../domain/annotation/schema";
 import { m } from "../../paraglide/messages";
 import { Button } from "../kit/Button";
 import { Text } from "../kit/Text";
-import { Toolbar, ToolbarSeparator } from "../kit/Toolbar";
+import { Toolbar, ToolbarButton, ToolbarSeparator } from "../kit/Toolbar";
 import { formatPercent } from "../numbers";
 import { loadPicture, pictureSrc, previewSrc } from "./picture";
 import {
@@ -327,14 +327,18 @@ export function ImageViewport({
         >
           {formatPercent(view.scale)}
         </Text>
-        <Button
-          type="text"
-          size="small"
-          disabled={view.filled}
-          onClick={() => change(() => FILL)}
-        >
-          {m.ui_viewport_fill()}
-        </Button>
+        <ToolbarButton
+          render={
+            <Button
+              type="text"
+              size="small"
+              disabled={view.filled}
+              onClick={() => change(() => FILL)}
+            >
+              {m.ui_viewport_fill()}
+            </Button>
+          }
+        />
         {controls ? (
           <>
             <ToolbarSeparator />

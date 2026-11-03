@@ -18,6 +18,9 @@
   "model_menu_delete": "删除模型…",
   "model_new": "新建模型",
   "model_not_created": "模型未创建",
+  "model_not_deleted": "模型未删除",
+  "model_open": "打开模型",
+  "model_open_training_dataset": "打开数据集以训练",
   "model_versions": "版本",
   "models_description": "每个模型定义要数的类别；用训练集训练出越来越准的版本。",
   "models_empty": "还没有模型",
@@ -32,19 +35,32 @@
   "version_dialog_column_current": "当前 {version}",
   "version_dialog_confirm": "设为当前版本",
   "version_dialog_effect": "设为当前版本后，使用这个模型的观测日照片会按它重新计数；已复核和 AI 建议的计数保持不变。随时可以换回其他版本，换回后立即恢复该版本的计数，不需要重新读取。",
-  "version_dialog_failed": "{count} 张图片读取失败，不计入对比。",
+  "version_dialog_failed": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
+      "match": {
+        "countPlural=other": "{formattedCount} 张图片读取失败，不计入对比。"
+      },
+      "selectors": ["countPlural"]
+    }
+  ],
   "version_dialog_failed_cell": "读取失败",
   "version_dialog_held_out": [
     {
       "declarations": [
         "input count",
         "input hasCurrent",
-        "local formattedCount = count: number"
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
       ],
-      "selectors": ["hasCurrent"],
+      "selectors": ["hasCurrent", "countPlural"],
       "match": {
-        "hasCurrent=no": "在 {formattedCount} 张没有参与训练的已复核图片上，与人工计数比较。误差越低越好。这个模型还没有当前版本，下面只有本版本的结果。",
-        "hasCurrent=*": "在 {formattedCount} 张没有参与训练的已复核图片上，与人工计数比较。误差越低越好。"
+        "hasCurrent=no, countPlural=other": "在 {formattedCount} 张没有参与训练的已复核图片上，与人工计数比较。误差越低越好。这个模型还没有当前版本，下面只有本版本的结果。",
+        "hasCurrent=*, countPlural=other": "在 {formattedCount} 张没有参与训练的已复核图片上，与人工计数比较。误差越低越好。"
       }
     }
   ],
@@ -54,30 +70,71 @@
   "version_dialog_metric": "指标",
   "version_dialog_no_comparison": "这个版本没有留出的验证图片，无法和当前版本对比。",
   "version_dialog_pending": "待读",
-  "version_dialog_reading": "还在读图：本版本 {candidate}/{total}，当前版本 {current}/{total}。结果只统计两个版本都读完的图片。",
-  "version_dialog_reading_alone": "还在读图：{candidate}/{total}。",
+  "version_dialog_reading": [
+    {
+      "declarations": [
+        "input candidate",
+        "local formattedCandidate = candidate: number",
+        "input total",
+        "local formattedTotal = total: number",
+        "input current",
+        "local formattedCurrent = current: number"
+      ],
+      "match": {
+        "candidate=*": "还在读图：本版本 {formattedCandidate}/{formattedTotal}，当前版本 {formattedCurrent}/{formattedTotal}。结果只统计两个版本都读完的图片。"
+      }
+    }
+  ],
+  "version_dialog_reading_alone": [
+    {
+      "declarations": [
+        "input candidate",
+        "local formattedCandidate = candidate: number",
+        "input total",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "candidate=*": "还在读图：{formattedCandidate}/{formattedTotal}。"
+      }
+    }
+  ],
   "version_dialog_title": "对比与启用版本 {version}",
   "version_dialog_total_error": "合计误差（每张）",
   "version_dialog_waiting": "读图完成后这里会显示对比结果，需要有在线的计算节点。",
   "version_imported_provenance": "外部训练：{description}",
-  "version_made_current": "版本 {version} 已设为当前版本",
   "version_not_made_current": "版本未设为当前版本",
   "version_source_builtin": "内置",
   "version_source_import": "外部导入",
   "version_source_training": "训练任务 {run}",
   "versions_compare": "对比与启用…",
-  "versions_comparing": "对比中 {read}/{total}",
+  "versions_comparing": [
+    {
+      "declarations": [
+        "input read",
+        "local formattedRead = read: number",
+        "input total",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "read=*": "对比中 {formattedRead}/{formattedTotal}"
+      }
+    }
+  ],
   "versions_comparison_error": "{current} → {candidate}",
-  "versions_comparison_images": "{count} 张",
   "versions_current": "当前版本",
   "versions_empty": "还没有版本",
   "versions_empty_description": "训练成功后，新版本会出现在这里。",
-  "versions_trained_images": [
+  "versions_image_count": [
     {
-      "declarations": ["input count", "local formattedCount = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
       "match": {
-        "count=*": "{formattedCount} 张"
-      }
+        "countPlural=other": "{formattedCount} 张"
+      },
+      "selectors": ["countPlural"]
     }
   ]
 }

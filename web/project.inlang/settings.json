@@ -18,6 +18,7 @@
       "./messages/users/{locale}.json",
       "./messages/integrations/{locale}.json",
       "./messages/workers/{locale}.json",
+      "./messages/upload/{locale}.json",
       "./messages/ui/{locale}.json"
     ]
   }

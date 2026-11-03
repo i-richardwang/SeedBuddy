@@ -11,7 +11,7 @@ import {
   tally,
 } from "../../domain/models/classes";
 import { m } from "../../paraglide/messages";
-import { QualityAlert } from "../../ui/DetectionQuality";
+import { QualityAlert } from "../../ui/detection-quality";
 import { IdentifierName } from "../../ui/IdentifierName";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { ProgressMeter } from "../../ui/kit/Progress";
@@ -22,6 +22,7 @@ import { countedClassesLabel } from "../../ui/model-names";
 import { formatCount, formatNumber } from "../../ui/numbers";
 import { Stepper } from "../../ui/Stepper";
 import { WorkbenchSection } from "../../ui/shell/Workbench";
+import { qualityWarningLabels } from "../datasets/labels";
 import { ClassLabel } from "./ClassLabel";
 import { sourceLabel } from "./labels";
 
@@ -54,7 +55,7 @@ export function CountsSection({
     <WorkbenchSection>
       <StatisticHero
         size="compact"
-        title={m.annotation_counts()}
+        title={m.counts_label()}
         value={formatCount(countClasses(counts, counted))}
         facts={
           countsEveryClass(counted, classes)
@@ -195,7 +196,9 @@ export function DetailsSection({
           </DescriptionsItem>
         )}
       </Descriptions>
-      {detection ? <QualityAlert quality={detection.quality} /> : null}
+      {detection ? (
+        <QualityAlert labels={qualityWarningLabels(detection.quality)} />
+      ) : null}
     </WorkbenchSection>
   );
 }

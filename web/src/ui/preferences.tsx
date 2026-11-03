@@ -49,12 +49,7 @@ export function LanguageMenu() {
         onClick: () => chooseLocale(locale),
       }))}
     >
-      <Button
-        aria-label={m.account_language()}
-        icon={Globe}
-        iconPosition="end"
-        type="text"
-      >
+      <Button icon={Globe} iconPosition="end" type="text">
         <Text as="span" size="xs">
           {localeLabel(current)}
         </Text>
@@ -85,14 +80,10 @@ export function ColorSchemeMenu({ size }: { size?: ActionIconProps["size"] }) {
   );
 }
 
-export function LanguageSelect({
-  "aria-label": ariaLabel,
-}: {
-  "aria-label": string;
-}) {
+export function LanguageSelect() {
   return (
     <Select<Locale>
-      aria-label={ariaLabel}
+      aria-label={m.account_language()}
       value={getLocale()}
       options={locales.map((locale) => ({
         value: locale,
@@ -103,15 +94,11 @@ export function LanguageSelect({
   );
 }
 
-export function ColorSchemeSelect({
-  "aria-label": ariaLabel,
-}: {
-  "aria-label": string;
-}) {
+export function ColorSchemeSelect() {
   const scheme = useColorScheme();
   return (
     <Select<ColorScheme>
-      aria-label={ariaLabel}
+      aria-label={m.account_color_scheme()}
       value={scheme}
       options={SCHEMES.map((each) => ({
         value: each.value,

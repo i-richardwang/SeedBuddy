@@ -73,6 +73,7 @@ function Harness() {
           confirmDestructive({
             title: "Remove record?",
             confirmLabel: "Remove",
+            failure: "Record not removed",
             onConfirm: async () => {
               await save();
             },
@@ -167,6 +168,11 @@ try {
       if (stage !== null) {
         await waitFor(() => !busy(label), "failure makes retry available");
         assert.ok(dialog(), "failure keeps the dialog open");
+        if (kind === "confirmation")
+          assert.equal(
+            body.querySelector(".ui-toast-title")?.textContent,
+            "Record not removed",
+          );
         assert.deepEqual(toastText(), [
           stage === "write" ? "Write refused" : "Completion refused",
         ]);

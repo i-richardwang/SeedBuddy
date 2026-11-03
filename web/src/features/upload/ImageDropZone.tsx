@@ -8,16 +8,17 @@ import {
   sourceImageFileError,
 } from "../../domain/images/canonical";
 import { m } from "../../paraglide/messages";
+import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import {
   DropZone,
   DropZoneFile,
   DropZoneFileList,
   type DropZoneFileStatus,
 } from "../../ui/kit/DropZone";
-import { toast } from "../../ui/kit/Toast";
+import { formatList } from "../../ui/lists";
 import { formatPercent } from "../../ui/numbers";
 import { imageFileErrorLabel } from "./labels";
-import type { ListedImage } from "./state";
+import type { ListedImage } from "./useUploads";
 
 const FILE_STATUS = {
   storing: "uploading",
@@ -45,16 +46,32 @@ export function ImageDropZone({
   annotate?: (image: ListedImage) => ReactNode;
   multiple?: boolean;
 }) {
+  const { run } = useAsyncAction();
   const addFiles = (incoming: File[]) => {
-    const accepted = incoming.filter((file) => {
+    const rejected = incoming.flatMap((file) => {
       const error = sourceImageFileError(file);
-      if (error)
-        toast.error({
-          title: file.name,
-          description: imageFileErrorLabel(error),
-        });
-      return error === null;
+      return error ? [{ file, error }] : [];
     });
+    const accepted = incoming.filter(
+      (file) => !rejected.some((item) => item.file === file),
+    );
+    if (rejected.length > 0) {
+      void run(
+        () => {
+          throw new Error(
+            formatList([
+              ...new Set(
+                rejected.map(({ error }) => imageFileErrorLabel(error)),
+              ),
+            ]),
+          );
+        },
+        m.photos_not_added({
+          files: formatList(rejected.map(({ file }) => file.name)),
+        }),
+        { invalidate: false },
+      );
+    }
     if (accepted.length === 0) return;
     if (multiple) {
       onAdd(accepted);

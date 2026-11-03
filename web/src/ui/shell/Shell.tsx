@@ -30,7 +30,7 @@ import {
   type BreadcrumbItem,
   type BreadcrumbLinkProps,
 } from "../kit/Breadcrumb";
-import { ColorSchemeMenu } from "../Preferences";
+import { ColorSchemeMenu } from "../preferences";
 import { useCrumbs } from "./crumbs";
 
 const HOME = "/experiments";

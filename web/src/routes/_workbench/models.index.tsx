@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Network, Plus } from "lucide-react";
 import { useState } from "react";
 
-import { ModelDialog } from "../../features/models/ModelDialog";
 import { ModelsGrid } from "../../features/models/ModelsGrid";
+import { NewModelDialog } from "../../features/models/NewModelDialog";
 import { getModelCatalogue } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
@@ -54,7 +54,7 @@ function ModelsPage() {
           />
         }
       />
-      <ModelDialog open={creating} onClose={() => setCreating(false)} />
+      <NewModelDialog open={creating} onClose={() => setCreating(false)} />
     </Page>
   );
 }

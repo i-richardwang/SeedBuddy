@@ -55,7 +55,7 @@ export function TrainingAttempts({
               disabled={blockedBy !== null}
               onClick={control.resume}
             >
-              {m.training_retry()}
+              {m.retry_action()}
             </Button>
           }
         />
@@ -103,7 +103,7 @@ export function TrainingAttempts({
             <TableHead>{m.attempt_column_number()}</TableHead>
             <TableHead>{m.worker_label()}</TableHead>
             <TableHead>{m.attempt_column_started()}</TableHead>
-            <TableHead>{m.attempt_column_result()}</TableHead>
+            <TableHead>{m.status_label()}</TableHead>
             <TableHead className="w-full">
               {m.attempt_column_reason()}
             </TableHead>

@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { type ReactNode, useState } from "react";
@@ -9,6 +9,8 @@ import { getSession } from "../functions/session";
 import { m } from "../paraglide/messages";
 import { errorMessage } from "../ui/errors";
 import { useRefreshOnReturn } from "../ui/hooks/useRouteRefresh";
+import { Alert } from "../ui/kit/Alert";
+import { Button } from "../ui/kit/Button";
 import { RouteNotice } from "../ui/RouteNotice";
 import { Shell } from "../ui/shell/Shell";
 
@@ -66,12 +68,21 @@ function WorkbenchNotFound() {
 }
 
 function WorkbenchError({ error }: { error: Error }) {
+  const router = useRouter();
   return (
     <WorkbenchShell>
-      <RouteNotice
-        title={m.something_went_wrong()}
-        description={errorMessage(error)}
-      />
+      <div className="p-6">
+        <Alert
+          type="error"
+          title={m.workbench_not_loaded()}
+          detail={errorMessage(error)}
+          action={
+            <Button onClick={() => void router.invalidate()}>
+              {m.retry_action()}
+            </Button>
+          }
+        />
+      </div>
     </WorkbenchShell>
   );
 }

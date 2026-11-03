@@ -4,6 +4,7 @@ import { useState } from "react";
 import { z } from "zod";
 
 import type { DatasetDetail } from "../../domain/datasets/read-model";
+import { MIN_SNAPSHOT_IMAGES } from "../../domain/training/schema";
 import { DatasetImagesTable } from "../../features/datasets/DatasetImagesTable";
 import { DatasetMenu } from "../../features/datasets/DatasetMenu";
 import { ImagePreview } from "../../features/datasets/ImagePreview";
@@ -14,11 +15,11 @@ import { TrainingRunsTable } from "../../features/training/TrainingRunsTable";
 import { getDatasetDetail } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
 import { StatisticHero, StatisticHeroSkeleton } from "../../ui/kit/Statistic";
+import { modelName } from "../../ui/model-names";
 import { formatCount } from "../../ui/numbers";
 import {
   Page,
@@ -48,7 +49,17 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/")({
     ],
   },
   head: ({ loaderData }) => ({
-    meta: [{ title: documentTitle(loaderData?.dataset.name) }],
+    meta: [
+      {
+        title: documentTitle(
+          loaderData &&
+            m.dataset_page_title({
+              dataset: loaderData.dataset.name,
+              model: modelName(loaderData.model),
+            }),
+        ),
+      },
+    ],
   }),
   pendingComponent: () => (
     <PageColumnSkeleton>
@@ -79,7 +90,6 @@ function DatasetPage() {
     runs,
   } = Route.useLoaderData();
   const [starting, setStarting] = useState(false);
-  useRouteRefresh(10_000);
 
   const preview = images.find((candidate) => candidate.digest === image);
   const closePreview = () =>
@@ -93,11 +103,13 @@ function DatasetPage() {
       icon={Images}
       actions={
         <>
-          <TrainButton
-            reviewed={reviewedCount}
-            training={training}
-            onClick={() => setStarting(true)}
-          />
+          {runs.length > 0 ? (
+            <TrainButton
+              reviewed={reviewedCount}
+              training={training}
+              onClick={() => setStarting(true)}
+            />
+          ) : null}
           <DatasetMenu dataset={detail} />
         </>
       }
@@ -151,7 +163,36 @@ function DatasetPage() {
             <Empty
               icon={ChartLine}
               title={m.run_empty_title()}
-              description={m.run_empty_description()}
+              description={m.dataset_runs_empty_description()}
+              action={
+                reviewedCount >= MIN_SNAPSHOT_IMAGES ? (
+                  <TrainButton
+                    reviewed={reviewedCount}
+                    training={training}
+                    onClick={() => setStarting(true)}
+                  />
+                ) : images.some((image) => image.reviewCount === null) ? (
+                  <Button
+                    render={
+                      <Link
+                        to="/datasets/$dataset/$digest"
+                        params={{
+                          dataset,
+                          digest: images.find(
+                            (image) => image.reviewCount === null,
+                          )!.digest,
+                        }}
+                      />
+                    }
+                  >
+                    {m.dataset_preview_open()}
+                  </Button>
+                ) : (
+                  <Button render={<Link to="/experiments" />}>
+                    {m.dataset_open_experiments()}
+                  </Button>
+                )
+              }
             />
           }
         />

@@ -1,10 +1,9 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "dataset_add_heading": "Add to dataset",
-  "dataset_add_menu": "Add to dataset…",
   "dataset_add_name_placeholder": "seeds-2026-09",
   "dataset_add_new": "New dataset",
-  "dataset_add_nothing_added": "Nothing was added",
+  "dataset_add_nothing_added": "Images not added",
   "dataset_add_result": [
     {
       "declarations": ["input added", "local formattedAdded = added: number"],
@@ -43,7 +42,14 @@
   "dataset_archive_manifest_first": "The archive does not start with a manifest",
   "dataset_archive_manifest_invalid": "The archive's manifest is not valid",
   "dataset_archive_manifest_not_json": "The archive's manifest is not JSON",
-  "dataset_archive_manifest_too_large": "The manifest exceeds 16 MiB",
+  "dataset_archive_manifest_too_large": [
+    {
+      "declarations": ["input megabytes", "local size = megabytes: number"],
+      "match": {
+        "megabytes=*": "The manifest exceeds {size} MiB"
+      }
+    }
+  ],
   "dataset_archive_multiple_datasets": "The archive holds more than one dataset",
   "dataset_archive_no_dataset": "The archive holds no dataset",
   "dataset_archive_unexpected_entry": "Unexpected archive entry: {entry}",
@@ -53,13 +59,20 @@
   "dataset_empty_images_description": "Add photos from an experiment's units.",
   "dataset_hero_images": [
     {
-      "declarations": ["input count", "local formattedCount = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
       "match": {
-        "count=*": "{formattedCount} images in all"
-      }
+        "countPlural=one": "{formattedCount} image in all",
+        "countPlural=other": "{formattedCount} images in all"
+      },
+      "selectors": ["countPlural"]
     }
   ],
   "dataset_hero_reviewed": "Reviewed images ready to train",
+  "dataset_image_not_removed": "Image not removed",
   "dataset_image_removed": "{file} removed from {dataset}",
   "dataset_images": "Images",
   "dataset_images_table": "Images in {dataset}",
@@ -89,6 +102,7 @@
   "dataset_not_imported": "Dataset not imported",
   "dataset_not_renamed": "Dataset not renamed",
   "dataset_open_experiments": "Open experiments",
+  "dataset_page_title": "{dataset} of {model}",
   "dataset_preview_open": "Open to annotate",
   "dataset_preview_quality": "Detection quality",
   "dataset_remove_title": "Remove {file} from {dataset}?",
@@ -103,15 +117,12 @@
       }
     }
   ],
+  "dataset_runs_empty_description": "Train a version from this dataset’s reviewed images.",
   "dataset_search": "Search file names",
   "dataset_state_all": "All",
   "dataset_state_filter": "Filter by status",
-  "dataset_state_unread": "Not counted",
   "datasets_empty": "No datasets yet",
   "datasets_empty_description": "Add photos to a dataset from an observation day of an experiment, or import an archive.",
-  "image_file_empty": "The file is empty",
-  "image_file_too_large": "The file exceeds 64 MiB",
-  "image_file_unsupported": "Choose a JPEG, PNG, or TIFF image",
   "image_next": "Next image",
   "image_previous": "Previous image",
   "image_split": "Training split",

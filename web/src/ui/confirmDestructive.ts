@@ -1,6 +1,5 @@
 import { type ReactNode, useCallback } from "react";
 
-import { m } from "../paraglide/messages";
 import { type ActionSuccess, useAsyncAction } from "./hooks/useAsyncAction";
 import { confirmModal } from "./kit/Modal";
 
@@ -17,6 +16,7 @@ export function useConfirmDestructive() {
       title,
       content,
       confirmLabel,
+      failure,
       onConfirm,
       onCancel,
       onSuccess,
@@ -25,6 +25,7 @@ export function useConfirmDestructive() {
       title: string;
       content?: ReactNode;
       confirmLabel: string;
+      failure: string;
       onConfirm: () => void | Promise<void>;
       onCancel?: () => void;
     } & ActionSuccess<void>): () => void {
@@ -38,7 +39,7 @@ export function useConfirmDestructive() {
             async () => {
               await onConfirm();
             },
-            m.action_not_completed({ action: confirmLabel }),
+            failure,
             { onSuccess, invalidate },
           );
           if (!result.ok) throw result.error;

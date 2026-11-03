@@ -3,6 +3,7 @@ import { countsEveryClass } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
 import { countedClassesLabel, modelName } from "../../ui/model-names";
+
 /**
  * What a day asks of its photographs, said under its date: the model when
  * `nameModel`, and the classes the day counts when they are fewer than the

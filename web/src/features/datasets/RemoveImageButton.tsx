@@ -29,6 +29,7 @@ export function RemoveImageButton({
             dataset: dataset.name,
           }),
           confirmLabel: m.remove_action(),
+          failure: m.dataset_image_not_removed(),
           onConfirm: async () => {
             await removeFromDataset({
               data: { dataset: dataset.id, digests: [image.digest] },

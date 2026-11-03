@@ -1,0 +1,27 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "image_file_empty": "文件为空",
+  "image_file_too_large": [
+    {
+      "declarations": ["input megabytes", "local size = megabytes: number"],
+      "match": {
+        "megabytes=*": "文件超过 {size} MiB"
+      }
+    }
+  ],
+  "image_file_unsupported": "请选择 JPEG、PNG 或 TIFF 图片",
+  "photos_not_added": "照片未加入：{files}",
+  "ui_step_position": [
+    {
+      "declarations": [
+        "input index",
+        "input total",
+        "local formattedIndex = index: number",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "index=*": "{formattedIndex} / {formattedTotal}"
+      }
+    }
+  ]
+}

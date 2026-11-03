@@ -13,6 +13,7 @@ import {
 } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { IdentifierName } from "../../ui/IdentifierName";
 import { CopyButton } from "../../ui/kit/CopyButton";
 import { Flexbox } from "../../ui/kit/Flex";
@@ -28,10 +29,9 @@ import {
 import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
 import { Metric } from "../../ui/Metric";
-import { formatCount } from "../../ui/numbers";
 import { Timestamp } from "../../ui/Timestamp";
-import { formatError, movement, movementTone, totalError } from "./comparison";
-import { versionSourceLabel } from "./labels";
+import { formatError, movement, totalError } from "./comparison";
+import { movementTone, versionSourceLabel } from "./labels";
 
 /**
  * A model's published versions: which one reads and which are still being
@@ -47,6 +47,7 @@ export function VersionsTable({
   versions: VersionOverview[];
   empty: ReactNode;
 }) {
+  useRouteRefresh(10_000);
   return (
     <Table
       aria-label={m.model_versions()}
@@ -116,7 +117,7 @@ export function VersionsTable({
             </TableCell>
             <TableCell cellLabel={m.version_column_trained_on()} numeric>
               {training ? (
-                m.versions_trained_images({ count: training.images })
+                m.versions_image_count({ count: training.images })
               ) : (
                 <Absent />
               )}
@@ -156,8 +157,8 @@ function VersionStatus({
   return (
     <Status tone="info" icon={LoaderCircle} spin>
       {m.versions_comparing({
-        read: formatCount(comparison.candidate.read),
-        total: formatCount(comparison.heldOut),
+        read: comparison.candidate.read,
+        total: comparison.heldOut,
       })}
     </Status>
   );
@@ -209,8 +210,8 @@ function CountError({ comparison }: { comparison: VersionComparison | null }) {
             })}
       </Text>
       <Text as="span" type="tertiary">
-        {m.versions_comparison_images({
-          count: formatCount(comparison.scored),
+        {m.versions_image_count({
+          count: comparison.scored,
         })}
       </Text>
     </Flexbox>

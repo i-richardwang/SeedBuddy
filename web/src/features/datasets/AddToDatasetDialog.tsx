@@ -21,6 +21,7 @@ import { Select } from "../../ui/kit/Select";
 import { toast } from "../../ui/kit/Toast";
 
 const NEW_DATASET = "\0new";
+
 const FORM_ID = "add-to-dataset";
 
 export function AddToDatasetDialog({
