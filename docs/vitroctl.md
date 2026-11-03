@@ -91,7 +91,6 @@ Every command verifies blob digests before reading them. `push` sends a dataset 
 
 Annotations export as a deterministic YOLO dataset. `DatasetSplitError` reports an export that cannot form training and validation splits:
 
-
 ```bash
 vitroctl dataset export-yolo \
   --dataset fixtures \
