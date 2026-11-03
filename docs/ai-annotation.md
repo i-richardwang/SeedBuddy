@@ -52,8 +52,8 @@ Initialization uses the shared, retryable auth service.
 Add the annotation server to a local client:
 
 ```bash
-claude mcp add --transport http vitroflow-annotation https://<workbench>/api/annotation/mcp
-codex mcp add vitroflow-annotation --url https://<workbench>/api/annotation/mcp
+claude mcp add --transport http vitroflow-annotation 'https://<workbench>/api/annotation/mcp'
+codex mcp add vitroflow-annotation --url 'https://<workbench>/api/annotation/mcp'
 ```
 
 ## Tool contract
@@ -155,7 +155,7 @@ A dish run covers the dish its image's stored [analysis](images.md) found.
 Coverage expands the detected radius by 15%. A core is omitted only when its
 rectangle is wholly outside that coverage; crossing and tangent cores remain.
 Grid IDs, patches, halos and box ownership stay unchanged. Evidence and boxes are
-never masked or clipped to the circle. `scope` intersects coverage with the redraw regions. Progress counts assigned tasks. Cores outside dish coverage retain their input boxes in the resulting proposal and await human confirmation.
+never masked or clipped to the circle. `scope` intersects coverage with the redraw regions. Progress counts assigned tasks. Cores outside dish coverage retain their input boxes as part of the unreviewed proposal, awaiting human confirmation; only input boxes already marked uncertain retain an uncertainty check.
 
 Starting a run reads metadata in one transaction, freezes coverage and tasks, and
 performs no image I/O, detection or PNG preparation. Missing, obsolete,

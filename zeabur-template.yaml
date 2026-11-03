@@ -73,7 +73,8 @@ spec:
             # which is how the dashboard offers its SQL tooling for the service.
             id: postgresql
             source:
-                # Floating tags resolve at deployment; pin digests for reproducible storage images.
+                # This template uses floating postgres:18 and MinIO :latest tags.
+                # Pin both images by digest for reproducible storage deployments.
                 image: postgres:18
                 command:
                     - docker-entrypoint.sh

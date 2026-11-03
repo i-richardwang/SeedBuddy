@@ -48,7 +48,7 @@ count entered by hand per day.
 Every photograph yields a tally: how many instances of each class the reading
 found. An image can hold three readings, and they rank: a reviewer's
 review outranks an AI agent's proposal, which outranks the detector's
-result. Only a review marks the image reviewed; the grid distinguishes it from automated readings.
+result. Only a review marks the image reviewed; the grid distinguishes it from automated readings. The grid and resolved sheet use detections from the current model version. The image review workbench can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
 
 A count entered by hand is a tally too, kept by class, for a day that was
 not photographed or a dish that was counted at the bench, such as when its

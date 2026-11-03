@@ -67,8 +67,8 @@ Better Auth verifies OAuth and issues challenges; the MCP SDK handles POST excha
 Add the experiment server to a local client, replacing `<workbench>` with the deployment hostname:
 
 ```bash
-claude mcp add --transport http vitroflow-experiments https://<workbench>/api/experiments/mcp
-codex mcp add vitroflow-experiments --url https://<workbench>/api/experiments/mcp
+claude mcp add --transport http vitroflow-experiments 'https://<workbench>/api/experiments/mcp'
+codex mcp add vitroflow-experiments --url 'https://<workbench>/api/experiments/mcp'
 ```
 
 Image bytes use the [HTTP upload surface](#http-surface); MCP operations take the returned digest. A hosted client needs access to the source bytes and a way to send an authenticated HTTP body; attaching a photograph to its chat does not itself upload it to VitroFlow. Annotation image delivery is described in [AI annotation](ai-annotation.md#evidence-and-caches).
@@ -109,13 +109,13 @@ HTTP image and weight uploads and dataset manifest PUTs share exact-length body 
 - `image` carries the observation image `id`, digest, state, three tallies and unclear mark.
 - `manual` carries the count entered by hand, as a class tally and recording time.
 
-A cell with neither reading nor exclusion has nothing yet. Agents follow the [resolved-sheet rules](readings.md#what-an-agent-reads).
+A cell with neither reading nor exclusion has no resolved count or exclusion reason; it can still hold a photograph awaiting a reading. Agents follow the [resolved-sheet rules](readings.md#what-an-agent-reads).
 
 Under the cells, `summary` contains `baseline` and `cells`, with one cell per treatment and observation. Each entry carries its units, counts, rates and statistics (`n`, `mean`, `sd`, `se`). Their [meaning and nullability](readings.md#what-the-summary-says) match the workbench and spreadsheet.
 
 ## Entering a day
 
-A day enters as an observation and the records taken on it, by either or both of two ways: photographs the workbench reads, and counts a person took at the bench.
+A day enters as an observation and the records taken on it, by either or both of two ways: photographs the workbench reads, and counts entered by hand.
 
 1. `get-experiment` reads the sheet: treatments, units with their codes, and the observations already made.
 2. `create-observation` adds the observation date, the model its photographs are read for, and `countedClasses`, the classes the day's count sums, every class when omitted; a germination trial's later days count `["germinated"]`. When the photographs are already uploaded, `images` matches them to their units in the same step, so the day and its photographs enter together or not at all; omit it to plan a day first.
@@ -124,7 +124,7 @@ A day enters as an observation and the records taken on it, by either or both of
 5. `mark-image-unclear` and `clear-image-unclear` address an image by digest. Repeated calls return `marked: false` or `cleared: false` when there is nothing to change. Assignment entries also accept `unclear: true`. The experiment's `countsUnclear` setting is accepted by `create-experiment` and `update-experiment`; [exclusion rules](readings.md#what-takes-a-unit-out-of-the-statistics) define its effect.
 6. `record-culture-events` records an event for several units at one observation; `delete-culture-event` removes a mistaken event.
 
-Reading needs no request: matched photographs are queued for the current version of their observation's model automatically, and `retry-observation-image-analysis` requeues one that failed. Version selection follows the [model lifecycle](domain.md#models-and-versions). A model with no current version queues nothing; its photographs wait for a reviewer, and `create-model` names such a model in the first place.
+Reading needs no request: matched photographs are queued for the current version of their observation's model automatically, and `retry-observation-image-analysis` requeues one that failed. Version selection follows the [model lifecycle](domain.md#models-and-versions). A model with no current version queues nothing; its photographs can be read by a reviewer or an annotation agent, and `create-model` names such a model in the first place.
 
 ## Dataset workflow
 
