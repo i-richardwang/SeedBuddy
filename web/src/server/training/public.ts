@@ -2,6 +2,7 @@ export { saveTrainingArtifactPart } from "./artifacts";
 export { listTrainingAttempts } from "./attempts";
 export { collectTrainingArtifactParts } from "./collection";
 export { controlTrainingRun } from "./control";
+export { listTrainingEpochs } from "./epochs";
 export { publishTrainingArtifact } from "./publication";
 export { toTrainingRun } from "./records";
 export {
@@ -11,7 +12,6 @@ export {
   enterTrainingPhase,
   failTrainingRun,
   latestTrainingRun,
-  listTrainingEpochs,
   readTrainingRun,
   recordTrainingEpoch,
   renewTrainingLease,

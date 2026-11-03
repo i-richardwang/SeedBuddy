@@ -14,13 +14,11 @@ import { markedUnclear } from "../images/public";
 import { shownDetectingVersion } from "../inference/public";
 import { database, type Executor } from "../infra/db/client";
 import {
-  annotations,
   datasetImages,
   datasets,
   images,
-  inferenceOutcomes,
 } from "../infra/db/schema";
-import { readingsJoin } from "../readings/public";
+import { readingsSubquery } from "../readings/public";
 import {
   type DatasetImage,
   listDatasets,
@@ -81,28 +79,24 @@ export function summarize(record: ImageRecord): ImageSummary {
 
 /** Memberships with their images and the documents that decide their state. */
 function recordQuery(db: Executor) {
-  const readings = readingsJoin({
-    imageId: datasetImages.imageId,
+  const readings = readingsSubquery(db, {
     modelId: datasets.modelId,
     version: shownDetectingVersion(datasetImages.imageId, datasets.modelId),
   });
-  const { proposal: proposalRuns } = readings;
-  return readings.apply(
-    db
+  return db
       .select({
         membership: datasetImages,
         image: images,
         modelId: datasets.modelId,
-        detection: sql<DetectionResult | null>`${inferenceOutcomes.document}`,
-        proposal: sql<AnnotationDocument | null>`${proposalRuns.result}->'document'`,
-        annotation: annotations.document,
+        detection: readings.detection,
+        proposal: sql<AnnotationDocument | null>`${readings.proposal}->'document'`,
+        annotation: readings.annotation,
         unclear: markedUnclear(datasetImages.imageId),
       })
       .from(datasetImages)
       .innerJoin(images, eq(images.id, datasetImages.imageId))
       .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-      .$dynamic(),
-  );
+      .leftJoinLateral(readings, eq(readings.imageId, datasetImages.imageId));
 }
 
 function toRecord(
@@ -144,11 +138,8 @@ export async function listReviewedRecords(
   lock = false,
 ): Promise<ReviewedRecord[]> {
   const query = recordQuery(db)
-    .where(
-      and(
-        eq(datasetImages.datasetId, datasetId),
-        isNotNull(annotations.imageId),
-      ),
+    .where(({ annotation }) =>
+      and(eq(datasetImages.datasetId, datasetId), isNotNull(annotation)),
     )
     .orderBy(...membershipOrder());
   const rows = lock

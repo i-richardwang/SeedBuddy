@@ -30,6 +30,7 @@ import {
 import { listTrainingAttempts } from "./attempts";
 import { collectTrainingArtifactParts } from "./collection";
 import { controlTrainingRun } from "./control";
+import { listTrainingEpochs } from "./epochs";
 import { artifactPartKey } from "./keys";
 import { publishTrainingArtifact as publishTrainingBundle } from "./publication";
 import {
@@ -38,7 +39,6 @@ import {
   createTrainingRun,
   enterTrainingPhase,
   failTrainingRun,
-  listTrainingEpochs,
   readTrainingRun,
   recordTrainingEpoch,
   renewTrainingLease,

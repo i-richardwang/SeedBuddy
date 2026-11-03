@@ -29,20 +29,18 @@ import { markedUnclear } from "../images/public";
 import { currentVersion } from "../inference/public";
 import { type Executor, inSnapshot, snapshot } from "../infra/db/client";
 import {
-  annotations,
   experimentObservationImages,
   experimentObservations,
   experiments,
   experimentTreatments,
   experimentUnits,
-  inferenceOutcomes,
   inferenceTasks,
   models,
   modelVersions,
   images as storedImages,
 } from "../infra/db/schema";
 import { toModel } from "../models/public";
-import { documentTally, readingsJoin, readReview } from "../readings/public";
+import { documentTally, readingsSubquery, readReview } from "../readings/public";
 import {
   atObservationImage,
   listManualReadings,
@@ -55,25 +53,21 @@ import {
 } from "./records";
 
 function observationImageGridQuery(db: Executor) {
-  const readings = readingsJoin({
-    imageId: experimentObservationImages.imageId,
+  const readings = readingsSubquery(db, {
     modelId: experimentObservations.modelId,
-    version: currentVersion(experimentObservations.modelId),
+    version: modelVersions.id,
   });
-  const { proposal: proposalRuns } = readings;
-  return readings
-    .apply(
-      db
+  return db
         .select({
           observationImage: experimentObservationImages,
           outcomeStatus: sql<
             "succeeded" | "failed" | null
-          >`case when ${inferenceTasks.status} = 'failed' then 'failed' when ${inferenceOutcomes.imageId} is not null then 'succeeded' else null end`,
-          detectionTally: documentTally(inferenceOutcomes.document),
-          proposalTally: documentTally(sql`${proposalRuns.result}->'document'`),
-          annotationTally: documentTally(annotations.document),
-          proposed: sql<boolean>`${proposalRuns.id} is not null`,
-          reviewed: sql<boolean>`${annotations.imageId} is not null`,
+          >`case when ${inferenceTasks.status} = 'failed' then 'failed' when ${readings.detection} is not null then 'succeeded' else null end`,
+          detectionTally: documentTally(sql`${readings.detection}`),
+          proposalTally: documentTally(sql`${readings.proposal}->'document'`),
+          annotationTally: documentTally(sql`${readings.annotation}`),
+          proposed: sql<boolean>`${readings.proposal} is not null`,
+          reviewed: sql<boolean>`${readings.annotation} is not null`,
           reader: modelVersions.id,
           error: sql<
             string | null
@@ -86,8 +80,7 @@ function observationImageGridQuery(db: Executor) {
           modelVersions,
           eq(modelVersions.id, currentVersion(experimentObservations.modelId)),
         )
-        .$dynamic(),
-    )
+        .leftJoinLateral(readings, eq(readings.imageId, experimentObservationImages.imageId))
     .leftJoin(
       inferenceTasks,
       and(

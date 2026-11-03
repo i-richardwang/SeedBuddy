@@ -3,24 +3,22 @@ import {
   eq,
   isNotNull,
   isNull,
-  notExists,
   or,
-  type SQLWrapper,
   sql,
 } from "drizzle-orm";
 
 import type { AnnotationRef } from "../../domain/annotation/schema";
 import type { AnnotationProgress } from "../../domain/annotation-runs/schema";
+import { currentVersion } from "../inference/public";
 import { database } from "../infra/db/client";
 import {
-  annotations,
   datasetImages,
   datasets,
   experimentObservationImages,
   experimentObservations,
   models,
 } from "../infra/db/schema";
-import { activeReadingJoin, proposalRunId } from "../readings/public";
+import { readingsSubquery } from "../readings/public";
 
 /** How many images one listing names; the total says how many remain. */
 const LISTED = 100;
@@ -37,16 +35,11 @@ interface PendingAnnotation {
  * nobody has reviewed it and no agent has proposed boxes for it, provided its
  * model says how to annotate.
  */
-function awaiting(imageId: SQLWrapper, modelId: SQLWrapper) {
-  const { run: activeRuns } = activeReadingJoin(imageId, modelId);
-  const unread = and(
+function awaiting(readings: ReturnType<typeof readingsSubquery>) {
+  return or(isNotNull(readings.progress), and(
     sql`${models.annotation}->>'instructions' <> ''`,
-    notExists(
-      sql`(select 1 from ${annotations} where ${annotations.imageId} = ${imageId} and ${annotations.modelId} = ${modelId})`,
-    ),
-    isNull(proposalRunId(imageId, modelId)),
-  );
-  return or(isNotNull(activeRuns.id), unread);
+    isNull(readings.annotation), isNull(readings.proposal),
+  ));
 }
 
 /**
@@ -58,48 +51,32 @@ export async function listPendingAnnotations(modelId?: string): Promise<{
   images: PendingAnnotation[];
 }> {
   const db = await database();
-  const datasetActive = activeReadingJoin(
-    datasetImages.imageId,
-    datasets.modelId,
-  );
-  const observationActive = activeReadingJoin(
-    experimentObservationImages.imageId,
-    experimentObservations.modelId,
-  );
-  const { run: activeRuns } = datasetActive;
-  const progress = {
-    completed: activeRuns.completed,
-    total: activeRuns.total,
-  };
+  const datasetReadings = readingsSubquery(db, {modelId: datasets.modelId, version: currentVersion(datasets.modelId)});
+  const observationReadings = readingsSubquery(db, {modelId: experimentObservations.modelId, version: currentVersion(experimentObservations.modelId)});
   const [inDatasets, inExperiments] = await Promise.all([
-    datasetActive
-      .apply(
-        db
+    db
           .select({
             digest: datasetImages.imageId,
             modelId: datasets.modelId,
             filename: datasetImages.filename,
-            progress,
+            progress: datasetReadings.progress,
           })
           .from(datasetImages)
           .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
           .innerJoin(models, eq(models.id, datasets.modelId))
-          .$dynamic(),
-      )
+          .leftJoinLateral(datasetReadings, eq(datasetReadings.imageId, datasetImages.imageId))
       .where(
         and(
-          awaiting(datasetImages.imageId, datasets.modelId),
+          awaiting(datasetReadings),
           modelId ? eq(datasets.modelId, modelId) : undefined,
         ),
       ),
-    observationActive
-      .apply(
-        db
+    db
           .select({
             digest: experimentObservationImages.imageId,
             modelId: experimentObservations.modelId,
             filename: experimentObservationImages.filename,
-            progress,
+            progress: observationReadings.progress,
           })
           .from(experimentObservationImages)
           .innerJoin(
@@ -116,14 +93,10 @@ export async function listPendingAnnotations(modelId?: string): Promise<{
             ),
           )
           .innerJoin(models, eq(models.id, experimentObservations.modelId))
-          .$dynamic(),
-      )
+          .leftJoinLateral(observationReadings, eq(observationReadings.imageId, experimentObservationImages.imageId))
       .where(
         and(
-          awaiting(
-            experimentObservationImages.imageId,
-            experimentObservations.modelId,
-          ),
+          awaiting(observationReadings),
           modelId ? eq(experimentObservations.modelId, modelId) : undefined,
         ),
       ),
