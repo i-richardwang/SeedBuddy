@@ -1,7 +1,6 @@
 from vitroctl.detectors.ultralytics.dataset import (
     DatasetImage,
     YoloDatasetManifest,
-    assign_splits,
     export_dataset_images,
     export_yolo_dataset,
 )
@@ -20,7 +19,6 @@ __all__ = [
     "YoloDatasetManifest",
     "YoloTrainingInterruptedError",
     "YoloTrainingResult",
-    "assign_splits",
     "export_dataset_images",
     "export_yolo_dataset",
     "train_yolo_detector",

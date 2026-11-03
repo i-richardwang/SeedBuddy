@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from vitroctl.contracts.annotation import AnnotationDocument
-from vitroctl.contracts.annotation_set import AnnotatedImage, validate_annotation_set
+from vitroctl.contracts.annotation_set import ImageDocuments, validate_annotation_set
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import DetectionResult
 from vitroctl.io.files import file_digest
@@ -61,6 +61,10 @@ class DatasetManifest:
     @classmethod
     def from_document(cls, value: Any, context: str = "manifest") -> DatasetManifest:
         validate_wire_contract("dataset-manifest", value, context)
+        return cls.decode(value, context)
+
+    @classmethod
+    def decode(cls, value: Any, context: str = "manifest") -> DatasetManifest:
         dataset = value["dataset"]
         model = value["model"]
         model_id = model["id"]
@@ -71,7 +75,7 @@ class DatasetManifest:
         )
         validate_annotation_set(
             (
-                AnnotatedImage(
+                ImageDocuments(
                     image.digest,
                     image.width,
                     image.height,
@@ -121,13 +125,11 @@ def manifest_path(data_root: str | Path, dataset: str) -> Path:
 def _image(value: Any, context: str) -> ManifestImage:
     detection = None
     if value["detection"] is not None:
-        detection = DetectionResult.from_document(value["detection"])
+        detection = DetectionResult.decode(value["detection"])
     annotation = (
         None
         if value["annotation"] is None
-        else AnnotationDocument.from_document(
-            value["annotation"], f"{context}.annotation"
-        )
+        else AnnotationDocument.decode(value["annotation"], f"{context}.annotation")
     )
     return ManifestImage(
         digest=value["digest"],
@@ -142,10 +144,10 @@ def _image(value: Any, context: str) -> ManifestImage:
     )
 
 
-def encode_dataset_manifest(manifest: DatasetManifest) -> bytes:
+def encode_dataset_manifest(document: dict[str, Any]) -> bytes:
     """Encode the canonical manifest representation used in transit."""
     encoded = (
-        json.dumps(manifest.to_dict(), ensure_ascii=False, separators=(",", ":")) + "\n"
+        json.dumps(document, ensure_ascii=False, separators=(",", ":")) + "\n"
     ).encode("utf-8")
     if len(encoded) > MAX_DATASET_MANIFEST_BYTES:
         raise ValueError(f"Manifest exceeds {MAX_DATASET_MANIFEST_BYTES} bytes")

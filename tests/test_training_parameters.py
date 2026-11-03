@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from vitroctl.training.parameters import parse_training_parameters
+from vitroctl.training.recipe import TrainingRecipe
 
 
 def test_training_parameters_accept_the_shared_recipe(recipe) -> None:
     parameters = dict(recipe["parameters"])
 
-    assert parse_training_parameters(parameters) == parameters
+    assert (
+        TrainingRecipe.from_document({**recipe, "parameters": parameters}).parameters
+        == parameters
+    )
 
 
 @pytest.mark.parametrize(
@@ -40,7 +43,7 @@ def test_training_parameters_reject_invalid_values(
     parameters[field] = value
 
     with pytest.raises((TypeError, ValueError), match=field):
-        parse_training_parameters(parameters)
+        TrainingRecipe.from_document({**recipe, "parameters": parameters})
 
 
 def test_training_parameters_require_the_exact_field_set(recipe) -> None:
@@ -48,19 +51,29 @@ def test_training_parameters_require_the_exact_field_set(recipe) -> None:
     parameters.pop("epochs")
 
     with pytest.raises(ValueError, match="epochs"):
-        parse_training_parameters(parameters)
+        TrainingRecipe.from_document({**recipe, "parameters": parameters})
 
     parameters = dict(recipe["parameters"])
     parameters["augment"] = 1
     with pytest.raises(ValueError, match="augment"):
-        parse_training_parameters(parameters)
+        TrainingRecipe.from_document({**recipe, "parameters": parameters})
 
 
 def test_omitted_nominal_batch_retains_runtime_semantics(recipe) -> None:
     parameters = dict(recipe["parameters"])
     parameters.pop("nbs")
-    assert "nbs" not in parse_training_parameters(parameters)
-    assert parse_training_parameters({**parameters, "nbs": 8})["nbs"] == 8
+    assert (
+        "nbs"
+        not in TrainingRecipe.from_document(
+            {**recipe, "parameters": parameters}
+        ).parameters
+    )
+    assert (
+        TrainingRecipe.from_document(
+            {**recipe, "parameters": {**parameters, "nbs": 8}}
+        ).parameters["nbs"]
+        == 8
+    )
 
 
 @pytest.mark.parametrize("recipe", ["yolo26s-whole-2048-v1.recipe.json"], indirect=True)

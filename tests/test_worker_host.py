@@ -39,9 +39,9 @@ def _serve_ready(monkeypatch, respond) -> list[httpx.Request]:
         (
             ("traditional", "ultralytics"),
             "cpu",
-            "runtimes: traditional, ultralytics (cpu)",
+            ("runtimes: traditional, ultralytics (cpu)", "device: cpu"),
         ),
-        (("traditional",), None, "runtimes: traditional"),
+        (("traditional",), None, ("runtimes: traditional",)),
     ],
 )
 def test_preflight_checks_the_authenticated_server_and_runtimes(
@@ -67,9 +67,7 @@ def test_preflight_checks_the_authenticated_server_and_runtimes(
     assert requests[0].url.path == "/api/worker/ready"
     assert requests[0].headers["authorization"] == "Bearer training-secret"
     assert "worker: trainer" in checks
-    assert expected in checks
-    if device:
-        assert checks[-1] == f"device: {device}"
+    assert checks[4:] == expected
 
 
 def test_preflight_surfaces_an_installed_but_broken_runtime(

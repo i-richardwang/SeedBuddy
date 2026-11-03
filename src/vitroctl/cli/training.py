@@ -10,10 +10,11 @@ from typing import Any
 
 from vitroctl.cli.connection import client, connection_options
 from vitroctl.cli.output import json_output
+from vitroctl.contracts.validation import outbound
 from vitroctl.datasets.annotations import load_annotations
 from vitroctl.datasets.manifest import load_dataset_manifest, manifest_path
 from vitroctl.detectors.ultralytics import export_yolo_dataset, train_yolo_detector
-from vitroctl.models.bundle import training_bundle, write_bundle
+from vitroctl.models.bundle import training_bundle, training_provenance, write_bundle
 from vitroctl.training.recipe import TrainingRecipe
 
 
@@ -21,7 +22,6 @@ def _run(args: argparse.Namespace) -> int:
     spec = json.loads(Path(args.spec).read_text())
     if not isinstance(spec, dict) or set(spec) != {"dataset", "recipe"}:
         raise ValueError("Training spec must contain dataset and recipe")
-    recipe = TrainingRecipe.from_document(spec["recipe"])
     if not args.local:
         if args.resume or args.output or args.device:
             raise ValueError(
@@ -29,10 +29,16 @@ def _run(args: argparse.Namespace) -> int:
             )
         json_output(
             client(args).call(
-                "start-training-run", {**spec, "targetWorkerId": args.worker}
+                "start-training-run",
+                {
+                    **spec,
+                    "recipe": outbound("training-recipe", spec["recipe"]),
+                    "targetWorkerId": args.worker,
+                },
             )
         )
         return 0
+    recipe = TrainingRecipe.from_document(spec["recipe"])
     if args.worker:
         raise ValueError("--worker cannot be combined with --local")
     if not args.output:
@@ -73,7 +79,7 @@ def _run(args: argparse.Namespace) -> int:
         runtime_version=recipe.runtime_version,
         device=args.device,
         resume_required=args.resume,
-        on_epoch=lambda epoch: print(json.dumps(epoch.to_json()), flush=True),
+        on_epoch=lambda epoch: print(json.dumps(epoch.to_dict()), flush=True),
     )
     exported = json.loads((exported_path / "manifest.json").read_text())
     fingerprint = hashlib.sha256(
@@ -83,19 +89,13 @@ def _run(args: argparse.Namespace) -> int:
             separators=(",", ":"),
         ).encode()
     ).hexdigest()
-    provenance = {
-        "dataset": {
-            "fingerprint": fingerprint,
-            "snapshotId": None,
-            "description": f"Pulled dataset {manifest.dataset}; exact input and exported splits in input.json and dataset/manifest.json",
-        },
-        "selectedEpoch": None,
-        "evaluation": {
-            "description": "Exported validation split",
-            "calibration": "Best F1 confidence on validation split",
-            "metrics": result.metrics,
-        },
-    }
+    provenance = training_provenance(
+        fingerprint=fingerprint,
+        snapshot_id=None,
+        dataset_description=f"Pulled dataset {manifest.dataset}; exact input and exported splits in input.json and dataset/manifest.json",
+        evaluation_description="Exported validation split",
+        metrics=result.metrics,
+    )
     document = training_bundle(
         result.best_weights, result.summary, list(manifest.classes), provenance
     )

@@ -20,7 +20,7 @@ from vitroctl.detectors.ultralytics import (
 )
 from vitroctl.io.files import file_digest
 from vitroctl.io.image_io import verify_digest
-from vitroctl.models.bundle import training_bundle, write_bundle
+from vitroctl.models.bundle import training_bundle, training_provenance, write_bundle
 from vitroctl.training.documents import (
     TrainingClaim,
     TrainingPhase,
@@ -100,7 +100,7 @@ class TrainingClient:
             f"api/worker/training/runs/{claim.run_id}/epochs",
             json={
                 **self._identity(claim),
-                **outbound("training-epoch-report", report.to_json()),
+                **outbound("training-epoch-report", report.to_dict()),
             },
         )
         self.worker.require_current_session(response)
@@ -207,7 +207,6 @@ def materialize_snapshot(
         export_dataset_images(
             dataset_images,
             snapshot.classes,
-            output.parent,
             output,
             link_images=True,
         )
@@ -270,19 +269,13 @@ def _train_bundle(
         result.best_weights,
         result.summary,
         exported["class_names"],
-        {
-            "dataset": {
-                "fingerprint": None,
-                "snapshotId": claim.dataset_snapshot_id,
-                "description": "Reviewed training snapshot",
-            },
-            "selectedEpoch": None,
-            "evaluation": {
-                "description": "Validation split of the training snapshot",
-                "calibration": "Best F1 confidence on validation split",
-                "metrics": result.metrics,
-            },
-        },
+        training_provenance(
+            fingerprint=None,
+            snapshot_id=claim.dataset_snapshot_id,
+            dataset_description="Reviewed training snapshot",
+            evaluation_description="Validation split of the training snapshot",
+            metrics=result.metrics,
+        ),
     )
     return write_bundle(result.best_weights, document, root / "bundle")
 

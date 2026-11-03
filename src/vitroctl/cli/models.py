@@ -14,7 +14,6 @@ from vitroctl.detectors.ultralytics.detector import (
 from vitroctl.detectors.ultralytics.runtime import require_ultralytics_version
 from vitroctl.models.bundle import (
     read_bundle,
-    validate_bundle,
     weights_descriptor,
     write_bundle,
 )
@@ -26,7 +25,7 @@ def _verify_runtime(document: dict[str, Any], weights: Path) -> None:
     settings = document["inference"]
     detector = UltralyticsDetector(
         weights,
-        YoloInferenceSettings.from_document(settings),
+        YoloInferenceSettings.decode(settings),
         tuple(document["classes"]),
         "cpu",
     )
@@ -37,9 +36,11 @@ def _pack(args: argparse.Namespace) -> int:
     document = json.loads(Path(args.metadata).read_text())
     weights = Path(args.weights)
     document["weights"] = weights_descriptor(weights)
-    validate_bundle(document, weights)
-    _verify_runtime(document, weights)
-    print(write_bundle(weights, document, Path(args.output)))
+    print(
+        write_bundle(
+            weights, document, Path(args.output), verify_runtime=_verify_runtime
+        )
+    )
     return 0
 
 

@@ -23,7 +23,10 @@ from vitroctl.detectors.traditional.artifacts import (
     create_image_artifacts,
     write_image_artifacts,
 )
-from vitroctl.detectors.traditional.config import PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+    PipelineConfig,
+)
 from vitroctl.detectors.traditional.detector import TRADITIONAL_CLASS
 from vitroctl.detectors.traditional.scoring import (
     DEFAULT_MODEL,
@@ -44,7 +47,7 @@ from vitroctl.worker.host.command import add_worker_commands
 
 
 def _pipeline_config(path: str | None) -> PipelineConfig:
-    return PipelineConfig.from_json(path) if path else PipelineConfig()
+    return PipelineConfig.from_json(path) if path else DEFAULT_PIPELINE_CONFIG
 
 
 def _candidate_model(path: str | None) -> CandidateModel:
@@ -98,7 +101,11 @@ def _prepared_images(
     annotated = load_annotations(source)
     if not annotated:
         raise ValueError("No annotations found")
-    return prepare_images([image.annotation for image in annotated], data_root, config)
+    return prepare_images(
+        [image.annotation for image in annotated if image.annotation is not None],
+        data_root,
+        config,
+    )
 
 
 def _evaluate_traditional(args: argparse.Namespace) -> int:

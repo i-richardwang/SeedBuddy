@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 from conftest import PARAMETERS
 
-from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.training.recipe import TrainingRecipe
 
 
@@ -41,10 +40,8 @@ def test_training_recipe_requires_the_ultralytics_runtime() -> None:
 )
 def test_project_recipe_files_obey_the_training_recipe_contract(path: Path) -> None:
     document = json.loads(path.read_text())
-    validate_wire_contract("training-recipe", document, str(path))
-    recipe = document
-    parsed = TrainingRecipe.from_document(recipe, str(path))
-    assert parsed.base_model_reference == recipe["baseModel"]["reference"]
-    assert parsed.base_model_digest == recipe["baseModel"]["digest"]
-    assert parsed.parameters == recipe["parameters"]
-    assert parsed.runtime_version == recipe["runtime"]["version"]
+    parsed = TrainingRecipe.from_document(document, str(path))
+    assert parsed.base_model_reference == document["baseModel"]["reference"]
+    assert parsed.base_model_digest == document["baseModel"]["digest"]
+    assert parsed.parameters == document["parameters"]
+    assert parsed.runtime_version == document["runtime"]["version"]

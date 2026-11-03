@@ -70,7 +70,7 @@ def test_manifest_says_which_photographs_are_unclear() -> None:
     assert marked.unclear is True
     assert unsaid.unclear is False
 
-    encoded = json.loads(encode_dataset_manifest(manifest))
+    encoded = json.loads(encode_dataset_manifest(manifest.to_dict()))
     assert [image["unclear"] for image in encoded["images"]] == [True, False]
 
     malformed = _manifest()
@@ -105,14 +105,14 @@ def test_manifest_documents_are_valid_and_belong_to_their_image() -> None:
 
 def test_manifest_encoding_is_canonical_and_bounded() -> None:
     document = _manifest()
-    encoded = encode_dataset_manifest(DatasetManifest.from_document(document))
+    encoded = encode_dataset_manifest(DatasetManifest.from_document(document).to_dict())
     assert json.loads(encoded) == document
     assert encoded.endswith(b"\n")
     assert b": " not in encoded
 
     document["images"][0]["filename"] = "x" * MAX_DATASET_MANIFEST_BYTES
     with pytest.raises(ValueError, match=f"exceeds {MAX_DATASET_MANIFEST_BYTES} bytes"):
-        encode_dataset_manifest(DatasetManifest.from_document(document))
+        encode_dataset_manifest(DatasetManifest.from_document(document).to_dict())
 
 
 def _server(
@@ -166,8 +166,8 @@ def test_pull_materializes_blobs_and_the_manifest(tmp_path: Path) -> None:
     ]
     assert sorted(child.name for child in root.iterdir()) == ["blobs", "datasets"]
     annotated = load_annotations(manifest)
-    assert [image.entry.digest for image in annotated] == [DIGEST_A]
-    assert annotated[0].entry.split == "train"
+    assert [image.digest for image in annotated] == [DIGEST_A]
+    assert annotated[0].split == "train"
     assert verified_blob(root, DIGEST_A) == blob_path(root, DIGEST_A)
 
 

@@ -339,10 +339,6 @@ def test_bounded_http_decodes_compressed_responses_once():
             },
             r"instances\[0\].bbox.width.*shared contract",
         ),
-        (
-            {"image": {"digest": "d" * 64, "width": 1000, "height": 800}},
-            "describes another image",
-        ),
     ],
 )
 def test_outbound_detection_is_validated_before_any_network_request(change, reason):

@@ -50,7 +50,6 @@ def test_shared_detection_contract() -> None:
     ).to_dict()
     fixture = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     assert document == fixture
-    validate_wire_contract("detection-result", fixture, "detection")
     assert DetectionResult.from_document(fixture).to_dict() == fixture
 
 
@@ -203,7 +202,6 @@ def test_execution_failure_is_not_a_detection_document() -> None:
 )
 def test_detection_must_describe_the_source_image(digest, width, height, reason):
     fixture = json.loads(CONTRACT_FIXTURE.read_text())
-    validate_wire_contract("detection-result", fixture, "detection")
     result = DetectionResult.from_document(fixture)
     with pytest.raises(ValueError, match=reason):
         result.require_image(digest, width, height)
