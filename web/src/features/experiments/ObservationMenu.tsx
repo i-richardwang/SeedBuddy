@@ -2,11 +2,11 @@ import { FolderPlus, Images, Pencil, PencilLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { NamedDataset } from "../../domain/datasets/schema";
+import type { PlacedPhoto } from "../../domain/experiments/photos";
 import type {
   ObservationImageCell,
   Unit,
 } from "../../domain/experiments/read-model";
-import type { PlacedPhoto } from "../../domain/experiments/photos";
 import type {
   ExperimentObservation,
   ManualReading,

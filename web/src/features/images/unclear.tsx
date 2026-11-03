@@ -1,4 +1,4 @@
-import { removeUnclearMark, createUnclearMark } from "../../functions/images";
+import { createUnclearMark, removeUnclearMark } from "../../functions/images";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Alert } from "../../ui/kit/Alert";

@@ -35,7 +35,7 @@ export function atImageObservation() {
   );
 }
 
-export function readExperimentObservationImage(
+export function experimentObservationImageDetail(
   ref: ObservationImageRef,
   executor?: Executor,
 ): Promise<ExperimentObservationImageDetail | null> {

@@ -1,23 +1,12 @@
-import { z } from "zod";
-
-import { REVIEW_SOURCES, type ReviewSource } from "../annotation/schema";
+import type { ReviewSource } from "../annotation/schema";
 import { countClasses, sameClasses, type Tally } from "../models/classes";
 import { ClassInvalidError } from "../models/errors";
-import type { ObservationImageCell, ReviewState } from "./read-model";
+import type {
+  CellReading,
+  ObservationImageCell,
+  ReviewState,
+} from "./read-model";
 import type { ExperimentObservation, ManualReading } from "./schema";
-
-/**
- * Who stood behind a unit's number: a person who counted the dish itself
- * and entered the count, or one of the readings of its photograph.
- */
-const READING_SOURCES = [...REVIEW_SOURCES, "manual"] as const;
-
-/** What a unit read on a day: the individuals found, and who stood behind the number. */
-export const cellReadingSchema = z.strictObject({
-  count: z.number().int().min(0),
-  source: z.enum(READING_SOURCES),
-});
-export type CellReading = z.infer<typeof cellReadingSchema>;
 
 /**
  * The classes a day counts, in the order its model declares them: every class

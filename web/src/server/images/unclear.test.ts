@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { ImageNotFoundError } from "../../domain/images/errors";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
-import { readExperimentGrid, readUnit } from "../experiments/queries";
+import { experimentGridDetail, unitDetail } from "../experiments/queries";
 import {
   createExperiment,
   INOCULATED,
@@ -46,12 +46,12 @@ test("a photograph found unclear is marked on its image, wherever it is shown", 
     ],
   });
   const cellOf = async (id: string, unit: string) =>
-    (await readExperimentGrid(id))!.images.find(
+    (await experimentGridDetail(id))!.images.find(
       (image) => image.unit === unit,
     )!;
   expect((await cellOf(experiment.id, units.get("A-1")!)).unclear).toBe(true);
   expect((await cellOf(experiment.id, units.get("A-2")!)).unclear).toBe(false);
-  const page = await readUnit({
+  const page = await unitDetail({
     experiment: experiment.id,
     unit: units.get("A-1")!,
   });

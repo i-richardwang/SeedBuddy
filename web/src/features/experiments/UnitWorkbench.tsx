@@ -9,15 +9,15 @@ import {
   cellReading,
   imageReview,
 } from "../../domain/experiments/cell-reading";
+import {
+  latestCultureEvent,
+  observationOrdinals,
+} from "../../domain/experiments/culture-events";
 import type {
   ReviewState,
   UnitDetail,
   UnitStep,
 } from "../../domain/experiments/read-model";
-import {
-  latestCultureEvent,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { retryImageAnalysis } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";

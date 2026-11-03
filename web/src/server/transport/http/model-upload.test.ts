@@ -110,3 +110,34 @@ test("HTTP uploads and MCP registration share a candidate without creating train
     result.structuredContent.id,
   );
 });
+
+test("model upload admission and missing uploads use the agent error document", async () => {
+  const { user } = await signInAs("member");
+  const key = await issueApiKey(user.id, {
+    name: "Upload failures",
+    scopes: ["experiments"],
+    expiresInDays: null,
+  });
+  const headers = apiKeyHeaders(key.secret);
+  const admission = await serveModelWeightsUpload(
+    crypto.randomUUID(),
+    new Request("http://localhost/upload", { method: "PUT", headers }),
+  );
+  expect(admission.status).toBe(411);
+  expect(await admission.json()).toEqual({
+    error: { code: "invalid_request", message: "Content-Length is required" },
+  });
+  headers.set("content-length", "3");
+  const missing = await serveModelWeightsUpload(
+    crypto.randomUUID(),
+    new Request("http://localhost/upload", {
+      method: "PUT",
+      headers,
+      body: "abc",
+    }),
+  );
+  expect(missing.status).toBe(404);
+  expect(await missing.json()).toMatchObject({
+    error: { code: "not_found", message: expect.any(String) },
+  });
+});

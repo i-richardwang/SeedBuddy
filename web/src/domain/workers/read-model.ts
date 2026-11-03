@@ -1,5 +1,6 @@
 import type { WorkerPresence } from "./presence";
 import type { WorkerActivity } from "./schema";
+
 export interface WorkerOverview {
   workerId: string;
   presence: WorkerPresence;

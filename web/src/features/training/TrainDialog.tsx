@@ -1,11 +1,11 @@
 import { useState } from "react";
 
+import type { DatasetTrainingReadiness } from "../../domain/datasets/read-model";
 import {
   effectiveOverrides,
   type TrainingOverrides,
   trainingOverridesSchema,
 } from "../../domain/training/parameters";
-import type { DatasetTrainingReadiness } from "../../domain/datasets/read-model";
 import type {
   TrainingPreset,
   TrainingPresetId,

@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/read-model";
 import { unitIsAvailableOn } from "../../domain/experiments/culture-events";
 import type { PlacedPhoto } from "../../domain/experiments/photos";
+import type { Unit } from "../../domain/experiments/read-model";
 import {
   type CalendarDay,
   type ExperimentObservation,

@@ -1,5 +1,6 @@
 import type { AnnotationProgress } from "../annotation-runs/schema";
 import type { AnnotationRef } from "./schema";
+
 export interface PendingAnnotationOverview {
   ref: AnnotationRef;
   filename: string;

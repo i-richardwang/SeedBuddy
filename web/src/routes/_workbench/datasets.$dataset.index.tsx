@@ -3,6 +3,7 @@ import { ChartLine, ImagePlus, Images } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
+import type { DatasetDetail } from "../../domain/datasets/read-model";
 import { DatasetImagesTable } from "../../features/datasets/DatasetImagesTable";
 import { DatasetMenu } from "../../features/datasets/DatasetMenu";
 import { ImagePreview } from "../../features/datasets/ImagePreview";
@@ -26,8 +27,6 @@ import {
   PageSection,
   PageSectionSkeleton,
 } from "../../ui/Page";
-
-type DatasetDetail = NonNullable<Awaited<ReturnType<typeof getDatasetDetail>>>;
 
 /** `image` names the image previewed beside the list. */
 const datasetSearchSchema = z.object({

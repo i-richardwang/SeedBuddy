@@ -1,6 +1,6 @@
+import type { CultureEventType } from "../../domain/experiments/culture-events";
 import type { ReviewState } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
-import type { CultureEventType } from "../../domain/experiments/culture-events";
 import type { SummaryMeasure } from "../../domain/experiments/summary";
 import { countsEveryClass } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";

@@ -3,8 +3,10 @@ import { useEffect, useEffectEvent } from "react";
 import { z } from "zod";
 
 import { REVIEW_SOURCES } from "../../domain/annotation/schema";
-import type { DatasetImageStep } from "../../domain/datasets/read-model";
-import type { DatasetImageDetail } from "../../domain/datasets/read-model";
+import type {
+  DatasetImageDetail,
+  DatasetImageStep,
+} from "../../domain/datasets/read-model";
 import { datasetImageRefSchema } from "../../domain/datasets/schema";
 import {
   ImageWorkbench,

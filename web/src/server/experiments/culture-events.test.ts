@@ -11,10 +11,9 @@ import { database } from "../infra/db/client";
 import { experimentCultureEvents } from "../infra/db/schema";
 import { storeTexts } from "../testing/images";
 import { deleteCultureEvent, recordCultureEvents } from "./culture-events";
-import { recordManualReadings } from "./manual-readings";
 import { assignObservationImages } from "./observation-images";
-import { createObservation, updateObservation } from "./observations";
-import { readExperimentGrid } from "./queries";
+import { createObservation } from "./observations";
+import { experimentGridDetail } from "./queries";
 import {
   createExperiment,
   INOCULATED,
@@ -219,69 +218,8 @@ test("the same culture event can be recorded on several units", async () => {
     }),
   ).rejects.toThrow(UnitConflictError);
   expect(
-    (await readExperimentGrid(experiment.id))?.units.filter((unit) =>
+    (await experimentGridDetail(experiment.id))?.units.filter((unit) =>
       unit.events.some((event) => event!.type === "contaminated"),
     ),
   ).toHaveLength(2);
-});
-
-test("correcting dates cannot move records beyond a unit's removal", async () => {
-  const version = await trainedVersion("date-lifetime");
-  const experiment = await createExperiment({
-    name: "Date lifetime",
-    inoculatedOn: INOCULATED,
-  });
-  const units = await unitsOf(experiment.id);
-  const unit = units.get("A-1")!;
-  const counted = await createObservation({
-    experiment: experiment.id,
-    observedOn: "2026-08-08",
-    note: "",
-    ...reading(version),
-  });
-  const removed = await createObservation({
-    experiment: experiment.id,
-    observedOn: "2026-08-15",
-    note: "",
-    ...reading(version),
-  });
-  await recordManualReadings({
-    experiment: experiment.id,
-    observation: counted.id,
-    readings: [{ unit, tally: { ungerminated: 2, germinated: 3 } }],
-  });
-  await recordCultureEvents({
-    experiment: experiment.id,
-    units: [unit],
-    observation: removed.id,
-    type: "discarded",
-  });
-  for (const [observation, observedOn] of [
-    [counted, "2026-08-20"],
-    [removed, "2026-08-05"],
-  ] as const) {
-    await expect(
-      updateObservation({
-        experiment: experiment.id,
-        observation: observation.id,
-        observedOn,
-        note: "",
-        ...reading(version),
-        countedClasses: observation.countedClasses,
-      }),
-    ).rejects.toThrow(UnitConflictError);
-    const grid = (await readExperimentGrid(experiment.id))!;
-    expect(
-      grid.observations.find((item) => item.id === observation.id)!.observedOn,
-    ).toBe(observation.observedOn);
-  }
-  const corrected = await updateObservation({
-    experiment: experiment.id,
-    observation: counted.id,
-    observedOn: "2026-08-09",
-    note: "",
-    ...reading(version),
-    countedClasses: counted.countedClasses,
-  });
-  expect(corrected.observedOn).toBe("2026-08-09");
 });

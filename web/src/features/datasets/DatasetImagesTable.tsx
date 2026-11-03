@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Search, SearchX } from "lucide-react";
 import type { ReactNode } from "react";
 
+import type { DatasetImageOverview } from "../../domain/datasets/read-model";
 import type { NamedDataset } from "../../domain/datasets/schema";
 import { m } from "../../paraglide/messages";
 import { usePagedSearch } from "../../ui/hooks/usePagedSearch";
@@ -21,7 +22,6 @@ import {
 import { TextLink } from "../../ui/kit/TextLink";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { BoxCount, ImageQuality } from "./ImageFacts";
-import { type DatasetImageOverview } from "../../domain/datasets/read-model";
 import {
   DATASET_IMAGE_STATE_TONE,
   DATASET_IMAGE_STATES,

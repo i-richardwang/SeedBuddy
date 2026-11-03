@@ -4,7 +4,7 @@ import { addExperimentObservationImagesToNewDataset } from "../datasets/membersh
 import { createObservation } from "../experiments/observations";
 import {
   assignObservationImages,
-  readExperimentGrid,
+  experimentGridDetail,
 } from "../experiments/public";
 import { createModel } from "../models/public";
 import { observeImagesForModel } from "../testing/experiments";
@@ -23,7 +23,7 @@ test("a person's filename or page link finds the image, once per model, with eve
     model.id,
   );
   const { experiment } = observed;
-  const grid = (await readExperimentGrid(experiment.id))!;
+  const grid = (await experimentGridDetail(experiment.id))!;
   const unit = grid.units.find((item) => item.code === "Test-1")!.id;
   const later = await createObservation({
     experiment: experiment.id,

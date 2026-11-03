@@ -8,15 +8,17 @@ import {
   observationCells,
   unitDays,
 } from "../../domain/experiments/cell-reading";
-import type { Unit } from "../../domain/experiments/read-model";
 import {
   observationOrdinals,
   unitIsAvailableAt,
 } from "../../domain/experiments/culture-events";
 import { placedPhotos } from "../../domain/experiments/photos";
+import type {
+  ExperimentDetail,
+  Unit,
+} from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { experimentSummary } from "../../domain/experiments/summary";
-import type { ExperimentDetail } from "../../domain/experiments/read-model";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
 import { Button } from "../../ui/kit/Button";

@@ -1,9 +1,11 @@
 import { ImageOff } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import type { Exclusion } from "../../domain/experiments/analysis";
 import { countChange } from "../../domain/experiments/cell-reading";
-import type { UnitDetail } from "../../domain/experiments/read-model";
+import type {
+  Exclusion,
+  UnitDetail,
+} from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";

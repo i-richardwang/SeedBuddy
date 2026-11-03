@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { Review } from "../annotation/readings";
 import type { DetectionQuality } from "../detection/schema";
 import type { Model } from "../models/schema";
+import type { TrainingRunOverview } from "../training/read-model";
+import type { TrainingPreset, TrainingPresetId } from "../training/recipes";
 import type { ImageSplit, TrainingRun } from "../training/schema";
 import type { TrainingWorkerOverview } from "../workers/read-model";
 import type { Dataset, DatasetImageRef } from "./schema";
@@ -28,8 +30,6 @@ export interface DatasetImageDetail {
   nextUnreviewed: DatasetImageStep | null;
 }
 
-import type { TrainingRunOverview } from "../training/read-model";
-import type { TrainingPreset, TrainingPresetId } from "../training/recipes";
 /**
  * What a training set's page shows: its model and images, how many are
  * reviewed and so train, the state of training with the recipe a new run

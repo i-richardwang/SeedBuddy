@@ -6,7 +6,7 @@ import { isAdmin, type UserAccount } from "../../domain/auth/schema";
 import { NewUserDialog } from "../../features/users/NewUserDialog";
 import { RoleSelect } from "../../features/users/RoleSelect";
 import { UserMenu } from "../../features/users/UserMenu";
-import { updateUserRole, getUsers } from "../../functions/users";
+import { getUsers, updateUserRole } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";

@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-router";
 import { z } from "zod";
 
-import type { ExperimentGrid } from "../../domain/experiments/read-model";
+import type { ExperimentGridDetail } from "../../domain/experiments/read-model";
 import { experimentIdSchema } from "../../domain/experiments/schema";
 import {
   EXPERIMENT_TABS,
@@ -47,7 +47,7 @@ export const Route = createFileRoute("/_workbench/experiments/$experiment/")({
   },
   staticData: {
     crumbs: ({ loaderData }) => {
-      const { experiment } = loaderData as ExperimentGrid;
+      const { experiment } = loaderData as ExperimentGridDetail;
       return [
         { label: m.experiments_title(), href: "/experiments" },
         { label: experiment.name },

@@ -1,20 +1,23 @@
 import { parseDate } from "@internationalized/date";
 
-import {
-  type Exclusion,
-  unitExclusions,
-} from "../../domain/experiments/analysis";
+import { unitExclusions } from "../../domain/experiments/analysis";
 import {
   type ObservationCells,
   observationCells,
   unitDays,
   unitReading,
 } from "../../domain/experiments/cell-reading";
-import type { ExperimentGrid, Unit } from "../../domain/experiments/read-model";
 import {
   type ObservationOrdinals,
   observationOrdinals,
 } from "../../domain/experiments/culture-events";
+import type {
+  Exclusion,
+  ExperimentGridDetail,
+  ExperimentSummary,
+  Statistic,
+  Unit,
+} from "../../domain/experiments/read-model";
 import {
   type CalendarDay,
   type Experiment,
@@ -23,9 +26,7 @@ import {
   type Treatment,
 } from "../../domain/experiments/schema";
 import {
-  type ExperimentSummary,
   experimentSummary,
-  type Statistic,
   type SummaryMeasure,
   summaryCell,
   summaryMeasure,
@@ -53,7 +54,7 @@ import {
   summaryMeasureLabel,
 } from "./labels";
 
-export type ExperimentWorkbookSource = ExperimentGrid & {
+export type ExperimentWorkbookSource = ExperimentGridDetail & {
   models: readonly Model[];
 };
 

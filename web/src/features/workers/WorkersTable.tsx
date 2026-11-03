@@ -1,9 +1,9 @@
-import type { WorkerOverview } from "../../domain/workers/read-model";
 import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { WorkerPresence } from "../../domain/workers/presence";
+import type { WorkerOverview } from "../../domain/workers/read-model";
 import type { WorkerActivity } from "../../domain/workers/schema";
 import { removeWorker } from "../../functions/workers";
 import { m } from "../../paraglide/messages";

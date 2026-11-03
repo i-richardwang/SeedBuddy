@@ -36,11 +36,11 @@ async function datasetsTraining(modelId: string): Promise<NamedDataset[]> {
 }
 
 export const getExperiments = createServerFn({ method: "GET" }).handler(() =>
-  experimentsService.listExperiments(),
+  experimentsService.listExperimentOverviews(),
 );
 
 export const getExperimentNames = createServerFn({ method: "GET" }).handler(
-  () => experimentsService.listExperimentNames(),
+  () => experimentsService.findExperimentNames(),
 );
 
 /**
@@ -50,7 +50,7 @@ export const getExperimentNames = createServerFn({ method: "GET" }).handler(
 export const getExperimentGrid = createServerFn({ method: "GET" })
   .validator(experimentRefSchema)
   .handler(async ({ data }) => {
-    const grid = await experimentsService.readExperimentGrid(data.experiment);
+    const grid = await experimentsService.experimentGridDetail(data.experiment);
     if (!grid) return null;
     const [models, datasets] = await Promise.all([
       listModels(),
@@ -90,7 +90,7 @@ export const createReplicates = createServerFn({ method: "POST" })
 export const getUnit = createServerFn({ method: "GET" })
   .validator(unitRequestSchema)
   .handler(async ({ data: { observation, ...ref } }) => {
-    const series = await experimentsService.readUnit(ref, observation);
+    const series = await experimentsService.unitDetail(ref, observation);
     if (!series) return null;
     const datasets = series.shown
       ? await datasetsTraining(series.shown.model.id)

@@ -26,7 +26,7 @@ import {
   removeObservationImage,
   removeUnit,
 } from "../../functions/experiments";
-import { removeUnclearMark, createUnclearMark } from "../../functions/images";
+import { createUnclearMark, removeUnclearMark } from "../../functions/images";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";

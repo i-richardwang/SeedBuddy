@@ -3,6 +3,7 @@ import type { TrainingRunOverview } from "../training/read-model";
 import type { Tally } from "./classes";
 import type { ModelRecords } from "./contracts";
 import type { Model, ModelVersion } from "./schema";
+
 export interface ModelOverview {
   model: Model;
   records: ModelRecords;

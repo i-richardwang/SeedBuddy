@@ -10,7 +10,7 @@ import type { ModelVersion } from "../../domain/models/schema";
 import { createExperiment } from "../experiments/design";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
-import { readExperimentGrid } from "../experiments/queries";
+import { experimentGridDetail } from "../experiments/queries";
 import { listUnits } from "../experiments/records";
 import { database } from "../infra/db/client";
 import { experimentObservationImages } from "../infra/db/schema";
@@ -123,7 +123,7 @@ async function listExperimentObservationImages(
 
 /** Observation-image references by source filename stem. */
 export async function listObservationImageRefs(experimentId: string) {
-  const grid = await readExperimentGrid(experimentId);
+  const grid = await experimentGridDetail(experimentId);
   if (!grid) throw new Error(`missing experiment ${experimentId}`);
   return new Map(
     grid.images.map((image) => [

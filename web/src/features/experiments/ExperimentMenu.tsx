@@ -3,8 +3,8 @@ import { useState } from "react";
 
 import type { Experiment } from "../../domain/experiments/schema";
 import {
-  updateExperiment,
   removeExperiment,
+  updateExperiment,
 } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";

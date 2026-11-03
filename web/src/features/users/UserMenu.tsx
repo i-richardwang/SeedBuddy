@@ -3,10 +3,10 @@ import { useState } from "react";
 
 import type { UserAccount } from "../../domain/auth/schema";
 import {
-  updateUserReinstatement,
   removeUser,
-  updateUserPassword,
   removeUserSessions,
+  updateUserPassword,
+  updateUserReinstatement,
   updateUserSuspension,
 } from "../../functions/users";
 import { m } from "../../paraglide/messages";

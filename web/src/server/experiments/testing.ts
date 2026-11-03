@@ -14,7 +14,7 @@ import { registerTrainedVersion } from "../testing/models";
 import { trainingHeartbeat, ULTRALYTICS_RUNTIME } from "../testing/workers";
 import { createExperiment as createExperimentRecord } from "./design";
 import { assignObservationImages } from "./observation-images";
-import { readExperimentGrid } from "./queries";
+import { experimentGridDetail } from "./queries";
 
 export const INOCULATED = "2026-08-01";
 
@@ -84,7 +84,7 @@ export function countedImageResult(
 export async function unitsOf(
   experiment: string,
 ): Promise<Map<string, string>> {
-  const grid = await readExperimentGrid(experiment);
+  const grid = await experimentGridDetail(experiment);
   return new Map(grid!.units.map((unit) => [unit.code, unit.id]));
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { CultureEvent } from "./culture-events";
-import type { ExperimentGrid, ObservationImageCell } from "./read-model";
+import type { ExperimentGridDetail, ObservationImageCell } from "./read-model";
 import type {
   Experiment,
   ExperimentObservation,
@@ -95,7 +95,9 @@ const DISHES = [
   photograph("c", grown, { germinated: 40 }),
 ];
 
-function grid(overrides: Partial<ExperimentGrid> = {}): ExperimentGrid {
+function grid(
+  overrides: Partial<ExperimentGridDetail> = {},
+): ExperimentGridDetail {
   return {
     experiment,
     treatments: [

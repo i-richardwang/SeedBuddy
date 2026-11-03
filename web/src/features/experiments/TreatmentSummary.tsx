@@ -1,17 +1,19 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/read-model";
+import type {
+  ExperimentSummary,
+  Statistic,
+  TreatmentDaySummary,
+  Unit,
+} from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
   Treatment,
 } from "../../domain/experiments/schema";
 import {
-  type ExperimentSummary,
-  type Statistic,
   type SummaryMeasure,
   summaryCell,
   summaryMeasure,
-  type TreatmentDaySummary,
 } from "../../domain/experiments/summary";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";

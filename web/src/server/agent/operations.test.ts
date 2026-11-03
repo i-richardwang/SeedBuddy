@@ -2,17 +2,17 @@ import { describe, expect, test } from "bun:test";
 
 import type { Dataset } from "../../domain/datasets/schema";
 import type { CultureEvent } from "../../domain/experiments/culture-events";
-import type { Unit } from "../../domain/experiments/read-model";
+import type {
+  ExperimentSheetDetail,
+  SheetCell,
+  Unit,
+  UnitRowDetail,
+} from "../../domain/experiments/read-model";
 import type {
   Experiment,
   ExperimentObservation,
   ManualReading,
 } from "../../domain/experiments/schema";
-import type {
-  ExperimentSheet,
-  SheetCell,
-  UnitRow,
-} from "../../domain/experiments/sheet";
 import { storeAnnotation } from "../annotations/documents";
 import { createModel } from "../models/public";
 import { failure } from "../testing/agent";
@@ -27,14 +27,14 @@ function output(result: AgentCallResult): unknown {
   return result.output;
 }
 
-async function readSheet(experiment: string): Promise<ExperimentSheet> {
+async function readSheet(experiment: string): Promise<ExperimentSheetDetail> {
   return output(
     await executeAgentOperation("get-experiment", { experiment }),
-  ) as ExperimentSheet;
+  ) as ExperimentSheetDetail;
 }
 
 function cellOf(
-  sheet: Pick<ExperimentSheet, "cells">,
+  sheet: Pick<ExperimentSheetDetail, "cells">,
   unit: string,
   observation: string,
 ): SheetCell {
@@ -333,7 +333,7 @@ describe("agent operations", () => {
         experiment: experiment.id,
         unit: counted!.id,
       }),
-    ) as UnitRow;
+    ) as UnitRowDetail;
     expect(row.unit.id).toBe(counted!.id);
     expect(row.treatment.name).toBe("T1");
     expect(row.cells).toHaveLength(1);

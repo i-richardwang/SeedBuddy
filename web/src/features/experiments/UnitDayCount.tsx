@@ -1,11 +1,11 @@
 import { EyeOff, ImageIcon, PencilLine } from "lucide-react";
 import type { ReactElement } from "react";
 
-import type { Exclusion } from "../../domain/experiments/analysis";
 import {
   cellReading,
   type UnitCell,
 } from "../../domain/experiments/cell-reading";
+import type { Exclusion } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";

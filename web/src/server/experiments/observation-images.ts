@@ -30,7 +30,7 @@ import {
   experimentUnits,
   images,
 } from "../infra/db/schema";
-import { readExperimentObservationImage } from "./observation-image";
+import { experimentObservationImageDetail } from "./observation-image";
 import { createObservation } from "./observations";
 import {
   atObservationImage,
@@ -240,7 +240,7 @@ export async function retryObservationImageAnalysis(
   executor?: Executor,
 ): Promise<void> {
   await inTransaction(executor, async (tx) => {
-    const image = await readExperimentObservationImage(ref, tx);
+    const image = await experimentObservationImageDetail(ref, tx);
     if (!image) {
       throw new ExperimentObservationImageNotFoundError(
         `Unknown observation image: ${ref.observationImage}`,

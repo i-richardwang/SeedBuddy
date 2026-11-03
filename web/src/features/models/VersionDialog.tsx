@@ -8,10 +8,12 @@ import {
   isCounted,
   isReading,
 } from "../../domain/models/comparison";
-import { type VersionComparisonDetail } from "../../domain/models/read-model";
-import { type CountAccuracy } from "../../domain/models/read-model";
-import { type ComparedImage } from "../../domain/models/read-model";
-import { type ComparedReading } from "../../domain/models/read-model";
+import type {
+  ComparedImage,
+  ComparedReading,
+  CountAccuracy,
+  VersionComparisonDetail,
+} from "../../domain/models/read-model";
 import type { Model, ModelVersion } from "../../domain/models/schema";
 import { chooseCurrentVersion } from "../../functions/models";
 import { m } from "../../paraglide/messages";
