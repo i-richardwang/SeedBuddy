@@ -80,7 +80,7 @@ function AddPhotosSession({
                   images: photos.ready,
                 },
               }),
-            m.observation_images_assign_failed(),
+            m.observation_photos_not_matched(),
             {
               onSuccess: onClose,
             },

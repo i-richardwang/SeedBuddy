@@ -23,10 +23,7 @@ export function useTrainingRunControl(detail: TrainingRunDetail) {
   return {
     busy: action.busy,
     pause: () => {
-      void action.run(
-        () => send({ action: "pause" }),
-        m.training_pause_failed(),
-      );
+      void action.run(() => send({ action: "pause" }), m.training_not_paused());
     },
     resume: () => setResuming(true),
     cancel: () => {

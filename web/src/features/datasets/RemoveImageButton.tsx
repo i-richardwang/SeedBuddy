@@ -21,14 +21,14 @@ export function RemoveImageButton({
     <ActionIcon
       icon={Trash2}
       size="small"
-      title={m.dataset_remove()}
+      title={m.remove_action()}
       onClick={() =>
         confirmDestructive({
           title: m.dataset_remove_title({
             file: image.filename,
             dataset: dataset.name,
           }),
-          confirmLabel: m.dataset_remove(),
+          confirmLabel: m.remove_action(),
           onConfirm: async () => {
             await removeFromDataset({
               data: { dataset: dataset.id, digests: [image.digest] },

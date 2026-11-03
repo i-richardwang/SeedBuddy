@@ -1,7 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "dataset_actions": "Actions for {dataset}",
-  "dataset_add_dataset_label": "Dataset",
   "dataset_add_heading": "Add to dataset",
   "dataset_add_menu": "Add to dataset…",
   "dataset_add_name_placeholder": "seeds-2026-09",
@@ -28,7 +26,6 @@
       }
     }
   ],
-  "dataset_add_submit": "Add",
   "dataset_archive_destination_unchecked": "Could not check the destination workbench",
   "dataset_archive_exists": "Dataset {dataset} already exists",
   "dataset_archive_image_duplicate": "The archive contains image {digest} more than once",
@@ -50,7 +47,6 @@
   "dataset_archive_multiple_datasets": "The archive holds more than one dataset",
   "dataset_archive_no_dataset": "The archive holds no dataset",
   "dataset_archive_unexpected_entry": "Unexpected archive entry: {entry}",
-  "dataset_column_image": "Image",
   "dataset_column_quality": "Quality",
   "dataset_download": "Download",
   "dataset_empty_images": "No images yet",
@@ -63,14 +59,13 @@
       }
     }
   ],
-  "dataset_hero_reviewed": "reviewed, ready to train",
+  "dataset_hero_reviewed": "Reviewed images ready to train",
   "dataset_image_removed": "{file} removed from {dataset}",
   "dataset_images": "Images",
   "dataset_images_table": "Images in {dataset}",
   "dataset_import": "Import",
   "dataset_import_drop_description": "A ZIP downloaded from a workbench dataset",
   "dataset_import_drop_label": "Drop a dataset archive here",
-  "dataset_import_failed": "Import failed",
   "dataset_import_heading": "Import dataset",
   "dataset_import_progress": "Import progress",
   "dataset_import_reading": "Reading archive",
@@ -89,16 +84,15 @@
       }
     }
   ],
-  "dataset_name_label": "Name",
   "dataset_no_matches": "No images match",
-  "dataset_no_matches_description": "Try another search or state.",
+  "dataset_no_matches_description": "Try another search or status.",
+  "dataset_not_imported": "Dataset not imported",
+  "dataset_not_renamed": "Dataset not renamed",
   "dataset_open_experiments": "Open experiments",
   "dataset_preview_open": "Open to annotate",
   "dataset_preview_quality": "Detection quality",
-  "dataset_remove": "Remove",
   "dataset_remove_title": "Remove {file} from {dataset}?",
   "dataset_rename": "Rename…",
-  "dataset_rename_failed": "The dataset was not renamed",
   "dataset_rename_save": "Rename",
   "dataset_rename_title": "Rename {dataset}",
   "dataset_reviewed_since_last_run": [
@@ -111,10 +105,7 @@
   ],
   "dataset_search": "Search file names",
   "dataset_state_all": "All",
-  "dataset_state_detected": "To review",
-  "dataset_state_filter": "Filter by state",
-  "dataset_state_proposed": "AI proposal",
-  "dataset_state_reviewed": "Reviewed",
+  "dataset_state_filter": "Filter by status",
   "dataset_state_unread": "Not counted",
   "datasets_empty": "No datasets yet",
   "datasets_empty_description": "Add photos to a dataset from an observation day of an experiment, or import an archive.",
@@ -124,7 +115,7 @@
   "image_next": "Next image",
   "image_previous": "Previous image",
   "image_split": "Training split",
-  "image_split_train": "Training",
+  "image_split_train": "Training subset",
   "image_split_val": "Validation",
   "image_title": "{file} in {dataset}"
 }

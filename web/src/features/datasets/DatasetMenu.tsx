@@ -27,7 +27,7 @@ export function DatasetMenu({ dataset }: { dataset: NamedDataset }) {
   return (
     <>
       <PageMenu
-        label={m.dataset_actions({ dataset: dataset.name })}
+        label={m.item_actions({ name: dataset.name })}
         items={[
           {
             key: "rename",
@@ -90,7 +90,7 @@ function RenameDatasetForm({
   const submit = () => {
     void run(
       () => updateDataset({ data: { dataset: dataset.id, name } }),
-      m.dataset_rename_failed(),
+      m.dataset_not_renamed(),
       {
         onSuccess: onDone,
       },
@@ -105,7 +105,7 @@ function RenameDatasetForm({
         submit();
       }}
     >
-      <Form.Field label={m.dataset_name_label()} required>
+      <Form.Field label={m.name_label({ kind: "thing" })} required>
         <Input
           value={name}
           onValueChange={setName}

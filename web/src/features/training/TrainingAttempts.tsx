@@ -101,7 +101,7 @@ export function TrainingAttempts({
         <TableHeader>
           <tr>
             <TableHead>{m.attempt_column_number()}</TableHead>
-            <TableHead>{m.training_worker()}</TableHead>
+            <TableHead>{m.worker_label()}</TableHead>
             <TableHead>{m.attempt_column_started()}</TableHead>
             <TableHead>{m.attempt_column_result()}</TableHead>
             <TableHead className="w-full">

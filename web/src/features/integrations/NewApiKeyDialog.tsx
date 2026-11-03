@@ -100,7 +100,7 @@ function NewApiKeySession({
       onClose={onClose}
       afterClose={afterClose}
       title={m.api_key_dialog_title()}
-      okText={m.api_key_dialog_create()}
+      okText={m.create_action()}
       formId={FORM_ID}
       busy={action.busy}
       okDisabled={scopes.length === 0}
@@ -126,7 +126,11 @@ function NewApiKeySession({
           );
         }}
       >
-        <Form.Field label={m.api_key_column_name()} name="name" required>
+        <Form.Field
+          label={m.name_label({ kind: "thing" })}
+          name="name"
+          required
+        >
           <Input
             name="name"
             autoComplete="off"
@@ -135,7 +139,7 @@ function NewApiKeySession({
             placeholder={m.api_key_dialog_name_placeholder()}
           />
         </Form.Field>
-        <Form.Field label={m.api_key_column_scopes()} required fieldset>
+        <Form.Field label={m.scopes_label()} required fieldset>
           <CheckboxGroup
             value={scopes}
             disabled={action.busy}

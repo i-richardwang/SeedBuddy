@@ -1,9 +1,19 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "action_failed": "{action} failed",
+  "account_label": "Account",
+  "action_not_completed": "{action} not completed",
+  "active_label": "Active",
+  "add_action": "Add",
+  "ai_proposal_label": "AI proposal",
   "app_name": "VitroFlow",
+  "base_medium_label": "Base medium",
   "boxes_label": "Boxes",
+  "change_label": "Change",
   "column_actions": "Actions",
+  "create_action": "Create",
+  "dataset_label": "Dataset",
+  "delete_action": "Delete",
+  "details_label": "Details",
   "document_title": "{page} · {app}",
   "dropzone_label": "Drop images here or choose from a folder",
   "dropzone_limits": [
@@ -19,8 +29,9 @@
       }
     }
   ],
-  "dropzone_ready": "ready",
+  "dropzone_ready": "Ready",
   "dropzone_select": "Select images",
+  "email_label": "Email",
   "error_conflict": "The current state does not allow this action. Refresh the page and try again.",
   "error_dataset_model": "The images and dataset must use the same model.",
   "error_experiment_has_records": "This experiment has records that prevent this change.",
@@ -35,33 +46,108 @@
   "error_training_conflict": "Training cannot start or change in the current state. Check the reviewed images and active runs.",
   "error_user_rejected": "This change would affect your own access or leave no usable administrator.",
   "error_worker_name_taken": "A Worker with this name is already enrolled.",
+  "experiments_label": "Experiments",
+  "explant_type_label": "Explant type",
+  "failed_label": "Failed",
   "image_copy_id": "Copy image ID",
+  "image_label": "Image",
+  "inoculated_label": "Inoculated",
+  "integrations_label": "Integrations",
   "item_actions": "Actions for {name}",
   "item_delete_title": "Delete {name}?",
   "item_deleted": "{name} deleted",
-  "nav_account": "Account",
+  "metric_best_map50": "Best mAP50",
+  "metric_best_map50_95": "Best mAP50-95",
+  "metric_map50": "mAP50",
+  "metric_map50_95": "mAP50-95",
+  "models_label": "Models",
+  "name_label": [
+    {
+      "declarations": ["input kind"],
+      "selectors": ["kind"],
+      "match": {
+        "kind=person": "Name",
+        "kind=*": "Name"
+      }
+    }
+  ],
   "nav_account_menu": "Account menu",
-  "nav_experiments": "Experiments",
   "nav_home": "Home",
-  "nav_integrations": "Integrations",
-  "nav_models": "Models",
   "nav_settings": "Settings",
-  "nav_users": "Users",
-  "nav_workers": "Workers",
+  "new_password_label": "New password",
   "not_found": "Not found",
   "note_label": "Note",
+  "password_changed": "Password changed",
+  "password_not_changed": "Password not changed",
+  "progress_count": [
+    {
+      "declarations": [
+        "input completed",
+        "input total",
+        "local formattedCompleted = completed: number",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "completed=*": "{formattedCompleted} / {formattedTotal}"
+      }
+    }
+  ],
   "quality_dish_detection_failed": "Petri dish not detected",
   "quality_exposure_clipping": "Exposure clipped",
   "quality_low_focus": "Low focus",
   "quality_unknown_warning": "Image quality needs a check",
+  "relative_time_days": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount}d ago"
+      }
+    }
+  ],
+  "relative_time_hours": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount}h ago"
+      }
+    }
+  ],
+  "relative_time_minutes": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount}m ago"
+      }
+    }
+  ],
+  "relative_time_seconds": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount}s ago"
+      }
+    }
+  ],
+  "remove_action": "Remove",
   "return_to_experiments": "Return to experiments",
+  "reviewed_label": "Reviewed",
+  "save_action": "Save",
+  "scopes_label": "Scopes",
   "something_went_wrong": "Something went wrong",
-  "state_label": "State",
+  "status_label": "Status",
+  "to_review_label": "To review",
+  "treatment_label": "Treatment",
+  "treatments_label": "Treatments",
   "unclear_label": "Unclear",
-  "unclear_not_saved": "The mark was not saved",
-  "unclear_section": "Unclear photograph",
+  "unclear_not_saved": "Mark not saved",
+  "unclear_section": "Unclear photo",
   "unclear_switch_description": "It cannot be read clearly, such as a fogged lid or a dish out of focus",
+  "units_label": "Units",
   "upload_cancelled": "Upload cancelled",
-  "upload_failed": "Upload failed",
-  "workbench_inspector": "Info"
+  "upload_not_completed": "Upload not completed",
+  "users_label": "Users",
+  "version_label": "Version",
+  "workbench_inspector": "Info",
+  "worker_label": "Worker",
+  "workers_label": "Workers"
 }

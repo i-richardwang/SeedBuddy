@@ -15,9 +15,9 @@ import { Page, PageColumnSkeleton } from "../../ui/Page";
 
 export const Route = createFileRoute("/_workbench/models/")({
   loader: () => getModelCatalogue(),
-  staticData: { crumbs: () => [{ label: m.models_title() }] },
+  staticData: { crumbs: () => [{ label: m.models_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.models_title()) }],
+    meta: [{ title: documentTitle(m.models_label()) }],
   }),
   pendingComponent: () => (
     <PageColumnSkeleton>
@@ -39,12 +39,12 @@ function ModelsPage() {
 
   return (
     <Page
-      title={m.models_title()}
+      title={m.models_label()}
       description={m.models_description()}
       actions={entries.length > 0 ? create : undefined}
     >
       <ModelsGrid
-        entries={entries}
+        models={entries}
         empty={
           <Empty
             icon={Network}

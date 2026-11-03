@@ -21,7 +21,7 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { formatCount } from "../../ui/numbers";
-import { joinFacts } from "./labels";
+import { joinFacts } from "./copy";
 
 /** What an experiment is found by: its name and what it grows on what. */
 function searchable({ experiment }: ExperimentOverview): string {
@@ -52,7 +52,7 @@ export function ExperimentsTable({
 
   return (
     <Table
-      aria-label={m.experiments_title()}
+      aria-label={m.experiments_label()}
       narrow="cards"
       toolbar={
         experiments.length > 0 ? (
@@ -85,20 +85,20 @@ export function ExperimentsTable({
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.experiments_column_experiment()}</TableHead>
-          <TableHead>{m.experiments_column_material()}</TableHead>
-          <TableHead>{m.experiment_field_base_medium()}</TableHead>
-          <TableHead>{m.experiment_field_inoculated()}</TableHead>
+          <TableHead>{m.experiment_column_experiment()}</TableHead>
+          <TableHead>{m.experiment_column_material()}</TableHead>
+          <TableHead>{m.base_medium_label()}</TableHead>
+          <TableHead>{m.inoculated_label()}</TableHead>
           <TableHead className="w-20" numeric>
-            {m.experiment_treatments()}
+            {m.treatments_label()}
           </TableHead>
           <TableHead className="w-24" numeric>
-            {m.experiment_units()}
+            {m.units_label()}
           </TableHead>
           <TableHead className="w-24" numeric>
-            {m.experiments_column_observations()}
+            {m.experiment_column_observations()}
           </TableHead>
-          <TableHead>{m.experiments_column_last_observed()}</TableHead>
+          <TableHead>{m.experiment_column_last_observed()}</TableHead>
         </tr>
       </TableHeader>
       <TableBody>
@@ -124,32 +124,32 @@ export function ExperimentsTable({
                     {experiment.name}
                   </TextLink>
                 </TableCell>
-                <TableCell cellLabel={m.experiments_column_material()}>
+                <TableCell cellLabel={m.experiment_column_material()}>
                   {material || <Absent />}
                 </TableCell>
-                <TableCell cellLabel={m.experiment_field_base_medium()}>
+                <TableCell cellLabel={m.base_medium_label()}>
                   {experiment.baseMedium || <Absent />}
                 </TableCell>
                 <TableCell
-                  cellLabel={m.experiment_field_inoculated()}
+                  cellLabel={m.inoculated_label()}
                   className="whitespace-nowrap"
                 >
                   <Day value={experiment.inoculatedOn} />
                 </TableCell>
-                <TableCell cellLabel={m.experiment_treatments()} numeric>
+                <TableCell cellLabel={m.treatments_label()} numeric>
                   {formatCount(treatments)}
                 </TableCell>
-                <TableCell cellLabel={m.experiment_units()} numeric>
+                <TableCell cellLabel={m.units_label()} numeric>
                   {formatCount(units)}
                 </TableCell>
                 <TableCell
-                  cellLabel={m.experiments_column_observations()}
+                  cellLabel={m.experiment_column_observations()}
                   numeric
                 >
                   {formatCount(observations)}
                 </TableCell>
                 <TableCell
-                  cellLabel={m.experiments_column_last_observed()}
+                  cellLabel={m.experiment_column_last_observed()}
                   className="whitespace-nowrap"
                 >
                   {lastObservedOn ? <Day value={lastObservedOn} /> : <Absent />}

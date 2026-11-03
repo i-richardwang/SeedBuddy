@@ -37,7 +37,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
   return (
     <>
       <RowMenu
-        label={m.user_actions({ name: account.name })}
+        label={m.item_actions({ name: account.name })}
         busy={busy}
         items={[
           {
@@ -85,9 +85,6 @@ export function UserMenu({ account }: { account: UserAccount }) {
                         data: { user: account.id, suspended: true },
                       });
                     },
-                    onSuccess: () => {
-                      toast.success(m.user_suspended({ name: account.name }));
-                    },
                   }),
               },
           { type: "divider" },
@@ -98,14 +95,14 @@ export function UserMenu({ account }: { account: UserAccount }) {
             label: m.user_menu_delete(),
             onClick: () =>
               confirmDestructive({
-                title: m.user_delete_title({ name: account.name }),
+                title: m.item_delete_title({ name: account.name }),
                 content: m.user_delete_body(),
                 confirmLabel: m.user_delete_confirm(),
                 onConfirm: async () => {
                   await removeUser({ data: { user: account.id } });
                 },
                 onSuccess: () => {
-                  toast.success(m.user_deleted({ name: account.name }));
+                  toast.success(m.item_deleted({ name: account.name }));
                 },
               }),
           },
@@ -137,7 +134,7 @@ function ResetPasswordDialog({
       open={open}
       onClose={onClose}
       title={m.user_reset_password_title({ name: account.name })}
-      okText={m.user_dialog_save()}
+      okText={m.save_action()}
       formId={RESET_FORM_ID}
       busy={action.busy}
     >
@@ -169,10 +166,10 @@ function ResetPasswordForm({
                 password: String(form.get("password") ?? ""),
               },
             }),
-          m.user_reset_password_not_changed(),
+          m.password_not_changed(),
           {
             onSuccess: () => {
-              toast.success(m.user_reset_password_changed());
+              toast.success(m.password_changed());
               onDone();
             },
           },
@@ -180,7 +177,7 @@ function ResetPasswordForm({
       }}
     >
       <PasswordField
-        label={m.user_reset_password_new_label()}
+        label={m.new_password_label()}
         description={m.user_reset_password_description()}
         disabled={busy}
         autoFocus

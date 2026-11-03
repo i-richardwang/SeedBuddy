@@ -12,7 +12,7 @@ import { Skeleton } from "./Skeleton";
  * classes.
  */
 
-const lineWidths = ["68%", "52%", "76%", "58%"] as const;
+const LINE_WIDTHS = ["68%", "52%", "76%", "58%"] as const;
 const HEAD = [96, 72, 64, 48];
 
 export function PageSkeleton({ children }: { children: ReactNode }) {
@@ -79,7 +79,7 @@ export function TableSkeleton({ rows = 6 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, index) => (
         <div className="ui-page-skeleton-row" key={index}>
           <div className="ui-page-skeleton-copy">
-            <Skeleton.Text width={lineWidths[index % lineWidths.length]!} />
+            <Skeleton.Text width={LINE_WIDTHS[index % LINE_WIDTHS.length]!} />
           </div>
           <Skeleton className="ui-page-skeleton-tag" />
           <Skeleton className="ui-page-skeleton-cell" />

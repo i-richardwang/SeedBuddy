@@ -32,8 +32,6 @@
   ],
   "epoch_series_box_loss": "框损失",
   "epoch_series_classification_loss": "分类损失",
-  "epoch_series_map50": "mAP50",
-  "epoch_series_map50_95": "mAP50-95",
   "epoch_series_precision": "精确率",
   "epoch_series_recall": "召回率",
   "epoch_series_regression_loss": "回归损失",
@@ -67,29 +65,11 @@
   "parameter_seed": "随机种子",
   "parameter_translate": "随机平移",
   "parameter_warmup_epochs": "预热轮次",
-  "run_column_best_map50": "最佳 mAP50",
-  "run_column_dataset": "训练集",
   "run_column_run": "训练任务",
-  "run_column_status": "状态",
-  "run_column_version": "版本",
   "run_copy_id": "复制训练 ID",
   "run_empty_description": "在训练集页面开始训练。",
   "run_empty_title": "还没有训练任务",
-  "run_epochs_progress": [
-    {
-      "declarations": [
-        "input completed",
-        "input total",
-        "local formattedCompleted = completed: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "completed=*": "{formattedCompleted} / {formattedTotal}"
-      }
-    }
-  ],
   "run_state_cancelled": "已取消",
-  "run_state_failed": "失败",
   "run_state_paused": "已暂停",
   "run_state_preparing": "准备中",
   "run_state_queued": "排队中",
@@ -108,9 +88,8 @@
   "training_curves": "曲线",
   "training_dialog_title": "训练新版本",
   "training_failed_title": "训练失败",
-  "training_kpi_best_map": "最佳 mAP50-95",
-  "training_kpi_published": "已发布 {version}",
-  "training_kpi_saved": [
+  "training_hero_published": "已发布 {version}",
+  "training_hero_saved": [
     {
       "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
       "match": {
@@ -123,11 +102,12 @@
   "training_menu_resume": "继续训练…",
   "training_menu_retry": "重试训练…",
   "training_no_epochs_finished": "没有完成的轮次",
+  "training_not_continued": "训练未继续",
+  "training_not_paused": "训练未暂停",
   "training_not_started": "训练未启动",
   "training_parameters_group": "训练参数",
   "training_parameters_heading": "参数",
   "training_pause": "暂停",
-  "training_pause_failed": "未能暂停训练",
   "training_preset": "训练预设",
   "training_preset_nano": "YOLO26n · 整图",
   "training_preset_nano_description": "轻量模型，适用于整图训练。",
@@ -145,7 +125,6 @@
   ],
   "training_restore_preset": "恢复预设值",
   "training_resume": "继续训练",
-  "training_resume_failed": "未能继续训练",
   "training_resume_from": "从哪里开始",
   "training_resume_from_saved": [
     {
@@ -179,7 +158,6 @@
   "training_stall_takeover": "训练会交给下一个空闲的计算节点。",
   "training_waiting_auto": "等待可用的计算节点",
   "training_waiting_first_epoch": "等待第一轮完成",
-  "training_worker": "计算节点",
   "training_worker_auto": "自动分配",
   "training_worker_lost": "{worker} 已失去联系",
   "training_worker_offline": "{worker} · 离线",

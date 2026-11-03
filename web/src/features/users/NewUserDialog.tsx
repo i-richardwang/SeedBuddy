@@ -28,7 +28,7 @@ export function NewUserDialog({
       open={open}
       onClose={onClose}
       title={m.users_new()}
-      okText={m.user_dialog_add()}
+      okText={m.add_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -69,10 +69,10 @@ function NewUserForm({
         );
       }}
     >
-      <Form.Field label={m.user_dialog_name_label()} name="name" required>
+      <Form.Field label={m.name_label({ kind: "person" })} name="name" required>
         <Input name="name" autoComplete="off" autoFocus disabled={busy} />
       </Form.Field>
-      <Form.Field label={m.user_dialog_email_label()} name="email" required>
+      <Form.Field label={m.email_label()} name="email" required>
         <Input name="email" type="email" autoComplete="off" disabled={busy} />
       </Form.Field>
       <PasswordField

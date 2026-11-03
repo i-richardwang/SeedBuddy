@@ -18,13 +18,13 @@ export function trainingRunPresentation({
   const published =
     version && version.artifact.kind === "ultralytics" ? version : null;
   const lead = published
-    ? m.training_kpi_published({ version: identifierLabel(published.id) })
+    ? m.training_hero_published({ version: identifierLabel(published.id) })
     : best
       ? m.epoch_label({ epoch: best.epoch })
       : null;
   const saved =
     run.checkpoint && (isTrainingRunActive(run) || isTrainingRunResumable(run))
-      ? m.training_kpi_saved({ epoch: run.checkpoint.epoch })
+      ? m.training_hero_saved({ epoch: run.checkpoint.epoch })
       : null;
   return {
     best,

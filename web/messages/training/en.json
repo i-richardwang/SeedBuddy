@@ -32,8 +32,6 @@
   ],
   "epoch_series_box_loss": "Box loss",
   "epoch_series_classification_loss": "Classification loss",
-  "epoch_series_map50": "mAP50",
-  "epoch_series_map50_95": "mAP50-95",
   "epoch_series_precision": "Precision",
   "epoch_series_recall": "Recall",
   "epoch_series_regression_loss": "Regression loss",
@@ -67,29 +65,11 @@
   "parameter_seed": "Seed",
   "parameter_translate": "Translation",
   "parameter_warmup_epochs": "Warmup epochs",
-  "run_column_best_map50": "Best mAP50",
-  "run_column_dataset": "Dataset",
   "run_column_run": "Run",
-  "run_column_status": "Status",
-  "run_column_version": "Version",
   "run_copy_id": "Copy run ID",
   "run_empty_description": "Start a run from one of the model's datasets.",
   "run_empty_title": "No training runs yet",
-  "run_epochs_progress": [
-    {
-      "declarations": [
-        "input completed",
-        "input total",
-        "local formattedCompleted = completed: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "completed=*": "{formattedCompleted} / {formattedTotal}"
-      }
-    }
-  ],
   "run_state_cancelled": "Cancelled",
-  "run_state_failed": "Failed",
   "run_state_paused": "Paused",
   "run_state_preparing": "Preparing",
   "run_state_queued": "Queued",
@@ -108,9 +88,8 @@
   "training_curves": "Curves",
   "training_dialog_title": "Train a new version",
   "training_failed_title": "Training failed",
-  "training_kpi_best_map": "Best mAP50-95",
-  "training_kpi_published": "Published {version}",
-  "training_kpi_saved": [
+  "training_hero_published": "Published {version}",
+  "training_hero_saved": [
     {
       "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
       "match": {
@@ -123,11 +102,12 @@
   "training_menu_resume": "Continue training…",
   "training_menu_retry": "Retry training…",
   "training_no_epochs_finished": "No epochs finished",
+  "training_not_continued": "Training not continued",
+  "training_not_paused": "Training not paused",
   "training_not_started": "Training not started",
   "training_parameters_group": "Training parameters",
   "training_parameters_heading": "Parameters",
   "training_pause": "Pause",
-  "training_pause_failed": "Could not pause training",
   "training_preset": "Training preset",
   "training_preset_nano": "YOLO26n · Whole image",
   "training_preset_nano_description": "Compact model for whole-image training.",
@@ -145,7 +125,6 @@
   ],
   "training_restore_preset": "Restore preset values",
   "training_resume": "Continue training",
-  "training_resume_failed": "Could not continue training",
   "training_resume_from": "Start from",
   "training_resume_from_saved": [
     {
@@ -179,11 +158,10 @@
   "training_stall_takeover": "The next available Worker will take it over.",
   "training_waiting_auto": "Waiting for an available Worker",
   "training_waiting_first_epoch": "Waiting for the first epoch",
-  "training_worker": "Worker",
   "training_worker_auto": "Automatic assignment",
   "training_worker_lost": "{worker} lost contact",
   "training_worker_offline": "{worker} · offline",
-  "training_worker_resume_local": "Resume uses local files on {worker}. If they are missing, restart training.",
+  "training_worker_resume_local": "Continue uses local files on {worker}. If they are missing, restart training.",
   "training_worker_running": "Running on {worker}",
   "training_worker_unavailable": "No training Worker is online",
   "training_worker_waiting": "Waiting for {worker} to pick it up"

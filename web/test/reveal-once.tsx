@@ -2,12 +2,7 @@ import assert from "node:assert/strict";
 
 import { useState } from "react";
 
-import { body, browser, button, press, render, unmount, waitFor } from "./dom";
-
-Object.defineProperty(globalThis, "scrollTo", {
-  configurable: true,
-  value: browser.scrollTo.bind(browser),
-});
+import { body, button, press, pressKey, render, unmount, waitFor } from "./dom";
 
 const { createMemoryHistory, createRootRoute, createRouter, RouterProvider } =
   await import("@tanstack/react-router");
@@ -53,15 +48,7 @@ try {
     );
     assert.equal(loads, before, "revealing does not reload the route");
     if (via === "escape") {
-      const { act } = await import("react");
-      await act(async () => {
-        body.querySelector(".ui-modal-popup")?.dispatchEvent(
-          new browser.KeyboardEvent("keydown", {
-            key: "Escape",
-            bubbles: true,
-          }),
-        );
-      });
+      await pressKey("Escape");
     } else {
       const trigger =
         via === "done"

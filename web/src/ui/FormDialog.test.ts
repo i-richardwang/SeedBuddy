@@ -4,7 +4,7 @@ import { expectIsolatedRun } from "../../test/isolated";
 
 const run = (scenario: string) =>
   expectIsolatedRun(
-    "test/dialog-behavior.tsx",
+    "test/dialogs.tsx",
     [scenario],
     `dialog ${scenario} behaves`,
   );

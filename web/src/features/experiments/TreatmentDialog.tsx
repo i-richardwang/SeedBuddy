@@ -4,11 +4,7 @@ import {
   type Treatment,
   treatmentNameSchema,
 } from "../../domain/experiments/schema";
-import {
-  createReplicates,
-  createTreatment,
-  updateTreatment,
-} from "../../functions/experiments";
+import { createTreatment, updateTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -21,7 +17,6 @@ import { FactorField, factorDraft, submittedFactor } from "./FactorField";
 import { DEFAULT_REPLICATES, ReplicatesField } from "./ReplicatesField";
 
 const TREATMENT_FORM = "treatment";
-const REPLICATES_FORM = "add-replicates";
 
 /** Creates a treatment with its replicates, or edits one. */
 export function TreatmentDialog({
@@ -46,7 +41,7 @@ export function TreatmentDialog({
           ? m.treatment_new()
           : m.treatment_edit({ name: treatment.name })
       }
-      okText={creating ? m.experiment_action_add() : m.experiment_action_save()}
+      okText={creating ? m.add_action() : m.save_action()}
       formId={TREATMENT_FORM}
       busy={action.busy}
     >
@@ -104,7 +99,7 @@ function TreatmentForm({
         );
       }}
     >
-      <Form.Field label={m.experiment_field_name()} required>
+      <Form.Field label={m.name_label({ kind: "thing" })} required>
         <Input
           autoFocus
           disabled={action.busy}
@@ -128,76 +123,6 @@ function TreatmentForm({
           onChange={setReplicates}
         />
       ) : null}
-    </Form>
-  );
-}
-
-/** Lays out more replicates of a treatment, continuing its code series. */
-export function ReplicatesDialog({
-  experiment,
-  treatment,
-  open,
-  onClose,
-}: {
-  experiment: string;
-  treatment: Treatment;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const action = useAsyncAction();
-  return (
-    <FormDialog
-      open={open}
-      onClose={onClose}
-      title={m.treatment_add_replicates({ name: treatment.name })}
-      okText={m.experiment_action_add()}
-      formId={REPLICATES_FORM}
-      busy={action.busy}
-    >
-      <ReplicatesForm
-        experiment={experiment}
-        treatment={treatment}
-        action={action}
-        onDone={onClose}
-      />
-    </FormDialog>
-  );
-}
-
-function ReplicatesForm({
-  experiment,
-  treatment,
-  action,
-  onDone,
-}: {
-  experiment: string;
-  treatment: Treatment;
-  action: AsyncAction;
-  onDone: () => void;
-}) {
-  const [replicates, setReplicates] = useState(1);
-  return (
-    <Form
-      id={REPLICATES_FORM}
-      onSubmit={(event) => {
-        event.preventDefault();
-        void action.run(
-          () =>
-            createReplicates({
-              data: { experiment, treatment: treatment.id, replicates },
-            }),
-          m.treatment_replicates_not_added(),
-          {
-            onSuccess: onDone,
-          },
-        );
-      }}
-    >
-      <ReplicatesField
-        disabled={action.busy}
-        value={replicates}
-        onChange={setReplicates}
-      />
     </Form>
   );
 }

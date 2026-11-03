@@ -24,9 +24,9 @@ const MCP_SERVERS_ID = "mcp-servers";
 
 export const Route = createFileRoute("/_workbench/integrations")({
   loader: () => getIntegrations(),
-  staticData: { crumbs: () => [{ label: m.integrations_title() }] },
+  staticData: { crumbs: () => [{ label: m.integrations_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.integrations_title()) }],
+    meta: [{ title: documentTitle(m.integrations_label()) }],
   }),
   pendingComponent: () => (
     <SettingsPageSkeleton>
@@ -46,7 +46,7 @@ function IntegrationsPage() {
   const { apiKeys, mcpClients, mcpUrls } = Route.useLoaderData();
 
   return (
-    <SettingsPage title={m.integrations_title()}>
+    <SettingsPage title={m.integrations_label()}>
       <ApiKeysGroup
         apiKeys={apiKeys}
         empty={(create) => (

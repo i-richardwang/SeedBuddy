@@ -38,7 +38,7 @@ export function useConfirmDestructive() {
             async () => {
               await onConfirm();
             },
-            m.action_failed({ action: confirmLabel }),
+            m.action_not_completed({ action: confirmLabel }),
             { onSuccess, invalidate },
           );
           if (!result.ok) throw result.error;

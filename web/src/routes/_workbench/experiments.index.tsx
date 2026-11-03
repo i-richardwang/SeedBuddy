@@ -14,9 +14,9 @@ import { Page, PageColumnSkeleton } from "../../ui/Page";
 
 export const Route = createFileRoute("/_workbench/experiments/")({
   loader: () => getExperiments(),
-  staticData: { crumbs: () => [{ label: m.experiments_title() }] },
+  staticData: { crumbs: () => [{ label: m.experiments_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.experiments_title()) }],
+    meta: [{ title: documentTitle(m.experiments_label()) }],
   }),
   pendingComponent: () => (
     <PageColumnSkeleton>
@@ -38,7 +38,7 @@ function ExperimentsPage() {
 
   return (
     <Page
-      title={m.experiments_title()}
+      title={m.experiments_label()}
       description={m.experiments_description()}
       actions={experiments.length > 0 ? create : undefined}
     >

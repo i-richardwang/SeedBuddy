@@ -27,35 +27,41 @@ const PHASE_LABELS = {
   preparing: m.run_state_preparing,
   training: m.run_state_training,
   validating: m.run_state_validating,
-} as const;
+} as const satisfies Record<
+  Extract<TrainingRun["state"], { status: "running" }>["phase"],
+  () => string
+>;
 
 const STATUS_LABELS = {
   queued: m.run_state_queued,
   paused: m.run_state_paused,
   cancelled: m.run_state_cancelled,
   succeeded: m.run_state_succeeded,
-  failed: m.run_state_failed,
-} as const;
+  failed: m.failed_label,
+} as const satisfies Record<
+  Exclude<TrainingRun["state"]["status"], "running">,
+  () => string
+>;
 
-const LOOKS: Record<TrainingRun["state"]["status"], Look> = {
+const LOOKS = {
   paused: { tone: "neutral", icon: CirclePause },
   cancelled: { tone: "neutral", icon: CircleSlash },
   queued: { tone: "neutral", icon: Clock },
   running: { tone: "info", icon: LoaderCircle },
   succeeded: { tone: "success", icon: CircleCheck },
   failed: { tone: "error", icon: CircleX },
-};
+} as const satisfies Record<TrainingRun["state"]["status"], Look>;
 
-const OUTCOMES: Record<
-  NonNullable<TrainingAttempt["outcome"]>,
-  Look & { label: () => string }
-> = {
+const OUTCOMES = {
   succeeded: { ...LOOKS.succeeded, label: m.run_state_succeeded },
-  failed: { ...LOOKS.failed, label: m.run_state_failed },
+  failed: { ...LOOKS.failed, label: m.failed_label },
   paused: { ...LOOKS.paused, label: m.run_state_paused },
   cancelled: { ...LOOKS.cancelled, label: m.run_state_cancelled },
   expired: { tone: "warning", icon: Unplug, label: m.attempt_state_expired },
-};
+} as const satisfies Record<
+  NonNullable<TrainingAttempt["outcome"]>,
+  Look & { label: () => string }
+>;
 
 export function trainingRunLabel(run: TrainingRun): string {
   const { state } = run;
@@ -86,7 +92,7 @@ export function trainingAttemptIcon(
 ): LucideIcon {
   return outcome === null ? LOOKS.running.icon : OUTCOMES[outcome].icon;
 }
-const PARAMETER_LABELS: Record<keyof TrainingParameters, () => string> = {
+const PARAMETER_LABELS = {
   epochs: m.parameter_epochs,
   patience: m.parameter_patience,
   batch: m.parameter_batch,
@@ -109,18 +115,12 @@ const PARAMETER_LABELS: Record<keyof TrainingParameters, () => string> = {
   hsv_h: m.parameter_hsv_h,
   hsv_s: m.parameter_hsv_s,
   hsv_v: m.parameter_hsv_v,
-};
+} as const satisfies Record<keyof TrainingParameters, () => string>;
 
 export function parameterLabel(key: keyof TrainingParameters): string {
   return PARAMETER_LABELS[key]();
 }
-const PRESET_PRESENTATION: Record<
-  TrainingPresetId,
-  {
-    label: () => string;
-    description: () => string;
-  }
-> = {
+const PRESET_PRESENTATION = {
   "yolo26n-whole-v1": {
     label: m.training_preset_nano,
     description: m.training_preset_nano_description,
@@ -129,7 +129,13 @@ const PRESET_PRESENTATION: Record<
     label: m.training_preset_small,
     description: m.training_preset_small_description,
   },
-};
+} as const satisfies Record<
+  TrainingPresetId,
+  {
+    label: () => string;
+    description: () => string;
+  }
+>;
 
 export function trainingPresetLabel(id: TrainingPresetId): string {
   return PRESET_PRESENTATION[id].label();

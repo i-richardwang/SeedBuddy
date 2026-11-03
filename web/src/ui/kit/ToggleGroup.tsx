@@ -8,8 +8,9 @@ import { Tooltip } from "./Tooltip";
  * An exclusive group of compact toggles; once one is selected, clicking it
  * again keeps it selected. An option's `mark` leads its label, such as the
  * dot of a state or the swatch of a color, and the key that selects it shows
- * on hover (`hotkey`; the caller binds the key). `outlined` is a list's filter: the toggles share
- * one 24px outlined box, parted by hairlines, the selected one on fill.
+ * on hover (`hotkey`; the caller binds the key). `outlined` is a list's
+ * filter: the toggles share one 24px outlined box, parted by hairlines, the
+ * selected one on fill.
  *
  * The selected toggle's fill is one indicator that slides to the next
  * selection. Until it has been measured, on the server and in the first

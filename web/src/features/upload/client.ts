@@ -30,7 +30,7 @@ export function storeImage(
     };
     request.onerror = () => {
       signal.removeEventListener("abort", abort);
-      reject(new Error(m.upload_failed()));
+      reject(new Error(m.upload_not_completed()));
     };
     request.onabort = () => {
       signal.removeEventListener("abort", abort);

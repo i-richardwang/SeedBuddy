@@ -48,11 +48,8 @@ import {
 } from "../../lib/spreadsheet/workbook";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
-import {
-  cultureEventLabel,
-  observationQuestion,
-  summaryMeasureLabel,
-} from "./labels";
+import { observationQuestion } from "./copy";
+import { exclusionLabel, summaryMeasureLabel } from "./labels";
 
 export type ExperimentWorkbookSource = ExperimentGridDetail & {
   models: readonly Model[];
@@ -81,7 +78,7 @@ const SUMMARY_DAY_COLUMNS = [
 const COUNT_DIGITS = 1;
 
 export function experimentWorkbookFilename(experiment: Experiment): string {
-  return workbookFilename(experiment.name, m.experiments_title());
+  return workbookFilename(experiment.name, m.experiments_label());
 }
 
 /**
@@ -145,7 +142,7 @@ export function gridSheet(
   }
 
   return {
-    name: sheetName(experiment.name, m.experiments_title()),
+    name: sheetName(experiment.name, m.experiments_label()),
     columns: [...DESIGN_COLUMNS, ...days.map(() => ({ width: DAY_WIDTH }))],
     rows,
     stickyRows,
@@ -213,7 +210,7 @@ function summaryHeading(
   const perDay = (cells: WorkbookCell[]) => observations.flatMap(() => cells);
   return [
     [
-      textCell(m.experiment_column_treatment(), covering),
+      textCell(m.treatment_label(), covering),
       textCell(m.treatment_factor_label(), covering),
       ...observations.flatMap((observation) => [
         calendarCell(observation.observedOn, spanning),
@@ -291,9 +288,9 @@ function provenance(
 ): WorkbookCell[][] {
   const fields: [label: string, value: WorkbookCell][] = [
     [m.experiment_field_plant_material(), fieldCell(experiment.plantMaterial)],
-    [m.experiment_field_explant_type(), fieldCell(experiment.explantType)],
-    [m.experiment_field_base_medium(), fieldCell(experiment.baseMedium)],
-    [m.experiment_field_inoculated(), calendarCell(experiment.inoculatedOn)],
+    [m.explant_type_label(), fieldCell(experiment.explantType)],
+    [m.base_medium_label(), fieldCell(experiment.baseMedium)],
+    [m.inoculated_label(), calendarCell(experiment.inoculatedOn)],
     [m.workbook_exported(), calendarCell(exportedOn)],
   ];
   return fields
@@ -305,7 +302,7 @@ function heading(days: readonly Day[]): WorkbookCell[][] {
   const covering = { strong: true, rows: HEADING_ROWS };
   return [
     [
-      textCell(m.experiment_column_treatment(), covering),
+      textCell(m.treatment_label(), covering),
       textCell(m.treatment_factor_label(), covering),
       textCell(m.experiment_column_unit(), covering),
       ...days.map((day) =>
@@ -368,10 +365,4 @@ function unitCell(
   if (exclusion) return textCell(exclusionLabel(exclusion));
   const reading = unitReading(cells, unit.id, day.observation);
   return reading ? countCell(reading.count) : blankCell;
-}
-
-function exclusionLabel(exclusion: Exclusion): string {
-  return exclusion.reason === "event"
-    ? cultureEventLabel(exclusion.event.type)
-    : m.unclear_label();
 }

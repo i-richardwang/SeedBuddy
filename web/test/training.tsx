@@ -26,7 +26,6 @@ try {
       onClose={() => {}}
       set={{
         dataset: "test",
-        reviewed: 10,
         trainingPresets: TRAINING_PRESETS,
         defaultTrainingPresetId: DEFAULT_TRAINING_PRESET_ID,
         training: {

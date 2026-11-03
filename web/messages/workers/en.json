@@ -1,67 +1,29 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "worker_actions": "Actions for {name}",
   "worker_activity_idle": "Idle",
   "worker_activity_inference": "Detecting {image}",
   "worker_activity_training": "Training {dataset}",
-  "worker_age_days": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount}d ago"
-      }
-    }
-  ],
-  "worker_age_hours": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount}h ago"
-      }
-    }
-  ],
-  "worker_age_minutes": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount}m ago"
-      }
-    }
-  ],
-  "worker_age_seconds": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount}s ago"
-      }
-    }
-  ],
   "worker_column_activity": "Activity",
-  "worker_column_presence": "Status",
   "worker_column_seen": "Last seen",
-  "worker_column_worker": "Worker",
   "worker_enroll": "Enroll Worker",
   "worker_enroll_command_description": "Run this on the Worker and paste the token when asked.",
   "worker_enroll_command_label": "Setup command",
   "worker_enroll_create": "Enroll",
-  "worker_enroll_failed": "Worker not enrolled",
   "worker_enroll_name_description": "Letters, digits, dots, hyphens and underscores, for example the Worker's name.",
-  "worker_enroll_name_label": "Name",
   "worker_enroll_name_placeholder": "gpu-1",
   "worker_enroll_ready": "Save this token",
   "worker_enroll_shown_once": "Shown only this once. Anyone with the token can act as this Worker.",
   "worker_enroll_token_label": "Token",
   "worker_menu_remove": "Remove…",
   "worker_never_seen": "Never connected",
+  "worker_not_enrolled": "Worker not enrolled",
   "worker_presence_offline": "Offline",
   "worker_presence_online": "Online",
   "worker_presence_stale": "Stale",
-  "worker_remove": "Remove",
   "worker_remove_description": "Its token stops working at once, and the work it holds returns to the queue. Enroll it again to reconnect the Worker.",
   "worker_remove_title": "Remove {name}?",
   "worker_removed": "{name} removed",
   "workers_empty": "No Workers enrolled yet",
   "workers_empty_description_admin": "Enroll a Worker, then run the setup command on it.",
-  "workers_empty_description_member": "An administrator enrolls the Workers that run detection and training.",
-  "workers_title": "Workers"
+  "workers_empty_description_member": "An administrator enrolls the Workers that run detection and training."
 }

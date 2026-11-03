@@ -1,19 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "annotation_ai_checks": "To check",
-  "annotation_ai_progress_count": [
-    {
-      "declarations": [
-        "input completed",
-        "input total",
-        "local formattedCompleted = completed: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "completed=*": "{formattedCompleted} / {formattedTotal}"
-      }
-    }
-  ],
   "annotation_ai_running": "Annotating",
   "annotation_box_class": "Mark class",
   "annotation_check_next": "Next check",
@@ -23,10 +10,7 @@
   "annotation_conflict_description": "Saving is blocked. Reloading discards your changes and reads the latest review.",
   "annotation_counted_classes": "Only {classes}",
   "annotation_counts": "Counts",
-  "annotation_delete": "Delete",
-  "annotation_details": "Details",
   "annotation_detection_threshold": "Threshold",
-  "annotation_detection_version": "Version",
   "annotation_discard": "Don't save",
   "annotation_discard_confirm": "Discard unsaved changes?",
   "annotation_discard_description": "Changes to this image that were not confirmed are lost.",
@@ -44,19 +28,16 @@
     }
   ],
   "annotation_next_unreviewed": "Next to review",
-  "annotation_proposal_label": "AI proposal",
+  "annotation_not_reloaded": "Review not reloaded",
+  "annotation_not_saved": "Review not saved",
   "annotation_readings": "Readings",
   "annotation_redo": "Redo",
   "annotation_reload": "Reload",
-  "annotation_reload_failed": "Could not reload the review",
-  "annotation_save": "Save",
-  "annotation_save_failed": "Save failed",
   "annotation_source_detected": "Model count",
   "annotation_source_review": "Review",
   "annotation_standing_detection": "Model count · to review",
   "annotation_standing_edited": "Unsaved",
   "annotation_standing_proposal": "AI proposal · to review",
-  "annotation_standing_reviewed": "Reviewed",
   "annotation_standing_unread": "Not read yet",
   "annotation_tools": "Annotation tools",
   "annotation_undo": "Undo",

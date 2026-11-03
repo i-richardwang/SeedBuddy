@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
-import { toast } from "../../ui/kit/Toast";
+import { formatList } from "../../ui/lists";
 import { classLabel } from "../../ui/model-names";
 import { formatCount } from "../../ui/numbers";
 import { observationLabel } from "./labels";
@@ -38,7 +38,7 @@ import {
   manualReadingDraft,
   manualReadingEntries,
 } from "./manual-readings";
-import { TreatmentName } from "./TreatmentsTable";
+import { TreatmentName } from "./TreatmentName";
 
 const FORM_ID = "enter-manual-readings";
 
@@ -168,9 +168,6 @@ function ManualReadingsForm({
           {
             onSuccess: () => {
               onDone();
-              toast.success(
-                m.manual_readings_saved({ count: checked.entries.length }),
-              );
             },
           },
         );
@@ -183,21 +180,19 @@ function ManualReadingsForm({
         <Alert
           type="error"
           title={m.manual_readings_incomplete({
-            units: incomplete
-              .map((unit) => codeOf.get(unit) ?? unit)
-              .join(", "),
+            units: formatList(
+              incomplete.map((unit) => codeOf.get(unit) ?? unit),
+            ),
           })}
         />
       ) : null}
-      <Table aria-label={m.manual_readings_save()} size="small">
+      <Table aria-label={m.manual_readings_label()} size="small">
         <TableHeader>
           <tr>
             <TableHead className="min-w-24">
               {m.experiment_column_unit()}
             </TableHead>
-            <TableHead className="min-w-32">
-              {m.experiment_column_treatment()}
-            </TableHead>
+            <TableHead className="min-w-32">{m.treatment_label()}</TableHead>
             {classes.map((name) => (
               <TableHead key={name} className="min-w-28">
                 {classLabel(name)}

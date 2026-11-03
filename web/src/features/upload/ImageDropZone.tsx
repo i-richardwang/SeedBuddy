@@ -16,6 +16,7 @@ import {
 } from "../../ui/kit/DropZone";
 import { toast } from "../../ui/kit/Toast";
 import { formatPercent } from "../../ui/numbers";
+import { imageFileErrorLabel } from "./labels";
 import type { ListedImage } from "./state";
 
 const FILE_STATUS = {
@@ -23,12 +24,6 @@ const FILE_STATUS = {
   stored: "done",
   failed: "error",
 } as const satisfies Record<ListedImage["state"]["status"], DropZoneFileStatus>;
-
-const FILE_ERRORS = {
-  unsupported: m.image_file_unsupported,
-  empty: m.image_file_empty,
-  too_large: m.image_file_too_large,
-};
 
 /**
  * Takes source images by drop or chooser and lists them as they upload.
@@ -54,7 +49,10 @@ export function ImageDropZone({
     const accepted = incoming.filter((file) => {
       const error = sourceImageFileError(file);
       if (error)
-        toast.error({ title: file.name, description: FILE_ERRORS[error]() });
+        toast.error({
+          title: file.name,
+          description: imageFileErrorLabel(error),
+        });
       return error === null;
     });
     if (accepted.length === 0) return;

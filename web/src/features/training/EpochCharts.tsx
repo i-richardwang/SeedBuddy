@@ -45,12 +45,12 @@ const CHARTS: Chart[] = [
     series: [
       {
         key: "map50",
-        label: m.epoch_series_map50,
+        label: m.metric_map50,
         value: (epoch) => epoch.map50,
       },
       {
         key: "map50To95",
-        label: m.epoch_series_map50_95,
+        label: m.metric_map50_95,
         value: (epoch) => epoch.map50To95,
       },
     ],

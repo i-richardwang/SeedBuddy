@@ -1,11 +1,9 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "ui_alert_detail": "详细信息",
   "ui_breadcrumb_label": "面包屑导航",
   "ui_cancel": "取消",
   "ui_close": "关闭",
   "ui_copy_button_copy": "复制",
-  "ui_copy_button_failed": "复制失败，请选中文字后手动复制",
   "ui_date_picker_choose_month": "选择月份",
   "ui_date_picker_choose_year": "选择年份",
   "ui_date_picker_decade": "{first}-{last}",
@@ -85,6 +83,7 @@
     }
   ],
   "ui_table_select_all": "全选",
+  "ui_text_not_copied": "文字未复制，请选中文字后手动复制",
   "ui_viewport_fill": "铺满画面",
   "ui_viewport_zoom": "缩放"
 }

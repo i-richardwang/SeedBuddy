@@ -13,7 +13,7 @@ import {
 import type { AxisDomain } from "recharts/types/util/types";
 
 import { ChartTooltip, type ChartTooltipRow } from "./ChartTooltip";
-import { fitText } from "./chartText";
+import { fitText, useValueAxisWidth } from "./chartText";
 
 /*
  * One bar per item, each in its own color, with an error bar reaching one
@@ -54,7 +54,6 @@ interface BarChartProps {
   yAxisDomain: AxisDomain;
 }
 
-const VALUE_AXIS_WIDTH = 48;
 /** Air on each side of a category label within its slot. */
 const LABEL_GUTTER = 4;
 /** Room above the tallest error bar. */
@@ -96,6 +95,17 @@ export function BarChart({
   valueTicks,
   yAxisDomain,
 }: BarChartProps) {
+  const axisWidth = useValueAxisWidth(
+    [
+      ...(valueTicks ?? []),
+      ...items.flatMap((item) =>
+        item.value === null
+          ? []
+          : [item.value, item.value + (item.spread ?? 0)],
+      ),
+    ],
+    valueFormatter,
+  );
   return (
     <figure className="ui-chart" style={{ height }}>
       <figcaption className="ui-chart-header">
@@ -137,7 +147,7 @@ export function BarChart({
               tickLine={false}
               ticks={valueTicks}
               type="number"
-              width={VALUE_AXIS_WIDTH}
+              width={axisWidth}
             />
             <Tooltip
               content={({ active, payload }) => {

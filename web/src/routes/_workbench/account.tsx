@@ -17,9 +17,9 @@ import { ColorSchemeSelect, LanguageSelect } from "../../ui/Preferences";
 const workbench = getRouteApi("/_workbench");
 
 export const Route = createFileRoute("/_workbench/account")({
-  staticData: { crumbs: () => [{ label: m.account_title() }] },
+  staticData: { crumbs: () => [{ label: m.account_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.account_title()) }],
+    meta: [{ title: documentTitle(m.account_label()) }],
   }),
   component: AccountPage,
 });
@@ -29,12 +29,12 @@ function AccountPage() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   return (
-    <SettingsPage title={m.account_title()}>
+    <SettingsPage title={m.account_label()}>
       <SettingsGroup title={m.account_profile()}>
-        <SettingsValueRow label={m.account_name()}>
+        <SettingsValueRow label={m.name_label({ kind: "person" })}>
           {user.name}
         </SettingsValueRow>
-        <SettingsValueRow label={m.account_email()}>
+        <SettingsValueRow label={m.email_label()}>
           {user.email}
         </SettingsValueRow>
         <SettingsValueRow label={m.role_label()}>

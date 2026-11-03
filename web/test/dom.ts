@@ -29,8 +29,14 @@ for (const key of [
   "getComputedStyle",
   "requestAnimationFrame",
   "cancelAnimationFrame",
+  "scrollTo",
 ] as const) {
-  const value = key === "window" ? browser : browser[key];
+  const value =
+    key === "window"
+      ? browser
+      : key === "scrollTo"
+        ? browser.scrollTo.bind(browser)
+        : browser[key];
   Object.defineProperty(globalThis, key, { configurable: true, value });
 }
 // Motion animates in JavaScript instead of through happy-dom's partial Web Animations.

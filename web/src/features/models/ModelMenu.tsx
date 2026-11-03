@@ -1,6 +1,10 @@
 import { NotebookPen, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import {
+  MODEL_RECORD_KINDS,
+  type ModelRecords,
+} from "../../domain/models/contracts";
 import type { Model, ModelAnnotation } from "../../domain/models/schema";
 import { removeModel, updateModelAnnotation } from "../../functions/models";
 import { m } from "../../paraglide/messages";
@@ -24,10 +28,10 @@ const FORM_ID = "model-annotation";
 /** A model page's secondary actions: its annotation guide, and deleting a model nothing has been recorded against. */
 export function ModelMenu({
   model,
-  deletable,
+  records,
 }: {
   model: Model;
-  deletable: boolean;
+  records: ModelRecords;
 }) {
   const confirmDestructive = useConfirmDestructive();
   const navigateAfterWrite = useNavigateAfterWrite();
@@ -42,7 +46,7 @@ export function ModelMenu({
       onClick: () => setEditing(true),
     },
   ];
-  if (deletable) {
+  if (MODEL_RECORD_KINDS.every((kind) => records[kind] === 0)) {
     items.push(
       { type: "divider" },
       {
@@ -52,13 +56,13 @@ export function ModelMenu({
         label: m.model_menu_delete(),
         onClick: () =>
           confirmDestructive({
-            title: m.model_delete_title({ name }),
-            confirmLabel: m.model_delete(),
+            title: m.item_delete_title({ name }),
+            confirmLabel: m.delete_action(),
             onConfirm: async () => {
               await removeModel({ data: { model: model.id } });
             },
             onSuccess: async () => {
-              toast.success(m.model_deleted({ name }));
+              toast.success(m.item_deleted({ name }));
               await navigateAfterWrite({ to: "/models" });
             },
             invalidate: false,
@@ -69,7 +73,7 @@ export function ModelMenu({
 
   return (
     <>
-      <PageMenu label={m.model_actions({ name })} items={items} />
+      <PageMenu label={m.item_actions({ name })} items={items} />
       <ModelAnnotationDialog
         model={model}
         open={editing}
@@ -94,7 +98,7 @@ function ModelAnnotationDialog({
       open={open}
       onClose={onClose}
       title={m.model_annotation_title({ name: modelName(model) })}
-      okText={m.model_annotation_save()}
+      okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
     >

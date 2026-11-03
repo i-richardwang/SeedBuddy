@@ -280,7 +280,7 @@ export function useImageSession({
             return { status: "conflict" } as const;
           throw error;
         }),
-      m.annotation_save_failed(),
+      m.annotation_not_saved(),
       {
         invalidate: false,
         onSuccess: async (value) => {
@@ -319,7 +319,7 @@ export function useImageSession({
   const { run: runReload } = useAsyncAction();
   const reload = useCallback(() => {
     discard();
-    void runReload(() => router.invalidate(), m.annotation_reload_failed(), {
+    void runReload(() => router.invalidate(), m.annotation_not_reloaded(), {
       invalidate: false,
     });
   }, [discard, runReload, router]);

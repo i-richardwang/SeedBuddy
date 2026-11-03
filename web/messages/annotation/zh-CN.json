@@ -1,19 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "annotation_ai_checks": "待确认",
-  "annotation_ai_progress_count": [
-    {
-      "declarations": [
-        "input completed",
-        "input total",
-        "local formattedCompleted = completed: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "completed=*": "{formattedCompleted} / {formattedTotal}"
-      }
-    }
-  ],
   "annotation_ai_running": "标注中",
   "annotation_box_class": "标记类别",
   "annotation_check_next": "下一处待确认",
@@ -23,10 +10,7 @@
   "annotation_conflict_description": "当前无法保存。重新载入会放弃你的修改并读取最新复核。",
   "annotation_counted_classes": "只计{classes}",
   "annotation_counts": "计数",
-  "annotation_delete": "删除",
-  "annotation_details": "详情",
   "annotation_detection_threshold": "阈值",
-  "annotation_detection_version": "版本",
   "annotation_discard": "不保存",
   "annotation_discard_confirm": "放弃未保存的修改？",
   "annotation_discard_description": "这张图片上尚未确认的修改将会丢失。",
@@ -44,19 +28,16 @@
     }
   ],
   "annotation_next_unreviewed": "下一个待复核",
-  "annotation_proposal_label": "AI 建议",
+  "annotation_not_reloaded": "复核未重新加载",
+  "annotation_not_saved": "复核未保存",
   "annotation_readings": "读数",
   "annotation_redo": "重做",
   "annotation_reload": "重新载入",
-  "annotation_reload_failed": "无法重新载入复核",
-  "annotation_save": "保存",
-  "annotation_save_failed": "保存失败",
   "annotation_source_detected": "模型计数",
   "annotation_source_review": "复核",
   "annotation_standing_detection": "模型计数 · 待复核",
   "annotation_standing_edited": "未保存",
   "annotation_standing_proposal": "AI 建议 · 待复核",
-  "annotation_standing_reviewed": "已复核",
   "annotation_standing_unread": "尚无读数",
   "annotation_tools": "标注工具",
   "annotation_undo": "撤销",

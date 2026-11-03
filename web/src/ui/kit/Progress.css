@@ -39,8 +39,3 @@
   color: var(--color-fg-secondary);
 }
 
-.ui-progress-meter-note {
-  font-size: var(--text-xs);
-  line-height: var(--text-xs--line-height);
-  color: var(--color-fg-tertiary);
-}

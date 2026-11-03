@@ -95,7 +95,7 @@ function CultureEventForm({
         );
       }}
     >
-      <Form.Field label={m.culture_event_label()}>
+      <Form.Field label={m.status_label()}>
         <Select
           disabled={action.busy}
           options={CULTURE_EVENT_TYPES.map((value) => ({

@@ -18,7 +18,7 @@ import { documentTitle } from "../ui/documentTitle";
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({ returnTo: z.string().optional() }).loose(),
   head: () => ({
-    meta: [{ title: documentTitle(m.login_title()) }],
+    meta: [{ title: documentTitle(m.login_heading({ app: m.app_name() })) }],
   }),
   server: {
     handlers: {

@@ -128,11 +128,11 @@ export function ChecksSection({
   const { progress } = review;
   if (!progress && checks === 0) return null;
   return (
-    <WorkbenchSection title={m.annotation_proposal_label()}>
+    <WorkbenchSection title={m.ai_proposal_label()}>
       {progress ? (
         <ProgressMeter
           label={m.annotation_ai_running()}
-          count={m.annotation_ai_progress_count({
+          count={m.progress_count({
             completed: progress.completed,
             total: progress.total,
           })}
@@ -178,14 +178,14 @@ export function DetailsSection({
   const { detection } = review;
   const threshold = detection?.diagnostics?.metrics?.confidence_threshold;
   return (
-    <WorkbenchSection title={m.annotation_details()}>
+    <WorkbenchSection title={m.details_label()}>
       <Descriptions>
         {facts}
         <DescriptionsItem label={m.annotation_file()}>
           {review.filename}
         </DescriptionsItem>
         {detection ? (
-          <DescriptionsItem label={m.annotation_detection_version()}>
+          <DescriptionsItem label={m.version_label()}>
             <IdentifierName id={detection.producer.modelVersionId} />
           </DescriptionsItem>
         ) : null}

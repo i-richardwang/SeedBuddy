@@ -65,6 +65,10 @@ function ResumeTrainingForm({
     run.checkpoint ? "saved" : "start",
   );
 
+  const workerId =
+    from === "saved"
+      ? (run.checkpoint?.workerId ?? run.targetWorkerId)
+      : targetWorkerId;
   return (
     <Form
       id={FORM_ID}
@@ -74,27 +78,20 @@ function ResumeTrainingForm({
           () =>
             controlRun(detail, {
               action: "resume",
-              targetWorkerId:
-                from === "saved"
-                  ? (run.checkpoint?.workerId ?? run.targetWorkerId)
-                  : targetWorkerId,
+              targetWorkerId: workerId,
               restart: from === "start",
             }),
-          m.training_resume_failed(),
+          m.training_not_continued(),
           {
             onSuccess: onDone,
           },
         );
       }}
     >
-      <Form.Field label={m.training_worker()}>
+      <Form.Field label={m.worker_label()}>
         <TrainingWorkerSelect
           workers={workers}
-          value={
-            from === "saved"
-              ? (run.checkpoint?.workerId ?? run.targetWorkerId)
-              : targetWorkerId
-          }
+          value={workerId}
           onChange={setTargetWorkerId}
           disabled={action.busy || from === "saved"}
         />

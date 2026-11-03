@@ -19,6 +19,7 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { toast } from "../../ui/kit/Toast";
+import { formatAge } from "../../ui/relative-time";
 import { workerPresenceLabel, workerPresenceTone } from "./labels";
 
 export function WorkersTable({
@@ -33,13 +34,13 @@ export function WorkersTable({
   return (
     <Table
       narrow="cards"
-      aria-label={m.workers_title()}
+      aria-label={m.workers_label()}
       empty={workers.length === 0 ? empty : undefined}
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.worker_column_worker()}</TableHead>
-          <TableHead className="w-28">{m.worker_column_presence()}</TableHead>
+          <TableHead>{m.worker_label()}</TableHead>
+          <TableHead className="w-28">{m.status_label()}</TableHead>
           <TableHead>{m.worker_column_activity()}</TableHead>
           <TableHead className="w-36">{m.worker_column_seen()}</TableHead>
           <TableHead className="w-12">
@@ -70,7 +71,7 @@ function WorkerRow({
   return (
     <TableRow>
       <TableCell cellSlot="title">{worker.workerId}</TableCell>
-      <TableCell cellLabel={m.worker_column_presence()}>
+      <TableCell cellLabel={m.status_label()}>
         <Status tone={workerPresenceTone(worker.presence)}>
           {workerPresenceLabel(worker.presence)}
         </Status>
@@ -98,7 +99,7 @@ function WorkerMenu({ workerId }: { workerId: string }) {
 
   return (
     <RowMenu
-      label={m.worker_actions({ name: workerId })}
+      label={m.item_actions({ name: workerId })}
       items={[
         {
           key: "remove",
@@ -109,7 +110,7 @@ function WorkerMenu({ workerId }: { workerId: string }) {
             confirmDestructive({
               title: m.worker_remove_title({ name: workerId }),
               content: m.worker_remove_description(),
-              confirmLabel: m.worker_remove(),
+              confirmLabel: m.remove_action(),
               onConfirm: async () => {
                 await removeWorker({ data: { workerId } });
               },
@@ -140,15 +141,4 @@ function Activity({ activity }: { activity: WorkerActivity | null }) {
       {m.worker_activity_training({ dataset: activity.dataset.name })}
     </TextLink>
   );
-}
-
-function formatAge(seconds: number) {
-  if (seconds < 60) return m.worker_age_seconds({ count: seconds });
-  if (seconds < 3600) {
-    return m.worker_age_minutes({ count: Math.floor(seconds / 60) });
-  }
-  if (seconds < 86400) {
-    return m.worker_age_hours({ count: Math.floor(seconds / 3600) });
-  }
-  return m.worker_age_days({ count: Math.floor(seconds / 86400) });
 }

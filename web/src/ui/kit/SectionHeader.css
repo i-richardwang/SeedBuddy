@@ -33,11 +33,6 @@
   color: var(--color-fg-tertiary);
 }
 
-.ui-section-header-description {
-  font-size: var(--text-xs);
-  line-height: var(--text-xs--line-height);
-  color: var(--color-fg-tertiary);
-}
 
 .ui-section-header-extra {
   display: flex;

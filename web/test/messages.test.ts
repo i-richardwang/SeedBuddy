@@ -65,12 +65,12 @@ test("message keys are sorted in every locale", async () => {
   }
 });
 
-test("each English text has one key within its module", async () => {
+test("each English text has one key across all modules", async () => {
+  const texts = new Map<string, string>();
   for (const module of modules) {
     const bundle: Record<string, unknown> = await Bun.file(
       `${MESSAGES_DIR}/${module}/en.json`,
     ).json();
-    const texts = new Map<string, string>();
     for (const [key, value] of Object.entries(bundle)) {
       if (key === "$schema") continue;
       const text = JSON.stringify(value);

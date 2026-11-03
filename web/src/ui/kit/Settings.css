@@ -75,13 +75,6 @@
   color: var(--color-fg);
 }
 
-.ui-settings-row-description {
-  font-size: var(--text-xs);
-  line-height: 1.44;
-  color: var(--color-fg-tertiary);
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
-}
 
 .ui-settings-row-control {
   display: flex;

@@ -37,8 +37,8 @@ const HOME = "/experiments";
 
 function places(): AppNavItem[] {
   return [
-    { href: HOME, icon: FlaskConical, label: m.nav_experiments() },
-    { href: "/models", icon: Network, label: m.nav_models() },
+    { href: HOME, icon: FlaskConical, label: m.experiments_label() },
+    { href: "/models", icon: Network, label: m.models_label() },
   ];
 }
 
@@ -48,7 +48,7 @@ function experimentGroup(
 ): AppNavGroup {
   return {
     key: "experiments",
-    label: m.nav_experiments(),
+    label: m.experiments_label(),
     empty: m.experiments_empty(),
     items: experiments.map((experiment) => ({
       href: `/experiments/${experiment.id}`,
@@ -61,12 +61,12 @@ function experimentGroup(
 /** The settings section, which takes the sidebar's place while one of its pages is open. */
 function settingsPlaces(user: WorkbenchUser): AppNavItem[] {
   const items: AppNavItem[] = [
-    { href: "/account", icon: CircleUser, label: m.nav_account() },
-    { href: "/integrations", icon: KeyRound, label: m.nav_integrations() },
-    { href: "/workers", icon: Server, label: m.nav_workers() },
+    { href: "/account", icon: CircleUser, label: m.account_label() },
+    { href: "/integrations", icon: KeyRound, label: m.integrations_label() },
+    { href: "/workers", icon: Server, label: m.workers_label() },
   ];
   if (isAdmin(user)) {
-    items.push({ href: "/users", icon: Users, label: m.nav_users() });
+    items.push({ href: "/users", icon: Users, label: m.users_label() });
   }
   return items;
 }
@@ -133,7 +133,8 @@ export function ShellTrail({ status }: { status?: ReactNode }) {
 /**
  * The signed-in frame: navigation on the canvas, the page in a card whose
  * top bar shows only when it has something to hold: the sidebar's toggle
- * while the sidebar is hidden, and a workbench's breadcrumb and commands.
+ * while the sidebar is hidden, the way back up on any page below the top
+ * level, and a workbench's commands.
  * The sidebar opens with the signed-in person, lists the places and then the
  * experiments, and ends with the color scheme. A settings page swaps the
  * person and the places for a trail home and the settings section. Whether

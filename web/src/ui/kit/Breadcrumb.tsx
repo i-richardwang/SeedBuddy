@@ -1,11 +1,11 @@
-import { isValidElement, type ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { m } from "../../paraglide/messages";
 import { OverflowTooltip } from "./Tooltip";
 
 export interface BreadcrumbItem {
   href?: string;
-  label: ReactNode;
+  label: string;
 }
 
 export interface BreadcrumbLinkProps {
@@ -21,7 +21,7 @@ export function Breadcrumb({
 }: {
   items: BreadcrumbItem[];
   /** Renders each ancestor link, for example as a router link. */
-  renderLink: (props: BreadcrumbLinkProps) => ReactNode;
+  renderLink: (props: BreadcrumbLinkProps) => ReactElement;
 }) {
   return (
     <nav aria-label={m.ui_breadcrumb_label()} className="ui-breadcrumb">
@@ -44,13 +44,10 @@ export function Breadcrumb({
           );
         return (
           <span key={`${index}`}>
-            {typeof item.label === "string" && isValidElement(crumb) ? (
-              <OverflowTooltip placement="bottom" title={item.label}>
-                {crumb}
-              </OverflowTooltip>
-            ) : (
-              crumb
-            )}
+            <OverflowTooltip placement="bottom" title={item.label}>
+              {crumb}
+            </OverflowTooltip>
+
             {index < items.length - 1 ? (
               <span aria-hidden className="ui-breadcrumb-separator">
                 /

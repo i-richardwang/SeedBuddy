@@ -3,8 +3,6 @@
   "api_key_column_expires": "Expires",
   "api_key_column_key": "Key",
   "api_key_column_last_used": "Last used",
-  "api_key_column_name": "Name",
-  "api_key_column_scopes": "Scopes",
   "api_key_count": [
     {
       "declarations": [
@@ -19,7 +17,6 @@
       }
     }
   ],
-  "api_key_dialog_create": "Create",
   "api_key_dialog_expires_label": "Validity period",
   "api_key_dialog_name_placeholder": "Claude on the lab laptop",
   "api_key_dialog_secret_label": "API key",
@@ -46,7 +43,6 @@
   "integrations_mcp_clients": "MCP clients",
   "integrations_mcp_servers": "MCP servers",
   "integrations_new_key": "New key",
-  "integrations_title": "Integrations",
   "mcp_client_count": [
     {
       "declarations": [
