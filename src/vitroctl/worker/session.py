@@ -223,7 +223,7 @@ def keep_lease(
     client: WorkerClient,
     renew: Callable[[], None],
     *,
-    cancelled: Callable[[], bool] | None = None,
+    cancelled: Callable[[], bool],
 ) -> Iterator[Callable[[], bool]]:
     """
     Keep one lease live while the work runs. The caller polls the yielded
@@ -234,7 +234,7 @@ def keep_lease(
     try:
         lease = keeper.hold(renew)
         try:
-            yield lambda: lease.lost or bool(cancelled and cancelled())
+            yield lambda: lease.lost or cancelled()
         finally:
             keeper.end(lease)
     finally:

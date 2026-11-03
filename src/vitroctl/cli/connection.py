@@ -22,9 +22,7 @@ def client(args: argparse.Namespace) -> WorkbenchClient:
     return WorkbenchClient(*connection(args, "experiments"))
 
 
-def connection_options(
-    parser: argparse.ArgumentParser, scope: str = "experiments"
-) -> None:
+def connection_options(parser: argparse.ArgumentParser, scope: str) -> None:
     parser.add_argument(
         "--server", help="Workbench URL (default: VITROFLOW_SERVER_URL)"
     )

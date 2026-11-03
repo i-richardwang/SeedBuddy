@@ -11,7 +11,6 @@ from concurrent.futures import CancelledError
 from hashlib import sha256
 from pathlib import Path
 
-from vitroctl.contracts.documents import as_object, expect_fields
 from vitroctl.detectors.ultralytics import (
     DatasetImage,
     EpochReport,
@@ -45,10 +44,13 @@ class TrainingClient:
     def __init__(self, worker: WorkerClient) -> None:
         self.worker = worker
 
-    def _identity(self, job: TrainingClaim) -> dict[str, str | int]:
-        if job.session_id != self.worker.session.session_id:
+    def _require_own_session(self, claim: TrainingClaim) -> None:
+        if claim.session_id != self.worker.session.session_id:
             raise ValueError("Training execution belongs to another worker session")
-        return {"sessionId": job.session_id, "attempt": job.attempt}
+
+    def _identity(self, claim: TrainingClaim) -> dict[str, str | int]:
+        self._require_own_session(claim)
+        return {"sessionId": claim.session_id, "attempt": claim.attempt}
 
     def claim(self) -> TrainingClaim | None:
         response = self.worker.request(
@@ -57,64 +59,65 @@ class TrainingClient:
             json=self.worker.identity,
         )
         response.raise_for_status()
-        document = as_object(response.json(), "training claim response")
-        expect_fields(document, {"run"}, "training claim response")
+        document = response.json()
         if document["run"] is None:
             return None
-        job = TrainingClaim.parse(document["run"])
-        self._identity(job)
-        return job
+        claim = TrainingClaim.parse(document["run"])
+        self._require_own_session(claim)
+        return claim
 
-    def fetch_snapshot(self, job: TrainingClaim) -> TrainingSnapshot:
+    def fetch_snapshot(self, claim: TrainingClaim) -> TrainingSnapshot:
         response = self.worker.request(
             "GET",
-            f"api/worker/training/runs/{job.run_id}/snapshot",
-            params=self._identity(job),
+            f"api/worker/training/runs/{claim.run_id}/snapshot",
+            params=self._identity(claim),
         )
         self.worker.require_current_session(response)
         return parse_training_snapshot(response.json())
 
-    def enter_phase(self, job: TrainingClaim, phase: TrainingPhase) -> None:
+    def enter_phase(self, claim: TrainingClaim, phase: TrainingPhase) -> None:
         response = self.worker.request(
             "POST",
-            f"api/worker/training/runs/{job.run_id}/phase",
+            f"api/worker/training/runs/{claim.run_id}/phase",
             json={
-                **self._identity(job),
+                **self._identity(claim),
                 "phase": phase,
             },
         )
         self.worker.require_current_session(response)
 
-    def renew_lease(self, job: TrainingClaim) -> None:
+    def renew_lease(self, claim: TrainingClaim) -> None:
         response = self.worker.request(
             "POST",
-            f"api/worker/training/runs/{job.run_id}/lease",
-            json=self._identity(job),
+            f"api/worker/training/runs/{claim.run_id}/lease",
+            json=self._identity(claim),
         )
         self.worker.require_current_session(response)
 
-    def report_epoch(self, job: TrainingClaim, report: EpochReport) -> None:
+    def report_epoch(self, claim: TrainingClaim, report: EpochReport) -> None:
         response = self.worker.request(
             "POST",
-            f"api/worker/training/runs/{job.run_id}/epochs",
-            json={**self._identity(job), **report.to_json()},
+            f"api/worker/training/runs/{claim.run_id}/epochs",
+            json={**self._identity(claim), **report.to_json()},
         )
         self.worker.require_current_session(response)
 
-    def download_image(self, job: TrainingClaim, digest: str) -> bytes:
+    def download_image(self, claim: TrainingClaim, digest: str) -> bytes:
         response = self.worker.request(
             "GET",
-            f"api/worker/training/runs/{job.run_id}/images/{digest}",
-            params=self._identity(job),
+            f"api/worker/training/runs/{claim.run_id}/images/{digest}",
+            params=self._identity(claim),
         )
         self.worker.require_current_session(response)
         return verify_digest(response.content, digest)
 
-    def publish_artifact(self, job: TrainingClaim, weights: Path, bundle: Path) -> None:
+    def publish_artifact(
+        self, claim: TrainingClaim, weights: Path, bundle: Path
+    ) -> None:
         document = json.loads(bundle.read_text())
         descriptor = document["weights"]
-        identity = self._identity(job)
-        url = f"api/worker/training/runs/{job.run_id}/artifact"
+        identity = self._identity(claim)
+        url = f"api/worker/training/runs/{claim.run_id}/artifact"
         if weights.stat().st_size != descriptor["bytes"]:
             raise ValueError("Final weights size differs from the model manifest")
         with weights.open("rb") as stream:
@@ -137,11 +140,11 @@ class TrainingClient:
         response = self.worker.request("POST", url, params=identity, json=document)
         self.worker.require_current_session(response)
 
-    def report_failure(self, job: TrainingClaim, error: str) -> None:
+    def report_failure(self, claim: TrainingClaim, error: str) -> None:
         response = self.worker.request(
             "POST",
-            f"api/worker/training/runs/{job.run_id}/fail",
-            json={**self._identity(job), "error": error[:2000]},
+            f"api/worker/training/runs/{claim.run_id}/fail",
+            json={**self._identity(claim), "error": error[:2000]},
         )
         if response.status_code == 409:
             return
@@ -150,11 +153,11 @@ class TrainingClient:
 
 def materialize_snapshot(
     client: TrainingClient,
-    job: TrainingClaim,
+    claim: TrainingClaim,
     output: Path,
     *,
     images: ImageCache,
-    cancelled: Callable[[], bool] | None = None,
+    cancelled: Callable[[], bool],
 ) -> Path:
     """
     Build the run's dataset from the images this machine already holds,
@@ -162,19 +165,19 @@ def materialize_snapshot(
     it costs no second copy and a later run over the same images fetches
     nothing.
     """
-    if cancelled and cancelled():
+    if cancelled():
         raise YoloTrainingInterruptedError("training interrupted")
     dataset = output / "dataset.yaml"
     if dataset.is_file():
         # The export publishes atomically, so a dataset that exists is complete.
         return dataset
-    snapshot = client.fetch_snapshot(job)
+    snapshot = client.fetch_snapshot(claim)
     if len(snapshot.images) < 2:
         raise ValueError("Training snapshot must contain at least two images")
     started = time.monotonic()
     with images.holding(
         (image.digest for image in snapshot.images),
-        lambda digest: client.download_image(job, digest),
+        lambda digest: client.download_image(claim, digest),
     ) as pending:
         dataset_images: list[DatasetImage] = []
         for image in snapshot.images:
@@ -195,7 +198,7 @@ def materialize_snapshot(
         LOGGER.info(
             "gathered %d images for %s in %.1fs",
             len(dataset_images),
-            job.run_id,
+            claim.run_id,
             time.monotonic() - started,
         )
         export_dataset_images(
@@ -225,17 +228,17 @@ def _prune_stale_runs(runs: Path) -> None:
 
 def _train_bundle(
     client: TrainingClient,
-    job: TrainingClaim,
+    claim: TrainingClaim,
     root: Path,
     device: str | None,
     images: ImageCache,
     cancelled: Callable[[], bool],
 ) -> Path:
     """Train against the frozen snapshot and produce the final model bundle."""
-    recipe = job.recipe
+    recipe = claim.recipe
     dataset = materialize_snapshot(
         client,
-        job,
+        claim,
         root / "dataset",
         images=images,
         cancelled=cancelled,
@@ -250,10 +253,10 @@ def _train_bundle(
         runtime_version=recipe.runtime_version,
         device=device,
         cancelled=cancelled,
-        on_training_start=lambda: client.enter_phase(job, "training"),
-        on_epoch=lambda epoch: client.report_epoch(job, epoch),
-        resume_required=job.checkpoint is not None,
-        on_validation_start=lambda: client.enter_phase(job, "validating"),
+        on_training_start=lambda: client.enter_phase(claim, "training"),
+        on_epoch=lambda epoch: client.report_epoch(claim, epoch),
+        resume_required=claim.checkpoint is not None,
+        on_validation_start=lambda: client.enter_phase(claim, "validating"),
     )
     if cancelled():
         raise YoloTrainingInterruptedError("training interrupted")
@@ -267,7 +270,7 @@ def _train_bundle(
         {
             "dataset": {
                 "fingerprint": None,
-                "snapshotId": job.dataset_snapshot_id,
+                "snapshotId": claim.dataset_snapshot_id,
                 "description": "Reviewed training snapshot",
             },
             "selectedEpoch": None,
@@ -283,7 +286,7 @@ def _train_bundle(
 
 def serve_training_claim(
     client: TrainingClient,
-    job: TrainingClaim,
+    claim: TrainingClaim,
     work_root: Path,
     device: str | None,
     images: ImageCache,
@@ -291,29 +294,31 @@ def serve_training_claim(
 ) -> None:
     runs = work_root / RUNS_DIRECTORY
     _prune_stale_runs(runs)
-    root = runs / f"{job.run_id}-{job.attempt}"
+    root = runs / f"{claim.run_id}-{claim.attempt}"
     root.mkdir(parents=True, exist_ok=True)
     os.utime(root)  # a run ages from its latest claim
     try:
         with keep_lease(
             client.worker,
-            lambda: client.renew_lease(job),
+            lambda: client.renew_lease(claim),
             cancelled=stopped.is_set,
         ) as cancelled:
-            client.enter_phase(job, "preparing")
-            prepare_local_training(job, root)
+            client.enter_phase(claim, "preparing")
+            prepare_local_training(claim, root)
             bundle = root / "bundle"
             if not bundle.is_dir():
-                bundle = _train_bundle(client, job, root, device, images, cancelled)
+                bundle = _train_bundle(client, claim, root, device, images, cancelled)
             if cancelled():
                 raise YoloTrainingInterruptedError("training interrupted")
-            client.publish_artifact(job, bundle / "weights.pt", bundle / "bundle.json")
+            client.publish_artifact(
+                claim, bundle / "weights.pt", bundle / "bundle.json"
+            )
             shutil.rmtree(root)
     except (YoloTrainingInterruptedError, LeaseLostError):
         raise
     except Exception as error:
         try:
-            client.report_failure(job, str(error) or type(error).__name__)
+            client.report_failure(claim, str(error) or type(error).__name__)
         except Exception:
             LOGGER.exception("failed to report training run failure")
         raise

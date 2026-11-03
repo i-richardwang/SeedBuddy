@@ -77,7 +77,7 @@ def add_model_commands(commands: Any) -> None:
     )
     upload.add_argument("bundle")
     upload.add_argument("--model", required=True)
-    connection_options(upload)
+    connection_options(upload, "experiments")
     upload.set_defaults(handler=import_bundle)
     for name, operation in [
         ("list", "list-model-versions"),
@@ -87,7 +87,7 @@ def add_model_commands(commands: Any) -> None:
         parser.add_argument("--model", required=True)
         if name == "use":
             parser.add_argument("--version", required=True)
-        connection_options(parser)
+        connection_options(parser, "experiments")
         parser.set_defaults(handler=remote_model, operation=operation)
 
 

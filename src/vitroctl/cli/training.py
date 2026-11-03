@@ -144,7 +144,7 @@ def add_training_commands(commands: Any) -> None:
     start.add_argument("--data-root", default="data")
     start.add_argument("--device")
     start.add_argument("--resume", action="store_true")
-    connection_options(start)
+    connection_options(start, "experiments")
     start.set_defaults(handler=run)
     for name in ("workers", "list", "get", "pause", "cancel", "resume"):
         command = sub.add_parser(name)
@@ -158,5 +158,5 @@ def add_training_commands(commands: Any) -> None:
         if name == "resume":
             command.add_argument("--worker")
             command.add_argument("--restart", action="store_true")
-        connection_options(command)
+        connection_options(command, "experiments")
         command.set_defaults(handler=remote)
