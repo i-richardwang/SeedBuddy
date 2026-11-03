@@ -17,9 +17,9 @@ function loginGet(): LoginGet {
 }
 
 test("document redirects use a relative Location", () => {
-  const response = redirect("/login?returnTo=%2Fstatus");
+  const response = redirect("/login?returnTo=%2Fworkers");
   expect(response.status).toBe(303);
-  expect(response.headers.get("Location")).toBe("/login?returnTo=%2Fstatus");
+  expect(response.headers.get("Location")).toBe("/login?returnTo=%2Fworkers");
 });
 
 test("a request without a session has no account", async () => {
@@ -43,7 +43,7 @@ test("signing in yields a session that resolves to the account", async () => {
 test("the sign-in page renders for visitors and redirects signed-in users", async () => {
   const request = (cookie?: string) =>
     new Request(
-      "http://example.invalid/login?returnTo=%2Fstatus%3Fworkers%3Donline",
+      "http://example.invalid/login?returnTo=%2Fworkers%3Fworkers%3Donline",
       {
         headers: cookie === undefined ? {} : { cookie },
       },
@@ -60,6 +60,6 @@ test("the sign-in page renders for visitors and redirects signed-in users", asyn
     next: () => new Response("page"),
   });
   expect(signedIn.status).toBe(303);
-  expect(signedIn.headers.get("Location")).toBe("/status?workers=online");
+  expect(signedIn.headers.get("Location")).toBe("/workers?workers=online");
   expect(TEST_PASSWORD.length).toBeGreaterThanOrEqual(12);
 });

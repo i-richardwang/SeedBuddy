@@ -28,7 +28,7 @@ import type { Worker } from "../../domain/workers/schema";
 import type { DetectionResult } from "../../domain/detection/schema";
 import { database } from "../infra/db/client";
 import { inferenceTasks } from "../infra/db/schema";
-import { getSystemStatus } from "../queries/public";
+import { listWorkerPresence } from "../queries/public";
 import { removeWorker } from "../workers/public";
 
 const start = new Date("2030-01-01T00:00:00Z");
@@ -326,7 +326,7 @@ test("expired attempts do not appear as active recognition on the status page", 
     later(1),
   );
   expect(
-    (await getSystemStatus()).workers.find((w) => w.workerId === o.workerId)
+    (await listWorkerPresence()).workers.find((w) => w.workerId === o.workerId)
       ?.activity,
   ).toBeNull();
   expect(

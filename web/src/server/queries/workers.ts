@@ -78,7 +78,7 @@ async function trainingActivity(
  * Every enrolled worker with its latest session: presence, what it is doing,
  * and how long ago it was heard from. A worker that never connected has none.
  */
-export async function getSystemStatus() {
+export async function listWorkerPresence() {
   const at = new Date();
   const age = (timestamp: string) =>
     Math.max(0, Math.floor((at.getTime() - Date.parse(timestamp)) / 1000));
