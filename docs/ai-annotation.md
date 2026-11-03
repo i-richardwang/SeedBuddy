@@ -9,10 +9,6 @@ waiting for annotation, regional evidence and validation; the connected agent
 supplies visual reasoning. The workbench shows a run's progress while an agent
 works and the proposal it leaves.
 
-```bash
-claude mcp add --transport http vitroflow-annotation https://<workbench>/api/annotation/mcp
-```
-
 ## Product workflow
 
 The [reading rules](readings.md#where-the-numbers-come-from) define how an AI proposal contributes to counts and human review.
@@ -46,11 +42,7 @@ a bearer token. The annotation server carries no experiment or model tools, and
 the experiment server accepts neither OAuth tokens bound to the annotation
 resource nor keys issued for annotation alone.
 
-OAuth discovery follows RFC 9728: an unauthenticated request is challenged
-toward `/.well-known/oauth-protected-resource/api/annotation/mcp`, which names
-the workbench as authorization server, and tokens are bound to
-`<BETTER_AUTH_URL>/api/annotation/mcp`. A client authorized for the experiment
-server is asked for consent again before it can annotate.
+OAuth discovery and connection behavior follow the [shared MCP contract](agent-api.md#mcp-surface). For annotation, the protected resource metadata is `/.well-known/oauth-protected-resource/api/annotation/mcp` and the token audience is `<BETTER_AUTH_URL>/api/annotation/mcp`; each resource requires its own authorization.
 
 OAuth resource requests use Better Auth's verifier for both Bearer and DPoP
 access tokens. A DPoP-bound token requires the client's signed proof for the
@@ -177,12 +169,12 @@ For 20 fresh regions with one preview each, this flow delivers one overview,
 20 CLEAN views and 40 preview images. This counts image messages, not model
 tokens.
 
-For seed annotation, use the [worker](ai-annotation-prompts/annotator.md) and
+For seed annotation, use the [annotator](ai-annotation-prompts/annotator.md) and
 [parent batch dispatch](ai-annotation-prompts/coordinator.md) templates. A fresh
-worker handles one image for at most 12 accepted regions or 15 minutes, then ends;
+annotator handles one image for at most 12 accepted regions or 15 minutes, then ends;
 the next batch uses another subagent on the same run. Initial annotation and maintenance
 share this workflow, with different run inputs. Project criteria include user-confirmed
-early plump germination. Workers inspect previews themselves; no separate reviewer
+early plump germination. Annotators inspect previews themselves; no separate reviewer
 or automatic full-image rerun is required. Human reviews retain precedence.
 
 > Use VitroFlow to annotate the images waiting for model MODEL. List them with
@@ -197,7 +189,7 @@ or automatic full-image rerun is required. Human reviews retain precedence.
 
 ## Persistence and failure semantics
 
-Tool handler failures return `isError: true` with a text content block containing JSON `{ "code": "…", "message": "…" }`.
+Tool handler failures and SDK argument validation follow the [shared MCP error contract](agent-api.md#error-contract).
 
 Postgres is the single authority:
 

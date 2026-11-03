@@ -86,7 +86,7 @@ data/
 └── datasets/<dataset>.json
 ```
 
-Every command verifies blob digests before reading them. `push` sends a dataset only when the destination has no dataset of that name. Dataset archive rules are in [Records and datasets](https://github.com/i-richardwang/VitroFlow/blob/main/docs/domain.md#dataset-transfer).
+Every command verifies blob digests before reading them. `push` sends a dataset only when the destination has no dataset of that name. Dataset archive rules are in [Records, models and datasets](https://github.com/i-richardwang/VitroFlow/blob/main/docs/domain.md#dataset-transfer).
 
 Annotations export as a deterministic YOLO dataset:
 
@@ -162,7 +162,7 @@ vitroctl training cancel <run-id> --dataset <dataset-id> --attempt 2
 Local outputs retain the fixed input manifest, exported data and split membership, checkpoints, epoch journal, inference summary, and `bundle/`. Resume checks the saved inputs before using a checkpoint; changing data or parameters requires another output directory. A completed training cannot be resumed from a stripped final checkpoint. Its bundle can still be imported repeatedly without training.
 
 ```bash
-# Register a candidate; this never changes the current model selection.
+# Register the bundle.
 vitroctl models import output/my-training/bundle --model seed-detector
 vitroctl models list --model seed-detector
 

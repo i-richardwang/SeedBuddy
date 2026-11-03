@@ -49,7 +49,7 @@ Successful result storage, task completion and the attempt's canonical result di
 
 A Worker supervises a warm child process that owns downloads, model loading and prediction. Supervision uses a monotonic clock derived from server durations, bounded HTTP exchanges and interruptible IPC. The process is terminated on lost ownership, timeout, error, shutdown or before training. Inference deadlines are 10 minutes for the traditional detector and `min(30 minutes, 10 minutes + 2 minutes × ceil((imageSize / 1024)²))` for Ultralytics, covering cold loading and transfer. Leases are 90 seconds and renew every 20 seconds. These budgets are execution policy, not model identity. Tasks wait explicitly when no capable Worker exists; there is no overall queue-wait deadline.
 
-`inference/attempts.ts` owns claim and execution orchestration and calls `inference/outcomes.ts` with the same executor when completing a task. Result validation never depends on the task orchestrator. `training/epochs.ts` owns epoch reporting. `training/runs.ts` owns run state transitions; owned transitions write every state column, and lease renewal is a separate fenced update; `training/publication.ts` validates and publishes artifacts using those transitions. `models/publication.ts` owns portable model bundles, upload reservations, immutable version registration, weight delivery and collection. Training publication validates execution ownership and delegates registration within its short completion transaction. An external import uses the same registry without creating a training run.
+`inference/attempts.ts` owns claim and execution orchestration and calls `inference/outcomes.ts` with the same executor when completing a task. Result validation never depends on the task orchestrator. `models/publication.ts` owns portable model bundles, upload reservations, immutable version registration, weight delivery and collection. Training publication validates execution ownership and delegates registration within its short completion transaction. An external import uses the same registry without creating a training run.
 
 Production inference results enter through attempt completion. Tests seed detections or terminal task failures through `testing/inference.ts`; this fixture is outside the production module graph. Collection and outcome tests live alongside the image and inference modules that own those rules.
 
@@ -63,6 +63,8 @@ The `readings` module owns the image's combined reading: stored human annotation
 
 ## Training execution
 
+`training/epochs.ts` owns epoch persistence. `training/runs.ts` owns run state transitions; owned transitions write every state column, and lease renewal is a separate fenced update. `training/publication.ts` validates and publishes artifacts using those transitions.
+
 Training event reception runs outside the supervision loop, so an incomplete IPC frame cannot prevent cancellation or lease-loss checks. The supervisor terminates the trainer and its descendants when execution ends.
 
 Training recovery and artifact delivery follow the [operator workflow](vitroctl.md#workers); the control plane records metrics and recovery references, and publication verifies execution ownership.
@@ -71,7 +73,7 @@ The Python Worker receives a `TrainingClaim` in `worker/training.py`. Its protoc
 
 ## Wire contracts
 
-Zod schemas in the Web package are authoritative for documents shared with Python. `web/scripts/generate-contracts.ts` emits JSON Schema into `src/vitroctl/contracts`. Python validates that shared structure first, then `X.from_document` decoders construct domain objects and enforce cross-field semantics. The Worker validates every outgoing detection document against the generated schema at the send boundary. Generated contracts admit nonnegative `attempt` values and Worker IDs up to 128 characters. `tests/test_training_recipe.py` pins the config wrapper to `schemaVersion: 1` and `recipe`. `bun run contracts:generate` writes the schemas; `bun run contracts:check` detects stale output. The generated contracts are `annotation`, `dataset-manifest`, `detection-result`, `dish-recipe`, `inference-assignment`, `inference-model-manifest`, `model-bundle`, `training-parameters`, `training-recipe`, `training-run` and `training-snapshot`.
+Zod schemas in the Web package are authoritative for documents shared with Python. `web/scripts/generate-contracts.ts` emits JSON Schema into `src/vitroctl/contracts`. Python validates that shared structure first, then `X.from_document` decoders construct domain objects and enforce cross-field semantics. The Worker validates every outgoing detection document against the generated schema at the send boundary. Training-run documents admit nonnegative `attempt` values, and Worker IDs are at most 128 characters; owned execution requests require a positive attempt. `tests/test_training_recipe.py` pins the config wrapper to `schemaVersion: 1` and `recipe`. `bun run contracts:generate` writes the schemas; `bun run contracts:check` detects stale output. The generated contracts are `annotation`, `dataset-manifest`, `detection-result`, `dish-recipe`, `inference-assignment`, `inference-model-manifest`, `model-bundle`, `training-parameters`, `training-recipe`, `training-run` and `training-snapshot`.
 
 ## Persistence and startup
 

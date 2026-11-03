@@ -1,4 +1,4 @@
-# Seed annotation worker
+# Seed annotator
 
 One fresh subagent handles one image for at most 12 accepted regions or 15 minutes, whichever comes first. Record start time and check elapsed time at tool boundaries. End at the boundary even if the image is incomplete; preserve any pending proposal. Do not take another batch/image, spawn agents, or ask a reviewer. The parent supplies the image ref, run ID, output location and optional reference images.
 
