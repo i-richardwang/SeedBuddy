@@ -28,10 +28,7 @@ around the integer Hough bounds.
 The server's analysis identity contains detection parameters, preprocessing and
 one explicit implementation revision. The shared JSON stores parameters without a
 separate version number, so parameter changes alter the identity automatically.
-Dependency version inventories and the coverage margin are excluded. Advance the
-implementation revision for behavior changes not represented by detection
-parameters, including relevant changes found when reviewing dependency upgrades.
-Ordinary library upgrades alone do not invalidate the corpus.
+Dependency version inventories and the coverage margin are excluded. Behavior changes outside detection parameters change the implementation revision; dependency versions alone do not change the analysis identity.
 
 ## Maintenance
 
@@ -55,7 +52,7 @@ individually and do not block later images. Database and object-store transport
 failures reach infrastructure backoff. Completed no-candidate results are not
 retried. Shutdown finishes the current image before stopping.
 
-The finite analysis sweep accepts an optional positional batch size, 100 by default (maximum 1000).
+After `bun run build` in `web/`, `bun run images:analyze [batch-size]` executes `dist/analyze-images.js` for a finite sweep. The optional positional batch size defaults to 100 (maximum 1000).
 A fixed attempt cutoff excludes every image tried during the sweep, even if a
 long sweep outlasts its retry interval. Recent attempts remain in cooldown. The
 command reports examined, completed, failed and skipped counts. Completed means
@@ -65,5 +62,7 @@ write unnecessary. Every attempt satisfies
 a nonzero exit status; skipped results do not. It uses the same canonical pixels
 and detector as ingestion. Maintenance keeps the corpus current on its own; a
 manual sweep is for refreshing it at once.
+
+## Previews and processing
 
 `images/preview.ts` derives a small rendition after ingestion or on a read that finds it missing. Collection removes it with the source image. `images/processing.ts` admits one large-image operation per process across ingestion, analysis and regional preparation; encoded caches are bounded and contain no annotation or model state.

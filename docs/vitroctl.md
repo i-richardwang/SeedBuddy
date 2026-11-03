@@ -11,14 +11,14 @@ Worker services run under `launchd` and therefore require macOS. The `dataset`, 
 ```bash
 git clone https://github.com/i-richardwang/VitroFlow.git
 cd VitroFlow
-uv tool install --from . 'vitroctl[yolo]'
+uv tool install --from '.[yolo]' vitroctl
 ```
 
 The `yolo` extra installs the pinned Ultralytics runtime that Workers advertise. Without it, a Worker serves the bundled traditional detector and takes no training runs.
 
 ## Workers
 
-An administrator enrolls each machine on the workbench's Workers page, which shows the machine's token once. Each Worker profile holds that token and a private work directory; the workbench knows the worker by its token. Setup validates the token, runtime imports, and the selected device before saving the profile, then installs and starts a LaunchAgent:
+An administrator enrolls each machine on the workbench's Workers page, which shows the machine's token once. Each Worker profile holds that token and a private work directory; [Worker identity](backend-architecture.md#worker-control-planes) defines its authentication. Setup validates the token, runtime imports, and the selected device before saving the profile, then installs and starts a LaunchAgent:
 
 ```bash
 vitroctl worker setup mac-studio \
@@ -44,7 +44,7 @@ vitroctl worker stop mac-studio
 
 `stop` and `restart` return once the Worker has exited; `restart` then loads the current LaunchAgent definition. Training runs in a supervised child process, so shutdown or detection of a revoked lease stops even a trainer blocked inside a GPU operation. The server revokes ownership immediately; the Worker detects revocation on its next training request or lease renewal. Each attempt uses a private directory. Completed but undelivered bundles are retained; other attempt directories are removed when execution exits.
 
-Inference execution and retry policy are described in the [Worker control planes](https://github.com/i-richardwang/VitroFlow/blob/main/docs/backend-architecture.md#worker-control-planes). Web and Workers use matching wire contracts.
+Inference execution and retry policy are described in the [Worker control planes](https://github.com/i-richardwang/VitroFlow/blob/main/docs/backend-architecture.md#worker-control-planes). Workers make outbound calls only and expose no inbound port. Web and Workers share wire contracts with no mixed-version protocol: stop Workers, deploy Web, install the matching Worker package, then start Workers with `vitroctl worker restart <profile>`.
 
 Training presets pin model weights, parameters, and the framework version. The Web dialog accepts parameter adjustments, and the server validates and freezes the resolved recipe in the run; resuming does not consult the preset registry.
 
@@ -86,7 +86,7 @@ data/
 └── datasets/<dataset>.json
 ```
 
-Every command verifies blob digests before reading them. `push` sends a dataset only when the destination has no dataset of that name. Dataset archive rules are in [Records and datasets](https://github.com/i-richardwang/VitroFlow/blob/main/docs/domain.md#dataset-transfer).
+Every command verifies blob digests before reading them. `push` sends a dataset only when the destination has no dataset of that name. Dataset archive rules are in [Records, models and datasets](https://github.com/i-richardwang/VitroFlow/blob/main/docs/domain.md#dataset-transfer).
 
 Annotations export as a deterministic YOLO dataset:
 
@@ -162,7 +162,7 @@ vitroctl training cancel <run-id> --dataset <dataset-id> --attempt 2
 Local outputs retain the fixed input manifest, exported data and split membership, checkpoints, epoch journal, inference summary, and `bundle/`. Resume checks the saved inputs before using a checkpoint; changing data or parameters requires another output directory. A completed training cannot be resumed from a stripped final checkpoint. Its bundle can still be imported repeatedly without training.
 
 ```bash
-# Register a candidate; this never changes the current model selection.
+# Register the bundle.
 vitroctl models import output/my-training/bundle --model seed-detector
 vitroctl models list --model seed-detector
 
@@ -178,7 +178,7 @@ vitroctl models pack --weights output/experiment/weights/last.pt \
 vitroctl models import output/candidate --model seed-detector
 ```
 
-Packaging and CLI import load the weights on CPU to verify their ordered classes and require the declared Ultralytics version. The supported delivery pipeline is `mode: "whole_image"` with explicit `iou: 0.7`. Tiling or another IoU is rejected instead of silently changing the experiment's inference behavior. Such pipelines require an adapter and contract extension before they can be registered. Registration validates metadata and byte identity; a reported accuracy metric is provenance, not a platform-certified score. Imported versions remain candidates until selected.
+Packaging and CLI import load the weights on CPU to verify their ordered classes and require the declared Ultralytics version. The supported delivery pipeline is `mode: "whole_image"` with explicit `iou: 0.7`. Tiling or another IoU is rejected. Such pipelines require an adapter and contract extension before they can be registered. Registration validates metadata and byte identity; a reported accuracy metric is provenance, not a platform-certified score. Version selection follows the [model lifecycle](domain.md#models-and-versions).
 
 The workbench uses content-derived upload identities and version identities covering the entire bundle and its origin. Repeating import safely returns the same version; changing inference settings creates another version even with identical weights. Upload reservations expire after 24 hours unless registered, and preparing the same bundle renews the reservation. Upload and registration are separate so connection failures can be retried. Delivered versions retain their immutable bytes independently of their training run.
 

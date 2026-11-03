@@ -30,9 +30,25 @@ Domain exceptions inherit shared categories from `domain/errors.ts` and carry st
 
 `vitroflow` depends on neither `vitroctl` nor the workbench. It ships its own `dish-recipe.json` as package data. A test pins those bytes to `src/vitroctl/image_geometry/dish-recipe.json`; its independent detector reads that recipe.
 
-`contracts` owns wire documents, including `contracts/annotation.py`, and has no internal dependencies; `io` is also independent. The detector namespace belongs to the contract layer. `image_geometry` depends only on contracts. `datasets` uses contracts and I/O; `training` uses contracts and datasets. The `traditional` algorithm uses contracts, datasets, I/O and image geometry; `ultralytics` uses contracts, datasets, training and I/O. `models` uses contracts and I/O.
+The allowed internal dependencies are defined by layer:
 
-`worker` composes models, contracts, datasets, training, I/O and the two algorithms. `host` (`worker/host`) manages native services using Workers, contracts and I/O. `cli` composes those capabilities; `entry`, the top-level package, has no internal dependencies. Algorithm families never import Worker orchestration or host operations. Reviewed dataset loading belongs to `datasets/annotations.py`.
+| Layer | May depend on |
+| --- | --- |
+| `contracts` | None |
+| `io` | None |
+| `detector_contracts` | `contracts` |
+| `image_geometry` | `contracts` |
+| `datasets` | `contracts`, `detector_contracts`, `io` |
+| `training` | `contracts`, `datasets` |
+| `traditional` | `contracts`, `datasets`, `detector_contracts`, `image_geometry`, `io` |
+| `ultralytics` | `contracts`, `datasets`, `detector_contracts`, `io`, `training` |
+| `worker` | `contracts`, `datasets`, `detector_contracts`, `io`, `models`, `traditional`, `training`, `ultralytics` |
+| `host` | `contracts`, `io`, `worker` |
+| `models` | `contracts`, `io` |
+| `cli` | `contracts`, `datasets`, `detector_contracts`, `host`, `io`, `models`, `traditional`, `training`, `ultralytics`, `worker` |
+| `entry` | None |
+
+`detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. Reviewed dataset loading belongs to `datasets/annotations.py`.
 
 `scripts/check_architecture.py` defines these layer names and checks ownership, dependency directions, unresolved package imports and cycles, including type-only and function-local imports.
 
@@ -49,3 +65,5 @@ Startup applies all forward migrations in `web/drizzle/` through `web/src/server
 ## Continuous verification
 
 The `Quality` workflow runs the [verification gate](../README.md#verification) on pull requests and main-branch pushes with locked dependencies, then checks PostgreSQL concurrency and S3 immutability against disposable storage. The workflow exposes a `check` job for branch protection. Private reference images are an explicit operator check.
+
+`bun test` in `web/` uses `web/test/setup.ts` to compile missing or stale messages before tests; it requires no prior production build.
