@@ -51,7 +51,7 @@ function ImportArchiveForm({
   const importArchive = (file: File) =>
     void run(
       () => importDatasetArchive(file, setProgress),
-      m.dataset_import_failed(),
+      m.dataset_not_imported(),
       {
         invalidate: false,
         onSuccess: async (dataset) => {

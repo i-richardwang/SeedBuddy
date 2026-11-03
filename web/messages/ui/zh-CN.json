@@ -1,6 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "ui_alert_detail": "详细信息",
   "ui_breadcrumb_label": "面包屑导航",
   "ui_cancel": "取消",
   "ui_close": "关闭",

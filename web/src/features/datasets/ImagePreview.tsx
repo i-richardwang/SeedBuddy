@@ -28,7 +28,7 @@ export function ImagePreview({
     <>
       <PreviewMedia src={previewSrc(image.digest)} alt={image.filename} />
       <Descriptions>
-        <DescriptionsItem label={m.state_label()}>
+        <DescriptionsItem label={m.status_label()}>
           <Status tone={datasetImageStateTone(state)}>
             {datasetImageStateLabel(state)}
           </Status>

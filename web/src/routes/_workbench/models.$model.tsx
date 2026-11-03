@@ -11,8 +11,8 @@ import { z } from "zod";
 import type { ModelDetail } from "../../domain/models/read-model";
 import { DatasetsGrid } from "../../features/datasets/DatasetsGrid";
 import { ImportDatasetDialog } from "../../features/datasets/ImportDatasetDialog";
+import { modelCrumbs } from "../../features/models/crumbs";
 import { ModelMenu } from "../../features/models/ModelMenu";
-import { modelIsFree } from "../../features/models/records";
 import { VersionDialog } from "../../features/models/VersionDialog";
 import { VersionsTable } from "../../features/models/VersionsTable";
 import { TrainingRunsTable } from "../../features/training/TrainingRunsTable";
@@ -54,10 +54,7 @@ export const Route = createFileRoute("/_workbench/models/$model")({
     return { ...overview, comparison };
   },
   staticData: {
-    crumbs: ({ loaderData }) => [
-      { label: m.models_title(), href: "/models" },
-      { label: modelName((loaderData as ModelDetail).model) },
-    ],
+    crumbs: ({ loaderData }) => modelCrumbs((loaderData as ModelDetail).model),
   },
   head: ({ loaderData }) => ({
     meta: [{ title: documentTitle(loaderData && modelName(loaderData.model)) }],
@@ -101,7 +98,7 @@ function ModelPage() {
       title={modelName(model)}
       icon={Network}
       meta={[model.id, formatList(model.classes.map(classLabel))]}
-      actions={<ModelMenu model={model} deletable={modelIsFree(records)} />}
+      actions={<ModelMenu model={model} records={records} />}
     >
       <PageSection title={m.model_versions()}>
         <VersionsTable

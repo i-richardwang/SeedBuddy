@@ -34,7 +34,7 @@ export function ModelDialog({
       open={open}
       onClose={onClose}
       title={m.model_new()}
-      okText={m.model_create()}
+      okText={m.create_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -82,7 +82,7 @@ function ModelForm({
         submit();
       }}
     >
-      <Form.Field label={m.model_name_label()} required>
+      <Form.Field label={m.name_label({ kind: "thing" })} required>
         <Input value={name} onValueChange={setName} disabled={busy} autoFocus />
       </Form.Field>
       <Form.Field label={m.model_id_label()} required>

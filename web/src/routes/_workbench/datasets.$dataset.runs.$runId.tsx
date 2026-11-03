@@ -142,13 +142,13 @@ function TrainingRunPage() {
       ]}
     >
       <StatisticHero
-        title={m.training_kpi_best_map()}
+        title={m.metric_best_map50_95()}
         value={<Metric value={best?.map50To95 ?? null} />}
         facts={facts}
         aside={
           <ProgressMeter
             label={m.parameter_epochs()}
-            count={m.run_epochs_progress({ completed: epochs.length, total })}
+            count={m.progress_count({ completed: epochs.length, total })}
             value={epochs.length}
             max={total}
           />

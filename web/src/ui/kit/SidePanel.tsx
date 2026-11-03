@@ -15,12 +15,11 @@ const WIDTH = { default: 360, min: 300, max: 600 };
  * shell's card: a workbench's inspector, a document page's preview of a row.
  * It is resized at its seam (`DraggablePanel`) and folds away while not
  * `open`, and its content is stacked 16px apart in a padded column that
- * scrolls on its own. A
- * `dismissible` panel, which shows something the reader chose, carries its
- * `title` and a close button over the content; one that stays is named by
- * its `title` for assistive technology only, and is folded and brought back
- * by its page. Below the laptop breakpoint the panel is a drawer, titled,
- * shown while `open`.
+ * scrolls on its own. A `dismissible` panel, which shows something the
+ * reader chose, carries its `title` and a close button over the content; one
+ * that stays is named by its `title` for assistive technology only, and is
+ * folded and brought back by its page. Below the laptop breakpoint the panel
+ * is a drawer, titled, shown while `open`.
  */
 export function SidePanel({
   children,

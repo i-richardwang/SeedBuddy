@@ -15,7 +15,7 @@ export interface AppNavItem {
 }
 
 /**
- * A titled run of places under the main ones, such as the open experiments:
+ * A titled run of places under the main ones, such as the experiments:
  * its heading (12px, 500, secondary) with the count after it folds the run
  * away, the panel closing over its rows as they fade. Its items carry 16px
  * icons.

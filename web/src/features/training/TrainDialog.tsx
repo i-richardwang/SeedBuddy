@@ -10,7 +10,6 @@ import type {
   TrainingPreset,
   TrainingPresetId,
 } from "../../domain/training/recipes";
-import { MIN_SNAPSHOT_IMAGES } from "../../domain/training/schema";
 import { createTrainingRun } from "../../functions/training";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
@@ -28,23 +27,9 @@ const FORM_ID = "train";
 /** What starting a run from a training set needs to know. */
 interface TrainingSet {
   dataset: string;
-  /** How many of its images are reviewed, and so train. */
-  reviewed: number;
   trainingPresets: readonly TrainingPreset[];
   defaultTrainingPresetId: TrainingPresetId;
   training: DatasetTrainingReadiness;
-}
-
-/** Why a new run cannot start now, or null when it can. */
-export function trainRefusal({
-  reviewed,
-  training,
-}: Pick<TrainingSet, "reviewed" | "training">) {
-  if (training.active !== null) return m.training_refused_active();
-  if (reviewed < MIN_SNAPSHOT_IMAGES) {
-    return m.training_refused_reviewed({ count: MIN_SNAPSHOT_IMAGES });
-  }
-  return null;
 }
 
 /** A new run's preset, its Worker and its parameters, chosen before it is queued. */
@@ -147,7 +132,7 @@ function TrainSession({
             }}
           />
         </Form.Field>
-        <Form.Field label={m.training_worker()}>
+        <Form.Field label={m.worker_label()}>
           <TrainingWorkerSelect
             workers={training.workers}
             value={targetWorkerId}

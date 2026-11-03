@@ -75,7 +75,7 @@ export function Alert({
                 icon={ChevronRight}
                 size={12}
               />
-              {m.ui_alert_detail()}
+              {m.details_label()}
             </summary>
             <Snippet>{detail}</Snippet>
           </details>

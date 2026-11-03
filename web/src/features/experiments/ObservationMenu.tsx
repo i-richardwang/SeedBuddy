@@ -22,9 +22,10 @@ import { Text } from "../../ui/kit/Text";
 import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { AddPhotosDialog } from "./AddPhotosDialog";
+import { observationQuestion } from "./copy";
+import { ObservationDialog } from "./ObservationDialog";
+import { EnterManualReadingsDialog } from "./EnterManualReadingsDialog";
 import { observationLabel } from "./labels";
-import { EnterManualReadingsDialog } from "./ManualReadingsDialog";
-import { EditObservationDialog } from "./ObservationDialog";
 
 type Action = "images" | "readings" | "dataset" | "edit";
 
@@ -38,7 +39,6 @@ export function ObservationMenu({
   inoculatedOn,
   observation,
   observations,
-  question,
   units,
   images,
   manualReadings,
@@ -52,8 +52,6 @@ export function ObservationMenu({
   observation: ExperimentObservation;
   /** Every observation of the experiment, whose days this one cannot move to. */
   observations: readonly ExperimentObservation[];
-  /** What the day asks of its photographs, or empty when nothing needs saying. */
-  question: string;
   /** The units that can still be photographed at this observation. */
   units: Unit[];
   /** The images taken at this observation. */
@@ -71,6 +69,11 @@ export function ObservationMenu({
   const [open, setOpen] = useState<Action | null>(null);
   const close = () => setOpen(null);
   const name = observationLabel(observation);
+  const question = observationQuestion(
+    observation,
+    models.find((model) => model.id === observation.modelId),
+    { nameModel: new Set(observations.map((item) => item.modelId)).size > 1 },
+  );
   const assigned = new Set(images.map((image) => image.unit));
   const vacant = units.filter((unit) => !assigned.has(unit.id));
 
@@ -115,7 +118,7 @@ export function ObservationMenu({
         label: m.observation_menu_delete(),
         onClick: () =>
           confirmDestructive({
-            title: m.observation_delete_title({ observation: name }),
+            title: m.item_delete_title({ name: name }),
             confirmLabel: m.observation_delete(),
             onConfirm: async () => {
               await removeObservation({
@@ -123,7 +126,7 @@ export function ObservationMenu({
               });
             },
             onSuccess: () => {
-              toast.success(m.observation_deleted({ observation: name }));
+              toast.success(m.item_deleted({ name: name }));
             },
           }),
       },
@@ -133,8 +136,8 @@ export function ObservationMenu({
   return (
     <>
       <TableHeadMenu
-        aria-label={m.observation_actions({
-          observation: question
+        aria-label={m.item_actions({
+          name: question
             ? m.observation_heading({ day: name, question })
             : name,
         })}
@@ -182,7 +185,7 @@ export function ObservationMenu({
         onClose={close}
       />
 
-      <EditObservationDialog
+      <ObservationDialog
         experiment={experiment}
         inoculatedOn={inoculatedOn}
         models={models}

@@ -9,10 +9,7 @@ import {
   cellReading,
   imageReview,
 } from "../../domain/experiments/cell-reading";
-import {
-  latestCultureEvent,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
+import { observationOrdinals } from "../../domain/experiments/culture-events";
 import type {
   ReviewState,
   UnitDetail,
@@ -53,19 +50,16 @@ import {
   ImageWorkbenchSkeleton,
 } from "../annotation/ImageWorkbench";
 import { useWorkbenchKeys } from "../annotation/keys";
+import { CultureMenu } from "./CultureMenu";
 import {
   DayComparison,
   DayComparisonSkeleton,
   DayCountsSection,
   referenceDay,
 } from "./DayComparison";
-import {
-  cultureEventLabel,
-  imageReviewLabel,
-  imageReviewTone,
-  observationLabel,
-} from "./labels";
-import { CultureMenu, UnitMenu } from "./UnitMenu";
+import { imageReviewLabel, imageReviewTone, observationLabel } from "./labels";
+import { TreatmentName } from "./TreatmentName";
+import { UnitMenu } from "./UnitMenu";
 
 /**
  * One unit's photograph on one observation day. The footer steps along both
@@ -115,7 +109,6 @@ export function UnitWorkbench({
   });
   const observations = series.observations.map((item) => item.observation);
   const ordinals = observationOrdinals(observations);
-  const latestEvent = latestCultureEvent(unit.events, ordinals);
 
   const photographed = series.observations.filter((item) => item.image);
   // Only the days the unit has a record of, a photograph or a count, are
@@ -269,11 +262,6 @@ export function UnitWorkbench({
           experiment={experiment.id}
           unit={unit}
           observations={observations}
-          status={
-            latestEvent
-              ? cultureEventLabel(latestEvent.type)
-              : m.culture_status_active()
-          }
         />
       </div>
     </WorkbenchSection>
@@ -299,10 +287,10 @@ export function UnitWorkbench({
             )}
           />
           {culture}
-          <WorkbenchSection title={m.annotation_details()}>
+          <WorkbenchSection title={m.details_label()}>
             <Descriptions>
-              <DescriptionsItem label={m.experiment_column_treatment()}>
-                {treatment.name}
+              <DescriptionsItem label={m.treatment_label()}>
+                <TreatmentName treatment={treatment} />
               </DescriptionsItem>
             </Descriptions>
           </WorkbenchSection>
@@ -387,8 +375,8 @@ export function UnitWorkbench({
           ) : undefined,
           sections: culture,
           facts: (
-            <DescriptionsItem label={m.experiment_column_treatment()}>
-              {treatment.name}
+            <DescriptionsItem label={m.treatment_label()}>
+              <TreatmentName treatment={treatment} />
             </DescriptionsItem>
           ),
         }}
@@ -470,7 +458,7 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
       onClick={() => {
         void action.run(
           () => updateImageAnalysis({ data: image }),
-          m.unit_retry_failed(),
+          m.unit_photo_not_recounted(),
         );
       }}
     >

@@ -111,13 +111,14 @@ export function ImageWorkbenchSkeleton({
  * One image and its boxes, on view for review inside a `Workbench`. The
  * boxes begin as the reading on view, the best one unless another is picked.
  * They are locked until the lock leading the toolbar is opened; then the
- * editing tools show and any edit begins a draft. The primary command
- * stores the boxes as the image's review and stays: it saves edits, or
- * confirms a Worker's reading taken as it is, as Mod+S does. On a reviewed image it leads
- * to the next one still to review. Where an AI proposal is on view, the places it
- * asks a person to check are outlined, counted and stepped through. Whether
- * the photograph is clear is said beside it and saved on its own. Mounted
- * under a key of its image, so nothing of one image carries into the next.
+ * editing tools show and any edit begins a draft. The primary command stores
+ * the boxes as the image's review and stays: it saves edits, or confirms a
+ * Worker's reading taken as it is, as Mod+S does. On a reviewed image it
+ * leads to the next one still to review. Where an AI proposal is on view,
+ * the places it asks a person to check are outlined, counted and stepped
+ * through. Whether the photograph is clear is said beside it and saved on
+ * its own. Mounted under a key of its image, so nothing of one image carries
+ * into the next.
  */
 export function ImageSubject({
   model,
@@ -163,8 +164,7 @@ export function ImageSubject({
   const stores = standing !== "reviewed";
   const primary = stores
     ? {
-        label:
-          standing === "edited" ? m.annotation_save() : m.annotation_confirm(),
+        label: standing === "edited" ? m.save_action() : m.annotation_confirm(),
         run: store,
       }
     : onNext && { label: m.annotation_next_unreviewed(), run: onNext };

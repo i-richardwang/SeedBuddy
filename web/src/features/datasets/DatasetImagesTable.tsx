@@ -106,8 +106,8 @@ export function DatasetImagesTable({
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.dataset_column_image()}</TableHead>
-          <TableHead className="w-28">{m.state_label()}</TableHead>
+          <TableHead>{m.image_label()}</TableHead>
+          <TableHead className="w-28">{m.status_label()}</TableHead>
           <TableHead className="w-1/4">{m.dataset_column_quality()}</TableHead>
           <TableHead className="w-20" numeric>
             {m.boxes_label()}
@@ -119,7 +119,7 @@ export function DatasetImagesTable({
       </TableHeader>
       <TableBody>
         {shown.map((image) => {
-          const state = states.get(image.digest) ?? "unread";
+          const state = states.get(image.digest)!;
           return (
             <TableRow
               key={image.digest}
@@ -142,7 +142,7 @@ export function DatasetImagesTable({
                   {image.filename}
                 </TextLink>
               </TableCell>
-              <TableCell cellLabel={m.state_label()}>
+              <TableCell cellLabel={m.status_label()}>
                 <Status tone={datasetImageStateTone(state)}>
                   {datasetImageStateLabel(state)}
                 </Status>

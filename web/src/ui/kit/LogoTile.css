@@ -22,9 +22,4 @@
     block-size: 88%;
   }
 
-  &[data-size="small"] {
-    inline-size: 28px;
-    block-size: 28px;
-    border-radius: 7px;
-  }
 }

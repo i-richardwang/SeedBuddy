@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { identifierLabel } from "../../domain/identifiers/schema";
 import { isReading } from "../../domain/models/comparison";
 import type {
   VersionComparison,
@@ -32,6 +31,7 @@ import { Metric } from "../../ui/Metric";
 import { formatCount } from "../../ui/numbers";
 import { Timestamp } from "../../ui/Timestamp";
 import { formatError, movement, movementTone, totalError } from "./comparison";
+import { versionSourceLabel } from "./labels";
 
 /**
  * A model's published versions: which one reads and which are still being
@@ -55,18 +55,18 @@ export function VersionsTable({
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.version_column_version()}</TableHead>
-          <TableHead>{m.version_column_status()}</TableHead>
+          <TableHead>{m.version_label()}</TableHead>
+          <TableHead>{m.status_label()}</TableHead>
           <TableHead>{m.version_column_source()}</TableHead>
           <TableHead>{m.version_column_published()}</TableHead>
           <TableHead className="w-28" numeric>
             {m.version_column_trained_on()}
           </TableHead>
           <TableHead className="w-28" numeric>
-            {m.epoch_series_map50()}
+            {m.metric_map50()}
           </TableHead>
           <TableHead className="w-28" numeric>
-            {m.epoch_series_map50_95()}
+            {m.metric_map50_95()}
           </TableHead>
           <TableHead>{m.version_column_comparison()}</TableHead>
           <TableHead className="w-12">
@@ -97,7 +97,7 @@ export function VersionsTable({
               />
             </TableCell>
             <TableCell
-              cellLabel={m.version_column_status()}
+              cellLabel={m.status_label()}
               className="whitespace-nowrap"
             >
               <VersionStatus current={current} comparison={comparison} />
@@ -121,10 +121,10 @@ export function VersionsTable({
                 <Absent />
               )}
             </TableCell>
-            <TableCell cellLabel={m.epoch_series_map50()} numeric>
+            <TableCell cellLabel={m.metric_map50()} numeric>
               <Metric value={validationMetric(version.artifact, "map50")} />
             </TableCell>
-            <TableCell cellLabel={m.epoch_series_map50_95()} numeric>
+            <TableCell cellLabel={m.metric_map50_95()} numeric>
               <Metric value={validationMetric(version.artifact, "map50To95")} />
             </TableCell>
             <TableCell
@@ -171,12 +171,7 @@ function VersionSource({
   version: ModelVersion;
   training: VersionOverview["training"];
 }) {
-  const { source } = version;
-  if (source.kind === "builtin") return m.version_source_builtin();
-  if (source.kind === "import") return m.version_source_import();
-  const label = m.version_source_training({
-    run: identifierLabel(source.trainingRunId),
-  });
+  const label = versionSourceLabel(version.source);
   if (!training) return label;
   return (
     <TextLink

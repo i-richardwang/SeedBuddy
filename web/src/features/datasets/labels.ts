@@ -2,10 +2,10 @@ import type { ImageSplit } from "../../domain/training/schema";
 import { m } from "../../paraglide/messages";
 import type { StatusTone } from "../../ui/kit/Status";
 
-const SPLIT_LABELS: Record<ImageSplit, () => string> = {
+const SPLIT_LABELS = {
   train: m.image_split_train,
   val: m.image_split_val,
-};
+} as const satisfies Record<ImageSplit, () => string>;
 
 export function splitLabel(split: ImageSplit): string {
   return SPLIT_LABELS[split]();
@@ -36,12 +36,12 @@ export function datasetImageState(image: {
   return "unread";
 }
 
-const STATE_LABELS: Record<DatasetImageState, () => string> = {
-  reviewed: m.dataset_state_reviewed,
-  proposed: m.dataset_state_proposed,
-  detected: m.dataset_state_detected,
+const STATE_LABELS = {
+  reviewed: m.reviewed_label,
+  proposed: m.ai_proposal_label,
+  detected: m.to_review_label,
   unread: m.dataset_state_unread,
-};
+} as const satisfies Record<DatasetImageState, () => string>;
 
 export function datasetImageStateLabel(state: DatasetImageState): string {
   return STATE_LABELS[state]();

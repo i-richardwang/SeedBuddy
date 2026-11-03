@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { AuthPage } from "../features/account/AuthPage";
 import {
   ConsentDecision,
   ConsentDecisionSkeleton,
 } from "../features/account/ConsentDecision";
 import { describeOAuthClient } from "../functions/integrations";
 import { m } from "../paraglide/messages";
+import { AuthPage } from "../ui/AuthPage";
 import { documentTitle } from "../ui/documentTitle";
 
 /**

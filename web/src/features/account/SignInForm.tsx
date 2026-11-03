@@ -2,6 +2,7 @@ import { Lock, Mail } from "lucide-react";
 import { useState } from "react";
 
 import { m } from "../../paraglide/messages";
+import { AuthPage } from "../../ui/AuthPage";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { Button } from "../../ui/kit/Button";
@@ -9,7 +10,6 @@ import { Form } from "../../ui/kit/Form";
 import { Icon } from "../../ui/kit/Icon";
 import { Input, InputPassword } from "../../ui/kit/Input";
 import { Text } from "../../ui/kit/Text";
-import { AuthPage } from "./AuthPage";
 import { authClient, continuation } from "./client";
 
 /**
@@ -41,7 +41,7 @@ export function SignInForm({ destination }: { destination: string }) {
             setEmail(draft.trim());
           }}
         >
-          <Form.Field name="email" label={m.account_email()} labelHidden>
+          <Form.Field name="email" label={m.email_label()} labelHidden>
             <Input
               size="large"
               required
@@ -97,7 +97,7 @@ export function SignInForm({ destination }: { destination: string }) {
               }
               return continuation(data) ?? destination;
             },
-            m.login_failed(),
+            m.login_not_completed(),
             {
               invalidate: false,
               onSuccess: async (next) => {
@@ -126,7 +126,7 @@ export function SignInForm({ destination }: { destination: string }) {
             disabled={busy}
             autoFocus
             autoComplete="current-password"
-            placeholder={m.login_password_heading()}
+            placeholder={m.login_password_placeholder()}
             prefix={<Icon icon={Lock} />}
             onChange={() => setRejected(false)}
           />
@@ -138,7 +138,7 @@ export function SignInForm({ destination }: { destination: string }) {
           type="primary"
           loading={busy}
         >
-          {m.login_title()}
+          {m.login_submit()}
         </Button>
       </Form>
     </AuthPage>

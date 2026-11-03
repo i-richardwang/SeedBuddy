@@ -153,7 +153,7 @@ export function DayCountsSection({
           </DescriptionsItem>
         ))}
         {change === null ? null : (
-          <DescriptionsItem label={m.unit_compare_change()}>
+          <DescriptionsItem label={m.change_label()}>
             {formatCountChange(change)}
           </DescriptionsItem>
         )}

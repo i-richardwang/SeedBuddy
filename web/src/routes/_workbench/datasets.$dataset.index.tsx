@@ -9,7 +9,7 @@ import { DatasetMenu } from "../../features/datasets/DatasetMenu";
 import { ImagePreview } from "../../features/datasets/ImagePreview";
 import { modelCrumbs } from "../../features/models/crumbs";
 import { TrainButton } from "../../features/training/TrainButton";
-import { TrainDialog, trainRefusal } from "../../features/training/TrainDialog";
+import { TrainDialog } from "../../features/training/TrainDialog";
 import { TrainingRunsTable } from "../../features/training/TrainingRunsTable";
 import { getDatasetDetail } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
@@ -70,7 +70,7 @@ function DatasetPage() {
   const { image } = Route.useSearch();
   const navigate = Route.useNavigate();
   const {
-    dataset: { name },
+    dataset: detail,
     images,
     reviewedCount,
     training,
@@ -79,7 +79,6 @@ function DatasetPage() {
     runs,
   } = Route.useLoaderData();
   const [starting, setStarting] = useState(false);
-  const refusal = trainRefusal({ reviewed: reviewedCount, training });
   useRouteRefresh(10_000);
 
   const preview = images.find((candidate) => candidate.digest === image);
@@ -90,12 +89,16 @@ function DatasetPage() {
 
   return (
     <Page
-      title={name}
+      title={detail.name}
       icon={Images}
       actions={
         <>
-          <TrainButton refusal={refusal} onClick={() => setStarting(true)} />
-          <DatasetMenu dataset={{ id: dataset, name }} />
+          <TrainButton
+            reviewed={reviewedCount}
+            training={training}
+            onClick={() => setStarting(true)}
+          />
+          <DatasetMenu dataset={detail} />
         </>
       }
       preview={
@@ -124,7 +127,7 @@ function DatasetPage() {
       />
       <PageSection title={m.dataset_images()}>
         <DatasetImagesTable
-          dataset={{ id: dataset, name }}
+          dataset={detail}
           empty={
             <Empty
               icon={ImagePlus}
@@ -144,13 +147,18 @@ function DatasetPage() {
       <PageSection title={m.training_runs()}>
         <TrainingRunsTable
           runs={runs}
-          empty={<Empty icon={ChartLine} title={m.run_empty_title()} />}
+          empty={
+            <Empty
+              icon={ChartLine}
+              title={m.run_empty_title()}
+              description={m.run_empty_description()}
+            />
+          }
         />
       </PageSection>
       <TrainDialog
         set={{
           dataset,
-          reviewed: reviewedCount,
           trainingPresets,
           defaultTrainingPresetId,
           training,

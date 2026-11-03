@@ -1,5 +1,6 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 
+import type { DatasetOverview } from "../../domain/datasets/read-model";
 import { m } from "../../paraglide/messages";
 import { CardGrid } from "../../ui/kit/SummaryCard";
 import { DatasetCard } from "./DatasetCard";
@@ -7,11 +8,7 @@ export function DatasetsGrid({
   datasets,
   empty,
 }: {
-  datasets: {
-    dataset: ComponentProps<typeof DatasetCard>["dataset"];
-    imageCount: number;
-    reviewedCount: number;
-  }[];
+  datasets: DatasetOverview[];
   empty: ReactNode;
 }) {
   return (
@@ -20,12 +17,7 @@ export function DatasetsGrid({
       empty={datasets.length === 0 ? empty : undefined}
     >
       {datasets.map((entry) => (
-        <DatasetCard
-          key={entry.dataset.id}
-          dataset={entry.dataset}
-          images={entry.imageCount}
-          reviewed={entry.reviewedCount}
-        />
+        <DatasetCard key={entry.dataset.id} {...entry} />
       ))}
     </CardGrid>
   );

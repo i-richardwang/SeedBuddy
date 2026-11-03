@@ -21,7 +21,7 @@ export function SignedInUser({ user }: { user: WorkbenchUser }) {
         const { error } = await authClient.signOut();
         if (error) throw new Error(error.message);
       },
-      m.sign_out_failed(),
+      m.account_not_signed_out(),
       {
         invalidate: false,
         onSuccess: async () => {

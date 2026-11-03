@@ -6,6 +6,7 @@ import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { ImageDropZone } from "../upload/ImageDropZone";
 import { useUploads } from "../upload/useUploads";
+import { storedPhotos } from "./ObservationPhotos";
 
 const FORM_ID = "replace-image";
 
@@ -36,17 +37,10 @@ function ReplaceObservationImageSession({
 }: ReplaceObservationImageDialogProps & { afterClose: () => void }) {
   const uploads = useUploads();
   const action = useAsyncAction();
-  const [replacement] = uploads.images.flatMap((item) =>
-    item.state.status === "stored"
-      ? [
-          {
-            unit: image.unit.id,
-            digest: item.state.digest,
-            filename: item.file.name,
-          },
-        ]
-      : [],
-  );
+  const [photo] = storedPhotos(uploads.images);
+  const replacement = photo
+    ? { unit: image.unit.id, digest: photo.digest, filename: photo.filename }
+    : undefined;
 
   return (
     <FormDialog

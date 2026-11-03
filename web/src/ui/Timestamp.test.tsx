@@ -12,7 +12,7 @@ test("the server writes an instant in UTC and names the zone", () => {
 test("the browser reads instants on the reader's clock", async () => {
   const { expectIsolatedRun } = await import("../../test/isolated");
   await expectIsolatedRun(
-    "test/timestamp-behavior.tsx",
+    "test/timestamp.tsx",
     [],
     "timestamp uses the reader's clock",
   );

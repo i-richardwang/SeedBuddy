@@ -35,7 +35,7 @@ export function UnitDialog({
       open={open}
       onClose={onClose}
       title={m.unit_edit()}
-      okText={m.experiment_action_save()}
+      okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
     >

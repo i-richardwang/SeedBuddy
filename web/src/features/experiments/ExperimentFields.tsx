@@ -45,7 +45,7 @@ export function ExperimentFields({
     <>
       <Form.Field
         name="name"
-        label={m.experiment_field_name()}
+        label={m.name_label({ kind: "thing" })}
         required
         validate={(value) =>
           String(value ?? "").trim() === ""
@@ -77,17 +77,14 @@ export function ExperimentFields({
             placeholder={m.experiment_field_plant_material_placeholder()}
           />
         </Form.Field>
-        <Form.Field
-          name="explantType"
-          label={m.experiment_field_explant_type()}
-        >
+        <Form.Field name="explantType" label={m.explant_type_label()}>
           <Input
             disabled={disabled}
             defaultValue={defaults?.explantType}
             placeholder={m.experiment_field_explant_type_placeholder()}
           />
         </Form.Field>
-        <Form.Field name="baseMedium" label={m.experiment_field_base_medium()}>
+        <Form.Field name="baseMedium" label={m.base_medium_label()}>
           <Input
             disabled={disabled}
             defaultValue={defaults?.baseMedium}
@@ -95,7 +92,7 @@ export function ExperimentFields({
           />
         </Form.Field>
         <DayField
-          label={m.experiment_field_inoculated()}
+          label={m.inoculated_label()}
           disabled={disabled}
           value={inoculatedOn}
           onChange={onInoculatedOnChange}

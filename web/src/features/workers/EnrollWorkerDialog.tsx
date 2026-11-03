@@ -95,7 +95,7 @@ function EnrollWorkerForm({
             createWorker({
               data: { workerId: String(form.get("workerId") ?? "") },
             }),
-          m.worker_enroll_failed(),
+          m.worker_not_enrolled(),
           {
             invalidate: false,
             onSuccess: ({ workerId, token }) => {
@@ -109,7 +109,7 @@ function EnrollWorkerForm({
       }}
     >
       <Form.Field
-        label={m.worker_enroll_name_label()}
+        label={m.name_label({ kind: "thing" })}
         desc={m.worker_enroll_name_description()}
         name="workerId"
         required

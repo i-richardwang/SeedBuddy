@@ -22,6 +22,7 @@ import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { IdentifierName } from "../../ui/IdentifierName";
 import { CopyButton } from "../../ui/kit/CopyButton";
 import { Flexbox } from "../../ui/kit/Flex";
+import { Form } from "../../ui/kit/Form";
 import {
   Table,
   TableBody,
@@ -130,7 +131,7 @@ function VersionSession({
       width="wide"
       afterClose={afterClose}
     >
-      <form
+      <Form
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
@@ -152,7 +153,7 @@ function VersionSession({
           )}
           <Text type="tertiary">{m.version_dialog_effect()}</Text>
         </Flexbox>
-      </form>
+      </Form>
     </FormDialog>
   );
 }
@@ -257,9 +258,7 @@ function AccuracyTable({
           <TableHead>{m.version_dialog_metric()}</TableHead>
           {current ? <TableHead numeric>{current.label}</TableHead> : null}
           <TableHead numeric>{m.version_dialog_column_candidate()}</TableHead>
-          {current ? (
-            <TableHead numeric>{m.version_dialog_column_change()}</TableHead>
-          ) : null}
+          {current ? <TableHead numeric>{m.change_label()}</TableHead> : null}
         </tr>
       </TableHeader>
       <TableBody>
@@ -291,7 +290,7 @@ function AccuracyTable({
 function ErrorChange({ from, to }: { from: number; to: number }) {
   const moved = movement(from, to);
   return (
-    <Text as="span" type={movementTone(moved) ?? "quaternary"}>
+    <Text as="span" type={movementTone(moved)}>
       {formatErrorChange(moved === "none" ? 0 : to - from)}
     </Text>
   );
@@ -330,7 +329,7 @@ function ImageTable({
         errorOf(classes, left, left.current),
       ),
   );
-  const reviewedLabel = m.version_dialog_column_reviewed();
+  const reviewedLabel = m.reviewed_label();
   const candidateLabel = m.version_dialog_column_candidate();
   const groups = currentLabel
     ? [reviewedLabel, currentLabel, candidateLabel]
@@ -344,7 +343,7 @@ function ImageTable({
       <Table aria-label={m.version_dialog_images()} size="small" narrow="cards">
         <TableHeader>
           <tr>
-            <TableHead rowSpan={2}>{m.version_dialog_column_image()}</TableHead>
+            <TableHead rowSpan={2}>{m.image_label()}</TableHead>
             {groups.map((group) => (
               <TableHead key={group} colSpan={classes.length}>
                 {group}

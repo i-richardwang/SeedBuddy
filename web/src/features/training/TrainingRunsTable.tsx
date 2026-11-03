@@ -42,18 +42,18 @@ export function TrainingRunsTable({
       <TableHeader>
         <tr>
           <TableHead>{m.run_column_run()}</TableHead>
-          <TableHead>{m.run_column_status()}</TableHead>
-          {datasetColumn && <TableHead>{m.run_column_dataset()}</TableHead>}
+          <TableHead>{m.status_label()}</TableHead>
+          {datasetColumn && <TableHead>{m.dataset_label()}</TableHead>}
           <TableHead className="w-32" numeric>
             {m.parameter_epochs()}
           </TableHead>
           <TableHead className="w-28" numeric>
-            {m.run_column_best_map50()}
+            {m.metric_best_map50()}
           </TableHead>
           <TableHead className="w-28" numeric>
-            {m.epoch_series_map50_95()}
+            {m.metric_best_map50_95()}
           </TableHead>
-          <TableHead className="w-48">{m.run_column_version()}</TableHead>
+          <TableHead className="w-48">{m.version_label()}</TableHead>
           <TableHead className="w-12">
             <span className="sr-only">{m.column_actions()}</span>
           </TableHead>
@@ -77,7 +77,7 @@ export function TrainingRunsTable({
                 }
               />
             </TableCell>
-            <TableCell cellLabel={m.run_column_status()}>
+            <TableCell cellLabel={m.status_label()}>
               <Tooltip
                 title={run.state.status === "failed" ? run.state.error : null}
               >
@@ -85,7 +85,7 @@ export function TrainingRunsTable({
               </Tooltip>
             </TableCell>
             {datasetColumn && (
-              <TableCell cellLabel={m.run_column_dataset()}>
+              <TableCell cellLabel={m.dataset_label()}>
                 {dataset.name}
               </TableCell>
             )}
@@ -95,13 +95,13 @@ export function TrainingRunsTable({
                 total={run.recipe.parameters.epochs}
               />
             </TableCell>
-            <TableCell cellLabel={m.run_column_best_map50()} numeric>
+            <TableCell cellLabel={m.metric_best_map50()} numeric>
               <Metric value={best?.map50 ?? null} />
             </TableCell>
-            <TableCell cellLabel={m.epoch_series_map50_95()} numeric>
+            <TableCell cellLabel={m.metric_best_map50_95()} numeric>
               <Metric value={best?.map50To95 ?? null} />
             </TableCell>
-            <TableCell cellLabel={m.run_column_version()}>
+            <TableCell cellLabel={m.version_label()}>
               {run.state.status === "succeeded" ? (
                 <IdentifierName id={run.state.modelVersionId} />
               ) : (
@@ -128,7 +128,7 @@ function EpochProgress({
 }) {
   return (
     <span className="inline-flex w-24 flex-col items-stretch gap-1">
-      {m.run_epochs_progress({ completed, total })}
+      {m.progress_count({ completed, total })}
       <Progress
         aria-label={m.parameter_epochs()}
         size="small"

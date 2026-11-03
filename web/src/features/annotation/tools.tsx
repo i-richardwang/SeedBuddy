@@ -12,6 +12,7 @@ import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { classLabel } from "../../ui/model-names";
 import { classShortcut } from "./class-keys";
+import { layerLabel } from "./labels";
 import type { LayerKey } from "./layers";
 
 /**
@@ -80,7 +81,7 @@ export function EditTools({
       <ActionIcon
         icon={Trash2}
         size="small"
-        title={m.annotation_delete()}
+        title={m.delete_action()}
         tooltipProps={{ hotkey: "backspace", placement: "bottom" }}
         disabled={!canDelete}
         onClick={onDelete}
@@ -90,12 +91,6 @@ export function EditTools({
 }
 
 const LAYER_ICONS = { boxes: Square, ids: Hash, checks: ScanSearch } as const;
-
-const LAYER_LABELS = {
-  boxes: m.annotation_layer_boxes,
-  ids: m.annotation_layer_ids,
-  checks: m.annotation_ai_checks,
-} as const;
 
 /** What is drawn over the image, each shown or hidden by its own toggle. */
 export function LayerControls({
@@ -114,7 +109,7 @@ export function LayerControls({
         key={key}
         icon={LAYER_ICONS[key]}
         size="small"
-        title={LAYER_LABELS[key]()}
+        title={layerLabel(key)}
         pressed={on}
         onClick={() => {
           const next = new Set(layers);

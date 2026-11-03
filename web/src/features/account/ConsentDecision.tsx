@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import type { describeOAuthClient } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
+import { AuthPage } from "../../ui/AuthPage";
 import { BrandLogo } from "../../ui/BrandLogo";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { AuthConnection } from "../../ui/kit/AuthLayout";
@@ -13,7 +14,6 @@ import { PageSkeleton } from "../../ui/kit/PageSkeleton";
 import { Skeleton } from "../../ui/kit/Skeleton";
 import { Text } from "../../ui/kit/Text";
 import { mcpServerLabel } from "../integrations/labels";
-import { AuthPage } from "./AuthPage";
 import { authClient, continuation } from "./client";
 
 /** The client, which brings no mark of its own, joined to the product. */
@@ -39,12 +39,12 @@ export function ConsentDecision({
     void run(
       async () => {
         const { data, error } = await authClient.oauth2.consent({ accept });
-        if (error) throw new Error(error.message ?? m.consent_failed());
+        if (error) throw new Error(error.message ?? m.consent_not_granted());
         const next = continuation(data);
         if (!next) throw new Error(m.consent_expired());
         return next;
       },
-      m.consent_failed(),
+      m.consent_not_granted(),
       {
         invalidate: false,
         onSuccess: (next) => {

@@ -34,7 +34,7 @@ export function MoveUnitsDialog({
       open={open}
       onClose={onClose}
       title={m.experiment_move_units()}
-      okText={m.experiment_action_save()}
+      okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
       okDisabled={units.length === 0}

@@ -60,26 +60,18 @@ const LINE_SIZE = {
 } as const;
 
 function SkeletonText({
-  rows = 1,
   size = "base",
   width,
 }: {
   size?: keyof typeof LINE_SIZE;
-  rows?: number;
-  /** One width for every row, or one per row (the last repeats). */
-  width: Length | Length[];
+  width: Length;
 }) {
-  const widths = Array.isArray(width) ? width : [width];
-
   return (
     <div className="ui-skeleton-text">
-      {Array.from({ length: Math.max(rows, 1) }).map((_, index) => (
-        <div
-          className={cn("ui-skeleton ui-skeleton-line", LINE_SIZE[size])}
-          key={index}
-          style={{ width: widths[index] ?? widths.at(-1) }}
-        />
-      ))}
+      <div
+        className={cn("ui-skeleton ui-skeleton-line", LINE_SIZE[size])}
+        style={{ width }}
+      />
     </div>
   );
 }

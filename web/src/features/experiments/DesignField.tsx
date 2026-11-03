@@ -1,5 +1,5 @@
 import { Plus, X } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, useRef } from "react";
 
 import { replicateCodes } from "../../domain/experiments/naming";
 import type { TreatmentDesignInput } from "../../domain/experiments/schema";
@@ -15,15 +15,12 @@ import { TreatmentDot } from "./TreatmentDot";
 /** A treatment being designed; `id` keeps its inputs with it when rows are removed. */
 export type DesignRow = { id: number; name: string; replicates: number };
 
-let nextRowId = 0;
-
-function emptyRow(): DesignRow {
-  nextRowId += 1;
-  return { id: nextRowId, name: "", replicates: DEFAULT_REPLICATES };
+function emptyRow(id: number): DesignRow {
+  return { id, name: "", replicates: DEFAULT_REPLICATES };
 }
 
 export function initialDesign(): DesignRow[] {
-  return [emptyRow()];
+  return [emptyRow(0)];
 }
 
 const MAX_TREATMENTS = 50;
@@ -48,6 +45,7 @@ export function DesignField({
   rows: DesignRow[];
   onChange: (rows: DesignRow[]) => void;
 }) {
+  const nextRowId = useRef(Math.max(...rows.map((row) => row.id)) + 1);
   const example =
     submittedDesign(rows)[0]?.name ?? m.treatment_name_placeholder();
   const update = (index: number, row: Partial<DesignRow>) =>
@@ -64,7 +62,7 @@ export function DesignField({
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2">
           <Text aria-hidden size="xs" type="secondary" className="col-start-2">
-            {m.experiment_field_name()}
+            {m.name_label({ kind: "thing" })}
           </Text>
           <Text aria-hidden size="xs" type="secondary" className="col-span-2">
             {m.treatment_replicates_label()}
@@ -77,7 +75,7 @@ export function DesignField({
               <Fragment key={row.id}>
                 <TreatmentDot position={index + 1} />
                 <Input
-                  aria-label={m.experiment_field_name()}
+                  aria-label={m.name_label({ kind: "thing" })}
                   disabled={disabled}
                   placeholder={m.treatment_name_placeholder()}
                   value={row.name}
@@ -105,7 +103,7 @@ export function DesignField({
           block
           icon={Plus}
           disabled={disabled || rows.length >= MAX_TREATMENTS}
-          onClick={() => onChange([...rows, emptyRow()])}
+          onClick={() => onChange([...rows, emptyRow(nextRowId.current++)])}
         >
           {m.experiment_design_add_treatment()}
         </Button>

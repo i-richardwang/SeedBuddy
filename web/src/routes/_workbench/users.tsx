@@ -20,9 +20,9 @@ export const Route = createFileRoute("/_workbench/users")({
     if (!loaderData || !isAdmin(loaderData.user)) throw notFound();
     return getUsers();
   },
-  staticData: { crumbs: () => [{ label: m.users_title() }] },
+  staticData: { crumbs: () => [{ label: m.users_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.users_title()) }],
+    meta: [{ title: documentTitle(m.users_label()) }],
   }),
   pendingComponent: () => (
     <SettingsPageSkeleton>
@@ -39,7 +39,7 @@ function UsersPage() {
 
   return (
     <SettingsPage
-      title={m.users_title()}
+      title={m.users_label()}
       actions={
         <Button type="primary" icon={Plus} onClick={() => setCreating(true)}>
           {m.users_new()}

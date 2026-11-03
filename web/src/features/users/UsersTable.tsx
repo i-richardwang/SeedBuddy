@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { Tag } from "../../ui/kit/Tag";
+import { userStatusLabel, userStatusTone } from "./labels";
 import { RoleSelect } from "./RoleSelect";
 import { UserMenu } from "./UserMenu";
 
@@ -24,13 +25,13 @@ export function UsersTable({
   currentUserId: string;
 }) {
   return (
-    <Table narrow="cards" aria-label={m.users_title()}>
+    <Table narrow="cards" aria-label={m.users_label()}>
       <TableHeader>
         <tr>
-          <TableHead>{m.user_dialog_name_label()}</TableHead>
-          <TableHead>{m.user_dialog_email_label()}</TableHead>
+          <TableHead>{m.name_label({ kind: "person" })}</TableHead>
+          <TableHead>{m.email_label()}</TableHead>
           <TableHead className="w-40">{m.role_label()}</TableHead>
-          <TableHead>{m.user_column_status()}</TableHead>
+          <TableHead>{m.status_label()}</TableHead>
           <TableHead className="w-12">
             <span className="sr-only">{m.column_actions()}</span>
           </TableHead>
@@ -60,9 +61,7 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
           {self ? <Tag size="small">{m.users_you()}</Tag> : null}
         </Flexbox>
       </TableCell>
-      <TableCell cellLabel={m.user_dialog_email_label()}>
-        {account.email}
-      </TableCell>
+      <TableCell cellLabel={m.email_label()}>{account.email}</TableCell>
       <TableCell cellLabel={m.role_label()}>
         <RoleSelect
           aria-label={m.user_role_of({ name: account.name })}
@@ -79,9 +78,9 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
           }}
         />
       </TableCell>
-      <TableCell cellLabel={m.user_column_status()}>
-        <Status tone={account.banned ? "warning" : "success"}>
-          {account.banned ? m.user_status_suspended() : m.user_status_active()}
+      <TableCell cellLabel={m.status_label()}>
+        <Status tone={userStatusTone(account)}>
+          {userStatusLabel(account)}
         </Status>
       </TableCell>
       <TableCell cellSlot="actions" className="text-end">

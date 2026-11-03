@@ -16,8 +16,8 @@ import {
 } from "../../ui/kit/Table";
 import { formatCount } from "../../ui/numbers";
 import { TreatmentDialog } from "./TreatmentDialog";
-import { TreatmentDot } from "./TreatmentDot";
 import { TreatmentMenu } from "./TreatmentMenu";
+import { TreatmentName } from "./TreatmentName";
 
 /**
  * The experiment's design: each treatment, what sets it apart, and how many
@@ -36,7 +36,7 @@ export function TreatmentsTable({
   return (
     <>
       <Table
-        aria-label={m.experiment_treatments()}
+        aria-label={m.treatments_label()}
         narrow="cards"
         toolbar={
           <Button size="small" icon={Plus} onClick={() => setAdding(true)}>
@@ -46,11 +46,11 @@ export function TreatmentsTable({
       >
         <TableHeader>
           <tr>
-            <TableHead>{m.experiment_column_treatment()}</TableHead>
+            <TableHead>{m.treatment_label()}</TableHead>
             <TableHead>{m.treatment_factor_label()}</TableHead>
             <TableHead>{m.note_label()}</TableHead>
             <TableHead className="w-24" numeric>
-              {m.experiment_units()}
+              {m.units_label()}
             </TableHead>
             <TableHead className="w-12">
               <span className="sr-only">{m.column_actions()}</span>
@@ -75,7 +75,7 @@ export function TreatmentsTable({
                     <Absent />
                   )}
                 </TableCell>
-                <TableCell cellLabel={m.experiment_units()} numeric>
+                <TableCell cellLabel={m.units_label()} numeric>
                   {formatCount(
                     units.filter((unit) => unit.treatment === treatment.id)
                       .length,
@@ -100,15 +100,5 @@ export function TreatmentsTable({
         onClose={() => setAdding(false)}
       />
     </>
-  );
-}
-
-/** A treatment by its color and name. */
-export function TreatmentName({ treatment }: { treatment: Treatment }) {
-  return (
-    <span className="flex min-w-0 items-center gap-2">
-      <TreatmentDot position={treatment.position} />
-      <span className="truncate">{treatment.name}</span>
-    </span>
   );
 }

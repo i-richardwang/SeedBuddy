@@ -47,7 +47,7 @@ export const Route = createFileRoute(
     crumbs: ({ loaderData }) => {
       const { experiment, unit } = loaderData as UnitDetail;
       return [
-        { label: m.experiments_title(), href: "/experiments" },
+        { label: m.experiments_label(), href: "/experiments" },
         { label: experiment.name, href: `/experiments/${experiment.id}` },
         { label: unit.code },
       ];

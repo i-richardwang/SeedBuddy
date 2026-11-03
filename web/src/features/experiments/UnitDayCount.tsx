@@ -15,6 +15,7 @@ import { Status } from "../../ui/kit/Status";
 import { Text } from "../../ui/kit/Text";
 import { Tooltip } from "../../ui/kit/Tooltip";
 import { formatCount } from "../../ui/numbers";
+import { exclusionNote } from "./labels";
 
 /**
  * A unit's count on one day, or why there is none, read alike wherever the
@@ -104,7 +105,7 @@ export function UnitDayCount({
   if (image.state === "failed") {
     return explain(
       [...notes, ...(image.error ? [image.error] : [])],
-      link(<Status tone="error">{m.experiment_cell_failed()}</Status>),
+      link(<Status tone="error">{m.failed_label()}</Status>),
     );
   }
   const waiting =
@@ -124,12 +125,6 @@ export function UnitDayCount({
       </Text>,
     ),
   );
-}
-
-function exclusionNote(exclusion: Exclusion): string {
-  return exclusion.reason === "unclear"
-    ? m.experiment_cell_excluded_unclear()
-    : m.experiment_cell_excluded_event();
 }
 
 /** A count's notes, one per line, in a tooltip over it. */

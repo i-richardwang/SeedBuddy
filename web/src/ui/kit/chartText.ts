@@ -1,3 +1,5 @@
+import { useClientValue } from "./clientValue";
+
 /*
  * Measuring the charts' labels, which are set at the axis label size (12px,
  * `--text-xs`) in the page font, so an axis can be as wide as its widest
@@ -34,4 +36,17 @@ export function fitText(text: string, width: number): string {
     if (textWidth(cut) <= width) return cut;
   }
   return "";
+}
+
+/** The widest formatted value plus 16px; server and first client frame use 16px. */
+export function useValueAxisWidth(
+  values: readonly number[],
+  format: (value: number) => string,
+): number {
+  return (
+    useClientValue(
+      () => Math.max(0, ...values.map((value) => textWidth(format(value)))),
+      0,
+    ) + 16
+  );
 }

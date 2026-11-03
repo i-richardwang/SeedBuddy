@@ -8,7 +8,8 @@ import { RowMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { toast } from "../../ui/kit/Toast";
-import { ReplicatesDialog, TreatmentDialog } from "./TreatmentDialog";
+import { ReplicatesDialog } from "./ReplicatesDialog";
+import { TreatmentDialog } from "./TreatmentDialog";
 
 type Action = "edit" | "replicates";
 

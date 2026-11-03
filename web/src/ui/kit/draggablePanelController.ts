@@ -3,10 +3,10 @@ import { animate, type MotionValue, motionValue } from "motion/react";
 import { foldTransition } from "./motionToken";
 
 /*
- * Width state of a DraggablePanel, outside React. Two
- * motion values drive the panel: `size` is the visible width and `content`
- * the width the children are laid out at, so a fold clips the content
- * instead of reflowing it.
+ * Width state of a DraggablePanel, outside React. Two motion values drive
+ * the panel: `size` is the visible width and `content` the width the
+ * children are laid out at, so a fold clips the content instead of reflowing
+ * it.
  */
 
 const clamp = (value: number, min: number, max: number) =>

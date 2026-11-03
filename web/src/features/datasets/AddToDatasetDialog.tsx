@@ -42,7 +42,7 @@ export function AddToDatasetDialog({
       open={open}
       onClose={onClose}
       title={heading}
-      okText={m.dataset_add_submit()}
+      okText={m.add_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -100,7 +100,7 @@ function AddToDatasetForm({
         submit();
       }}
     >
-      <Form.Field label={m.dataset_add_dataset_label()}>
+      <Form.Field label={m.dataset_label()}>
         <Select
           value={choice}
           disabled={busy}
@@ -115,7 +115,7 @@ function AddToDatasetForm({
         />
       </Form.Field>
       {choice === NEW_DATASET ? (
-        <Form.Field label={m.dataset_name_label()} required>
+        <Form.Field label={m.name_label({ kind: "thing" })} required>
           <Input
             value={name}
             onValueChange={setName}

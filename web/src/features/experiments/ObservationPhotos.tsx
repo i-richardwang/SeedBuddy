@@ -199,7 +199,7 @@ function matchPhotos(
   return matched;
 }
 
-function storedPhotos(images: readonly ListedImage[]): StoredPhoto[] {
+export function storedPhotos(images: readonly ListedImage[]): StoredPhoto[] {
   return images.flatMap((image) =>
     image.state.status === "stored"
       ? [

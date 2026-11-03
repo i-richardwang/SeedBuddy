@@ -5,25 +5,22 @@ import { Skeleton } from "./Skeleton";
 
 /*
  * A group of a settings page: a tray with the group's `SectionHeader` (its
- * title, an optional description and an `extra` at its end: a count, a small
+ * title and an `extra` at its end: a count, a small
  * button), and an inner panel lifted 3px inside it holding the group's
  * content, which runs to the panel's edges: `SettingsRow`s or a table.
  *
- * `SettingsRow` is one setting in the panel: its label, with an optional
- * line of description under it, and its control in a column at the end of
+ * `SettingsRow` is one setting in the panel: its label and its control in a column at the end of
  * the row at least 240px or a third of the row wide. `SettingsValueRow` is
  * one fact about the reader: its label in a 160px column, the value right
  * after it and an `action` at the row's end. Rows are ruled apart.
  */
 export function SettingsGroup({
   children,
-  description,
   extra,
   id,
   title,
 }: {
   children: ReactNode;
-  description?: ReactNode;
   extra?: ReactNode;
   /** Makes the group a link target. */
   id?: string;
@@ -32,7 +29,7 @@ export function SettingsGroup({
   return (
     <section className="ui-settings-group" id={id}>
       <div className="ui-settings-group-header">
-        <SectionHeader title={title} description={description} extra={extra} />
+        <SectionHeader title={title} extra={extra} />
       </div>
       <div className="ui-settings-group-panel">{children}</div>
     </section>
@@ -41,21 +38,16 @@ export function SettingsGroup({
 
 export function SettingsRow({
   children,
-  description,
   label,
 }: {
   /** The setting's value or the control that changes it. */
-  children?: ReactNode;
-  description?: ReactNode;
+  children: ReactNode;
   label: ReactNode;
 }) {
   return (
     <div className="ui-settings-row">
       <div className="ui-settings-row-label">
         <span className="ui-settings-row-title">{label}</span>
-        {description != null ? (
-          <small className="ui-settings-row-description">{description}</small>
-        ) : null}
       </div>
       {children != null ? (
         <div className="ui-settings-row-control">{children}</div>

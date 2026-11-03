@@ -58,10 +58,10 @@ function ChangePasswordForm({
             });
             if (error) throw new Error(error.message);
           },
-          m.account_password_not_changed(),
+          m.password_not_changed(),
           {
             onSuccess: () => {
-              toast.success(m.account_password_changed());
+              toast.success(m.password_changed());
               onDone();
             },
           },
@@ -76,7 +76,7 @@ function ChangePasswordForm({
         disabled={busy}
       />
       <PasswordField
-        label={m.account_new_password()}
+        label={m.new_password_label()}
         name="newPassword"
         disabled={busy}
       />

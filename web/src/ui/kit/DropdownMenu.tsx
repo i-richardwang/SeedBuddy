@@ -10,12 +10,12 @@ import { resolveNativeButton } from "./nativeButton";
 /*
  * A menu opened by clicking its trigger. `items` describes the menu (plain
  * items and dividers); an item with `href` is a link, such as a download the
- * server sends as an attachment. Base UI owns the open state and mounts the items only
- * while the menu is open or closing. When any item has an icon, every item
- * reserves the icon slot so labels line up. The trigger gets no class: its
- * open fill is selected by `[aria-haspopup="menu"][data-popup-open]` in the
- * base layer of `app.css`, and the base focus ring skips elements with `ui-`
- * classes.
+ * server sends as an attachment. Base UI owns the open state and mounts the
+ * items only while the menu is open or closing. When any item has an icon,
+ * every item reserves the icon slot so labels line up. The trigger gets no
+ * class: its open fill is selected by `[aria-haspopup="menu"][data-popup-
+ * open]` in the base layer of `app.css`, and the base focus ring skips
+ * elements with `ui-` classes.
  */
 
 interface MenuItemType {

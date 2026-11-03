@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { FlaskConical, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { unitExclusions } from "../../domain/experiments/analysis";
@@ -17,11 +16,8 @@ import type {
   ExperimentDetail,
   Unit,
 } from "../../domain/experiments/read-model";
-import type { ExperimentObservation } from "../../domain/experiments/schema";
-import { experimentSummary } from "../../domain/experiments/summary";
 import { m } from "../../paraglide/messages";
-import { formatDay } from "../../ui/Day";
-import { Button } from "../../ui/kit/Button";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Select } from "../../ui/kit/Select";
 import {
   Table,
@@ -33,40 +29,14 @@ import {
   TableSelectionCell,
   TableSelectionHead,
 } from "../../ui/kit/Table";
-import { Tabs } from "../../ui/kit/Tabs";
 import { TextLink } from "../../ui/kit/TextLink";
-import { Page } from "../../ui/Page";
-import { ExperimentMenu } from "./ExperimentMenu";
-import { observationQuestion } from "./labels";
-import { RecordObservationDialog } from "./ObservationDialog";
 import { ObservationMenu } from "./ObservationMenu";
-import { TreatmentSummary } from "./TreatmentSummary";
-import { TreatmentName, TreatmentsTable } from "./TreatmentsTable";
+import { TreatmentName } from "./TreatmentName";
 import { UnitDayCount } from "./UnitDayCount";
 import { UnitSelectionBar } from "./UnitSelectionBar";
 
-/**
- * The parts of an experiment, one on show at a time: its units and what they
- * read, the summary of them by treatment, then its treatments.
- */
-export const EXPERIMENT_TABS = ["units", "summary", "treatments"] as const;
-
-type ExperimentTab = (typeof EXPERIMENT_TABS)[number];
-
-/**
- * One experiment, in three tabs: its units, a row per unit with the treatment
- * it belongs to and what it read on each day; the summary, each treatment's
- * mean and spread on each day; and its treatments, a row per treatment.
- */
-export function ExperimentView({
-  data,
-  tab,
-  onTabChange,
-}: {
-  data: ExperimentDetail;
-  tab: ExperimentTab;
-  onTabChange: (tab: ExperimentTab) => void;
-}) {
+/** The experiment's units and their readings, grouped by treatment. */
+export function UnitsTable({ data }: { data: ExperimentDetail }) {
   const {
     experiment,
     treatments,
@@ -77,17 +47,16 @@ export function ExperimentView({
     models,
     datasets,
   } = data;
-  const [recording, setRecording] = useState(false);
+  useRouteRefresh(
+    5000,
+    images.some((image) => image.state === "pending"),
+  );
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [treatment, setTreatment] = useState<string | null>(null);
 
   const cells = observationCells(images, manualReadings);
   const ordinals = observationOrdinals(observations);
   const placed = placedPhotos(data);
-  const hasRecords =
-    images.length > 0 ||
-    manualReadings.length > 0 ||
-    units.some((unit) => unit.events.length > 0);
   const treatmentOf = new Map(treatments.map((item) => [item.id, item]));
   // A treatment's units stay together, in the design's order.
   const rows = treatments.flatMap((item) =>
@@ -111,19 +80,7 @@ export function ExperimentView({
     search: { observation },
   });
 
-  // A column is one day; it names its model too when the days read for more
-  // than one, and the classes it counts when it counts fewer than its model
-  // finds, since values compare within a column and columns may ask
-  // different questions.
-  const asked = new Set(observations.map((item) => item.modelId));
-  const question = (observation: ExperimentObservation) =>
-    observationQuestion(
-      observation,
-      models.find((item) => item.id === observation.modelId),
-      { nameModel: asked.size > 1 },
-    );
-
-  const unitsTab = (
+  return (
     <>
       <Table
         aria-label={m.experiment_grid_label({
@@ -133,7 +90,7 @@ export function ExperimentView({
         toolbar={
           treatments.length > 1 ? (
             <Select
-              aria-label={m.experiment_column_treatment()}
+              aria-label={m.treatment_label()}
               allowClear
               className="w-48"
               options={treatments.map((item) => ({
@@ -169,7 +126,7 @@ export function ExperimentView({
               {m.experiment_column_unit()}
             </TableHead>
             <TableHead fixed="start" className="min-w-36">
-              {m.experiment_column_treatment()}
+              {m.treatment_label()}
             </TableHead>
             {observations.map((observation) => (
               <TableHead key={observation.id} className="min-w-28">
@@ -178,7 +135,6 @@ export function ExperimentView({
                   inoculatedOn={experiment.inoculatedOn}
                   observation={observation}
                   observations={observations}
-                  question={question(observation)}
                   units={units.filter((unit) =>
                     unitIsAvailableAt(unit.events, observation, ordinals),
                   )}
@@ -261,66 +217,5 @@ export function ExperimentView({
         />
       </div>
     </>
-  );
-
-  return (
-    <Page
-      title={experiment.name}
-      icon={FlaskConical}
-      meta={[
-        experiment.plantMaterial,
-        experiment.explantType,
-        experiment.baseMedium,
-        m.experiment_meta_inoculated({
-          day: formatDay(experiment.inoculatedOn),
-        }),
-      ].filter(Boolean)}
-      actions={
-        <>
-          <Button type="primary" icon={Plus} onClick={() => setRecording(true)}>
-            {m.observation_record()}
-          </Button>
-          <ExperimentMenu experiment={experiment} hasRecords={hasRecords} />
-        </>
-      }
-    >
-      <Tabs
-        activeKey={tab}
-        items={[
-          { key: "units", label: m.experiment_units() },
-          { key: "summary", label: m.experiment_summary() },
-          { key: "treatments", label: m.experiment_treatments() },
-        ]}
-        onChange={onTabChange}
-      />
-      {tab === "units" ? (
-        unitsTab
-      ) : tab === "summary" ? (
-        <TreatmentSummary
-          treatments={treatments}
-          units={units}
-          observations={observations}
-          summary={experimentSummary(data)}
-        />
-      ) : (
-        <TreatmentsTable
-          experiment={experiment.id}
-          treatments={treatments}
-          units={units}
-        />
-      )}
-
-      <RecordObservationDialog
-        experiment={experiment.id}
-        inoculatedOn={experiment.inoculatedOn}
-        models={models}
-        previous={observations.at(-1)}
-        observations={observations}
-        units={units}
-        placed={placed}
-        open={recording}
-        onClose={() => setRecording(false)}
-      />
-    </Page>
   );
 }

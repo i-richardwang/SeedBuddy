@@ -18,9 +18,9 @@ const workbench = getRouteApi("/_workbench");
 
 export const Route = createFileRoute("/_workbench/workers")({
   loader: () => getWorkers(),
-  staticData: { crumbs: () => [{ label: m.workers_title() }] },
+  staticData: { crumbs: () => [{ label: m.workers_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.workers_title()) }],
+    meta: [{ title: documentTitle(m.workers_label()) }],
   }),
   pendingComponent: () => (
     <SettingsPageSkeleton>
@@ -40,7 +40,7 @@ function WorkersPage() {
 
   return (
     <SettingsPage
-      title={m.workers_title()}
+      title={m.workers_label()}
       actions={
         administers && workers.length > 0 ? (
           <Button type="primary" icon={Plus} onClick={enroll}>

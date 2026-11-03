@@ -58,9 +58,9 @@ export function ApiKeysGroup({
         >
           <TableHeader>
             <tr>
-              <TableHead>{m.api_key_column_name()}</TableHead>
+              <TableHead>{m.name_label({ kind: "thing" })}</TableHead>
               <TableHead>{m.api_key_column_key()}</TableHead>
-              <TableHead>{m.api_key_column_scopes()}</TableHead>
+              <TableHead>{m.scopes_label()}</TableHead>
               <TableHead>{m.api_key_column_expires()}</TableHead>
               <TableHead>{m.api_key_column_last_used()}</TableHead>
               <TableHead className="w-12">
@@ -93,7 +93,7 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
           {m.api_key_start({ start: apiKey.start })}
         </Text>
       </TableCell>
-      <TableCell cellLabel={m.api_key_column_scopes()}>
+      <TableCell cellLabel={m.scopes_label()}>
         <Flexbox horizontal gap={4} wrap="wrap">
           {apiKey.scopes.map((scope) => (
             <Tag key={scope} size="small">
