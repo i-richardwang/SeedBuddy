@@ -2,11 +2,13 @@ import { z } from "zod";
 
 import { timestampSchema } from "../time";
 import {
+  type CalendarDay,
+  type ExperimentObservation,
   experimentIdSchema,
   observationIdSchema,
   unitIdSchema,
-  unitRefSchema,
 } from "./schema";
+
 export const CULTURE_EVENT_TYPES = [
   "contaminated",
   "nonviable",
@@ -30,13 +32,6 @@ export const cultureEventSchema = z.strictObject({
 
 export type CultureEvent = z.infer<typeof cultureEventSchema>;
 
-const cultureEventRequestSchema = unitRefSchema.extend({
-  type: cultureEventTypeSchema,
-  observation: observationIdSchema,
-});
-
-export type CultureEventRequest = z.infer<typeof cultureEventRequestSchema>;
-
 export const cultureEventsRequestSchema = z.strictObject({
   experiment: experimentIdSchema,
   units: z
@@ -59,8 +54,6 @@ export const cultureEventRefSchema = z.strictObject({
 });
 
 export type CultureEventRef = z.infer<typeof cultureEventRefSchema>;
-
-import type { CalendarDay, ExperimentObservation } from "./schema";
 
 export type ObservationOrdinals = ReadonlyMap<string, number>;
 

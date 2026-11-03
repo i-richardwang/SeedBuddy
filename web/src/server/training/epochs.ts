@@ -56,10 +56,10 @@ export async function saveTrainingEpoch(
   attempt: number,
   report: TrainingEpochReport,
   at: Date,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
   const columns = epochColumns(report, at);
-  await tx
+  await db
     .insert(trainingEpochs)
     .values({ runId, attempt, epoch: report.epoch, ...columns })
     .onConflictDoUpdate({
@@ -79,9 +79,9 @@ export async function saveTrainingEpoch(
  */
 export async function listTrainingEpochs(
   runId: string,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<TrainingEpoch[]> {
-  const db = executor ?? (await database());
+  db ??= await database();
   const rows = await db
     .select({ epoch: trainingEpochs })
     .from(trainingEpochs)
@@ -100,9 +100,9 @@ export async function listTrainingEpochs(
 export async function latestTrainingEpoch(
   runId: string,
   attempt: number,
-  tx: Executor,
+  db: Executor,
 ): Promise<number | null> {
-  const [previous] = await tx
+  const [previous] = await db
     .select({ epoch: trainingEpochs.epoch })
     .from(trainingEpochs)
     .where(

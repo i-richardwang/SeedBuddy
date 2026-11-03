@@ -3,18 +3,16 @@ import { expect, test } from "bun:test";
 import { ImageNotFoundError } from "../../domain/images/errors";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
-import {
-  experimentGridDetail,
-  unitDetail,
-} from "../queries/experiment-details";
+import { experimentGridDetail } from "../queries/experiment-grid-detail";
+import { unitDetail } from "../queries/unit-detail";
 import {
   createExperiment,
   INOCULATED,
   reading,
-  trainedVersion,
   unitsOf,
 } from "../testing/experiments";
 import { storeTexts } from "../testing/images";
+import { trainedVersion } from "../testing/models";
 import { clearImageUnclear, markImageUnclear } from "./unclear";
 
 test("a photograph found unclear is marked on its image, wherever it is shown", async () => {

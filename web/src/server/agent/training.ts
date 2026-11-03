@@ -3,25 +3,18 @@ import { z } from "zod";
 import { datasetRefSchema } from "../../domain/datasets/schema";
 import { resourceIdSchema } from "../../domain/identifiers/schema";
 import { modelRefSchema } from "../../domain/models/schema";
-import { TrainingRunNotFoundError } from "../../domain/training/errors";
 import {
   trainingControlSchema,
   trainingEpochSchema,
   trainingRecipeSchema,
   trainingRunSchema,
 } from "../../domain/training/schema";
-import { database } from "../infra/db/client";
 import {
+  agentTrainingRunDetail,
   listTrainingRunOverviews,
   listTrainingWorkerOverviews,
 } from "../queries/public";
-import {
-  controlTrainingRun,
-  createTrainingRun,
-  listTrainingEpochs,
-  readDatasetSnapshot,
-  requireTrainingRun,
-} from "../training/public";
+import { controlTrainingRun, createTrainingRun } from "../training/public";
 import { command, query } from "./definition";
 
 export const trainingOperations = [
@@ -58,18 +51,7 @@ export const trainingOperations = [
       datasetId: resourceIdSchema,
       epochs: z.array(trainingEpochSchema),
     }),
-    handler: async ({ runId }) => {
-      const db = await database();
-      const run = await requireTrainingRun(runId, db);
-      const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
-      if (!snapshot)
-        throw new TrainingRunNotFoundError("Training snapshot is missing");
-      return {
-        run,
-        datasetId: snapshot.datasetId,
-        epochs: await listTrainingEpochs(runId, db),
-      };
-    },
+    handler: ({ runId }) => agentTrainingRunDetail(runId),
   }),
   query({
     name: "list-training-runs",

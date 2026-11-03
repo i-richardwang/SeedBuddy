@@ -8,6 +8,7 @@ export { assertDocumentImage } from "./documents";
 export { imageBlobKey } from "./keys";
 export { lockImage } from "./lock";
 export { openImagePreview } from "./preview";
+export { requireStoredImage } from "./records";
 export {
   type ImageRegionEvidence,
   readImageOverview,
@@ -16,8 +17,8 @@ export {
 export { storeCanonicalImage, storeImage } from "./store";
 export {
   clearImageUnclear,
+  insertUnclearImages,
   markedUnclear,
-  markImagesUnclear,
   markImageUnclear,
   readUnclearImages,
 } from "./unclear";

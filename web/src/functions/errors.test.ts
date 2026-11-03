@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 
 import { businessFailureSchema } from "../domain/errors";
 import {
-  ExperimentImageAlreadyUsedError,
   ExperimentNotFoundError,
+  ExperimentObservationImageConflictError,
 } from "../domain/experiments/errors";
 import { withRequestLocale } from "../server/transport/http/locale";
 import { errorMessage } from "../ui/errors";
@@ -77,7 +77,7 @@ test("business error details survive the wire without serializing exception inte
     await handler({
       ...context,
       next: async () => {
-        throw new ExperimentImageAlreadyUsedError(images);
+        throw new ExperimentObservationImageConflictError(images);
       },
     });
   } catch (error) {

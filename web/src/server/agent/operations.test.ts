@@ -348,7 +348,7 @@ describe("agent operations", () => {
           readings: [{ unit: counted!.id, tally: { shoots: 1 } }],
         }),
       ).code,
-    ).toBe("conflict");
+    ).toBe("invalid_request");
 
     output(
       await executeAgentOperation("enter-manual-readings", {

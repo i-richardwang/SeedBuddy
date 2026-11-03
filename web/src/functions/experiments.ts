@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import type { NamedDataset } from "../domain/datasets/schema";
 import {
   cultureEventRefSchema,
   cultureEventsRequestSchema,
@@ -24,7 +23,6 @@ import {
   unitsTreatmentUpdateSchema,
   unitUpdateSchema,
 } from "../domain/experiments/schema";
-import { listDatasets, listDatasetsForModel } from "../server/datasets/public";
 import {
   addReplicates,
   addTreatment,
@@ -46,20 +44,12 @@ import {
   updateTreatment as updateTreatmentService,
   updateUnit as updateUnitService,
 } from "../server/experiments/public";
-import { listModels } from "../server/models/public";
 import {
-  experimentGridDetail,
+  experimentGridPage,
   findExperimentNames,
   listExperimentOverviews,
-  unitDetail,
+  unitPage,
 } from "../server/queries/public";
-
-async function datasetsTraining(modelId: string): Promise<NamedDataset[]> {
-  return (await listDatasetsForModel(modelId)).map(({ id, name }) => ({
-    id,
-    name,
-  }));
-}
 
 export const getExperiments = createServerFn({ method: "GET" }).handler(() =>
   listExperimentOverviews(),
@@ -75,15 +65,7 @@ export const getExperimentNames = createServerFn({ method: "GET" }).handler(
  */
 export const getExperimentGrid = createServerFn({ method: "GET" })
   .validator(experimentRefSchema)
-  .handler(async ({ data }) => {
-    const grid = await experimentGridDetail(data.experiment);
-    if (!grid) return null;
-    const [models, datasets] = await Promise.all([
-      listModels(),
-      listDatasets(),
-    ]);
-    return { ...grid, models, datasets };
-  });
+  .handler(({ data }) => experimentGridPage(data.experiment));
 
 export const createExperiment = createServerFn({ method: "POST" })
   .validator(experimentRequestSchema)
@@ -115,14 +97,7 @@ export const createReplicates = createServerFn({ method: "POST" })
 
 export const getUnitDetail = createServerFn({ method: "GET" })
   .validator(unitRequestSchema)
-  .handler(async ({ data: { observation, ...ref } }) => {
-    const series = await unitDetail(ref, observation);
-    if (!series) return null;
-    const datasets = series.shown
-      ? await datasetsTraining(series.shown.model.id)
-      : [];
-    return { ...series, datasets };
-  });
+  .handler(({ data: { observation, ...ref } }) => unitPage(ref, observation));
 
 export const updateUnit = createServerFn({ method: "POST" })
   .validator(unitUpdateSchema)

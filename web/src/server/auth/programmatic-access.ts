@@ -1,7 +1,7 @@
 import type { JWTPayload } from "better-auth";
 import { and, eq, gt } from "drizzle-orm";
 
-import { database } from "../infra/db/client";
+import { database, operationTime } from "../infra/db/client";
 import {
   oauthClients,
   oauthConsents,
@@ -59,7 +59,7 @@ export async function mcpAuthorizationIsLive(
       and(
         eq(sessions.id, sessionId),
         eq(sessions.userId, userId),
-        gt(sessions.expiresAt, new Date()),
+        gt(sessions.expiresAt, await operationTime(db)),
       ),
     );
   return session !== undefined;

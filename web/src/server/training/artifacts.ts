@@ -1,7 +1,6 @@
 import {
   type ArtifactUpload,
   artifactPartSize,
-  artifactUploadSchema,
   TRAINING_ARTIFACT_PART_BYTES,
 } from "../../domain/training/artifact";
 import { TrainingArtifactInvalidError } from "../../domain/training/errors";
@@ -24,16 +23,9 @@ export async function saveTrainingArtifactPart(
   digest: string,
   bytes: Uint8Array,
 ) {
-  if (!artifactUploadSchema.safeParse(upload).success)
-    throw new TrainingArtifactInvalidError("Invalid artifact upload");
   const db = await database();
   await requireOwnedRunningRun(await requireTrainingRun(runId, db), owner, db);
-  const expected = artifactPartSize(upload, part);
-  if (
-    !expected ||
-    bytes.byteLength !== expected ||
-    contentDigest(bytes) !== digest
-  )
+  if (contentDigest(bytes) !== digest)
     throw new TrainingArtifactInvalidError(
       "Artifact part size or digest does not match",
     );

@@ -22,8 +22,15 @@ import {
 import { ExperimentObservationImageNotFoundError } from "../../domain/experiments/errors";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
 import type { ImageSplit } from "../../domain/training/schema";
-import { imageBlobKey, lockImage } from "../images/public";
-import { database, type Executor, inTransaction } from "../infra/db/client";
+import { lockImage } from "../images/public";
+import {
+  database,
+  type Executor,
+  inTransaction,
+  operationTime,
+  single,
+  transaction,
+} from "../infra/db/client";
 import { refusingUnique } from "../infra/db/errors";
 import {
   datasetImages,
@@ -39,7 +46,6 @@ export interface DatasetImage extends DatasetImageRef {
   width: number;
   height: number;
   bytes: number;
-  blobKey: string;
   split: ImageSplit | null;
 }
 
@@ -59,7 +65,6 @@ export function toDatasetImage({
     width: image.width,
     height: image.height,
     bytes: image.bytes,
-    blobKey: imageBlobKey(image.id),
     split: membership.split,
   };
 }
@@ -103,17 +108,17 @@ export async function readDatasetByName(
   return row ? toDataset(row) : null;
 }
 
-export async function listDatasets(executor?: Executor): Promise<Dataset[]> {
-  const db = executor ?? (await database());
+export async function listDatasets(db?: Executor): Promise<Dataset[]> {
+  db ??= await database();
   const rows = await db.select().from(datasets).orderBy(asc(datasets.name));
   return rows.map(toDataset);
 }
 
 export async function listDatasetsForModel(
   modelId: string,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Dataset[]> {
-  const db = executor ?? (await database());
+  db ??= await database();
   const rows = await db
     .select()
     .from(datasets)
@@ -136,28 +141,40 @@ async function refuseTakenDatasetName<T>(
 
 export async function createDataset(
   { name, modelId }: DatasetRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Dataset> {
-  return inTransaction(executor, async (tx) => {
-    await requireModel(modelId, tx);
-    const [row] = await refuseTakenDatasetName(name, () =>
-      tx
-        .insert(datasets)
-        .values({ id: randomUUID(), name, modelId, createdAt: new Date() })
-        .returning(),
-    );
-    return toDataset(row!);
+  return inTransaction(db, async (db) => {
+    await requireModel(modelId, db);
+    return insertDataset({ name, modelId }, await operationTime(db), db);
   });
+}
+
+/** Insert a dataset after the caller has resolved its model. */
+export async function insertDataset(
+  { name, modelId }: DatasetRequest,
+  at: Date,
+  db: Executor,
+): Promise<Dataset> {
+  const row = single(
+    await refuseTakenDatasetName(name, () =>
+      db
+        .insert(datasets)
+        .values({ id: randomUUID(), name, modelId, createdAt: at })
+        .returning(),
+    ),
+    "datasets",
+  );
+  return toDataset(row);
 }
 
 /** Renames the dataset; its images, splits, and training history stay. */
 export async function updateDataset(
   { dataset: datasetId, name }: DatasetUpdate,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Dataset> {
-  return inTransaction(executor, async (tx) => {
+  return inTransaction(db, async (db) => {
     const [row] = await refuseTakenDatasetName(name, () =>
-      tx
+      db
         .update(datasets)
         .set({ name })
         .where(eq(datasets.id, datasetId))
@@ -194,9 +211,9 @@ interface ObservedImage {
 /** The experiment images named, which must all be observed for one model. */
 async function resolveObservedImages(
   images: ObservationImageRef[],
-  tx: Executor,
+  db: Executor,
 ): Promise<{ modelId: string; observed: ObservedImage[] }> {
-  const rows = await tx
+  const rows = await db
     .select({
       experimentId: experimentObservationImages.experimentId,
       observationImageId: experimentObservationImages.id,
@@ -245,27 +262,23 @@ async function resolveObservedImages(
       `The images were observed for different models: ${modelIds.join(", ")}`,
     );
   }
-  const [modelId] = modelIds;
-  if (!modelId)
-    throw new DatasetModelMismatchError(
-      "At least one observed image is required",
-    );
+  const modelId = observed[0]!.modelId;
   return { modelId, observed };
 }
 
 async function insertMemberships(
   dataset: Dataset,
   observed: ObservedImage[],
-  tx: Executor,
+  addedAt: Date,
+  db: Executor,
 ): Promise<DatasetImageAdditionResult> {
-  const addedAt = new Date();
   const joining = new Map<string, string>();
   for (const row of observed) {
     if (!joining.has(row.digest)) joining.set(row.digest, row.filename);
   }
   const sorted = [...joining.keys()].sort();
-  for (const digest of sorted) await lockImage(digest, tx);
-  const created = await tx
+  for (const digest of sorted) await lockImage(digest, db);
+  const created = await db
     .insert(datasetImages)
     .values(
       sorted.map((digest) => ({
@@ -287,32 +300,33 @@ async function insertMemberships(
 /** Adds experiment images atomically to a dataset for their observation's model. */
 export async function addExperimentObservationImages(
   { dataset: datasetId, images }: DatasetImageAddition,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<DatasetImageAdditionResult> {
-  return inTransaction(executor, async (tx) => {
-    const dataset = await readDataset(datasetId, tx);
+  return inTransaction(db, async (db) => {
+    const dataset = await readDataset(datasetId, db);
     if (!dataset) {
       throw new DatasetNotFoundError(`Unknown dataset: ${datasetId}`);
     }
-    const { modelId, observed } = await resolveObservedImages(images, tx);
+    const { modelId, observed } = await resolveObservedImages(images, db);
     if (dataset.modelId !== modelId) {
       throw new DatasetModelMismatchError(
         `Dataset ${dataset.name} trains ${dataset.modelId}, not ${modelId}`,
       );
     }
-    return insertMemberships(dataset, observed, tx);
+    return insertMemberships(dataset, observed, await operationTime(db), db);
   });
 }
 
 /** Creates a dataset for the images' model and adds them, in one step. */
-export async function addExperimentObservationImagesToNewDataset(
-  { name, images }: NewDatasetImageAddition,
-  executor?: Executor,
-): Promise<DatasetImageAdditionResult> {
-  return inTransaction(executor, async (tx) => {
-    const { modelId, observed } = await resolveObservedImages(images, tx);
-    const dataset = await createDataset({ name, modelId }, tx);
-    return insertMemberships(dataset, observed, tx);
+export async function addExperimentObservationImagesToNewDataset({
+  name,
+  images,
+}: NewDatasetImageAddition): Promise<DatasetImageAdditionResult> {
+  return transaction(async (db) => {
+    const { modelId, observed } = await resolveObservedImages(images, db);
+    const at = await operationTime(db);
+    const dataset = await insertDataset({ name, modelId }, at, db);
+    return insertMemberships(dataset, observed, at, db);
   });
 }
 
@@ -323,16 +337,16 @@ export async function addExperimentObservationImagesToNewDataset(
  */
 export async function removeDatasetImages(
   value: DatasetImageRemoval,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<DatasetImageRemovalResult> {
   const { dataset: datasetId } = value;
   const digests = [...new Set(value.digests)];
-  return inTransaction(executor, async (tx) => {
-    const dataset = await readDataset(datasetId, tx);
+  return inTransaction(db, async (db) => {
+    const dataset = await readDataset(datasetId, db);
     if (!dataset) {
       throw new DatasetNotFoundError(`Unknown dataset: ${datasetId}`);
     }
-    const removed = await tx
+    const removed = await db
       .delete(datasetImages)
       .where(
         and(

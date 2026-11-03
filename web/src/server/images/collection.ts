@@ -2,7 +2,7 @@ import { and, asc, eq, lte, sql } from "drizzle-orm";
 
 import { imageDigestSchema } from "../../domain/images/schema";
 import { listBlobs, removeBlob } from "../infra/blobs/store";
-import { database, transaction } from "../infra/db/client";
+import { database, operationTime, transaction } from "../infra/db/client";
 import {
   annotationRuns,
   annotations,
@@ -45,9 +45,9 @@ async function forgetExpiredImages(now: Date): Promise<void> {
     .where(and(lte(images.receivedAt, cutoff), unclaimed()))
     .orderBy(asc(images.receivedAt), asc(images.id));
   for (const { id } of candidates) {
-    await transaction(async (tx) => {
-      await lockImage(id, tx);
-      await tx
+    await transaction(async (db) => {
+      await lockImage(id, db);
+      await db
         .delete(images)
         .where(
           and(eq(images.id, id), lte(images.receivedAt, cutoff), unclaimed()),
@@ -83,9 +83,9 @@ async function sweepImageBlobs(): Promise<string[]> {
   }
   const collected: string[] = [];
   for (const [digest, keys] of objects) {
-    const removed = await transaction(async (tx) => {
-      await lockImage(digest, tx);
-      const [row] = await tx
+    const removed = await transaction(async (db) => {
+      await lockImage(digest, db);
+      const [row] = await db
         .select({ id: images.id })
         .from(images)
         .where(eq(images.id, digest));
@@ -99,7 +99,7 @@ async function sweepImageBlobs(): Promise<string[]> {
 }
 
 /** Expires unclaimed Image rows, then sweeps every Blob no row roots. */
-export async function collectImages(now: Date = new Date()): Promise<string[]> {
-  await forgetExpiredImages(now);
+export async function collectImages(suppliedAt?: Date): Promise<string[]> {
+  await forgetExpiredImages(await operationTime(await database(), suppliedAt));
   return sweepImageBlobs();
 }

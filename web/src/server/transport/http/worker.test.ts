@@ -239,6 +239,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
   expect(renewed.status).toBe(200);
   expect(
     new Date((await renewed.json()).leaseExpiresAt).getTime(),
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   ).toBeGreaterThan(Date.now());
   expect(
     (
@@ -415,7 +416,7 @@ test.each([...TRAINING_PRESETS])(
       ["first", "second"],
     );
 
-    const created = await createTrainingRun(dataset.id, recipe);
+    const created = await createTrainingRun(dataset.id, recipe, null);
     const { token } = await enrollWorker(`api-trainer-${preset.id}`);
     const authorization = `Bearer ${token}`;
 

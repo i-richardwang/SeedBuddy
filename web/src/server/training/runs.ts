@@ -13,7 +13,6 @@ import {
   type TrainingPhase,
   type TrainingRecipe,
   type TrainingRun,
-  trainingRecipeSchema,
   trainingRunId,
 } from "../../domain/training/schema";
 import {
@@ -26,6 +25,7 @@ import {
   database,
   type Executor,
   operationTime,
+  single,
   transaction,
 } from "../infra/db/client";
 import {
@@ -42,6 +42,7 @@ import { ownershipConflict, requireTrainingRun } from "./runs-access";
 import { createDatasetSnapshot } from "./snapshots";
 import { validateTrainingTarget } from "./targets";
 
+const MESSAGE_LIMIT = 2000;
 const LEASE_MILLISECONDS = 5 * 60 * 1000;
 const PHASE_PROGRESS: Record<TrainingPhase, number> = {
   preparing: 0,
@@ -113,17 +114,20 @@ export async function transitionTrainingRun(
   at: Date,
   db: Executor,
 ): Promise<TrainingRun> {
-  const [row] = await db
-    .update(trainingRuns)
-    .set({
-      ...stateColumns(state),
-      ...(state.status === "cancelled" || state.status === "succeeded"
-        ? { checkpoint: null }
-        : {}),
-    })
-    .where(eq(trainingRuns.id, runId))
-    .returning();
-  const run = row ? toTrainingRun(row) : await requireTrainingRun(runId, db);
+  const row = single(
+    await db
+      .update(trainingRuns)
+      .set({
+        ...stateColumns(state),
+        ...(state.status === "cancelled" || state.status === "succeeded"
+          ? { checkpoint: null }
+          : {}),
+      })
+      .where(eq(trainingRuns.id, runId))
+      .returning(),
+    "training_runs",
+  );
+  const run = toTrainingRun(row);
   if (state.status !== "running" && state.status !== "queued") {
     await finishAttempt(
       run,
@@ -188,9 +192,9 @@ export async function trainingLeaseIsHeld(
 
 export async function latestTrainingRun(
   datasetId: string,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<TrainingRun | null> {
-  const db = executor ?? (await database());
+  db ??= await database();
   const [row] = await db
     .select({ run: trainingRuns })
     .from(trainingRuns)
@@ -223,36 +227,39 @@ export async function activeTrainingRun(
 export async function createTrainingRun(
   datasetId: string,
   recipe: TrainingRecipe,
-  targetWorkerId: string | null = null,
+  targetWorkerId: string | null,
 ): Promise<TrainingRun> {
   await validateTrainingTarget(targetWorkerId);
-  return transaction(async (tx) => {
-    const dataset = await readDataset(datasetId, tx);
+  return transaction(async (db) => {
+    const dataset = await readDataset(datasetId, db);
     if (!dataset)
       throw new DatasetNotFoundError(`Unknown dataset: ${datasetId}`);
-    const active = await activeTrainingRun(dataset.modelId, tx);
+    const active = await activeTrainingRun(dataset.modelId, db);
     if (active) {
       throw new TrainingRunConflictError(
         `Training run ${active.id} is still active for ${dataset.modelId}`,
       );
     }
-    const at = await operationTime(tx);
-    const snapshot = await createDatasetSnapshot(datasetId, at, tx);
+    const at = await operationTime(db);
+    const snapshot = await createDatasetSnapshot(datasetId, at, db);
     const runId = trainingRunId(randomUUID());
-    const [row] = await tx
-      .insert(trainingRuns)
-      .values({
-        id: runId,
-        modelId: snapshot.modelId,
-        datasetSnapshotId: snapshot.id,
-        createdAt: at,
-        attempt: 0,
-        targetWorkerId,
-        recipe: trainingRecipeSchema.parse(recipe),
-        ...stateColumns({ status: "queued" }),
-      })
-      .returning();
-    return toTrainingRun(row!);
+    const row = single(
+      await db
+        .insert(trainingRuns)
+        .values({
+          id: runId,
+          modelId: snapshot.modelId,
+          datasetSnapshotId: snapshot.id,
+          createdAt: at,
+          attempt: 0,
+          targetWorkerId,
+          recipe,
+          ...stateColumns({ status: "queued" }),
+        })
+        .returning(),
+      "trainingRuns",
+    );
+    return toTrainingRun(row);
   });
 }
 
@@ -265,11 +272,11 @@ export async function claimTrainingRun(
   owner: WorkerIdentity,
   suppliedAt?: Date,
 ): Promise<TrainingRun | null> {
-  return transaction(async (tx) => {
-    const worker = await lockWorkerSession(owner, tx);
-    const at = await operationTime(tx, suppliedAt);
+  return transaction(async (db) => {
+    const worker = await lockWorkerSession(owner, db);
+    const at = await operationTime(db, suppliedAt);
     if (!canTrain(worker)) return null;
-    const [inference] = await tx
+    const [inference] = await db
       .select({ attempt: inferenceAttempts.attempt })
       .from(inferenceAttempts)
       .where(
@@ -282,7 +289,7 @@ export async function claimTrainingRun(
       )
       .limit(1);
     if (inference) return null;
-    const [owned] = await tx
+    const [owned] = await db
       .select()
       .from(trainingRuns)
       .where(
@@ -294,7 +301,7 @@ export async function claimTrainingRun(
         ),
       );
     if (owned) return toTrainingRun(owned);
-    const [candidate] = await tx
+    const [candidate] = await db
       .select()
       .from(trainingRuns)
       .where(
@@ -317,39 +324,42 @@ export async function claimTrainingRun(
       .for("update", { skipLocked: true });
     if (!candidate) return null;
     if (candidate.status === "running")
-      await finishAttempt(toTrainingRun(candidate), "expired", null, at, tx);
-    await tx.insert(trainingAttempts).values({
+      await finishAttempt(toTrainingRun(candidate), "expired", null, at, db);
+    await db.insert(trainingAttempts).values({
       runId: candidate.id,
       attempt: candidate.attempt + 1,
       workerId: owner.workerId,
       startedAt: at,
     });
-    const [row] = await tx
-      .update(trainingRuns)
-      .set({
-        attempt: candidate.attempt + 1,
-        targetWorkerId: owner.workerId,
-        lastProgressAt: at,
-        ...stateColumns({
-          status: "running",
-          workerId: owner.workerId,
-          sessionId: owner.sessionId,
-          leaseExpiresAt: leaseUntil(at).toISOString(),
-          phase: "preparing",
-          progress: 0,
-        }),
-      })
-      .where(eq(trainingRuns.id, candidate.id))
-      .returning();
-    return toTrainingRun(row!);
+    const row = single(
+      await db
+        .update(trainingRuns)
+        .set({
+          attempt: candidate.attempt + 1,
+          targetWorkerId: owner.workerId,
+          lastProgressAt: at,
+          ...stateColumns({
+            status: "running",
+            workerId: owner.workerId,
+            sessionId: owner.sessionId,
+            leaseExpiresAt: leaseUntil(at).toISOString(),
+            phase: "preparing",
+            progress: 0,
+          }),
+        })
+        .where(eq(trainingRuns.id, candidate.id))
+        .returning(),
+      "trainingRuns",
+    );
+    return toTrainingRun(row);
   });
 }
 
 export async function lockTrainingRun(
   runId: string,
-  tx: Executor,
+  db: Executor,
 ): Promise<TrainingRun> {
-  const [row] = await tx
+  const [row] = await db
     .select()
     .from(trainingRuns)
     .where(eq(trainingRuns.id, runId))
@@ -380,8 +390,8 @@ export async function renewTrainingRun(
 /** Advance through the ordered execution phases; retries are idempotent. */
 export async function enterTrainingPhase(
   runId: string,
-  owner: AttemptOwner,
   phase: TrainingPhase,
+  owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<TrainingRun> {
   return transaction(async (db) => {
@@ -424,13 +434,13 @@ export async function enterTrainingPhase(
  */
 export async function recordTrainingEpoch(
   runId: string,
-  owner: AttemptOwner,
   report: TrainingEpochReport,
+  owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<TrainingRun> {
-  return transaction(async (tx) => {
-    const current = await lockTrainingRun(runId, tx);
-    const at = await operationTime(tx, suppliedAt);
+  return transaction(async (db) => {
+    const current = await lockTrainingRun(runId, db);
+    const at = await operationTime(db, suppliedAt);
     if (current.state.status !== "running")
       throw ownershipConflict(runId, owner);
     if (current.state.phase !== "training") {
@@ -444,9 +454,9 @@ export async function recordTrainingEpoch(
         `Training run ${runId} has ${total} epochs, not ${report.epoch}`,
       );
     }
-    const previous = await latestTrainingEpoch(runId, owner.attempt, tx);
+    const previous = await latestTrainingEpoch(runId, owner.attempt, db);
     const advanced = previous === null || report.epoch > previous;
-    await saveTrainingEpoch(runId, current.attempt, report, at, tx);
+    await saveTrainingEpoch(runId, current.attempt, report, at, db);
     return fencedUpdate(
       runId,
       owner,
@@ -478,26 +488,26 @@ export async function recordTrainingEpoch(
           : {}),
       },
       at,
-      tx,
+      db,
     );
   });
 }
 
 export async function failTrainingRun(
   runId: string,
-  owner: AttemptOwner,
   error: string,
+  owner: AttemptOwner,
 ): Promise<TrainingRun> {
-  return transaction(async (tx) => {
-    const at = await operationTime(tx);
+  return transaction(async (db) => {
+    const at = await operationTime(db);
     const run = await fencedUpdate(
       runId,
       owner,
-      stateColumns({ status: "failed", error: error.slice(0, 2000) }),
+      stateColumns({ status: "failed", error: error.slice(0, MESSAGE_LIMIT) }),
       at,
-      tx,
+      db,
     );
-    await finishAttempt(run, "failed", error.slice(0, 2000), at, tx);
+    await finishAttempt(run, "failed", error.slice(0, MESSAGE_LIMIT), at, db);
     return run;
   });
 }

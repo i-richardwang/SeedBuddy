@@ -60,8 +60,8 @@ export async function executeAgentOperation(
     const validate = (value: unknown) => operation.output.parse(value ?? null);
     const output =
       operation.kind === "command" && operation.transaction === "operation"
-        ? await transaction(async (tx) =>
-            validate(await operation.handler(parsed, tx)),
+        ? await transaction(async (db) =>
+            validate(await operation.handler(parsed, db)),
           )
         : validate(await operation.handler(parsed));
     return { ok: true, output };

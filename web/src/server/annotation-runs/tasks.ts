@@ -4,7 +4,12 @@ import type { AnnotationRef } from "../../domain/annotation/schema";
 import { AnnotationRunConflictError } from "../../domain/annotation-runs/errors";
 import { collectRegions } from "../../domain/annotation-runs/results";
 import { prepareProposal } from "../../domain/annotation-runs/tasks";
-import { database, transaction } from "../infra/db/client";
+import {
+  database,
+  operationTime,
+  single,
+  transaction,
+} from "../infra/db/client";
 import {
   annotationPreviews,
   annotationRuns,
@@ -75,15 +80,15 @@ export async function savePreview(taskId: string, value: unknown) {
 }
 
 export async function submitProposal(taskId: string, proposalId: string) {
-  return transaction(async (tx) => {
-    const { run, task } = await lockAnnotationTask(taskId, tx);
+  return transaction(async (db) => {
+    const { run, task } = await lockAnnotationTask(taskId, db);
     const runId = run.id;
     if (task.response) {
       if (task.acceptedProposalId !== proposalId)
         return conflict("Region already accepted a different proposal");
       return acceptance(taskId, run);
     }
-    const [preview] = await tx
+    const [preview] = await db
       .select()
       .from(annotationPreviews)
       .where(
@@ -95,7 +100,7 @@ export async function submitProposal(taskId: string, proposalId: string) {
       );
     if (!preview)
       return conflict("Unknown proposal for this region; preview first");
-    await tx
+    await db
       .update(annotationTasks)
       .set({ response: preview.response, acceptedProposalId: proposalId })
       .where(eq(annotationTasks.taskId, taskId));
@@ -103,7 +108,7 @@ export async function submitProposal(taskId: string, proposalId: string) {
     const succeeded = completed === run.total;
     const answered = succeeded
       ? (
-          await tx
+          await db
             .select()
             .from(annotationTasks)
             .where(eq(annotationTasks.runId, runId))
@@ -112,16 +117,19 @@ export async function submitProposal(taskId: string, proposalId: string) {
           response ? [{ ...task, response }] : [],
         )
       : [];
-    const [updated] = await tx
-      .update(annotationRuns)
-      .set({
-        completed,
-        status: succeeded ? "succeeded" : "running",
-        result: succeeded ? collectRegions(run.definition, answered) : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(annotationRuns.id, runId))
-      .returning();
-    return acceptance(taskId, updated!);
+    const updated = single(
+      await db
+        .update(annotationRuns)
+        .set({
+          completed,
+          status: succeeded ? "succeeded" : "running",
+          result: succeeded ? collectRegions(run.definition, answered) : null,
+          updatedAt: await operationTime(db),
+        })
+        .where(eq(annotationRuns.id, runId))
+        .returning(),
+      "annotationRuns",
+    );
+    return acceptance(taskId, updated);
   });
 }

@@ -6,12 +6,12 @@ import { recordCultureEvents } from "../../experiments/culture-events";
 import { createExperiment } from "../../experiments/design";
 import { createObservation } from "../../experiments/observations";
 import { listTreatments, listUnits } from "../../experiments/records";
-import { trainedVersion } from "../../testing/experiments";
 import { storeTexts } from "../../testing/images";
 import {
   baselineVersion,
   registerTrainedVersion,
   traditionalVersion,
+  trainedVersion,
 } from "../../testing/models";
 import { ULTRALYTICS_RUNTIME } from "../../testing/workers";
 import { database } from "./client";
@@ -88,6 +88,7 @@ test("the database rejects a second terminal event", async () => {
         unitId: unit!.id,
         observationId: day14.id,
         type: "missing",
+        /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
         recordedAt: new Date(),
       })
       .execute();
@@ -167,6 +168,7 @@ test("the database compares experiment, treatment and unit names without case", 
             baseMedium: "",
             notes: "",
             inoculatedOn: experiment.inoculatedOn,
+            /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
             createdAt: new Date(),
           })
           .execute(),
@@ -234,6 +236,7 @@ test("the database refuses execution failures in the detection results", async (
         ...failure,
         producer: failure.producer,
       } as never,
+      /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
       recordedAt: new Date(),
     });
   })();

@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import type { CultureEvent } from "./culture-events";
-import type { ExperimentGridDetail, ObservationImageCell } from "./read-model";
-import type {
-  Experiment,
-  ExperimentObservation,
-  ManualReading,
-} from "./schema";
-import { experimentSummary, statistic, summaryCell } from "./summary";
+import type { ExperimentGridDetail } from "./read-model";
+import type { Experiment } from "./schema";
+import { gridSummary } from "./sheet";
+import { statistic } from "./summary";
+import { cell, counted, event, grid, observation, photograph } from "./testing";
 
 const experiment: Experiment = {
   id: "experiment",
@@ -21,84 +18,28 @@ const experiment: Experiment = {
   createdAt: "2026-08-01T00:00:00.000Z",
 };
 
-function observation(
-  ordinal: number,
-  counted: string[],
-  modelId = "seed-detector",
-): ExperimentObservation {
-  return {
-    id: `day-${ordinal}`,
-    ordinal,
-    observedOn: `2026-09-0${ordinal}`,
-    note: "",
-    modelId,
-    countedClasses: counted,
-    hasRecords: true,
-  };
-}
-
 const sown = observation(1, ["ungerminated", "germinated"]);
 const grown = observation(2, ["germinated"]);
 const rooted = observation(3, ["rooted"], "rooting");
 
-function photograph(
-  unit: string,
-  day: ExperimentObservation,
-  tally: Record<string, number>,
-  overrides: Partial<ObservationImageCell> = {},
-): ObservationImageCell {
-  return {
-    id: `${unit}-${day.id}`,
-    unit,
-    observation: day.id,
-    digest: "a".repeat(64),
-    filename: `${unit}.jpg`,
-    state: "analyzed",
-    detectionTally: tally,
-    proposalTally: null,
-    annotationTally: null,
-    error: null,
-    unclear: false,
-    ...overrides,
-  };
-}
-
-function counted(
-  unit: string,
-  day: ExperimentObservation,
-  tally: ManualReading["tally"],
-): ManualReading {
-  return {
-    unit,
-    observation: day.id,
-    tally,
-    recordedAt: "2026-09-08T00:00:00.000Z",
-  };
-}
-
-function event(type: CultureEvent["type"], on: ExperimentObservation) {
-  return {
-    id: `${type}-${on.id}`,
-    type,
-    observation: on.id,
-    recordedAt: "2026-09-01T00:00:00.000Z",
-  };
-}
-
 /** Three dishes of one treatment: 10, 20 and 40 seeds sown, 5, 15 and 40 germinated. */
 const DISHES = [
-  photograph("a", sown, { ungerminated: 10 }),
-  photograph("b", sown, { ungerminated: 20 }),
-  photograph("c", sown, { ungerminated: 40 }),
-  photograph("a", grown, { ungerminated: 5, germinated: 5 }),
-  photograph("b", grown, { ungerminated: 5, germinated: 15 }),
-  photograph("c", grown, { germinated: 40 }),
+  photograph("a", sown, { detectionTally: { ungerminated: 10 } }),
+  photograph("b", sown, { detectionTally: { ungerminated: 20 } }),
+  photograph("c", sown, { detectionTally: { ungerminated: 40 } }),
+  photograph("a", grown, {
+    detectionTally: { ungerminated: 5, germinated: 5 },
+  }),
+  photograph("b", grown, {
+    detectionTally: { ungerminated: 5, germinated: 15 },
+  }),
+  photograph("c", grown, { detectionTally: { germinated: 40 } }),
 ];
 
-function grid(
+function scenario(
   overrides: Partial<ExperimentGridDetail> = {},
 ): ExperimentGridDetail {
-  return {
+  return grid({
     experiment,
     treatments: [
       { id: "t", name: "Treated", factor: null, note: "", position: 1 },
@@ -114,17 +55,7 @@ function grid(
     images: DISHES,
     manualReadings: [],
     ...overrides,
-  };
-}
-
-function cell(
-  summary: ReturnType<typeof experimentSummary>,
-  treatment: string,
-  day: ExperimentObservation,
-) {
-  const found = summaryCell(summary, treatment, day.id);
-  if (!found) throw new Error(`No summary for ${treatment} on ${day.id}`);
-  return found;
+  });
 }
 
 describe("a statistic", () => {
@@ -147,7 +78,7 @@ describe("a statistic", () => {
 
 describe("the summary by treatment", () => {
   test("has a cell for every treatment on every observation, treatments in the design's order", () => {
-    const summary = experimentSummary(grid());
+    const summary = gridSummary(scenario());
     expect(summary.baseline).toBe(sown.id);
     expect(
       summary.cells.map(
@@ -157,7 +88,7 @@ describe("the summary by treatment", () => {
   });
 
   test("summarises the counts of the first observation, which has no rate", () => {
-    const first = cell(experimentSummary(grid()), "t", sown);
+    const first = cell(gridSummary(scenario()), "t", sown);
     expect(first.units).toEqual([
       { unit: "a", count: 10, rate: null },
       { unit: "b", count: 20, rate: null },
@@ -169,7 +100,7 @@ describe("the summary by treatment", () => {
   });
 
   test("rates a later day against each unit's own first count, then averages the rates", () => {
-    const later = cell(experimentSummary(grid()), "t", grown);
+    const later = cell(gridSummary(scenario()), "t", grown);
     expect(later.units).toEqual([
       { unit: "a", count: 5, rate: 0.5 },
       { unit: "b", count: 15, rate: 0.75 },
@@ -187,7 +118,7 @@ describe("the summary by treatment", () => {
   });
 
   test("a treatment with nothing read has an empty cell", () => {
-    const control = cell(experimentSummary(grid()), "c", grown);
+    const control = cell(gridSummary(scenario()), "c", grown);
     expect(control).toEqual({
       treatment: "c",
       observation: grown.id,
@@ -198,8 +129,8 @@ describe("the summary by treatment", () => {
   });
 
   test("a unit out of the analysis is not among the treatment's units that day", () => {
-    const summary = experimentSummary(
-      grid({
+    const summary = gridSummary(
+      scenario({
         units: [
           { id: "a", code: "T-1", treatment: "t", events: [] },
           {
@@ -229,24 +160,27 @@ describe("the summary by treatment", () => {
   test("an unclear photograph takes its unit out on every day, unless the experiment counts it", () => {
     const images = [
       ...DISHES.filter((image) => image.unit !== "a"),
-      photograph("a", sown, { ungerminated: 10 }),
-      photograph("a", grown, { germinated: 5 }, { unclear: true }),
+      photograph("a", sown, { detectionTally: { ungerminated: 10 } }),
+      photograph("a", grown, {
+        detectionTally: { germinated: 5 },
+        ...{ unclear: true },
+      }),
     ];
-    const out = experimentSummary(grid({ images }));
+    const out = gridSummary(scenario({ images }));
     expect(cell(out, "t", sown).count?.n).toBe(2);
     expect(cell(out, "t", grown).count?.n).toBe(2);
-    const counted = experimentSummary(
-      grid({ images, experiment: { ...experiment, countsUnclear: true } }),
+    const counted = gridSummary(
+      scenario({ images, experiment: { ...experiment, countsUnclear: true } }),
     );
     expect(cell(counted, "t", grown).count?.n).toBe(3);
   });
 
   test("a single unit has a mean and no spread", () => {
-    const summary = experimentSummary(
-      grid({
+    const summary = gridSummary(
+      scenario({
         images: [
-          photograph("k", sown, { ungerminated: 8 }),
-          photograph("k", grown, { germinated: 6 }),
+          photograph("k", sown, { detectionTally: { ungerminated: 8 } }),
+          photograph("k", grown, { detectionTally: { germinated: 6 } }),
         ],
       }),
     );
@@ -259,8 +193,8 @@ describe("the summary by treatment", () => {
   });
 
   test("a count entered by hand counts like a photograph's", () => {
-    const summary = experimentSummary(
-      grid({
+    const summary = gridSummary(
+      scenario({
         images: DISHES.filter((image) => image.observation !== grown.id),
         manualReadings: [
           counted("a", grown, { germinated: 10 }),
@@ -275,10 +209,13 @@ describe("the summary by treatment", () => {
   });
 
   test("a day read for another model has counts but no rate", () => {
-    const summary = experimentSummary(
-      grid({
+    const summary = gridSummary(
+      scenario({
         observations: [sown, grown, rooted],
-        images: [...DISHES, photograph("a", rooted, { rooted: 3 })],
+        images: [
+          ...DISHES,
+          photograph("a", rooted, { detectionTally: { rooted: 3 } }),
+        ],
       }),
     );
     const roots = cell(summary, "t", rooted);
@@ -288,11 +225,11 @@ describe("the summary by treatment", () => {
   });
 
   test("a unit that counted nothing on the first day has no rate", () => {
-    const summary = experimentSummary(
-      grid({
+    const summary = gridSummary(
+      scenario({
         images: [
-          photograph("k", sown, {}),
-          photograph("k", grown, { germinated: 2 }),
+          photograph("k", sown, { detectionTally: {} }),
+          photograph("k", grown, { detectionTally: { germinated: 2 } }),
         ],
       }),
     );
@@ -302,8 +239,10 @@ describe("the summary by treatment", () => {
   });
 
   test("a unit not read on the first day has no rate on any day", () => {
-    const summary = experimentSummary(
-      grid({ images: [photograph("k", grown, { germinated: 2 })] }),
+    const summary = gridSummary(
+      scenario({
+        images: [photograph("k", grown, { detectionTally: { germinated: 2 } })],
+      }),
     );
     expect(cell(summary, "c", grown).units).toEqual([
       { unit: "k", count: 2, rate: null },
@@ -311,7 +250,7 @@ describe("the summary by treatment", () => {
   });
 
   test("an experiment without observations has no baseline and no cells", () => {
-    expect(experimentSummary(grid({ observations: [], images: [] }))).toEqual({
+    expect(gridSummary(scenario({ observations: [], images: [] }))).toEqual({
       baseline: null,
       cells: [],
     });

@@ -2,7 +2,7 @@ import { instancesFromDetection } from "../../domain/annotation/detection";
 import type { Dataset } from "../../domain/datasets/schema";
 import type { Tally } from "../../domain/models/classes";
 import type { ModelVersion } from "../../domain/models/schema";
-import { readAnnotation, storeAnnotation } from "../annotations/documents";
+import { storeAnnotation } from "../annotations/documents";
 import {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
@@ -19,6 +19,7 @@ import {
   storeTexts,
 } from "./images";
 import { seedDetectionResult } from "./inference";
+import { readAnnotation } from "./records";
 
 interface SeededDataset extends ObservedImages {
   dataset: Dataset;

@@ -4,16 +4,15 @@ import { and, eq, inArray } from "drizzle-orm";
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import {
   DetectionConflictError,
-  DetectionOutcomeInvalidError,
   ProducerMismatchError,
 } from "../../domain/inference/errors";
+import { ClassInvalidError } from "../../domain/models/errors";
 import type { Worker } from "../../domain/workers/schema";
 import { storeAnnotation } from "../annotations/documents";
 import { addExperimentObservationImagesToNewDataset } from "../datasets/datasets";
-import { listImageRecords } from "../datasets/records";
 import { retryObservationImageAnalysis } from "../experiments/observation-images";
 import { database } from "../infra/db/client";
-import { inferenceOutcomes, inferenceTasks } from "../infra/db/schema";
+import { inferenceTasks } from "../infra/db/schema";
 import { observeTextsIntoDataset } from "../testing/datasets";
 import {
   listObservationImageRefs,
@@ -32,27 +31,7 @@ const worker: Worker = {
   lastSeenAt: "2026-08-27T00:00:00.000Z",
 };
 
-async function readImageRecord(ref: { dataset: string; digest: string }) {
-  return (
-    (await listImageRecords(ref.dataset)).find(
-      (record) => record.image.digest === ref.digest,
-    ) ?? null
-  );
-}
-
-async function storedDetection(target: { versionId: string; digest: string }) {
-  const db = await database();
-  const [row] = await db
-    .select({ document: inferenceOutcomes.document })
-    .from(inferenceOutcomes)
-    .where(
-      and(
-        eq(inferenceOutcomes.imageId, target.digest),
-        eq(inferenceOutcomes.modelVersionId, target.versionId),
-      ),
-    );
-  return row?.document ?? null;
-}
+import { readImageRecord, storedDetection } from "../testing/records";
 
 const outcomeVersion = (slug: string, createdAt?: string) =>
   traditionalVersion("outcome-detector", slug, createdAt);
@@ -152,7 +131,7 @@ describe("detections", () => {
         },
         worker,
       ),
-    ).rejects.toBeInstanceOf(DetectionOutcomeInvalidError);
+    ).rejects.toBeInstanceOf(ClassInvalidError);
     await expect(
       seedDetectionResult(
         target,

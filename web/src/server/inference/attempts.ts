@@ -1,9 +1,7 @@
 import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 
-import {
-  type DetectionResult,
-  detectionResultSchema,
-} from "../../domain/detection/schema";
+import type { DetectionResult } from "../../domain/detection/schema";
+import type { InferenceTarget } from "../../domain/inference/assignments";
 import {
   inferenceAssignmentSchema,
   inferenceModelManifest,
@@ -12,7 +10,12 @@ import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { InferenceFailure } from "../../domain/inference/tasks";
 import type { AttemptOwner, WorkerIdentity } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
-import { type Executor, operationTime, transaction } from "../infra/db/client";
+import {
+  type Executor,
+  operationTime,
+  single,
+  transaction,
+} from "../infra/db/client";
 import {
   inferenceAttempts,
   inferenceTasks,
@@ -22,7 +25,7 @@ import {
 import { documentDigest } from "../infra/digest";
 import { requireModel, toModelVersion } from "../models/public";
 import { leaseIsHeld, lockWorkerSession } from "../workers/public";
-import { type DetectionTarget, storeInferenceOutcome } from "./outcomes";
+import { storeInferenceOutcome } from "./outcomes";
 import {
   INFERENCE_LEASE_SECONDS,
   INFERENCE_WORKER_COOLDOWN_SECONDS,
@@ -40,18 +43,20 @@ import {
 } from "./tasks";
 
 async function assignment(
-  tx: Executor,
+  db: Executor,
   task: Task,
   attempt: Attempt,
   at: Date,
 ) {
-  const [row] = await tx
-    .select()
-    .from(modelVersions)
-    .where(eq(modelVersions.id, task.modelVersionId));
-  if (!row) throw new Error(`Missing model version ${task.modelVersionId}`);
+  const row = single(
+    await db
+      .select()
+      .from(modelVersions)
+      .where(eq(modelVersions.id, task.modelVersionId)),
+    "model_versions",
+  );
   const version = toModelVersion(row);
-  const model = await requireModel(version.modelId, tx);
+  const model = await requireModel(version.modelId, db);
   return inferenceAssignmentSchema.parse({
     manifest: inferenceModelManifest(version, model),
     image: task.imageId,
@@ -70,9 +75,9 @@ export async function claimInferenceTask(
   // Reconciliation owns task locks only. Complete it before locking this
   // worker's slot, so concurrent reclaimers cannot invert worker/task locks.
   await maintainInferenceTasks(suppliedAt);
-  return transaction(async (tx) => {
-    const worker = await lockWorkerSession(owner, tx);
-    const [held] = await tx
+  return transaction(async (db) => {
+    const worker = await lockWorkerSession(owner, db);
+    const [held] = await db
       .select()
       .from(inferenceAttempts)
       .where(
@@ -87,11 +92,11 @@ export async function claimInferenceTask(
           digest: held.imageId,
           versionId: held.modelVersionId,
         },
-        tx,
+        db,
       );
 
-      const at = await operationTime(tx, suppliedAt);
-      const [live] = await tx
+      const at = await operationTime(db, suppliedAt);
+      const [live] = await db
         .select()
         .from(inferenceAttempts)
         .where(
@@ -103,10 +108,10 @@ export async function claimInferenceTask(
             attemptIsActive(at),
           ),
         );
-      return live ? assignment(tx, task, live, at) : null;
+      return live ? assignment(db, task, live, at) : null;
     }
-    const at = await operationTime(tx, suppliedAt);
-    const [training] = await tx
+    const at = await operationTime(db, suppliedAt);
+    const [training] = await db
       .select({ id: trainingRuns.id })
       .from(trainingRuns)
       .where(
@@ -117,7 +122,7 @@ export async function claimInferenceTask(
       )
       .limit(1);
     if (training) return null;
-    const [cooling] = await tx
+    const [cooling] = await db
       .select({ attempt: inferenceAttempts.attempt })
       .from(inferenceAttempts)
       .where(
@@ -134,7 +139,7 @@ export async function claimInferenceTask(
     if (cooling) return null;
     const kinds = [...new Set(worker.runtimes.map((r) => r.adapter))];
     if (!kinds.length) return null;
-    const [candidate] = await tx
+    const [candidate] = await db
       .select({ task: inferenceTasks, version: modelVersions })
       .from(inferenceTasks)
       .innerJoin(
@@ -179,32 +184,35 @@ export async function claimInferenceTask(
       ),
       status: "running",
     };
-    const [stored] = await tx
-      .insert(inferenceAttempts)
-      .values(attempt)
-      .returning();
-    const [updated] = await tx
-      .update(inferenceTasks)
-      .set({
-        status: "running",
-        attempt: attempt.attempt,
-        attemptsInCycle: task.attemptsInCycle + 1,
-        error: null,
-      })
-      .where(taskKey({ digest: task.imageId, versionId: task.modelVersionId }))
-      .returning();
-    if (!updated || !stored)
-      throw new InferenceAttemptConflictError("Inference claim was not stored");
-    return assignment(tx, updated, stored, at);
+    const stored = single(
+      await db.insert(inferenceAttempts).values(attempt).returning(),
+      "inferenceAttempts",
+    );
+    const updated = single(
+      await db
+        .update(inferenceTasks)
+        .set({
+          status: "running",
+          attempt: attempt.attempt,
+          attemptsInCycle: task.attemptsInCycle + 1,
+          error: null,
+        })
+        .where(
+          taskKey({ digest: task.imageId, versionId: task.modelVersionId }),
+        )
+        .returning(),
+      "inferenceTasks",
+    );
+    return assignment(db, updated, stored, at);
   });
 }
 
 async function ownedAttempt(
-  tx: Executor,
-  target: DetectionTarget,
+  db: Executor,
+  target: InferenceTarget,
   owner: AttemptOwner,
 ): Promise<Attempt> {
-  const [attempt] = await tx
+  const [attempt] = await db
     .select()
     .from(inferenceAttempts)
     .where(
@@ -234,15 +242,15 @@ function requireLive(task: Task, attempt: Attempt, at: Date): void {
 }
 
 export async function renewInferenceTask(
-  target: DetectionTarget,
+  target: InferenceTarget,
   owner: AttemptOwner,
   suppliedAt?: Date,
 ) {
-  return transaction(async (tx) => {
-    await lockWorkerSession(owner, tx);
-    const task = await lockInferenceTask(target, tx);
-    const attempt = await ownedAttempt(tx, target, owner);
-    const at = await operationTime(tx, suppliedAt);
+  return transaction(async (db) => {
+    await lockWorkerSession(owner, db);
+    const task = await lockInferenceTask(target, db);
+    const attempt = await ownedAttempt(db, target, owner);
+    const at = await operationTime(db, suppliedAt);
     requireLive(task, attempt, at);
     const leaseExpiresAt = new Date(
       Math.min(
@@ -250,7 +258,7 @@ export async function renewInferenceTask(
         at.getTime() + INFERENCE_LEASE_SECONDS * 1000,
       ),
     );
-    await tx
+    await db
       .update(inferenceAttempts)
       .set({ leaseExpiresAt })
       .where(attemptKey(target, attempt.attempt));
@@ -264,27 +272,26 @@ export async function renewInferenceTask(
 
 /** Receipt replay remains safe after expiry; uncommitted stale results never land. */
 export async function completeInferenceTask(
-  target: DetectionTarget,
+  target: InferenceTarget,
   result: DetectionResult,
   owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<void> {
-  await transaction(async (tx) => {
-    const worker = await lockWorkerSession(owner, tx);
-    const task = await lockInferenceTask(target, tx);
-    const attempt = await ownedAttempt(tx, target, owner);
-    const parsed = detectionResultSchema.parse(result);
-    const digest = documentDigest(parsed);
+  await transaction(async (db) => {
+    const worker = await lockWorkerSession(owner, db);
+    const task = await lockInferenceTask(target, db);
+    const attempt = await ownedAttempt(db, target, owner);
+    const digest = documentDigest(result);
     if (attempt.status === "succeeded" && attempt.resultDigest === digest)
       return;
-    const at = await operationTime(tx, suppliedAt);
+    const at = await operationTime(db, suppliedAt);
     requireLive(task, attempt, at);
-    await storeInferenceOutcome(target, parsed, worker, at, tx);
-    await tx
+    await storeInferenceOutcome(target, result, worker, at, db);
+    await db
       .update(inferenceAttempts)
       .set({ status: "succeeded", finishedAt: at, resultDigest: digest })
       .where(attemptKey(target, attempt.attempt));
-    await tx
+    await db
       .update(inferenceTasks)
       .set({ status: "succeeded", finishedAt: at, error: null })
       .where(taskKey(target));
@@ -292,22 +299,22 @@ export async function completeInferenceTask(
 }
 
 export async function failInferenceTask(
-  target: DetectionTarget,
+  target: InferenceTarget,
   failure: InferenceFailure,
   owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<void> {
-  await transaction(async (tx) => {
-    await lockWorkerSession(owner, tx);
-    const task = await lockInferenceTask(target, tx);
-    const attempt = await ownedAttempt(tx, target, owner);
+  await transaction(async (db) => {
+    await lockWorkerSession(owner, db);
+    const task = await lockInferenceTask(target, db);
+    const attempt = await ownedAttempt(db, target, owner);
     if (
       attempt.status === "failed" &&
       canonicalJson(attempt.failure) === canonicalJson(failure)
     )
       return;
-    const at = await operationTime(tx, suppliedAt);
+    const at = await operationTime(db, suppliedAt);
     requireLive(task, attempt, at);
-    await finishFailedAttempt(task, attempt, failure, at, tx);
+    await finishFailedAttempt(task, attempt, failure, at, db);
   });
 }

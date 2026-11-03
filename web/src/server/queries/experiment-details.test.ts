@@ -4,25 +4,23 @@ import { expect, test } from "bun:test";
 
 import { SEED_DETECTOR } from "../../domain/models/builtins";
 import { storeAnnotation } from "../annotations/documents";
+import { assignObservationImages } from "../experiments/observation-images";
+import { createObservation } from "../experiments/observations";
 import { createModel } from "../models/registry";
-import {
-  experimentGridDetail,
-  unitDetail,
-} from "../queries/experiment-details";
+import { experimentGridDetail } from "../queries/experiment-grid-detail";
 import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
+import { unitDetail } from "../queries/unit-detail";
 import {
   assignImages,
   createExperiment,
   INOCULATED,
   reading,
-  trainedVersion,
   unitsOf,
 } from "../testing/experiments";
 import { countedImageResult, imageDigest, storeTexts } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
+import { trainedVersion } from "../testing/models";
 import { ultralyticsWorker as worker } from "../testing/workers";
-import { assignObservationImages } from "./observation-images";
-import { createObservation } from "./observations";
 
 test("a unit page shows its newest image and steps through units on its day", async () => {
   const version = await trainedVersion("exp-observation-unit");

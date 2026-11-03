@@ -126,7 +126,7 @@ export const experimentOperations = [
     destructive: false,
     input: experimentRequestSchema,
     output: experimentSchema,
-    handler: (input, executor) => createExperiment(input, executor),
+    handler: (input, db) => createExperiment(input, db),
   }),
   command({
     transaction: "operation",
@@ -136,7 +136,7 @@ export const experimentOperations = [
     destructive: true,
     input: experimentUpdateSchema,
     output: experimentSchema,
-    handler: (input, executor) => updateExperiment(input, executor),
+    handler: (input, db) => updateExperiment(input, db),
   }),
   command({
     transaction: "operation",
@@ -145,7 +145,7 @@ export const experimentOperations = [
     destructive: true,
     input: experimentRefSchema,
     output: z.null(),
-    handler: (input, executor) => deleteExperiment(input, executor),
+    handler: (input, db) => deleteExperiment(input, db),
   }),
   command({
     transaction: "operation",
@@ -154,7 +154,7 @@ export const experimentOperations = [
     destructive: false,
     input: treatmentRequestSchema,
     output: treatmentSchema,
-    handler: (input, executor) => addTreatment(input, executor),
+    handler: (input, db) => addTreatment(input, db),
   }),
   command({
     transaction: "operation",
@@ -163,7 +163,7 @@ export const experimentOperations = [
     destructive: false,
     input: replicateRequestSchema,
     output: z.array(unitSchema),
-    handler: (input, executor) => addReplicates(input, executor),
+    handler: (input, db) => addReplicates(input, db),
   }),
   command({
     transaction: "operation",
@@ -172,7 +172,7 @@ export const experimentOperations = [
     destructive: true,
     input: treatmentUpdateSchema,
     output: treatmentSchema,
-    handler: (input, executor) => updateTreatment(input, executor),
+    handler: (input, db) => updateTreatment(input, db),
   }),
   command({
     transaction: "operation",
@@ -182,7 +182,7 @@ export const experimentOperations = [
     destructive: true,
     input: treatmentRefSchema,
     output: z.null(),
-    handler: (input, executor) => deleteTreatment(input, executor),
+    handler: (input, db) => deleteTreatment(input, db),
   }),
   command({
     transaction: "operation",
@@ -192,7 +192,7 @@ export const experimentOperations = [
     destructive: true,
     input: unitUpdateSchema,
     output: unitSchema,
-    handler: (input, executor) => updateUnit(input, executor),
+    handler: (input, db) => updateUnit(input, db),
   }),
   command({
     transaction: "operation",
@@ -202,7 +202,7 @@ export const experimentOperations = [
     destructive: true,
     input: unitsTreatmentUpdateSchema,
     output: z.array(unitSchema),
-    handler: (input, executor) => moveUnits(input, executor),
+    handler: (input, db) => moveUnits(input, db),
   }),
   command({
     transaction: "operation",
@@ -212,7 +212,7 @@ export const experimentOperations = [
     destructive: true,
     input: unitRefSchema,
     output: z.null(),
-    handler: (input, executor) => deleteUnit(input, executor),
+    handler: (input, db) => deleteUnit(input, db),
   }),
   command({
     transaction: "operation",
@@ -222,7 +222,7 @@ export const experimentOperations = [
     destructive: false,
     input: observationRecordSchema,
     output: experimentObservationSchema,
-    handler: (input, executor) => recordObservation(input, executor),
+    handler: (input, db) => recordObservation(input, db),
   }),
   command({
     transaction: "operation",
@@ -232,7 +232,7 @@ export const experimentOperations = [
     destructive: true,
     input: observationUpdateSchema,
     output: experimentObservationSchema,
-    handler: (input, executor) => updateObservation(input, executor),
+    handler: (input, db) => updateObservation(input, db),
   }),
   command({
     transaction: "operation",
@@ -241,7 +241,7 @@ export const experimentOperations = [
     destructive: true,
     input: observationRefSchema,
     output: z.null(),
-    handler: (input, executor) => deleteObservation(input, executor),
+    handler: (input, db) => deleteObservation(input, db),
   }),
   command({
     transaction: "operation",
@@ -251,7 +251,7 @@ export const experimentOperations = [
     destructive: false,
     input: observationImageAssignmentSchema,
     output: observationImageAssignmentResultSchema,
-    handler: (input, executor) => assignObservationImages(input, executor),
+    handler: (input, db) => assignObservationImages(input, db),
   }),
   command({
     transaction: "operation",
@@ -261,7 +261,7 @@ export const experimentOperations = [
     destructive: true,
     input: observationImageRefSchema,
     output: z.null(),
-    handler: (input, executor) => unassignObservationImage(input, executor),
+    handler: (input, db) => unassignObservationImage(input, db),
   }),
   command({
     transaction: "operation",
@@ -270,8 +270,7 @@ export const experimentOperations = [
     destructive: true,
     input: observationImageRefSchema,
     output: z.null(),
-    handler: (input, executor) =>
-      retryObservationImageAnalysis(input, executor),
+    handler: (input, db) => retryObservationImageAnalysis(input, db),
   }),
   command({
     transaction: "operation",
@@ -281,7 +280,7 @@ export const experimentOperations = [
     destructive: true,
     input: imageRefSchema,
     output: unclearMarkedSchema,
-    handler: (input, executor) => markImageUnclear(input, executor),
+    handler: (input, db) => markImageUnclear(input, db),
   }),
   command({
     transaction: "operation",
@@ -291,7 +290,7 @@ export const experimentOperations = [
     destructive: true,
     input: imageRefSchema,
     output: unclearClearedSchema,
-    handler: (input, executor) => clearImageUnclear(input, executor),
+    handler: (input, db) => clearImageUnclear(input, db),
   }),
   command({
     transaction: "operation",
@@ -301,7 +300,7 @@ export const experimentOperations = [
     destructive: true,
     input: manualReadingsRequestSchema,
     output: z.array(manualReadingSchema),
-    handler: (input, executor) => recordManualReadings(input, executor),
+    handler: (input, db) => recordManualReadings(input, db),
   }),
   command({
     transaction: "operation",
@@ -311,7 +310,7 @@ export const experimentOperations = [
     destructive: false,
     input: cultureEventsRequestSchema,
     output: z.array(cultureEventSchema),
-    handler: (input, executor) => recordCultureEvents(input, executor),
+    handler: (input, db) => recordCultureEvents(input, db),
   }),
   command({
     transaction: "operation",
@@ -320,6 +319,6 @@ export const experimentOperations = [
     destructive: true,
     input: cultureEventRefSchema,
     output: z.null(),
-    handler: (input, executor) => deleteCultureEvent(input, executor),
+    handler: (input, db) => deleteCultureEvent(input, db),
   }),
 ];

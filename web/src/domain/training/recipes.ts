@@ -7,7 +7,7 @@ import { type TrainingRecipe, trainingRecipeSchema } from "./schema";
 
 export const YOLO26N_WHOLE_RECIPE = trainingRecipeSchema.parse(nanoManifest);
 
-export const YOLO26S_WHOLE_RECIPE = trainingRecipeSchema.parse(smallManifest);
+const YOLO26S_WHOLE_RECIPE = trainingRecipeSchema.parse(smallManifest);
 
 /** Versioned templates. Runs carry a resolved copy of their selected recipe. */
 export const TRAINING_PRESETS = [

@@ -18,11 +18,9 @@ const statusByFailure: Record<HttpFailureCode, 400 | 401 | 404 | 409 | 500> = {
 export function agentFailureResponse(
   code: HttpFailureCode,
   message: string,
+  status: number = statusByFailure[code],
 ): Response {
-  return Response.json(
-    { error: { code, message } },
-    { status: statusByFailure[code] },
-  );
+  return Response.json({ error: { code, message } }, { status });
 }
 
 /** The refusal a request without a live experiments-scoped API key gets, or null. */

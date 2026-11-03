@@ -16,9 +16,9 @@ const TRAINING_RUN_LIST_LIMIT = 100;
 /** The newest runs, of one training set or of every set training one model. */
 export async function listTrainingRunOverviews(
   of: { datasetId: string } | { modelId: string },
-  executor?: Executor,
+  db?: Executor,
 ): Promise<TrainingRunOverview[]> {
-  const db = executor ?? (await database());
+  db ??= await database();
   const rows = await db
     .select({
       dataset: { id: datasets.id, name: datasets.name },

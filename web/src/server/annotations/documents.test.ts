@@ -6,8 +6,9 @@ import type { AnnotationInstance } from "../../domain/annotation/schema";
 import { observeImages } from "../testing/experiments";
 import { imageDigest, resultFor } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
+import { readAnnotation } from "../testing/records";
 import { testHeartbeat } from "../testing/workers";
-import { readAnnotation, storeAnnotation } from "./documents";
+import { storeAnnotation } from "./documents";
 
 /** Uploads one image, detects it, and returns the boxes a review begins from. */
 async function detected(name: string, worker: string) {

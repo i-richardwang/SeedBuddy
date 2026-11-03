@@ -1,7 +1,7 @@
 import { AppWindow } from "lucide-react";
 import { useState } from "react";
 
-import type { describeOAuthClient } from "../../functions/integrations";
+import type { getOAuthClient } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
 import { AuthPage } from "../../ui/AuthPage";
 import { BrandLogo } from "../../ui/BrandLogo";
@@ -27,7 +27,7 @@ const connection = (
 export function ConsentDecision({
   client,
 }: {
-  client: Awaited<ReturnType<typeof describeOAuthClient>>;
+  client: Awaited<ReturnType<typeof getOAuthClient>>;
 }) {
   const { busy, run } = useAsyncAction();
   const [choice, setChoice] = useState<boolean | null>(null);

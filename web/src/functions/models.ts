@@ -18,7 +18,7 @@ import {
   versionComparisonDetail,
 } from "../server/queries/public";
 
-export const getModelCatalogue = createServerFn({ method: "GET" }).handler(() =>
+export const getModels = createServerFn({ method: "GET" }).handler(() =>
   listModelOverviews(),
 );
 

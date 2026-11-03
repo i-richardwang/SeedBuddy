@@ -2,10 +2,7 @@ import { createHash } from "node:crypto";
 
 import { and, eq, isNull, lt } from "drizzle-orm";
 
-import {
-  type ModelBundle,
-  modelBundleSchema,
-} from "../../domain/models/bundle";
+import type { ModelBundle } from "../../domain/models/bundle";
 import { sameClasses } from "../../domain/models/classes";
 import {
   ModelPublicationInvalidError,
@@ -43,7 +40,7 @@ export function modelBundleVersionId(
 
 const UPLOAD_LIFETIME = 24 * 60 * 60 * 1000;
 
-export function bundleDigest(bundle: ModelBundle): string {
+function bundleDigest(bundle: ModelBundle): string {
   return documentDigest(bundle);
 }
 
@@ -60,8 +57,7 @@ function executableSettings(bundle: ModelBundle) {
   return { confidence, imageSize, maxDetections, endToEnd };
 }
 
-export async function prepareModelUpload(modelId: string, value: ModelBundle) {
-  const bundle = modelBundleSchema.parse(value);
+export async function prepareModelUpload(modelId: string, bundle: ModelBundle) {
   const db = await database();
   const model = await requireModel(modelId, db);
   if (!sameClasses(model.classes, bundle.classes))
@@ -93,9 +89,9 @@ export async function uploadModelWeights(
   uploadId: string,
   weights: Uint8Array,
 ): Promise<void> {
-  await transaction(async (tx) => {
-    const at = await operationTime(tx);
-    const row = await requireUpload(uploadId, at, tx);
+  await transaction(async (db) => {
+    const at = await operationTime(db);
+    const row = await requireUpload(uploadId, at, db);
     if (
       weights.byteLength !== row.bundle.weights.bytes ||
       contentDigest(weights) !== row.bundle.weights.digest
@@ -104,15 +100,15 @@ export async function uploadModelWeights(
         "Weights differ from the bundle digest or size",
       );
     await putImmutableBlob(row.weightsKey, weights);
-    await tx
+    await db
       .update(modelUploads)
       .set({ artifactDigest: artifactDigest(weights, row.bundle) })
       .where(eq(modelUploads.id, uploadId));
   });
 }
 
-async function requireUpload(id: string, at: Date, tx: Executor) {
-  const [row] = await tx
+async function requireUpload(id: string, at: Date, db: Executor) {
+  const [row] = await db
     .select()
     .from(modelUploads)
     .where(eq(modelUploads.id, id))
@@ -128,18 +124,20 @@ async function requireUpload(id: string, at: Date, tx: Executor) {
 /** Called inside the owner's transaction: registration and run completion commit together. */
 export async function registerUploadedModel(
   uploadId: string,
-  source: Extract<ModelVersion["source"], { kind: "training_run" }> | undefined,
+  options: {
+    source?: Extract<ModelVersion["source"], { kind: "training_run" }>;
+  },
   at: Date,
-  tx: Executor,
+  db: Executor,
 ): Promise<ModelVersion> {
-  const row = await requireUpload(uploadId, at, tx);
-  const origin: ModelVersion["source"] = source ?? {
+  const row = await requireUpload(uploadId, at, db);
+  const origin: ModelVersion["source"] = options.source ?? {
     kind: "import",
     bundleDigest: bundleDigest(row.bundle),
     provenance: row.bundle.provenance,
   };
   const id = modelBundleVersionId(row.modelId, row.bundle, origin);
-  const existing = await readModelVersion(id, tx);
+  const existing = await readModelVersion(id, db);
   if (existing) return existing;
   if (!row.artifactDigest)
     throw new ModelPublicationInvalidError(
@@ -161,13 +159,13 @@ export async function registerUploadedModel(
         training: row.bundle.training,
       },
     }),
-    tx,
+    db,
   );
-  await tx
+  await db
     .update(modelVersions)
     .set({ weightsKey: row.weightsKey })
     .where(eq(modelVersions.id, id));
-  await tx
+  await db
     .update(modelUploads)
     .set({ versionId: id })
     .where(eq(modelUploads.id, uploadId));
@@ -177,8 +175,8 @@ export async function registerUploadedModel(
 export async function importModelUpload(
   uploadId: string,
 ): Promise<ModelVersion> {
-  return transaction(async (tx) =>
-    registerUploadedModel(uploadId, undefined, await operationTime(tx), tx),
+  return transaction(async (db) =>
+    registerUploadedModel(uploadId, {}, await operationTime(db), db),
   );
 }
 
@@ -210,16 +208,16 @@ export async function collectUnreferencedModelWeights(): Promise<string[]> {
     .where(and(isNull(modelUploads.versionId), lt(modelUploads.expiresAt, at)));
   const removed: string[] = [];
   for (const { id } of expired)
-    await transaction(async (tx) => {
-      const at = await operationTime(tx);
-      const [row] = await tx
+    await transaction(async (db) => {
+      const at = await operationTime(db);
+      const [row] = await db
         .select()
         .from(modelUploads)
         .where(eq(modelUploads.id, id))
         .for("update");
       if (!row || row.versionId || row.expiresAt > at) return;
       await removeBlob(row.weightsKey);
-      await tx.delete(modelUploads).where(eq(modelUploads.id, id));
+      await db.delete(modelUploads).where(eq(modelUploads.id, id));
       removed.push(row.weightsKey);
     });
   return removed;

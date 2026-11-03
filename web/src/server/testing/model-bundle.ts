@@ -1,6 +1,7 @@
 import type { ModelBundle } from "../../domain/models/bundle";
 import type { TrainingRecipe } from "../../domain/training/schema";
 import { contentDigest } from "../infra/digest";
+
 export function trainingBundle(
   weights: Uint8Array,
   publication: {

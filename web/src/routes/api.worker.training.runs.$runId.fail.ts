@@ -17,21 +17,13 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/fail")({
     handlers: {
       POST: async ({ params, request, context }) => {
         try {
-          const body = await parseWorkerSessionJson(
+          const { error, ...owner } = await parseWorkerSessionJson(
             request,
             bodySchema,
             context.workerId,
           );
           return Response.json(
-            await failTrainingRun(
-              params.runId,
-              {
-                workerId: body.workerId,
-                sessionId: body.sessionId,
-                attempt: body.attempt,
-              },
-              body.error,
-            ),
+            await failTrainingRun(params.runId, error, owner),
           );
         } catch (error) {
           return workerErrorResponse(

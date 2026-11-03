@@ -1,14 +1,8 @@
-import { unitExclusions } from "./analysis";
-import {
-  cellKey,
-  cellReading,
-  observationCells,
-  unitDays,
-} from "./cell-reading";
-import { observationOrdinals } from "./culture-events";
+import { cellKey } from "./cell-reading";
 import type {
   ExperimentGridDetail,
   ExperimentSummary,
+  SheetCell,
   Statistic,
   TreatmentDaySummary,
 } from "./read-model";
@@ -90,35 +84,30 @@ function summaryKey(treatment: string, observation: string): string {
 /** The experiment summarised by treatment on every observation, from the cells the analysis reads. */
 export function experimentSummary(
   grid: ExperimentGridDetail,
+  cells: readonly SheetCell[],
 ): ExperimentSummary {
-  const cells = observationCells(grid.images, grid.manualReadings);
-  const ordinals = observationOrdinals(grid.observations);
+  const byCell = new Map(
+    cells.map((cell) => [cellKey(cell.unit, cell.observation), cell]),
+  );
   const baseline = baselineObservation(grid.observations);
 
   // Every unit's numbers on every day, before they are gathered by treatment.
   const numbers = new Map<string, TreatmentDaySummary["units"]>();
   for (const unit of grid.units) {
-    const days = unitDays(cells, unit.id, grid.observations);
-    const exclusion = unitExclusions(
-      unit.events,
-      days,
-      ordinals,
-      grid.experiment,
-    );
     const first = baseline
-      ? cellReading(cells.get(cellKey(unit.id, baseline.id)), baseline)
+      ? (byCell.get(cellKey(unit.id, baseline.id))?.reading ?? null)
       : null;
-    for (const day of days) {
-      if (exclusion(day.observation)) continue;
-      const reading = cellReading(day, day.observation);
-      if (!reading) continue;
+    for (const observation of grid.observations) {
+      const cell = byCell.get(cellKey(unit.id, observation.id));
+      if (!cell || cell.exclusion || !cell.reading) continue;
+      const reading = cell.reading;
       const comparable =
         baseline !== null &&
-        day.observation.id !== baseline.id &&
-        day.observation.modelId === baseline.modelId &&
+        observation.id !== baseline.id &&
+        observation.modelId === baseline.modelId &&
         first !== null &&
         first.count > 0;
-      const key = summaryKey(unit.treatment, day.observation.id);
+      const key = summaryKey(unit.treatment, observation.id);
       const entry = numbers.get(key) ?? [];
       entry.push({
         unit: unit.id,

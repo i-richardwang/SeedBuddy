@@ -38,7 +38,7 @@ const contracts: ReadonlyArray<[string, ZodType]> = [
   ["training-snapshot", datasetSnapshotSchema],
 ];
 
-await mkdir(OUTPUT, { recursive: true });
+if (!CHECK) await mkdir(OUTPUT, { recursive: true });
 let stale = false;
 for (const [name, schema] of contracts) {
   const target = path.join(OUTPUT, `${name}.schema.json`);

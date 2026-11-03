@@ -15,8 +15,8 @@ import {
   activeTrainingRun,
   listTrainingAttempts,
   listTrainingEpochs,
-  readDatasetSnapshot,
   readTrainingRun,
+  requireSnapshot,
   trainingLeaseIsHeld,
 } from "../training/public";
 import { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
@@ -36,8 +36,8 @@ export async function trainingRunDetail(
     const dataset = await readDataset(datasetId, db);
     const run = await readTrainingRun(runId, db);
     if (!dataset || !run) return null;
-    const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
-    if (snapshot?.datasetId !== dataset.id) return null;
+    const snapshot = await requireSnapshot(run.datasetSnapshotId, db);
+    if (snapshot.datasetId !== dataset.id) return null;
     const model = await requireModel(dataset.modelId, db);
     const version =
       run.state.status === "succeeded"
@@ -73,8 +73,6 @@ async function blockingRun(
   if (!isTrainingRunResumable(run)) return null;
   const active = await activeTrainingRun(run.modelId, db);
   if (!active) return null;
-  const snapshot = await readDatasetSnapshot(active.datasetSnapshotId, db);
-  if (!snapshot)
-    throw new Error(`Unknown snapshot: ${active.datasetSnapshotId}`);
+  const snapshot = await requireSnapshot(active.datasetSnapshotId, db);
   return { runId: active.id, datasetId: snapshot.datasetId };
 }

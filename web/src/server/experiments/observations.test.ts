@@ -17,22 +17,19 @@ import { storeAnnotation } from "../annotations/documents";
 import { database } from "../infra/db/client";
 import { experimentObservations } from "../infra/db/schema";
 import { readModel } from "../models/registry";
-import {
-  experimentGridDetail,
-  listExperimentOverviews,
-} from "../queries/experiment-details";
+import { experimentGridDetail } from "../queries/experiment-grid-detail";
 import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
+import { listExperimentOverviews } from "../queries/list-experiment-overviews";
 import {
   assignImages,
   createExperiment,
   INOCULATED,
   reading,
-  trainedVersion,
   unitsOf,
 } from "../testing/experiments";
 import { countedImageResult, imageDigest } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
-import { baselineVersion } from "../testing/models";
+import { baselineVersion, trainedVersion } from "../testing/models";
 import { ultralyticsWorker as worker } from "../testing/workers";
 import { recordCultureEvents } from "./culture-events";
 import { deleteExperiment } from "./design";
@@ -342,6 +339,7 @@ test("observations cannot precede inoculation at either boundary", async () => {
         ...reading(version),
         countedClasses: [...SEED_DETECTOR.classes],
         note: "",
+        /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
         createdAt: new Date(),
       });
     })(),

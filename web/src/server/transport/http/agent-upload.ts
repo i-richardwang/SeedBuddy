@@ -2,10 +2,7 @@ import { classifyAgentFailure } from "../../agent/public";
 import { agentFailureResponse } from "./agent";
 
 export function agentUploadRefusal(message: string, status: number): Response {
-  return Response.json(
-    { error: { code: "invalid_request", message } },
-    { status },
-  );
+  return agentFailureResponse("invalid_request", message, status);
 }
 export function agentUploadFailure(
   error: unknown,

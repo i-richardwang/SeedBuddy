@@ -25,6 +25,7 @@ async function fixture(
     width: 1000,
     height: 1000,
     bytes: 1,
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     receivedAt: new Date(),
     dishAnalysisAttemptedAt: options.attemptedAt ?? null,
   });
@@ -79,8 +80,10 @@ test("failures larger than a batch cannot starve later images, even with a new r
 
 test("untried images precede eligible retries, and recent failures stay in cooldown", async () => {
   const old = await fixture({
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     attemptedAt: new Date(Date.now() - 2 * IMAGE_ANALYSIS_RETRY_MS),
   });
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const fresh = await fixture({ attemptedAt: new Date() });
   const untried = await fixture();
   const calls: string[] = [];
@@ -97,6 +100,7 @@ test("untried images precede eligible retries, and recent failures stay in coold
     .update(images)
     .set({
       dishAnalysisAttemptedAt: new Date(
+        /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
         Date.now() - 2 * IMAGE_ANALYSIS_RETRY_MS,
       ),
     })
@@ -163,8 +167,8 @@ test.skipIf(process.env.DATABASE_URL?.startsWith("pglite://") ?? false)(
     const second = await fixture();
     const entered = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
-    const locked = transaction(async (tx) => {
-      await tx.select().from(images).where(eq(images.id, first)).for("update");
+    const locked = transaction(async (db) => {
+      await db.select().from(images).where(eq(images.id, first)).for("update");
       entered.resolve();
       await release.promise;
     });
@@ -197,6 +201,7 @@ test("a late refresh preserves newer ingestion and reports the result as skipped
       .update(images)
       .set({
         dishAnalysis: newer,
+        /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
         dishAnalysisAttemptedAt: new Date(Date.now() + 1),
       })
       .where(eq(images.id, id));
@@ -229,6 +234,7 @@ test("deletion during analysis is skipped while later results are persisted", as
 
 test("a fixed sweep cutoff excludes failures even after their cooldown expires", async () => {
   const id = await fixture();
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const attemptedBefore = new Date(Date.now() - 3 * IMAGE_ANALYSIS_RETRY_MS);
   const refresh = createImageAnalysisRefresher(async () => null);
   expect(await refresh({ limit: 1, attemptedBefore })).toEqual({

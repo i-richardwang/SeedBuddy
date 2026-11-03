@@ -10,7 +10,7 @@ import type { ModelVersion } from "../../domain/models/schema";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { createDataset, readDatasetByName } from "../datasets/datasets";
-import { transaction } from "../infra/db/client";
+import { operationTime, transaction } from "../infra/db/client";
 import { datasetSnapshots, trainingRuns } from "../infra/db/schema";
 import {
   readCurrentVersionId,
@@ -102,15 +102,20 @@ export async function registerTrainedVersion(
       training: YOLO26N_WHOLE_RECIPE,
     },
   };
-  return transaction(async (tx) => {
+  return transaction(async (db) => {
     const { id: datasetId } =
-      (await readDatasetByName(datasetName, tx)) ??
-      (await createDataset({ name: datasetName, modelId }, tx));
-    await tx
+      (await readDatasetByName(datasetName, db)) ??
+      (await createDataset({ name: datasetName, modelId }, db));
+    await db
       .insert(datasetSnapshots)
-      .values({ id: snapshotId, datasetId, modelId, createdAt: new Date() })
+      .values({
+        id: snapshotId,
+        datasetId,
+        modelId,
+        createdAt: await operationTime(db),
+      })
       .onConflictDoNothing();
-    await tx
+    await db
       .insert(trainingRuns)
       .values({
         id: runId,
@@ -122,11 +127,28 @@ export async function registerTrainedVersion(
         status: "queued",
       })
       .onConflictDoNothing();
-    const version = await registerModelVersion(value, tx);
-    await tx
+    const version = await registerModelVersion(value, db);
+    await db
       .update(trainingRuns)
       .set({ status: "succeeded", modelVersionId: version.id })
       .where(eq(trainingRuns.id, runId));
     return version;
   });
+}
+
+export async function trainedVersion(
+  modelId: string,
+  classes: string[] = SEED_DETECTOR.classes,
+): Promise<ModelVersion> {
+  await registerModel({
+    schemaVersion: 1,
+    id: modelId,
+    name: `${modelId} detector`,
+    task: "object_detection",
+    classes,
+    annotation: DEFAULT_MODEL_ANNOTATION,
+  });
+  const version = await registerTrainedVersion(modelId);
+  await setCurrentVersion({ model: modelId, version: version.id });
+  return version;
 }

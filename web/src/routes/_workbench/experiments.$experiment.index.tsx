@@ -10,7 +10,7 @@ import { z } from "zod";
 import { placedPhotos } from "../../domain/experiments/photos";
 import type { ExperimentGridDetail } from "../../domain/experiments/read-model";
 import { experimentIdSchema } from "../../domain/experiments/schema";
-import { experimentSummary } from "../../domain/experiments/summary";
+import { gridSummary } from "../../domain/experiments/sheet";
 import { ExperimentMenu } from "../../features/experiments/ExperimentMenu";
 import { RecordObservationDialog } from "../../features/experiments/RecordObservationDialog";
 import { TreatmentSummary } from "../../features/experiments/TreatmentSummary";
@@ -135,7 +135,7 @@ function ExperimentPage() {
           treatments={treatments}
           units={units}
           observations={observations}
-          summary={experimentSummary(data)}
+          summary={gridSummary(data)}
           empty={
             <EmptyPlace variant="outlined">
               <Empty

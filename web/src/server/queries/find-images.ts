@@ -11,7 +11,8 @@ import type {
   ImageSearchOverview,
 } from "../../domain/images/read-model";
 import { imageDigestSchema } from "../../domain/images/schema";
-import { database } from "../infra/db/client";
+import { atImageObservation } from "../experiments/public";
+import { snapshot } from "../infra/db/client";
 import {
   datasetImages,
   datasets,
@@ -75,108 +76,100 @@ export async function findImages(
 ): Promise<ImageSearchOverview[]> {
   const want = wanted(image);
   if (!want) return [];
-  const db = await database();
-  const [inExperiments, inDatasets] = await Promise.all([
-    want.kind === "dataset"
-      ? []
-      : db
-          .select({
-            digest: experimentObservationImages.imageId,
-            modelId: experimentObservations.modelId,
-            filename: experimentObservationImages.filename,
-            experiment: experiments.name,
-            unit: experimentUnits.code,
-            observedOn: experimentObservations.observedOn,
-          })
-          .from(experimentObservationImages)
-          .innerJoin(
-            experiments,
-            eq(experiments.id, experimentObservationImages.experimentId),
-          )
-          .innerJoin(
-            experimentObservations,
-            and(
-              eq(
-                experimentObservations.experimentId,
-                experimentObservationImages.experimentId,
+  return snapshot(async (db) => {
+    const [inExperiments, inDatasets] = await Promise.all([
+      want.kind === "dataset"
+        ? []
+        : db
+            .select({
+              digest: experimentObservationImages.imageId,
+              modelId: experimentObservations.modelId,
+              filename: experimentObservationImages.filename,
+              experiment: experiments.name,
+              unit: experimentUnits.code,
+              observedOn: experimentObservations.observedOn,
+            })
+            .from(experimentObservationImages)
+            .innerJoin(
+              experiments,
+              eq(experiments.id, experimentObservationImages.experimentId),
+            )
+            .innerJoin(experimentObservations, atImageObservation())
+            .innerJoin(
+              experimentUnits,
+              and(
+                eq(
+                  experimentUnits.experimentId,
+                  experimentObservationImages.experimentId,
+                ),
+                eq(experimentUnits.id, experimentObservationImages.unitId),
               ),
-              eq(
-                experimentObservations.id,
-                experimentObservationImages.observationId,
-              ),
+            )
+            .where(
+              want.kind === "unit"
+                ? and(
+                    eq(
+                      experimentObservationImages.experimentId,
+                      want.experiment,
+                    ),
+                    eq(experimentObservationImages.unitId, want.unit),
+                    want.observation
+                      ? eq(
+                          experimentObservationImages.observationId,
+                          want.observation,
+                        )
+                      : undefined,
+                  )
+                : named(experimentObservationImages.filename, want.name),
+            )
+            .orderBy(
+              experimentObservations.observedOn,
+              experiments.name,
+              experimentUnits.code,
             ),
-          )
-          .innerJoin(
-            experimentUnits,
-            and(
-              eq(
-                experimentUnits.experimentId,
-                experimentObservationImages.experimentId,
-              ),
-              eq(experimentUnits.id, experimentObservationImages.unitId),
-            ),
-          )
-          .where(
-            want.kind === "unit"
-              ? and(
-                  eq(experimentObservationImages.experimentId, want.experiment),
-                  eq(experimentObservationImages.unitId, want.unit),
-                  want.observation
-                    ? eq(
-                        experimentObservationImages.observationId,
-                        want.observation,
-                      )
-                    : undefined,
-                )
-              : named(experimentObservationImages.filename, want.name),
-          )
-          .orderBy(
-            experimentObservations.observedOn,
-            experiments.name,
-            experimentUnits.code,
-          ),
-    want.kind === "unit"
-      ? []
-      : db
-          .select({
-            digest: datasetImages.imageId,
-            modelId: datasets.modelId,
-            filename: datasetImages.filename,
-            dataset: datasets.name,
-          })
-          .from(datasetImages)
-          .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-          .where(
-            want.kind === "dataset"
-              ? and(
-                  eq(datasetImages.datasetId, want.dataset),
-                  eq(datasetImages.imageId, want.digest),
-                )
-              : named(datasetImages.filename, want.name),
-          )
-          .orderBy(datasets.name),
-  ]);
-  // A unit's page without a day shows the newest day it was photographed on.
-  const experimentRows =
-    want.kind === "unit" && !want.observation
-      ? inExperiments.slice(-1)
-      : inExperiments;
-  const found = new Map<string, ImageSearchOverview>();
-  const place = (
-    row: { digest: string; modelId: string; filename: string },
-    where: ImagePlace,
-  ) => {
-    const key = `${row.digest}/${row.modelId}`;
-    const entry = found.get(key) ?? {
-      ref: { digest: row.digest, modelId: row.modelId },
-      filename: row.filename,
-      places: [],
+      want.kind === "unit"
+        ? []
+        : db
+            .select({
+              digest: datasetImages.imageId,
+              modelId: datasets.modelId,
+              filename: datasetImages.filename,
+              dataset: datasets.name,
+            })
+            .from(datasetImages)
+            .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
+            .where(
+              want.kind === "dataset"
+                ? and(
+                    eq(datasetImages.datasetId, want.dataset),
+                    eq(datasetImages.imageId, want.digest),
+                  )
+                : named(datasetImages.filename, want.name),
+            )
+            .orderBy(datasets.name),
+    ]);
+    // A unit's page without a day shows the newest day it was photographed on.
+    const experimentRows =
+      want.kind === "unit" && !want.observation
+        ? inExperiments.slice(-1)
+        : inExperiments;
+    const found = new Map<string, ImageSearchOverview>();
+    const place = (
+      row: { digest: string; modelId: string; filename: string },
+      where: ImagePlace,
+    ) => {
+      const key = `${row.digest}/${row.modelId}`;
+      const entry = found.get(key) ?? {
+        ref: { digest: row.digest, modelId: row.modelId },
+        filename: row.filename,
+        places: [],
+      };
+      entry.places.push(where);
+      found.set(key, entry);
     };
-    entry.places.push(where);
-    found.set(key, entry);
-  };
-  for (const { experiment, unit, observedOn, ...row } of experimentRows)
-    place(row, { experiment, unit, observedOn });
-  for (const { dataset, ...row } of inDatasets) place(row, { dataset });
-  return [...found.values()];
+    for (const { experiment, unit, observedOn, ...row } of experimentRows)
+      place(row, { experiment, unit, observedOn });
+    for (const { dataset, ...row } of inDatasets) place(row, { dataset });
+    return [...found.values()];
+  });
 }

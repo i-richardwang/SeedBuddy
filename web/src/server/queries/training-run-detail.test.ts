@@ -22,13 +22,14 @@ test("a run's detail judges whether it has stalled as of its reading", async () 
     ["stalling-a", "stalling-b"],
     await traditionalVersion("stalling-detector", "stalling-v1"),
   );
-  const run = await createTrainingRun(dataset.id, YOLO26N_WHOLE_RECIPE);
+  const run = await createTrainingRun(dataset.id, YOLO26N_WHOLE_RECIPE, null);
   const heartbeat = {
     ...testHeartbeat("stalling-trainer"),
     runtimes: [ULTRALYTICS_RUNTIME],
     memoryBytes: 24 * 1024 ** 3,
   };
   const worker = await recordTestHeartbeat(heartbeat);
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const start = new Date();
   const after = (minutes: number) =>
     new Date(start.getTime() + minutes * 60_000);
@@ -62,13 +63,21 @@ test("a paused run names the run of its model it waits for", async () => {
     ["waiting-a", "waiting-b"],
     await traditionalVersion("waiting-detector", "waiting-v1"),
   );
-  const paused = await createTrainingRun(dataset.id, YOLO26N_WHOLE_RECIPE);
+  const paused = await createTrainingRun(
+    dataset.id,
+    YOLO26N_WHOLE_RECIPE,
+    null,
+  );
   await controlTrainingRun(dataset.id, paused.id, 0, { action: "pause" });
   const blockedBy = async () =>
     (await trainingRunDetail(dataset.id, paused.id))?.blockedBy;
   expect(await blockedBy()).toBeNull();
 
-  const active = await createTrainingRun(dataset.id, YOLO26N_WHOLE_RECIPE);
+  const active = await createTrainingRun(
+    dataset.id,
+    YOLO26N_WHOLE_RECIPE,
+    null,
+  );
   expect(await blockedBy()).toEqual({
     runId: active.id,
     datasetId: dataset.id,

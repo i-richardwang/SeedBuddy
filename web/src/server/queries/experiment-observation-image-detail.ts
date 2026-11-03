@@ -27,9 +27,9 @@ import { readReview } from "../readings/public";
 
 export function experimentObservationImageDetail(
   ref: ObservationImageRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<ExperimentObservationImageDetail | null> {
-  return inSnapshot(executor, (db) => readObservationImage(ref, db));
+  return inSnapshot(db, (db) => readObservationImage(ref, db));
 }
 
 async function readObservationImage(

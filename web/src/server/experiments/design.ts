@@ -12,7 +12,7 @@ import {
   UnitConflictError,
   UnitNameTakenError,
 } from "../../domain/experiments/errors";
-import { replicateCodes, sameName } from "../../domain/experiments/naming";
+import { replicateCodes } from "../../domain/experiments/naming";
 import type { Unit } from "../../domain/experiments/read-model";
 import type {
   Experiment,
@@ -29,7 +29,12 @@ import type {
   UnitsTreatmentUpdate,
   UnitUpdate,
 } from "../../domain/experiments/schema";
-import { type Executor, inTransaction } from "../infra/db/client";
+import {
+  type Executor,
+  inTransaction,
+  operationTime,
+  single,
+} from "../infra/db/client";
 import { refusingUnique } from "../infra/db/errors";
 import {
   experimentObservations,
@@ -53,20 +58,24 @@ import {
 /** An experiment starts with its design: every treatment laid out in replicates. */
 export async function createExperiment(
   value: ExperimentRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Experiment> {
   const { treatments, ...page } = value;
-  return inTransaction(executor, async (tx) => {
-    const [row] = await refuseTakenName(page.name, () =>
-      tx
-        .insert(experiments)
-        .values({ ...page, id: randomUUID(), createdAt: new Date() })
-        .returning(),
+  return inTransaction(db, async (db) => {
+    const at = await operationTime(db);
+    const row = single(
+      await refuseTakenName(page.name, () =>
+        db
+          .insert(experiments)
+          .values({ ...page, id: randomUUID(), createdAt: at })
+          .returning(),
+      ),
+      "experiments",
     );
     for (const [index, treatment] of treatments.entries()) {
-      await insertTreatment(row!.id, treatment, index + 1, [], tx);
+      await insertTreatment(row.id, treatment, index + 1, db);
     }
-    return toExperiment(row!);
+    return toExperiment(row);
   });
 }
 
@@ -87,13 +96,13 @@ async function refuseTakenName<T>(
 
 export async function updateExperiment(
   value: ExperimentUpdate,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Experiment> {
   const { experiment: experimentId, ...page } = value;
-  return inTransaction(executor, async (tx) => {
-    const current = await lockExperiment(experimentId, tx);
+  return inTransaction(db, async (db) => {
+    const current = await lockExperiment(experimentId, db);
     if (page.inoculatedOn !== current.inoculatedOn) {
-      const [early] = await tx
+      const [early] = await db
         .select({ observedOn: experimentObservations.observedOn })
         .from(experimentObservations)
         .where(
@@ -109,30 +118,33 @@ export async function updateExperiment(
         );
       }
     }
-    const [row] = await refuseTakenName(page.name, () =>
-      tx
-        .update(experiments)
-        .set(page)
-        .where(eq(experiments.id, experimentId))
-        .returning(),
+    const row = single(
+      await refuseTakenName(page.name, () =>
+        db
+          .update(experiments)
+          .set(page)
+          .where(eq(experiments.id, experimentId))
+          .returning(),
+      ),
+      "experiments",
     );
-    return toExperiment(row!);
+    return toExperiment(row);
   });
 }
 
 export async function deleteExperiment(
   value: ExperimentRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<void> {
   const { experiment } = value;
-  await inTransaction(executor, async (tx) => {
-    await lockExperiment(experiment, tx);
-    if (await hasRecords(experiment, null, tx)) {
+  await inTransaction(db, async (db) => {
+    await lockExperiment(experiment, db);
+    if (await hasRecords(experiment, null, db)) {
       throw new ExperimentRecordsConflictError(
         "An experiment with images, counts or culture events cannot be deleted",
       );
     }
-    await tx.delete(experiments).where(eq(experiments.id, experiment));
+    await db.delete(experiments).where(eq(experiments.id, experiment));
   });
 }
 
@@ -140,21 +152,24 @@ async function insertTreatment(
   experimentId: string,
   design: TreatmentDesign,
   position: number,
-  existing: readonly Treatment[],
-  tx: Executor,
+  db: Executor,
 ): Promise<Treatment> {
   const { replicates, ...fields } = design;
-  if (existing.some((treatment) => sameName(treatment.name, fields.name))) {
-    throw new TreatmentNameTakenError(
-      `Treatment ${fields.name} already exists`,
-    );
-  }
-  const [row] = await tx
-    .insert(experimentTreatments)
-    .values({ experimentId, id: randomUUID(), ...fields, position })
-    .returning();
-  const treatment = toTreatment(row!);
-  await insertReplicates(experimentId, treatment, replicates, tx);
+  const row = single(
+    await refusingUnique(
+      "experiment_treatments_name",
+      () =>
+        new TreatmentNameTakenError(`Treatment ${fields.name} already exists`),
+      () =>
+        db
+          .insert(experimentTreatments)
+          .values({ experimentId, id: randomUUID(), ...fields, position })
+          .returning(),
+    ),
+    "experimentTreatments",
+  );
+  const treatment = toTreatment(row);
+  await insertReplicates(experimentId, treatment, replicates, db);
   return treatment;
 }
 
@@ -163,10 +178,10 @@ async function insertReplicates(
   experimentId: string,
   treatment: Treatment,
   replicates: number,
-  tx: Executor,
+  db: Executor,
 ): Promise<Unit[]> {
-  const taken = (await listUnits(experimentId, tx)).map((unit) => unit.code);
-  const rows = await tx
+  const taken = (await listUnits(experimentId, db)).map((unit) => unit.code);
+  const rows = await db
     .insert(experimentUnits)
     .values(
       replicateCodes(treatment.name, replicates, taken).map((code) => ({
@@ -177,68 +192,59 @@ async function insertReplicates(
       })),
     )
     .returning();
-  return rows.map((row) => toUnit(row!));
+  return rows.map((row) => toUnit(row));
 }
 
 export async function addTreatment(
   value: TreatmentRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Treatment> {
   const { experiment: experimentId, ...design } = value;
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const existing = await listTreatments(experimentId, tx);
-    return insertTreatment(
-      experimentId,
-      design,
-      existing.length + 1,
-      existing,
-      tx,
-    );
+  return inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const existing = await listTreatments(experimentId, db);
+    return insertTreatment(experimentId, design, existing.length + 1, db);
   });
 }
 
 export async function addReplicates(
   value: ReplicateRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Unit[]> {
   const {
     experiment: experimentId,
     treatment: treatmentId,
     replicates,
   } = value;
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const treatment = await requireTreatment(experimentId, treatmentId, tx);
-    return insertReplicates(experimentId, treatment, replicates, tx);
+  return inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const treatment = await requireTreatment(experimentId, treatmentId, db);
+    return insertReplicates(experimentId, treatment, replicates, db);
   });
 }
 
 export async function updateTreatment(
   value: TreatmentUpdate,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Treatment> {
   const { experiment: experimentId, treatment: treatmentId, ...design } = value;
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const taken = (await listTreatments(experimentId, tx)).find(
-      (treatment) =>
-        sameName(treatment.name, design.name) && treatment.id !== treatmentId,
+  return inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const [row] = await refusingUnique(
+      "experiment_treatments_name",
+      () =>
+        new TreatmentNameTakenError(`Treatment ${design.name} already exists`),
+      () =>
+        db
+          .update(experimentTreatments)
+          .set(design)
+          .where(atTreatment(experimentId, treatmentId))
+          .returning(),
     );
-    if (taken) {
-      throw new TreatmentNameTakenError(
-        `Treatment ${design.name} already exists`,
-      );
-    }
-    const [row] = await tx
-      .update(experimentTreatments)
-      .set(design)
-      .where(atTreatment(experimentId, treatmentId))
-      .returning();
     if (!row) {
       throw new TreatmentNotFoundError(`Unknown treatment: ${treatmentId}`);
     }
-    return toTreatment(row!);
+    return toTreatment(row);
   });
 }
 
@@ -248,12 +254,12 @@ export async function updateTreatment(
  */
 export async function deleteTreatment(
   value: TreatmentRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<void> {
   const { experiment: experimentId, treatment: treatmentId } = value;
-  await inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const [other] = await tx
+  await inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const [other] = await db
       .select({ id: experimentTreatments.id })
       .from(experimentTreatments)
       .where(
@@ -268,19 +274,19 @@ export async function deleteTreatment(
         "The last treatment of an experiment cannot be deleted",
       );
     }
-    if (await hasRecords(experimentId, { treatment: treatmentId }, tx)) {
+    if (await hasRecords(experimentId, { treatment: treatmentId }, db)) {
       throw new TreatmentConflictError(
         "A treatment whose units have images, counts or culture events cannot be deleted",
       );
     }
-    const [row] = await tx
+    const [row] = await db
       .delete(experimentTreatments)
       .where(atTreatment(experimentId, treatmentId))
       .returning({ position: experimentTreatments.position });
     if (!row) {
       throw new TreatmentNotFoundError(`Unknown treatment: ${treatmentId}`);
     }
-    await tx
+    await db
       .update(experimentTreatments)
       .set({ position: sql`${experimentTreatments.position} - 1` })
       .where(
@@ -294,43 +300,45 @@ export async function deleteTreatment(
 
 export async function updateUnit(
   value: UnitUpdate,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Unit> {
   const { experiment: experimentId, unit: unitId, code, treatment } = value;
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    await requireTreatment(experimentId, treatment, tx);
-    const units = await listUnits(experimentId, tx);
+  return inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    await requireTreatment(experimentId, treatment, db);
+    const units = await listUnits(experimentId, db);
     const unit = requireUnit(units, unitId);
-    const clash = units.find(
-      (item) => sameName(item.code, code) && item.id !== unitId,
-    );
-    if (clash) {
-      throw new UnitNameTakenError(`The experiment already has ${code}`);
-    }
     if (unit.treatment !== treatment && isLastReplicate(units, unit)) {
       throw new UnitConflictError(
         "The last replicate of a treatment cannot be moved",
       );
     }
-    const [row] = await tx
-      .update(experimentUnits)
-      .set({ code, treatmentId: treatment })
-      .where(atUnit(experimentId, unitId))
-      .returning();
-    return toUnit(row!);
+    const row = single(
+      await refusingUnique(
+        "experiment_units_code",
+        () => new UnitNameTakenError(`The experiment already has ${code}`),
+        () =>
+          db
+            .update(experimentUnits)
+            .set({ code, treatmentId: treatment })
+            .where(atUnit(experimentId, unitId))
+            .returning(),
+      ),
+      "experimentUnits",
+    );
+    return toUnit(row);
   });
 }
 
 /** Moves several units to one treatment in one transaction; each keeps its code. */
 export async function moveUnits(
   value: UnitsTreatmentUpdate,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Unit[]> {
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(value.experiment, tx);
-    await requireTreatment(value.experiment, value.treatment, tx);
-    const units = await listUnits(value.experiment, tx);
+  return inTransaction(db, async (db) => {
+    await lockExperiment(value.experiment, db);
+    await requireTreatment(value.experiment, value.treatment, db);
+    const units = await listUnits(value.experiment, db);
     const moved: Unit[] = [];
     for (const unitId of value.units) {
       const unit = requireUnit(units, unitId);
@@ -342,7 +350,7 @@ export async function moveUnits(
       moved.push(unit);
     }
     for (const unit of moved)
-      await tx
+      await db
         .update(experimentUnits)
         .set({ treatmentId: unit.treatment })
         .where(atUnit(value.experiment, unit.id));
@@ -351,26 +359,23 @@ export async function moveUnits(
 }
 
 /** A recorded unit stays, and so does the last replicate of its treatment. */
-export async function deleteUnit(
-  value: UnitRef,
-  executor?: Executor,
-): Promise<void> {
+export async function deleteUnit(value: UnitRef, db?: Executor): Promise<void> {
   const { experiment: experimentId, unit: unitId } = value;
-  await inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const units = await listUnits(experimentId, tx);
+  await inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const units = await listUnits(experimentId, db);
     const unit = requireUnit(units, unitId);
     if (isLastReplicate(units, unit)) {
       throw new UnitConflictError(
         "The last replicate of a treatment cannot be deleted",
       );
     }
-    if (await hasRecords(experimentId, { unit: unitId }, tx)) {
+    if (await hasRecords(experimentId, { unit: unitId }, db)) {
       throw new UnitConflictError(
         "A unit with images, counts or culture events cannot be deleted",
       );
     }
-    await tx.delete(experimentUnits).where(atUnit(experimentId, unitId));
+    await db.delete(experimentUnits).where(atUnit(experimentId, unitId));
   });
 }
 
@@ -383,9 +388,9 @@ function isLastReplicate(units: readonly Unit[], unit: Unit): boolean {
 async function requireTreatment(
   experimentId: string,
   treatmentId: string,
-  tx: Executor,
+  db: Executor,
 ): Promise<Treatment> {
-  const [treatment] = await tx
+  const [treatment] = await db
     .select()
     .from(experimentTreatments)
     .where(atTreatment(experimentId, treatmentId));

@@ -8,10 +8,10 @@ import {
   INOCULATED,
   observeImages,
   reading,
-  trainedVersion,
   unitsOf,
 } from "../testing/experiments";
 import { imageBytes, imageDigest, storeTexts } from "../testing/images";
+import { trainedVersion } from "../testing/models";
 import { collectImages } from "./collection";
 import { canonicalize } from "./ingest";
 import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
@@ -21,6 +21,7 @@ import { markImageUnclear } from "./unclear";
 
 describe("collection", () => {
   /** A moment past the period an unclaimed image is kept for. */
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const later = () => new Date(Date.now() + 25 * 60 * 60 * 1000);
 
   test("keeps unclaimed bytes while an observation is still being submitted", async () => {
@@ -83,6 +84,7 @@ describe("collection", () => {
 test("an unclear mark keeps no image alive", async () => {
   const [loose] = await storeTexts(["unclear-loose"]);
   await markImageUnclear({ digest: loose! });
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
   expect(await collectImages(later)).toContain(loose!);
 });
@@ -106,6 +108,7 @@ test("an experiment observation image is a garbage-collection root", async () =>
   });
   const kept = await imageDigest("gc-e1");
   const [loose] = await storeTexts(["gc-loose"]);
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
   const collected = await collectImages(later);
 

@@ -92,15 +92,7 @@ export async function setUserPassword(
   await readUser(input.user);
   const context = await (await auth()).$context;
   const password = await context.password.hash(input.password);
-  if (await context.internalAdapter.findCredentialAccount(input.user))
-    await context.internalAdapter.updatePassword(input.user, password);
-  else
-    await context.internalAdapter.createAccount({
-      userId: input.user,
-      accountId: input.user,
-      providerId: "credential",
-      password,
-    });
+  await context.internalAdapter.updatePassword(input.user, password);
 }
 
 export async function setUserStatus(

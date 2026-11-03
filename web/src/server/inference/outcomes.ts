@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { DetectionResult } from "../../domain/detection/schema";
+import type { InferenceTarget } from "../../domain/inference/assignments";
 import {
   DetectionConflictError,
   DetectionImageNotFoundError,
@@ -18,21 +19,15 @@ import { images, inferenceOutcomes, modelVersions } from "../infra/db/schema";
 import { requireModel } from "../models/public";
 import { lockDetection } from "./lock";
 
-/** One image under one model version: the pair a detection is recorded for. */
-export interface DetectionTarget {
-  versionId: string;
-  digest: string;
-}
-
 function sameDocument(left: DetectionResult, right: DetectionResult): boolean {
   return canonicalJson(left) === canonicalJson(right);
 }
 
 async function assertProducer(
-  target: DetectionTarget,
+  target: InferenceTarget,
   outcome: DetectionResult,
   worker: Pick<Worker, "runtimes">,
-  tx: Executor,
+  db: Executor,
 ): Promise<Model> {
   const { producer } = outcome;
   if (producer.modelVersionId !== target.versionId) {
@@ -40,7 +35,7 @@ async function assertProducer(
       `Outcome was produced by ${producer.modelVersionId}, not ${target.versionId}`,
     );
   }
-  const [version] = await tx
+  const [version] = await db
     .select({
       artifact: modelVersions.artifact,
       artifactDigest: modelVersions.artifactDigest,
@@ -72,7 +67,7 @@ async function assertProducer(
       "Outcome was produced by a runtime the worker does not advertise",
     );
   }
-  const model = await requireModel(version.modelId, tx);
+  const model = await requireModel(version.modelId, db);
   return model;
 }
 
@@ -81,14 +76,14 @@ async function assertProducer(
  * Repeating an identical result is safe; a conflicting result is refused.
  */
 export async function storeInferenceOutcome(
-  target: DetectionTarget,
+  target: InferenceTarget,
   outcome: DetectionResult,
   worker: Pick<Worker, "runtimes">,
   at: Date,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
-  await lockDetection(target.digest, target.versionId, tx);
-  const [image] = await tx
+  await lockDetection(target.digest, target.versionId, db);
+  const [image] = await db
     .select({ digest: images.id, width: images.width, height: images.height })
     .from(images)
     .where(eq(images.id, target.digest));
@@ -104,15 +99,9 @@ export async function storeInferenceOutcome(
       error instanceof Error ? error.message : String(error),
     );
   }
-  const model = await assertProducer(target, outcome, worker, tx);
-  try {
-    assertInstanceClasses(model.classes, outcome.instances, "Outcome");
-  } catch (error) {
-    throw new DetectionOutcomeInvalidError(
-      error instanceof Error ? error.message : String(error),
-    );
-  }
-  const [stored] = await tx
+  const model = await assertProducer(target, outcome, worker, db);
+  assertInstanceClasses(model.classes, outcome.instances, "Outcome");
+  const [stored] = await db
     .select({ document: inferenceOutcomes.document })
     .from(inferenceOutcomes)
     .where(
@@ -128,7 +117,7 @@ export async function storeInferenceOutcome(
     }
     return;
   }
-  await tx.insert(inferenceOutcomes).values({
+  await db.insert(inferenceOutcomes).values({
     imageId: target.digest,
     modelVersionId: target.versionId,
     document: outcome,

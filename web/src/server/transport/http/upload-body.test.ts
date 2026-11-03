@@ -57,7 +57,7 @@ test("overlong image and weight bodies are refused with 413", async () => {
     error: "Body exceeds Content-Length",
   });
   expect(await image.json()).toEqual({
-    error: { code: "invalid_request", message: "Body exceeds Content-Length" },
+    error: "Body exceeds Content-Length",
   });
 });
 

@@ -1,5 +1,6 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { asc, inArray } from "drizzle-orm";
 
+import { atImageObservation } from "../experiments/public";
 import { database, type Executor } from "../infra/db/client";
 import {
   datasetImages,
@@ -17,27 +18,15 @@ export async function imageFilenames(
   db?: Executor,
 ): Promise<Map<string, string>> {
   if (digests.length === 0) return new Map();
-  const executor = db ?? (await database());
+  db ??= await database();
   const [experimentRows, datasetRows] = await Promise.all([
-    executor
+    db
       .select({
         imageId: experimentObservationImages.imageId,
         filename: experimentObservationImages.filename,
       })
       .from(experimentObservationImages)
-      .innerJoin(
-        experimentObservations,
-        and(
-          eq(
-            experimentObservations.experimentId,
-            experimentObservationImages.experimentId,
-          ),
-          eq(
-            experimentObservations.id,
-            experimentObservationImages.observationId,
-          ),
-        ),
-      )
+      .innerJoin(experimentObservations, atImageObservation())
       .where(inArray(experimentObservationImages.imageId, digests))
       .orderBy(
         asc(experimentObservations.observedOn),
@@ -45,7 +34,7 @@ export async function imageFilenames(
         asc(experimentObservationImages.experimentId),
         asc(experimentObservationImages.id),
       ),
-    executor
+    db
       .select({
         imageId: datasetImages.imageId,
         filename: datasetImages.filename,

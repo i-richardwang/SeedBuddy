@@ -24,6 +24,7 @@ import {
   type Executor,
   inTransaction,
   operationTime,
+  single,
 } from "../infra/db/client";
 import {
   experimentCultureEvents,
@@ -42,15 +43,15 @@ import {
 /** Records the same event on several units in one transaction. */
 export async function recordCultureEvents(
   value: CultureEventsRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<CultureEvent[]> {
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(value.experiment, tx);
-    const observations = await listObservations(value.experiment, tx);
+  return inTransaction(db, async (db) => {
+    await lockExperiment(value.experiment, db);
+    const observations = await listObservations(value.experiment, db);
     const observation = requireObservation(observations, value.observation);
-    const units = await listUnits(value.experiment, tx);
+    const units = await listUnits(value.experiment, db);
     const ordinals = observationOrdinals(observations);
-    const at = await operationTime(tx);
+    const at = await operationTime(db);
     const events: CultureEvent[] = [];
     for (const unitId of value.units) {
       const unit = requireUnit(units, unitId);
@@ -78,20 +79,23 @@ export async function recordCultureEvents(
           unit,
           observation,
           ordinals,
-          tx,
+          db,
         );
-      const [row] = await tx
-        .insert(experimentCultureEvents)
-        .values({
-          experimentId: value.experiment,
-          id: randomUUID(),
-          unitId,
-          observationId: observation.id,
-          type: value.type,
-          recordedAt: at,
-        })
-        .returning();
-      events.push(toCultureEvent(row!));
+      const row = single(
+        await db
+          .insert(experimentCultureEvents)
+          .values({
+            experimentId: value.experiment,
+            id: randomUUID(),
+            unitId,
+            observationId: observation.id,
+            type: value.type,
+            recordedAt: at,
+          })
+          .returning(),
+        "experimentCultureEvents",
+      );
+      events.push(toCultureEvent(row));
     }
     return events;
   });
@@ -100,11 +104,11 @@ export async function recordCultureEvents(
 /** Erases an event that was recorded by mistake. */
 export async function deleteCultureEvent(
   { experiment: experimentId, event: eventId }: CultureEventRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<void> {
-  await inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const [row] = await tx
+  await inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const [row] = await db
       .delete(experimentCultureEvents)
       .where(
         and(
@@ -125,10 +129,10 @@ export async function assertUnitRecordsEndAt(
   unit: Unit,
   observation: ExperimentObservation,
   ordinals: ObservationOrdinals,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
   const [imageObservations, manualObservations] = await Promise.all([
-    tx
+    db
       .select({ observation: experimentObservationImages.observationId })
       .from(experimentObservationImages)
       .where(
@@ -137,7 +141,7 @@ export async function assertUnitRecordsEndAt(
           eq(experimentObservationImages.unitId, unit.id),
         ),
       ),
-    tx
+    db
       .select({ observation: experimentManualReadings.observationId })
       .from(experimentManualReadings)
       .where(

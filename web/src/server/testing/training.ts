@@ -1,4 +1,5 @@
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
+import { database, operationTime } from "../infra/db/client";
 import { reviewedDataset as reviewed } from "./datasets";
 import { traditionalVersion } from "./models";
 import { recordTestHeartbeat, trainingHeartbeat } from "./workers";
@@ -17,7 +18,7 @@ export async function trainingDataset(name: string) {
 
 export function owner(
   workerId: string,
-  sessionId = `${workerId}-session`,
+  sessionId = `session-${workerId}`,
   attempt = 1,
 ) {
   return { workerId, sessionId, attempt };
@@ -25,7 +26,9 @@ export function owner(
 
 export async function trainer(workerId: string) {
   const identity = owner(workerId);
-  await recordTestHeartbeat(trainingHeartbeat(identity, new Date()));
+  await recordTestHeartbeat(
+    trainingHeartbeat(identity, await operationTime(await database())),
+  );
   return identity;
 }
 

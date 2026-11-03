@@ -132,8 +132,8 @@ describe("agent execution", () => {
         destructive: false,
         input: z.strictObject({}),
         output: z.null(),
-        handler: async (_input, executor) => {
-          await executor!.insert(models).values({
+        handler: async (_input, db) => {
+          await db!.insert(models).values({
             id,
             name: id,
             task: "detect",
@@ -166,8 +166,8 @@ describe("agent execution", () => {
         destructive: false,
         input: z.strictObject({}),
         output: z.null(),
-        handler: async (_input, tx) => {
-          await tx!.insert(models).values({
+        handler: async (_input, db) => {
+          await db!.insert(models).values({
             id,
             name: id,
             task: "detect",
@@ -254,7 +254,7 @@ test("model commands roll back writes when their output contract fails", async (
   }
 });
 
-test("queries and service-owned commands receive no operation executor", async () => {
+test("queries and service-owned commands receive no operation db", async () => {
   const handler = async (...args: unknown[]) => {
     expect(args).toEqual([{}]);
     return null;

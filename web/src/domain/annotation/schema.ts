@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { resourceIdSchema } from "../identifiers/schema";
 import { imageRectangleSchema } from "../images/geometry";
-import { imageDigestSchema } from "../images/schema";
+import { imageDigestSchema, imageFrameSchema } from "../images/schema";
 import { classNameSchema } from "../models/classes";
 
 /**
@@ -44,11 +44,7 @@ export const annotationInstanceSchema = z.strictObject({
 export const annotationSchema = z
   .strictObject({
     schemaVersion: z.literal(1),
-    image: z.strictObject({
-      digest: imageDigestSchema,
-      width: z.number().int().positive(),
-      height: z.number().int().positive(),
-    }),
+    image: imageFrameSchema,
     instances: z.array(annotationInstanceSchema),
   })
   .superRefine((document, context) => {

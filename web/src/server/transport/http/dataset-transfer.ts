@@ -9,7 +9,7 @@ import {
 } from "../../../domain/datasets/manifest";
 import { ModelNotFoundError } from "../../../domain/models/errors";
 import { importDataset, readDatasetManifest } from "../../datasets/public";
-import { exactLengthBody, uploadFailure as failed } from "./upload-body";
+import { exactLengthBody, uploadFailure } from "./upload-body";
 
 async function manifestBody(request: Request): Promise<unknown | Response> {
   const bytes = await exactLengthBody(request, MAX_DATASET_MANIFEST_BYTES);
@@ -17,7 +17,7 @@ async function manifestBody(request: Request): Promise<unknown | Response> {
   try {
     return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
   } catch {
-    return failed("The body is not JSON", 400);
+    return uploadFailure("The body is not JSON", 400);
   }
 }
 
@@ -30,7 +30,7 @@ export async function serveDatasetManifest(name: string): Promise<Response> {
     });
   } catch (error) {
     if (error instanceof DatasetManifestTooLargeError) {
-      return failed(error.message, 422);
+      return uploadFailure(error.message, 422);
     }
     throw error;
   }
@@ -44,7 +44,7 @@ export async function serveDatasetImport(
   if (body instanceof Response) return body;
   const parsed = datasetManifestSchema.safeParse(body);
   if (!parsed.success) {
-    return failed(
+    return uploadFailure(
       `Not a dataset manifest: ${parsed.error.issues
         .map((issue) => `${issue.path.join(".")} ${issue.message}`)
         .join("; ")}`,
@@ -52,15 +52,16 @@ export async function serveDatasetImport(
     );
   }
   if (parsed.data.dataset !== name) {
-    return failed("The manifest describes another dataset", 400);
+    return uploadFailure("The manifest describes another dataset", 400);
   }
   try {
     const dataset = await importDataset(parsed.data);
     return Response.json({ dataset }, { status: 201 });
   } catch (error) {
-    if (error instanceof ModelNotFoundError) return failed(error.message, 404);
+    if (error instanceof ModelNotFoundError)
+      return uploadFailure(error.message, 404);
     if (error instanceof DatasetImportInvalidError) {
-      return failed(error.message, 409);
+      return uploadFailure(error.message, 409);
     }
     throw error;
   }

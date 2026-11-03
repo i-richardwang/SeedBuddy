@@ -1,5 +1,7 @@
 import { resolve } from "node:path";
 
+import { PROCESS_ENTRIES } from "./process-entries";
+
 const root = resolve(import.meta.dir, "..");
 const vite = Bun.spawn(["bun", "x", "vite", "build"], {
   cwd: root,
@@ -8,13 +10,9 @@ const vite = Bun.spawn(["bun", "x", "vite", "build"], {
 });
 if (await vite.exited) process.exit(1);
 const result = await Bun.build({
-  entrypoints: [
-    "server.ts",
-    "scripts/collect-blobs.ts",
-    "scripts/maintenance.ts",
-    "scripts/analyze-images.ts",
-    "src/server/images/dish-thread.ts",
-  ].map((file) => resolve(root, file)),
+  entrypoints: PROCESS_ENTRIES.filter((entry) => entry.bundle).map((entry) =>
+    resolve(root, entry.path),
+  ),
   outdir: resolve(root, "dist"),
   naming: "[name].[ext]",
   target: "bun",

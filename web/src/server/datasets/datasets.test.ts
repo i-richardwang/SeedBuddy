@@ -1,17 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { and, eq } from "drizzle-orm";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import type { Worker } from "../../domain/workers/schema";
-import { readAnnotation, storeAnnotation } from "../annotations/documents";
+import { storeAnnotation } from "../annotations/documents";
 import { collectImages } from "../images/collection";
 import { imageBlobKey } from "../images/keys";
 import { storeImage } from "../images/store";
 import { markImageUnclear } from "../images/unclear";
 import { blobExists, requireBlob } from "../infra/blobs/store";
-import { database } from "../infra/db/client";
-import { inferenceOutcomes } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
 import { createModel, registerModel } from "../models/registry";
 import { observeTextsIntoDataset } from "../testing/datasets";
@@ -24,6 +21,7 @@ import {
 } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
 import { registerTrainedVersion } from "../testing/models";
+import { readAnnotation } from "../testing/records";
 import { testHeartbeat } from "../testing/workers";
 import {
   addExperimentObservationImages,
@@ -42,28 +40,7 @@ const worker: Worker = {
   lastSeenAt: "2026-08-27T00:00:00.000Z",
 };
 
-async function readImageRecord(ref: { dataset: string; digest: string }) {
-  return (
-    (await listImageRecords(ref.dataset)).find(
-      (record) => record.image.digest === ref.digest,
-    ) ?? null
-  );
-}
-
-/** The succeeded outcome stored for one image-version pair, if any. */
-async function storedDetection(target: { versionId: string; digest: string }) {
-  const db = await database();
-  const [row] = await db
-    .select({ document: inferenceOutcomes.document })
-    .from(inferenceOutcomes)
-    .where(
-      and(
-        eq(inferenceOutcomes.imageId, target.digest),
-        eq(inferenceOutcomes.modelVersionId, target.versionId),
-      ),
-    );
-  return row?.document ?? null;
-}
+import { readImageRecord, storedDetection } from "../testing/records";
 
 describe("datasets", () => {
   test("a stored image belongs to nothing until an observation is submitted", async () => {
@@ -341,6 +318,7 @@ describe("removal", () => {
         name: "share-b",
         images,
       });
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     const later = new Date(Date.now() + 25 * 60 * 60 * 1000);
     await removeDatasetImages({ dataset: dataset.id, digests: [digest] });
     expect(await collectImages(later)).not.toContain(digest);

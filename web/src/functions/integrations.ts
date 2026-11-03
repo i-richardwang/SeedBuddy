@@ -5,8 +5,8 @@ import { APIError } from "better-auth/api";
 import { z } from "zod";
 
 import {
-  apiKeyCreateSchema,
   apiKeyRefSchema,
+  apiKeyRequestSchema,
   MCP_SERVERS,
   mcpClientRefSchema,
 } from "../domain/auth/integrations";
@@ -38,7 +38,7 @@ export const getIntegrations = createServerFn({ method: "GET" }).handler(
 );
 
 export const createApiKey = createServerFn({ method: "POST" })
-  .validator(apiKeyCreateSchema)
+  .validator(apiKeyRequestSchema)
   .handler(async ({ data }) => issueApiKey((await requireAccount()).id, data));
 
 export const removeApiKey = createServerFn({ method: "POST" })
@@ -57,7 +57,7 @@ export const removeMcpClient = createServerFn({ method: "POST" })
  * The client named by an authorization request and the MCP servers it asks
  * for, as the consent page shows them.
  */
-export const describeOAuthClient = createServerFn({ method: "GET" })
+export const getOAuthClient = createServerFn({ method: "GET" })
   .validator(
     z.strictObject({ clientId: z.string(), resources: z.array(z.string()) }),
   )
