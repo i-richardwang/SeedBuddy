@@ -49,6 +49,7 @@ export const datasetOperations = [
     },
   }),
   command({
+    transaction: "operation",
     name: "create-dataset",
     description:
       "Create an empty dataset that trains one recognition task; its name is unique whatever its case and stays filename-safe, because transfer and data roots know a dataset by name",
@@ -58,6 +59,7 @@ export const datasetOperations = [
     handler: (input, executor) => createDataset(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "update-dataset",
     description:
       "Rename a dataset; its images, training splits, snapshots, and runs stay with it",
@@ -67,6 +69,7 @@ export const datasetOperations = [
     handler: (input, executor) => updateDataset(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "add-images-to-dataset",
     description:
       "Add experiment photographs to a dataset that trains their observation's model, by the observation image id each cell carries. All images must be observed for that model; images already in the dataset are counted as existing, so repeating a call is safe. Training splits are assigned when a snapshot is taken",
@@ -77,6 +80,7 @@ export const datasetOperations = [
       addExperimentObservationImages(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "remove-images-from-dataset",
     description:
       "Take images out of a dataset by digest so later training leaves them out. The images, their reviews, and snapshots already taken remain; digests not in the dataset are counted as absent, so repeating a call is safe",

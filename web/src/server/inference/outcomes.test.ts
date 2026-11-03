@@ -1,3 +1,8 @@
+import {
+  DetectionConflictError,
+  InvalidDetectionOutcomeError,
+  ProducerMismatchError,
+} from "../../domain/inference/errors";
 import { listObservationImageRefs } from "../testing/fixtures";
 import { describe, expect, test } from "bun:test";
 import { and, eq, inArray } from "drizzle-orm";
@@ -12,11 +17,7 @@ import { addExperimentObservationImagesToNewDataset } from "../datasets/membersh
 import { retryObservationImageAnalysis } from "../experiments/observation-images";
 
 import { storeAnnotation } from "../annotations/documents";
-import {
-  DetectionConflictError,
-  InvalidDetectionOutcomeError,
-  ProducerMismatchError,
-} from "./outcomes";
+
 import {
   seedDetectionResult,
   seedInferenceTaskFailure,

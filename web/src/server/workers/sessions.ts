@@ -1,3 +1,4 @@
+import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import { and, desc, eq, gt, lt, or, sql, type SQLWrapper } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
@@ -11,9 +12,6 @@ import {
   type WorkerIdentity,
 } from "../../domain/workers/schema";
 import { workerPresence } from "../../domain/workers/presence";
-
-/** Thrown when a session is not the one the roster holds for its worker. */
-export class WorkerSessionConflictError extends Error {}
 
 function toWorker(row: typeof workerSessions.$inferSelect): Worker {
   return workerSchema.parse({

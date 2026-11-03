@@ -1,3 +1,4 @@
+import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import { expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import {
@@ -7,7 +8,6 @@ import {
   failInferenceAttempt,
 } from "./attempts";
 import {
-  InferenceAttemptConflictError,
   maintainInferenceTasks,
   readInferenceTask,
   retryInferenceTask,

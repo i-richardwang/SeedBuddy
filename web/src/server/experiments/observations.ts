@@ -1,3 +1,8 @@
+import {
+  cultureEventIsTerminal,
+  observationOrdinals,
+} from "../../domain/experiments/culture-events";
+import { assertUnitRecordsEndAt } from "./culture-events";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
@@ -6,6 +11,7 @@ import { inTransaction, type Executor } from "../infra/db/client";
 import { experimentObservations } from "../infra/db/schema";
 import {
   ObservationNotFoundError,
+  ObservationModelHasCountsError,
   ObservationRejectedError,
 } from "../../domain/experiments/errors";
 import { resolveCountedClasses } from "../../domain/experiments/readings";
@@ -21,6 +27,8 @@ import type {
 import {
   atObservation,
   listObservations,
+  listUnits,
+  listManualReadings,
   lockExperiment,
   requireObservation,
 } from "./records";
@@ -117,6 +125,20 @@ export async function updateObservation(
   } = value;
   return inTransaction(executor, async (tx) => {
     const experiment = await lockExperiment(experimentId, tx);
+    const previous = requireObservation(
+      await listObservations(experimentId, tx),
+      observationId,
+    );
+    if (
+      previous.modelId !== modelId &&
+      (await listManualReadings(experimentId, tx)).some(
+        (reading) => reading.observation === observationId,
+      )
+    ) {
+      throw new ObservationModelHasCountsError(
+        "Withdraw the observation's manual counts before changing its model",
+      );
+    }
     rejectBeforeInoculation(experiment, observedOn);
     await rejectSameDay(experimentId, observedOn, observationId, tx);
     const model = await requireModel(modelId, tx);
@@ -135,7 +157,24 @@ export async function updateObservation(
         `Unknown observation: ${observationId}`,
       );
     }
-    return requireObservation(await listObservations(experimentId, tx), row.id);
+    const observations = await listObservations(experimentId, tx);
+    if (previous.observedOn !== observedOn) {
+      const ordinals = observationOrdinals(observations);
+      for (const unit of await listUnits(experimentId, tx)) {
+        const terminal = unit.events.find((event) =>
+          cultureEventIsTerminal(event.type),
+        );
+        if (terminal)
+          await assertUnitRecordsEndAt(
+            experimentId,
+            unit,
+            requireObservation(observations, terminal.observation),
+            ordinals,
+            tx,
+          );
+      }
+    }
+    return requireObservation(observations, row.id);
   });
 }
 

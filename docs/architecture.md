@@ -8,7 +8,7 @@ VitroFlow has a Web control plane and two Python packages: `vitroctl` (`src/vitr
 
 `features/` owns browser requests, form state, and interaction lifetimes. `ui/` may use domain types and display them, but never invokes a feature or Server Function. For example, the shell receives the signed-in account control as content; the account feature owns sign-out. File routes assemble these pieces. Both Server Functions and file-route HTTP handlers are valid service entry points.
 
-The server module map and transaction rules are described in [Backend architecture](backend-architecture.md). Vite protects server files from client imports. `bun run architecture:check` additionally checks layer directions, pure-module capabilities, test isolation, all source-file cycles, and server public APIs. Imports, type imports, and re-exports participate in the rules. Dynamic imports must use literal paths.
+The server module map and transaction rules are described in [Backend architecture](backend-architecture.md). Vite protects server files from client imports. `bun run architecture:check` additionally checks layer directions, pure-module capabilities, test isolation, all source-file cycles, and server public APIs. Service public entries expose only consumed names; namespace and dynamic consumers are retained conservatively. Operation-owned command handlers must reference their executor parameter. Imports, type imports, and re-exports participate in the rules. Dynamic imports must use literal paths.
 
 ## Shared rules and presentation
 
@@ -38,8 +38,12 @@ Worker execution can use algorithms and data documents. Algorithm families do no
 
 Traditional execution identity lives in `detectors/traditional/identity.py`. Its source fingerprint includes the pipeline's behavior dependencies, including image decoding in `io/image_io.py`. The detector runtime fingerprint also includes its adapter and common contract. Source paths are explicit and resolved relative to their owning implementation; moving a dependency does not justify dropping it from coverage.
 
-A runtime fingerprint identifies execution code. A traditional artifact digest identifies the candidate model and configuration. The built-in model version ID is `traditional-v1`, and a trained one is the ID of the run that produced it. These identities have different purposes: a source change can change runtime identity without changing the artifact or inventing another model version. A regression test checks this distinction by varying image-decoder source bytes.
+A runtime fingerprint identifies execution code. A traditional artifact digest identifies the candidate model and configuration. The built-in model version ID is `traditional-v1`, and a trained one is the ID of the run that produced it. These identities have different purposes: a source change can change runtime identity without changing the artifact or inventing another model version. Regression tests check this distinction by varying behavior-source and dish-recipe bytes. An import-closure check requires traditional and image-geometry algorithm modules reachable from the pipeline to remain in the fingerprint inventory.
 
 ## Verification
 
 `make check` runs Web builds, architecture checks, contract generation checks, formatting, type checks, and tests for the Web application and both Python packages. The standard suite uses PGlite and in-memory blobs. PostgreSQL, S3, and private reference images have explicit integration targets in the Makefile. Package moves must preserve CLI entry points, bundled data resources, and executable runtime fingerprints as well as import resolution.
+
+The `Quality` workflow runs `make check` on pull requests and main-branch pushes with locked dependencies, then verifies PostgreSQL concurrency and S3 immutability against disposable storage. Repository branch protection must require its `check` job to make it a merge requirement. Private reference images remain an explicit operator check.
+
+Database evolution uses forward migrations: the schema describes current records, while applied migrations remain immutable upgrade instructions. Tests cover both new database initialization and upgrades of populated records when a migration removes a field.

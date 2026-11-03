@@ -7,7 +7,9 @@ import { database } from "../infra/db/client";
 import { models } from "../infra/db/schema";
 import { ExperimentNotFoundError } from "../../domain/experiments/errors";
 import { type AgentCallResult, executeAgentOperation } from "./execution";
-import { type AgentOperation, command } from "./definition";
+import { type AgentOperation, command, query } from "./definition";
+import { agentOperations } from "./operations";
+import { createModel, readModel } from "../models/public";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 
 function failure(result: AgentCallResult): { code: string; message: string } {
@@ -72,6 +74,7 @@ describe("agent execution", () => {
   test("defects are logged and sanitized, wherever they arose", async () => {
     const registry = registryOf(
       command({
+        transaction: "operation",
         name: "breaks",
         description: "Throws a non-domain error",
         destructive: false,
@@ -80,6 +83,7 @@ describe("agent execution", () => {
         handler: () => Promise.reject(new TypeError("internal detail")),
       }),
       command({
+        transaction: "operation",
         name: "lies",
         description: "Returns a value its output contract forbids",
         destructive: false,
@@ -111,6 +115,7 @@ describe("agent execution", () => {
     const id = `rolled-back-${crypto.randomUUID()}`;
     const registry = registryOf(
       command({
+        transaction: "operation",
         name: "writes-then-fails",
         description: "Writes a row and then rejects the request",
         destructive: false,
@@ -148,6 +153,7 @@ describe("agent execution", () => {
     const id = `invalid-output-${crypto.randomUUID()}`;
     const registry = registryOf(
       command({
+        transaction: "operation",
         name: "invalid-output",
         description: "Writes a row but violates the output contract",
         destructive: false,
@@ -195,5 +201,78 @@ describe("agent execution", () => {
     expect(
       await executeAgentOperation("create-experiment", input),
     ).toMatchObject({ ok: false, code: "conflict" });
+  });
+});
+
+test("model commands roll back writes when their output contract fails", async () => {
+  const id = `transaction-${crypto.randomUUID()}`;
+  const original = await createModel({ id, name: id, classes: ["seed"] });
+  const cases = [
+    {
+      name: "create-model",
+      input: { id: `${id}-new`, name: `${id}-new`, classes: ["seed"] },
+    },
+    {
+      name: "update-model-annotation",
+      input: {
+        model: id,
+        annotation: {
+          ...original.annotation,
+          instructions: "Changed instructions",
+        },
+      },
+    },
+    { name: "delete-model", input: { model: id } },
+  ];
+  const log = spyOn(console, "error").mockImplementation(() => {});
+  try {
+    for (const { name, input } of cases) {
+      const operation = agentOperations.get(name)!;
+      let validatedOutput = false;
+      const registry = registryOf({
+        ...operation,
+        output: z.unknown().refine(() => {
+          validatedOutput = true;
+          return false;
+        }),
+      });
+      expect(
+        failure(await executeAgentOperation(name, input, registry)).code,
+      ).toBe("internal_error");
+      expect(validatedOutput).toBe(true);
+      expect(await readModel(`${id}-new`)).toBeNull();
+      expect(await readModel(id)).toEqual(original);
+    }
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test("queries and service-owned commands receive no operation executor", async () => {
+  const handler = async (...args: unknown[]) => {
+    expect(args).toEqual([{}]);
+    return null;
+  };
+  const input = z.strictObject({});
+  const output = z.null();
+  const registry = registryOf(
+    query({ name: "read", description: "Read", input, output, handler }),
+    command({
+      name: "stage",
+      description: "Stage",
+      transaction: "service",
+      destructive: false,
+      input,
+      output,
+      handler,
+    }),
+  );
+  expect(await executeAgentOperation("read", {}, registry)).toEqual({
+    ok: true,
+    output: null,
+  });
+  expect(await executeAgentOperation("stage", {}, registry)).toEqual({
+    ok: true,
+    output: null,
   });
 });

@@ -183,6 +183,7 @@ function adapter(file: string): boolean {
 function processEntry(file: string): boolean {
   return (
     file === "src/server.ts" ||
+    file === "server.ts" ||
     file === "scripts/maintenance.ts" ||
     file === "scripts/analyze-images.ts" ||
     file === "scripts/collect-blobs.ts"

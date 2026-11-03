@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from vitroctl.io.files import atomic_file
 from vitroctl.worker.host.profiles import (
     load_profile,
     profile_directory,
@@ -60,10 +61,8 @@ def install_launch_agent(name: str) -> Path:
     require_launchd()
     load_profile(name)
     path = launch_agent_path(name)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".plist.tmp")
-    temporary.write_bytes(plistlib.dumps(launch_agent_document(name), sort_keys=True))
-    temporary.replace(path)
+    with atomic_file(path) as handle:
+        handle.write(plistlib.dumps(launch_agent_document(name), sort_keys=True))
     return path
 
 

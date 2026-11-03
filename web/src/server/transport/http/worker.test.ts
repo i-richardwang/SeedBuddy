@@ -1,3 +1,10 @@
+import { WorkerSessionConflictError } from "../../../domain/workers/errors";
+import {
+  DetectionConflictError,
+  DetectionImageNotFoundError,
+  InvalidDetectionOutcomeError,
+  ProducerMismatchError,
+} from "../../../domain/inference/errors";
 import { expect, spyOn, test } from "bun:test";
 
 import {
@@ -5,14 +12,8 @@ import {
   TrainingRunConflictError,
   TrainingRunNotFoundError,
 } from "../../../domain/training/errors";
-import {
-  DetectionConflictError,
-  DetectionImageNotFoundError,
-  InvalidDetectionOutcomeError,
-  ProducerMismatchError,
-} from "../../inference/outcomes";
+
 import { WorkerRequestError, workerErrorResponse } from "./worker";
-import { WorkerSessionConflictError } from "../../workers/sessions";
 
 test("worker HTTP errors answer with the status the protocol acts on", () => {
   const status = (error: Error) =>

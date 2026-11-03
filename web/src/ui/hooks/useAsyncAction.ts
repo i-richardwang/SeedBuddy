@@ -7,8 +7,8 @@ type ActionResult<T> = { ok: true; value: T } | { ok: false; error: unknown };
 
 /**
  * Runs `work` and reports a failure as an error toast titled `failure`; the
- * result says whether the work succeeded. Once `signal` aborts, the caller no
- * longer waits on the work, and a failure passes without a toast.
+ * result says whether the work succeeded. An aborted `signal` suppresses
+ * the failure toast; it does not cancel the work or stop awaiting its result.
  */
 export async function runAction<T>(
   work: () => Promise<T>,

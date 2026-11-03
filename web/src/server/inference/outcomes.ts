@@ -1,3 +1,9 @@
+import {
+  DetectionConflictError,
+  DetectionImageNotFoundError,
+  InvalidDetectionOutcomeError,
+  ProducerMismatchError,
+} from "../../domain/inference/errors";
 import { and, eq } from "drizzle-orm";
 import type { Executor } from "../infra/db/client";
 import { images, inferenceOutcomes, modelVersions } from "../infra/db/schema";
@@ -16,22 +22,6 @@ export interface DetectionTarget {
   versionId: string;
   digest: string;
 }
-
-/** Thrown when a version reports a different result for an image it already detected. */
-export class DetectionConflictError extends Error {
-  constructor({ versionId, digest }: DetectionTarget) {
-    super(`${versionId} already detected ${digest} with a different result`);
-  }
-}
-
-/** Thrown when an outcome is malformed or describes a different stored image. */
-export class InvalidDetectionOutcomeError extends Error {}
-
-/** Thrown when the path names an image that is not in the image store. */
-export class DetectionImageNotFoundError extends Error {}
-
-/** Thrown when an outcome's producer is not the version, artifact, and runtime it claims. */
-export class ProducerMismatchError extends Error {}
 
 function sameDocument(left: DetectionResult, right: DetectionResult): boolean {
   return canonicalJson(left) === canonicalJson(right);

@@ -6,7 +6,9 @@ import json
 import logging
 import multiprocessing
 import os
+import queue
 import signal
+import threading
 from collections.abc import Callable
 from contextlib import suppress
 from multiprocessing.connection import Connection
@@ -70,18 +72,36 @@ def run_training_process(
     pid = process.pid
     assert pid is not None
     child.close()
+    events: queue.Queue[tuple[str, Any]] = queue.Queue()
+
+    def receive() -> None:
+        try:
+            while True:
+                event = parent.recv()
+                events.put(event)
+                if event[0] in ("result", "error"):
+                    return
+        except (EOFError, OSError):
+            events.put(("disconnected", None))
+
+    # A readable pipe can contain an incomplete frame. Keep blocking IPC out
+    # of the supervisor so cancellation still terminates a stalled sender.
+    reader = threading.Thread(target=receive, name="training-events", daemon=True)
+    reader.start()
     try:
         while True:
             if cancelled():
                 raise YoloTrainingInterruptedError("Training execution was revoked")
-            if not parent.poll(0.2):
+            try:
+                kind, value = events.get(timeout=0.2)
+            except queue.Empty:
                 if not process.is_alive():
                     raise RuntimeError(f"Trainer exited with code {process.exitcode}")
                 continue
-            try:
-                kind, value = parent.recv()
-            except EOFError as error:
-                raise RuntimeError("Trainer exited without a result") from error
+            if cancelled():
+                raise YoloTrainingInterruptedError("Training execution was revoked")
+            if kind == "disconnected":
+                raise RuntimeError("Trainer exited without a result")
             if kind == "result":
                 return value
             if kind == "error":
@@ -115,3 +135,4 @@ def run_training_process(
                 process.kill()
         process.join(timeout=5)
         process.close()
+        reader.join(timeout=2)

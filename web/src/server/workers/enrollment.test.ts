@@ -1,3 +1,4 @@
+import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import { expect, test } from "bun:test";
 
 import {
@@ -12,7 +13,6 @@ import {
   removeWorker,
 } from "./enrollment";
 import {
-  WorkerSessionConflictError,
   currentWorkerSession,
   listWorkers,
   recordWorkerHeartbeat,

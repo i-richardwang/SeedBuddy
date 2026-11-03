@@ -1,3 +1,4 @@
+import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import { expect, test } from "bun:test";
 
 import {
@@ -11,11 +12,7 @@ import {
   recordTestHeartbeat,
   testHeartbeat,
 } from "../testing/fixtures";
-import {
-  WorkerSessionConflictError,
-  currentWorkerSession,
-  listOnlineTrainers,
-} from "./sessions";
+import { currentWorkerSession, listOnlineTrainers } from "./sessions";
 
 function later(from: Date, seconds: number): Date {
   return new Date(from.getTime() + seconds * 1000);

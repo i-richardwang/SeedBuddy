@@ -7,3 +7,7 @@ export class WorkerNotFoundError extends NotFoundError {
 export class WorkerAlreadyEnrolledError extends ConflictError {
   readonly code = "worker_already_enrolled";
 }
+
+export class WorkerSessionConflictError extends ConflictError {
+  readonly code = "worker_session_conflict";
+}

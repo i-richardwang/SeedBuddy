@@ -5,7 +5,6 @@ export {
   removeWorker,
 } from "./enrollment";
 export {
-  WorkerSessionConflictError,
   currentWorkerSession,
   leaseIsHeld,
   listOnlineTrainers,

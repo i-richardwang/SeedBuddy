@@ -1,3 +1,4 @@
+import { InvalidDetectionOutcomeError } from "../../../domain/inference/errors";
 import { artifactUploadSchema } from "../../../domain/training/artifact";
 import {
   inferenceAttemptOwnerSchema,
@@ -11,29 +12,8 @@ import {
 import { createMiddleware } from "@tanstack/react-start";
 import type { ZodType } from "zod";
 
-import {
-  AnnotationRunConflictError,
-  AnnotationRunNotFoundError,
-} from "../../annotation-runs/public";
-
-import {
-  TrainingArtifactValidationError,
-  TrainingRunConflictError,
-  TrainingRunNotFoundError,
-} from "../../../domain/training/errors";
-import {
-  DetectionConflictError,
-  DetectionImageNotFoundError,
-  InvalidDetectionOutcomeError,
-  ProducerMismatchError,
-  InferenceAttemptConflictError,
-} from "../../inference/public";
-
 import { bearerToken } from "../../auth/public";
-import {
-  WorkerSessionConflictError,
-  authenticateWorker,
-} from "../../workers/public";
+import { authenticateWorker } from "../../workers/public";
 
 /** A request a worker route refuses before touching any record. */
 export class WorkerRequestError extends Error {
@@ -83,24 +63,6 @@ export async function parseWorkerSessionJson<T extends { sessionId: string }>(
   return { ...(await parseWorkerJson(request, schema)), workerId };
 }
 
-export function parseWorkerJsonText(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new WorkerRequestError("Request body must be valid JSON");
-  }
-}
-
-export async function parseWorkerForm(request: Request): Promise<FormData> {
-  try {
-    return await request.formData();
-  } catch {
-    throw new WorkerRequestError(
-      "Request body must be valid multipart form data",
-    );
-  }
-}
-
 export function parseWorkerValue<T>(
   value: unknown,
   schema: ZodType<T>,
@@ -112,29 +74,7 @@ export function parseWorkerValue<T>(
 }
 
 function statusOf(error: unknown): number | null {
-  if (error instanceof AnnotationRunConflictError) return 409;
-  if (error instanceof AnnotationRunNotFoundError) return 404;
   if (error instanceof WorkerRequestError) return error.status;
-  if (
-    error instanceof DetectionImageNotFoundError ||
-    error instanceof TrainingRunNotFoundError
-  ) {
-    return 404;
-  }
-  if (
-    error instanceof WorkerSessionConflictError ||
-    error instanceof DetectionConflictError ||
-    error instanceof InferenceAttemptConflictError ||
-    error instanceof TrainingRunConflictError
-  ) {
-    return 409;
-  }
-  if (
-    error instanceof ProducerMismatchError ||
-    error instanceof TrainingArtifactValidationError
-  ) {
-    return 422;
-  }
   if (error instanceof InvalidDetectionOutcomeError) return 400;
   if (error instanceof DomainError)
     return error.category === "not_found"

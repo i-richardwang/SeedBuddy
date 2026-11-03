@@ -28,7 +28,9 @@ def run(args: argparse.Namespace) -> int:
                 "--resume, --output and --device apply only to --local; use training resume for managed tasks"
             )
         json_output(
-            client(args).call("start-training-run", {**spec, "targetWorkerId": args.worker})
+            client(args).call(
+                "start-training-run", {**spec, "targetWorkerId": args.worker}
+            )
         )
         return 0
     if args.worker:

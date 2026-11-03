@@ -8,7 +8,6 @@ export {
   readCurrentVersionId,
   readModel,
   readModelVersion,
-  registerModelVersion,
   setCurrentVersion,
   setModelAnnotation,
   toModel,
