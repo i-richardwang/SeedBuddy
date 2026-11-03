@@ -11,7 +11,8 @@ import {
 import { Form } from "../../ui/kit/Form";
 import { ReplicatesField } from "./ReplicatesField";
 
-const REPLICATES_FORM = "add-replicates";
+const FORM_ID = "add-replicates";
+
 /** Lays out more replicates of a treatment, continuing its code series. */
 export function ReplicatesDialog({
   experiment,
@@ -31,7 +32,7 @@ export function ReplicatesDialog({
       onClose={onClose}
       title={m.treatment_add_replicates({ name: treatment.name })}
       okText={m.add_action()}
-      formId={REPLICATES_FORM}
+      formId={FORM_ID}
       busy={action.busy}
     >
       <ReplicatesForm
@@ -58,7 +59,7 @@ function ReplicatesForm({
   const [replicates, setReplicates] = useState(1);
   return (
     <Form
-      id={REPLICATES_FORM}
+      id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
         void action.run(

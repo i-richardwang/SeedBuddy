@@ -2,7 +2,6 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "attempt_column_number": "次序",
   "attempt_column_reason": "原因",
-  "attempt_column_result": "结果",
   "attempt_column_started": "开始",
   "attempt_empty_title": "还没有计算节点领取这次训练",
   "attempt_number": [
@@ -102,8 +101,10 @@
   "training_menu_resume": "继续训练…",
   "training_menu_retry": "重试训练…",
   "training_no_epochs_finished": "没有完成的轮次",
+  "training_not_cancelled": "训练未取消",
   "training_not_continued": "训练未继续",
   "training_not_paused": "训练未暂停",
+  "training_not_retried": "训练未重试",
   "training_not_started": "训练未启动",
   "training_parameters_group": "训练参数",
   "training_parameters_heading": "参数",

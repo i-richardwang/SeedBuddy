@@ -12,7 +12,7 @@ import {
   SettingsValueRow,
 } from "../../ui/kit/Settings";
 import { SettingsPage } from "../../ui/Page";
-import { ColorSchemeSelect, LanguageSelect } from "../../ui/Preferences";
+import { ColorSchemeSelect, LanguageSelect } from "../../ui/preferences";
 
 const workbench = getRouteApi("/_workbench");
 
@@ -51,10 +51,10 @@ function AccountPage() {
       </SettingsGroup>
       <SettingsGroup title={m.account_preferences()}>
         <SettingsRow label={m.account_language()}>
-          <LanguageSelect aria-label={m.account_language()} />
+          <LanguageSelect />
         </SettingsRow>
         <SettingsRow label={m.account_color_scheme()}>
-          <ColorSchemeSelect aria-label={m.account_color_scheme()} />
+          <ColorSchemeSelect />
         </SettingsRow>
       </SettingsGroup>
       <ChangePasswordDialog

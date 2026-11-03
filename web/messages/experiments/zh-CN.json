@@ -13,13 +13,13 @@
   "culture_event_record": "记录培养状态",
   "culture_event_record_action": "记录",
   "culture_event_remove": "移除培养状态",
+  "culture_event_remove_title": "移除{event}？",
   "culture_event_removed": "已移除{event}",
+  "dataset_add_menu": "加入训练集…",
   "experiment_cell_excluded_event": "本次观测不计入统计",
   "experiment_cell_excluded_unclear": "该单元有不清晰照片，所有观测都不计入统计",
   "experiment_cell_manual": "手工录入",
   "experiment_cell_manual_unanswered": "录入的计数缺少本观测日的计数类别，请重新录入",
-  "experiment_cell_unread": "这个模型还没有当前版本，可以在模型页选择；点开照片可以手动计数",
-  "experiment_cell_unreviewed": "待复核",
   "experiment_cell_waiting": "等待模型计数",
   "experiment_column_experiment": "实验",
   "experiment_column_last_observed": "最近观测",
@@ -51,6 +51,7 @@
   "experiment_meta_inoculated": "{day} 接种",
   "experiment_move_units": "换处理",
   "experiment_new": "新建实验",
+  "experiment_not_deleted": "实验未删除",
   "experiment_not_saved": "实验未保存",
   "experiment_not_started": "实验未创建",
   "experiment_selection": "已选试验单元",
@@ -65,8 +66,8 @@
   ],
   "experiment_start": "创建",
   "experiment_summary": "汇总",
+  "experiment_treatment_not_changed": "处理未更改",
   "experiment_units_all_treatments": "全部处理",
-  "experiment_units_not_moved": "试验单元未移动",
   "experiments_description": "按处理布置试验单元，在每个观测日拍照，读出萌发与再生的结果。",
   "experiments_empty": "还没有实验",
   "experiments_empty_description": "新建实验，布置处理与试验单元。",
@@ -90,37 +91,6 @@
   "observation_delete": "删除观测日",
   "observation_edit": "编辑观测日",
   "observation_heading": "{day} · {question}",
-  "observation_images_assign_count": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "对应 {formattedCount} 张"
-      }
-    }
-  ],
-  "observation_images_conflicting": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount} 张照片已经用过，移除后才能继续"
-      }
-    }
-  ],
-  "observation_images_fill_in_order": "按顺序对应",
-  "observation_images_heading": "{observation}的照片",
-  "observation_images_placed": "已用作 {unit} · {day}",
-  "observation_images_remaining": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "请为剩余 {formattedCount} 张照片对应试验单元"
-      }
-    }
-  ],
-  "observation_images_repeated": "与 {file} 相同",
-  "observation_images_unassigned": "未对应",
-  "observation_images_unit_label": "{file} 对应的试验单元",
-  "observation_images_uploading": "上传中…",
   "observation_label": "观测日",
   "observation_list_label": "观测日",
   "observation_menu_add_photos": "补传照片…",
@@ -129,16 +99,53 @@
   "observation_menu_edit": "编辑观测日…",
   "observation_menu_manual_readings": "录入计数…",
   "observation_model_label": "模型",
-  "observation_not_added": "观测日未添加",
+  "observation_not_deleted": "观察未删除",
+  "observation_not_recorded": "观察未记录",
   "observation_not_saved": "观测日未保存",
-  "observation_photos_not_matched": "照片未匹配",
-  "observation_record": "记录观测日",
-  "observation_record_count": [
+  "observation_photos_assign_count": [
     {
       "declarations": ["input count", "local formattedCount = count: number"],
       "match": {
-        "count=*": "记录并对应 {formattedCount} 张"
+        "count=*": "对应 {formattedCount} 张"
       }
+    }
+  ],
+  "observation_photos_conflicting": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount} 张照片已经用过，移除后才能继续"
+      }
+    }
+  ],
+  "observation_photos_fill_in_order": "按顺序对应",
+  "observation_photos_heading": "{observation}的照片",
+  "observation_photos_not_matched": "照片未对应",
+  "observation_photos_placed": "已用作 {unit} · {day}",
+  "observation_photos_remaining": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "请为剩余 {formattedCount} 张照片对应试验单元"
+      }
+    }
+  ],
+  "observation_photos_repeated": "与 {file} 相同",
+  "observation_photos_unassigned": "未对应",
+  "observation_photos_unit_label": "{file} 对应的试验单元",
+  "observation_photos_uploading": "上传中…",
+  "observation_record": "记录观测日",
+  "observation_record_count": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
+      "match": {
+        "countPlural=other": "记录并对应 {formattedCount} 张"
+      },
+      "selectors": ["countPlural"]
     }
   ],
   "summary_chart_day": "观测日",
@@ -152,7 +159,14 @@
   "summary_mean_sd": "{mean} ± {sd}",
   "summary_measure_count": "计数",
   "summary_measure_rate": "比率",
-  "summary_n": "n = {count}",
+  "summary_n": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "n = {formattedCount}"
+      }
+    }
+  ],
   "summary_note_rate": "比率 = 当日计数 ÷ 同一试验单元在首次观测（{day}）的计数；首次观测列为计数本身。",
   "summary_note_statistics": "均值 ± 标准差按处理内计入统计的试验单元计算，n 为其数量。",
   "summary_tooltip_mean": "均值 ± 标准差",
@@ -170,6 +184,7 @@
   "treatment_name_placeholder": "T1",
   "treatment_new": "新建处理",
   "treatment_not_added": "处理未添加",
+  "treatment_not_deleted": "处理未删除",
   "treatment_not_saved": "处理未保存",
   "treatment_replicates_label": "重复数",
   "treatment_replicates_not_added": "重复未添加",
@@ -178,34 +193,44 @@
   "unit_code_label": "编号",
   "unit_compare": "与另一天并排对比",
   "unit_compare_reference": "对照的观测日",
-  "unit_counted_on_day": "手工录入的计数：{count}。也可以在实验表格中把这一天的照片对应到这个试验单元。",
+  "unit_counted_on_day": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "手工录入的计数：{formattedCount}。也可以在实验表格中把这一天的照片对应到这个试验单元。"
+      }
+    }
+  ],
   "unit_culture_status": "培养状态",
   "unit_delete": "删除试验单元",
   "unit_detection_failed": "计数失败",
   "unit_edit": "编辑试验单元",
   "unit_image_not_replaced": "照片未更换",
-  "unit_image_unassigned": "已撤下照片",
   "unit_menu_delete": "删除试验单元…",
   "unit_menu_edit": "编辑试验单元…",
   "unit_menu_replace": "更换照片…",
-  "unit_menu_unassign": "撤下照片…",
+  "unit_menu_unmatch": "撤下照片…",
   "unit_next": "下一个试验单元",
   "unit_no_image": "这个试验单元还没有照片",
   "unit_no_image_description": "在实验表格中，从某个观测日把照片对应到这个试验单元。",
   "unit_no_image_on_day": "这一天没有这个试验单元的照片",
   "unit_no_image_on_day_description": "在实验表格中，把这一天的照片对应到这个试验单元。",
+  "unit_not_deleted": "单元未删除",
   "unit_not_saved": "试验单元未保存",
   "unit_open_experiment": "打开实验",
+  "unit_photo_count_queued": "照片计数已排队",
   "unit_photo_not_recounted": "照片未重新计数",
+  "unit_photo_not_unmatched": "照片未解除对应",
+  "unit_photo_unmatched": "已撤下照片",
   "unit_previous": "上一个试验单元",
   "unit_replace": "更换",
   "unit_replace_heading": "更换 {file}",
   "unit_retry": "重新计数",
   "unit_steps": "试验单元与观测日",
   "unit_title": "{experiment} 的试验单元 {code}",
-  "unit_unassign": "撤下",
-  "unit_unassign_note": "照片仍会保存；再次对应后，读数会恢复。",
-  "unit_unassign_title": "从 {code} 撤下 {file}？",
+  "unit_unmatch": "撤下",
+  "unit_unmatch_note": "照片仍会保存；再次对应后，读数会恢复。",
+  "unit_unmatch_title": "从 {code} 撤下 {file}？",
   "unit_unreviewed_count": [
     {
       "declarations": ["input count", "local formattedCount = count: number"],

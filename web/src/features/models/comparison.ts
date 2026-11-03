@@ -21,7 +21,7 @@ export function formatErrorChange(change: number): string {
   return formatDecimalChange(change, ERROR_DIGITS);
 }
 
-type Movement = "better" | "worse" | "none";
+export type Movement = "better" | "worse" | "none";
 
 /**
  * Which way a count error moves from one version to the next, judged on the
@@ -30,10 +30,4 @@ type Movement = "better" | "worse" | "none";
 export function movement(from: number, to: number): Movement {
   if (formatError(from) === formatError(to)) return "none";
   return to < from ? "better" : "worse";
-}
-
-/** The color a movement is written in; none keeps the color of where it stands. */
-export function movementTone(moved: Movement): "success" | "error" | undefined {
-  if (moved === "none") return undefined;
-  return moved === "better" ? "success" : "error";
 }

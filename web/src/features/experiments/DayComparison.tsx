@@ -11,7 +11,7 @@ import { m } from "../../paraglide/messages";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { Select } from "../../ui/kit/Select";
 import { Skeleton } from "../../ui/kit/Skeleton";
-import { Toolbar } from "../../ui/kit/Toolbar";
+import { Toolbar, ToolbarButton } from "../../ui/kit/Toolbar";
 import { formatCountChange } from "../../ui/numbers";
 import { WorkbenchEmpty, WorkbenchSection } from "../../ui/shell/Workbench";
 import {
@@ -62,6 +62,7 @@ export function DayComparison({
   onReferenceChange: (observation: string) => void;
   onInViewChange: (observation: string) => void;
 }) {
+  // In-workbench panels own their empty states; the day selectors remain available.
   const [view, setView] = useState<RelativeView>(FILL);
   const link: ViewportLink = { view, onChange: setView };
   const options = (
@@ -78,6 +79,7 @@ export function DayComparison({
       start={
         <ComparedDay day={reference} link={link} pending={pending}>
           <Select
+            triggerRender={<ToolbarButton />}
             aria-label={m.unit_compare_reference()}
             size="small"
             variant="borderless"
@@ -95,6 +97,7 @@ export function DayComparison({
         inView ? (
           <ComparedDay day={inView} link={link} pending={pending}>
             <Select
+              triggerRender={<ToolbarButton />}
               aria-label={m.observation_list_label()}
               size="small"
               variant="borderless"
@@ -138,7 +141,7 @@ export function DayCountsSection({
       ? countChange(reference, inView)
       : null;
   return (
-    <WorkbenchSection title={m.annotation_counts()}>
+    <WorkbenchSection title={m.counts_label()}>
       <Descriptions justified>
         {[reference, ...(inView ? [inView] : [])].map((day) => (
           <DescriptionsItem

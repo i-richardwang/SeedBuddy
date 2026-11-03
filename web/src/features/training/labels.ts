@@ -69,12 +69,15 @@ export function trainingRunLabel(run: TrainingRun): string {
     ? PHASE_LABELS[state.phase]()
     : STATUS_LABELS[state.status]();
 }
+
 export function trainingRunTone(run: TrainingRun): StatusTone {
   return LOOKS[run.state.status].tone;
 }
+
 export function trainingRunIcon(run: TrainingRun): LucideIcon {
   return LOOKS[run.state.status].icon;
 }
+
 export function trainingAttemptLabel(
   outcome: TrainingAttempt["outcome"],
 ): string {
@@ -82,16 +85,19 @@ export function trainingAttemptLabel(
     ? m.attempt_state_running()
     : OUTCOMES[outcome].label();
 }
+
 export function trainingAttemptTone(
   outcome: TrainingAttempt["outcome"],
 ): StatusTone {
   return outcome === null ? LOOKS.running.tone : OUTCOMES[outcome].tone;
 }
+
 export function trainingAttemptIcon(
   outcome: TrainingAttempt["outcome"],
 ): LucideIcon {
   return outcome === null ? LOOKS.running.icon : OUTCOMES[outcome].icon;
 }
+
 const PARAMETER_LABELS = {
   epochs: m.parameter_epochs,
   patience: m.parameter_patience,
@@ -120,6 +126,7 @@ const PARAMETER_LABELS = {
 export function parameterLabel(key: keyof TrainingParameters): string {
   return PARAMETER_LABELS[key]();
 }
+
 const PRESET_PRESENTATION = {
   "yolo26n-whole-v1": {
     label: m.training_preset_nano,
@@ -140,6 +147,7 @@ const PRESET_PRESENTATION = {
 export function trainingPresetLabel(id: TrainingPresetId): string {
   return PRESET_PRESENTATION[id].label();
 }
+
 export function trainingPresetDescription(id: TrainingPresetId): string {
   return PRESET_PRESENTATION[id].description();
 }

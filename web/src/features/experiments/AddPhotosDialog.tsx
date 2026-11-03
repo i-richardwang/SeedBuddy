@@ -10,7 +10,7 @@ import { observationLabel } from "./labels";
 import {
   ObservationPhotosField,
   useObservationPhotos,
-} from "./ObservationPhotos";
+} from "./observation-photos";
 
 const FORM_ID = "add-photos";
 
@@ -54,13 +54,13 @@ function AddPhotosSession({
       open={open}
       onClose={onClose}
       afterClose={afterClose}
-      title={m.observation_images_heading({
+      title={m.observation_photos_heading({
         observation: observationLabel(observation),
       })}
       okText={
         photos.uploads.storing
-          ? m.observation_images_uploading()
-          : m.observation_images_assign_count({ count: photos.ready.length })
+          ? m.observation_photos_uploading()
+          : m.observation_photos_assign_count({ count: photos.ready.length })
       }
       formId={FORM_ID}
       busy={action.busy}

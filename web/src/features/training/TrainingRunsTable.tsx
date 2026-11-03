@@ -108,7 +108,7 @@ export function TrainingRunsTable({
                 <Absent />
               )}
             </TableCell>
-            <TableCell cellSlot="actions">
+            <TableCell cellSlot="actions" className="text-end">
               <CopyButton content={run.id} title={m.run_copy_id()} />
             </TableCell>
           </TableRow>

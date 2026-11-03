@@ -30,6 +30,8 @@ interface SelectBaseProps<Value> {
   /** Accessible name of the trigger when no visible label is associated with it. */
   "aria-label"?: string;
   className?: string;
+  /** Integrates the trigger into a containing toolbar. */
+  triggerRender?: BaseSelect.Trigger.Props["render"];
   disabled?: boolean;
   id?: string;
   options: SelectOption<Value>[];
@@ -73,6 +75,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
   const {
     "aria-label": ariaLabel,
     className,
+    triggerRender,
     disabled,
     id,
     options,
@@ -128,6 +131,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
       onValueChange={emit}
     >
       <BaseSelect.Trigger
+        render={triggerRender}
         aria-keyshortcuts={showClear ? "Backspace Delete" : undefined}
         aria-label={ariaLabel}
         className={cn(
@@ -135,6 +139,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
           TRIGGER_SIZE[size],
           variant ? TRIGGER_VARIANT[variant] : "ui-select-auto",
           className,
+          triggerRender,
         )}
         disabled={disabled}
         onKeyDown={clearByKey}
@@ -158,11 +163,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
             </span>
           )}
           <BaseSelect.Icon className="ui-select-icon">
-            <Icon
-              icon={ChevronDown}
-              size={14}
-              style={{ pointerEvents: "none" }}
-            />
+            <Icon icon={ChevronDown} size={14} className="ui-select-glyph" />
           </BaseSelect.Icon>
         </span>
       </BaseSelect.Trigger>

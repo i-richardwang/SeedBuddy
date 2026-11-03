@@ -16,6 +16,7 @@ import { Form } from "../../ui/kit/Form";
 import { ObservationFields, type ObservationValue } from "./ObservationFields";
 
 const FORM_ID = "observation";
+
 /** Changes an observation day's date, model, the classes it counts, or note. */
 export function ObservationDialog({
   experiment,
@@ -51,7 +52,7 @@ export function ObservationDialog({
         observation={observation}
         observations={observations}
         action={action}
-        onClose={onClose}
+        onDone={onClose}
       />
     </FormDialog>
   );
@@ -64,7 +65,7 @@ function EditObservationForm({
   observation,
   observations,
   action,
-  onClose,
+  onDone,
 }: {
   experiment: string;
   inoculatedOn: CalendarDay;
@@ -72,7 +73,7 @@ function EditObservationForm({
   observation: ExperimentObservation;
   observations: readonly ExperimentObservation[];
   action: AsyncAction;
-  onClose: () => void;
+  onDone: () => void;
 }) {
   const [value, setValue] = useState<ObservationValue>(() => ({
     observedOn: observation.observedOn,
@@ -92,7 +93,7 @@ function EditObservationForm({
             }),
           m.observation_not_saved(),
           {
-            onSuccess: onClose,
+            onSuccess: onDone,
           },
         );
       }}

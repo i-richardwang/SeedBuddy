@@ -11,7 +11,8 @@ import {
 import { Form } from "../../ui/kit/Form";
 import { ExperimentFields, readExperimentFields } from "./ExperimentFields";
 
-const EDIT_FORM = "edit-experiment";
+const FORM_ID = "edit-experiment";
+
 export function ExperimentDialog({
   experiment,
   open,
@@ -28,7 +29,7 @@ export function ExperimentDialog({
       onClose={onClose}
       title={m.experiment_edit_heading()}
       okText={m.save_action()}
-      formId={EDIT_FORM}
+      formId={FORM_ID}
       busy={action.busy}
     >
       <EditExperimentForm
@@ -53,7 +54,7 @@ function EditExperimentForm({
   const [countsUnclear, setCountsUnclear] = useState(experiment.countsUnclear);
   return (
     <Form
-      id={EDIT_FORM}
+      id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
         const fields = readExperimentFields(new FormData(event.currentTarget));

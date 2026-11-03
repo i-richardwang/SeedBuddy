@@ -1,10 +1,9 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "dataset_add_heading": "加入训练集",
-  "dataset_add_menu": "加入训练集…",
   "dataset_add_name_placeholder": "seeds-2026-09",
   "dataset_add_new": "新建训练集",
-  "dataset_add_nothing_added": "未加入任何图片",
+  "dataset_add_nothing_added": "图片未加入",
   "dataset_add_result": [
     {
       "declarations": ["input added", "local formattedAdded = added: number"],
@@ -43,7 +42,14 @@
   "dataset_archive_manifest_first": "压缩包不以清单开头",
   "dataset_archive_manifest_invalid": "压缩包的清单无效",
   "dataset_archive_manifest_not_json": "压缩包的清单不是 JSON",
-  "dataset_archive_manifest_too_large": "清单超过 16 MiB",
+  "dataset_archive_manifest_too_large": [
+    {
+      "declarations": ["input megabytes", "local size = megabytes: number"],
+      "match": {
+        "megabytes=*": "清单超过 {size} MiB"
+      }
+    }
+  ],
   "dataset_archive_multiple_datasets": "压缩包包含多个训练集",
   "dataset_archive_no_dataset": "压缩包中没有训练集",
   "dataset_archive_unexpected_entry": "压缩包中有意外的条目：{entry}",
@@ -53,13 +59,19 @@
   "dataset_empty_images_description": "在实验的试验单元页加入照片。",
   "dataset_hero_images": [
     {
-      "declarations": ["input count", "local formattedCount = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
       "match": {
-        "count=*": "共 {formattedCount} 张图片"
-      }
+        "countPlural=other": "共 {formattedCount} 张图片"
+      },
+      "selectors": ["countPlural"]
     }
   ],
   "dataset_hero_reviewed": "已复核、可用于训练的图片",
+  "dataset_image_not_removed": "图片未移除",
   "dataset_image_removed": "已从 {dataset} 移除 {file}",
   "dataset_images": "图片",
   "dataset_images_table": "{dataset} 中的图片",
@@ -89,6 +101,7 @@
   "dataset_not_imported": "训练集未导入",
   "dataset_not_renamed": "训练集未重命名",
   "dataset_open_experiments": "打开实验",
+  "dataset_page_title": "{model}的{dataset}",
   "dataset_preview_open": "打开标注",
   "dataset_preview_quality": "检测质量",
   "dataset_remove_title": "从 {dataset} 移除 {file}？",
@@ -103,15 +116,12 @@
       }
     }
   ],
+  "dataset_runs_empty_description": "使用此数据集已复核的图片训练版本。",
   "dataset_search": "搜索文件名",
   "dataset_state_all": "全部",
   "dataset_state_filter": "按状态筛选",
-  "dataset_state_unread": "未计数",
   "datasets_empty": "还没有训练集",
   "datasets_empty_description": "在实验观测日的菜单里把照片加入训练集，或导入训练集归档。",
-  "image_file_empty": "文件为空",
-  "image_file_too_large": "文件超过 64 MiB",
-  "image_file_unsupported": "请选择 JPEG、PNG 或 TIFF 图片",
   "image_next": "下一张图片",
   "image_previous": "上一张图片",
   "image_split": "训练划分",

@@ -3,7 +3,7 @@ import {
   notFound,
   stripSearchParams,
 } from "@tanstack/react-router";
-import { FlaskConical, Plus } from "lucide-react";
+import { Beaker, Plus } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -92,6 +92,9 @@ function ExperimentPage() {
   } = data;
   const [recording, setRecording] = useState(false);
   const placed = placedPhotos(data);
+  const summary = experimentSummary(data);
+  const summaryEmpty =
+    !observations.length || !summary.cells.some((cell) => cell.count !== null);
   const hasRecords =
     images.length > 0 ||
     manualReadings.length > 0 ||
@@ -99,7 +102,7 @@ function ExperimentPage() {
   return (
     <Page
       title={experiment.name}
-      icon={FlaskConical}
+      icon={Beaker}
       meta={[
         experiment.plantMaterial,
         experiment.explantType,
@@ -110,9 +113,15 @@ function ExperimentPage() {
       ].filter(Boolean)}
       actions={
         <>
-          <Button type="primary" icon={Plus} onClick={() => setRecording(true)}>
-            {m.observation_record()}
-          </Button>
+          {tab !== "summary" || !summaryEmpty ? (
+            <Button
+              type="primary"
+              icon={Plus}
+              onClick={() => setRecording(true)}
+            >
+              {m.observation_record()}
+            </Button>
+          ) : null}
           <ExperimentMenu experiment={experiment} hasRecords={hasRecords} />
         </>
       }
@@ -135,12 +144,17 @@ function ExperimentPage() {
           treatments={treatments}
           units={units}
           observations={observations}
-          summary={experimentSummary(data)}
+          summary={summary}
           empty={
             <EmptyPlace variant="outlined">
               <Empty
                 title={m.summary_empty()}
                 description={m.summary_empty_description()}
+                action={
+                  <Button type="primary" onClick={() => setRecording(true)}>
+                    {m.observation_record()}
+                  </Button>
+                }
               />
             </EmptyPlace>
           }

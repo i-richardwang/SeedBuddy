@@ -4,6 +4,7 @@ import type { ModelOverview } from "../../domain/models/read-model";
 import { m } from "../../paraglide/messages";
 import { CardGrid } from "../../ui/kit/SummaryCard";
 import { ModelCard } from "./ModelCard";
+
 export function ModelsGrid({
   models,
   empty,

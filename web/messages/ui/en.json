@@ -1,5 +1,13 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "account_color_scheme": "Appearance",
+  "account_color_scheme_dark": "Dark",
+  "account_color_scheme_light": "Light",
+  "account_color_scheme_system": "Auto",
+  "account_language": "Language",
+  "account_language_en": "English",
+  "account_language_zh_cn": "简体中文",
+  "details_label": "Details",
   "ui_breadcrumb_label": "Breadcrumb",
   "ui_cancel": "Cancel",
   "ui_close": "Close",
@@ -69,19 +77,6 @@
   "ui_shell_open_navigation": "Open navigation",
   "ui_shell_sidebar": "Sidebar",
   "ui_shell_skip_to_content": "Skip to content",
-  "ui_step_position": [
-    {
-      "declarations": [
-        "input index",
-        "input total",
-        "local formattedIndex = index: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "index=*": "{formattedIndex} / {formattedTotal}"
-      }
-    }
-  ],
   "ui_table_select_all": "Select all",
   "ui_text_not_copied": "Text not copied. Select the text and copy it manually.",
   "ui_viewport_fill": "Fill frame",

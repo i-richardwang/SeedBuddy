@@ -31,7 +31,7 @@ export function UnclearSection({
     <WorkbenchSection>
       <Form.Field
         layout="horizontal"
-        label={m.unclear_section()}
+        label={m.unclear_photo()}
         desc={m.unclear_switch_description()}
       >
         <Switch
@@ -47,7 +47,7 @@ export function UnclearSection({
 
 /** That a photograph is marked unclear, stated over it. */
 export function UnclearAlert() {
-  return <Alert type="warning" title={m.unclear_section()} />;
+  return <Alert type="warning" title={m.unclear_photo()} />;
 }
 
 /** That a photograph is marked unclear, in a list beside its other quality tags. */

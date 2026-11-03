@@ -15,6 +15,7 @@ import { Status } from "../../ui/kit/Status";
 import { Text } from "../../ui/kit/Text";
 import { Tooltip } from "../../ui/kit/Tooltip";
 import { formatCount } from "../../ui/numbers";
+import { datasetImageStateLabel } from "../datasets/labels";
 import { exclusionNote } from "./labels";
 
 /**
@@ -47,7 +48,7 @@ export function UnitDayCount({
   // A count entered by hand that leaves out a class the day has since come
   // to count answers another question than the day asks, and says so.
   const notes: string[] = [
-    ...(image?.unclear ? [m.unclear_section()] : []),
+    ...(image?.unclear ? [m.unclear_photo()] : []),
     ...(manual && reading?.source !== "manual"
       ? [m.experiment_cell_manual_unanswered()]
       : []),
@@ -57,7 +58,7 @@ export function UnitDayCount({
     const byPerson = reading.source === "review" || reading.source === "manual";
     if (reading.source === "manual") notes.push(m.experiment_cell_manual());
     else if (reading.source !== "review") {
-      notes.push(m.experiment_cell_unreviewed());
+      notes.push(m.to_review_label());
     }
     if (exclusion) notes.push(exclusionNote(exclusion));
     return explain(
@@ -110,7 +111,7 @@ export function UnitDayCount({
   }
   const waiting =
     image.state === "unread"
-      ? m.experiment_cell_unread()
+      ? datasetImageStateLabel("unread")
       : m.experiment_cell_waiting();
   return explain(
     [...notes, waiting],

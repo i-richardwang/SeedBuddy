@@ -118,15 +118,16 @@ export function ObservationMenu({
         label: m.observation_menu_delete(),
         onClick: () =>
           confirmDestructive({
-            title: m.item_delete_title({ name: name }),
+            title: m.item_delete_title({ name }),
             confirmLabel: m.observation_delete(),
+            failure: m.observation_not_deleted(),
             onConfirm: async () => {
               await removeObservation({
                 data: { experiment, observation: observation.id },
               });
             },
             onSuccess: () => {
-              toast.success(m.item_deleted({ name: name }));
+              toast.success(m.item_deleted({ name }));
             },
           }),
       },

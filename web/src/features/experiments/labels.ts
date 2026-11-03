@@ -14,11 +14,6 @@ export function observationLabel(observation: ExperimentObservation): string {
   return formatDay(observation.observedOn);
 }
 
-/** The number a summary reads a day by, named. */
-export function summaryMeasureLabel(measure: SummaryMeasure): string {
-  return SUMMARY_MEASURE_LABELS[measure]();
-}
-
 const CULTURE_EVENT_LABELS = {
   contaminated: m.culture_event_contaminated,
   nonviable: m.culture_event_nonviable,
@@ -51,6 +46,11 @@ const SUMMARY_MEASURE_LABELS = {
   rate: m.summary_measure_rate,
   count: m.summary_measure_count,
 } as const satisfies Record<SummaryMeasure, () => string>;
+
+/** The number a summary reads a day by, named. */
+export function summaryMeasureLabel(measure: SummaryMeasure): string {
+  return SUMMARY_MEASURE_LABELS[measure]();
+}
 
 export function exclusionNote(exclusion: Exclusion): string {
   return exclusion.reason === "unclear"

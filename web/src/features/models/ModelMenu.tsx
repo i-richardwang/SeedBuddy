@@ -58,6 +58,7 @@ export function ModelMenu({
           confirmDestructive({
             title: m.item_delete_title({ name }),
             confirmLabel: m.delete_action(),
+            failure: m.model_not_deleted(),
             onConfirm: async () => {
               await removeModel({ data: { model: model.id } });
             },

@@ -211,6 +211,7 @@ export function useImageSession({
       title: m.annotation_discard_confirm(),
       content: m.annotation_discard_description(),
       confirmLabel: m.annotation_discard(),
+      failure: m.annotation_not_discarded(),
       onConfirm: blocker.proceed,
       onCancel: blocker.reset,
       invalidate: false,

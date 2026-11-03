@@ -91,6 +91,7 @@ function McpClientRow({ client }: { client: McpClient }) {
             confirmDestructive({
               title: m.mcp_disconnect_title({ name: client.name }),
               confirmLabel: m.mcp_disconnect(),
+              failure: m.mcp_not_disconnected(),
               onConfirm: async () => {
                 await removeMcpClient({ data: { client: client.id } });
               },

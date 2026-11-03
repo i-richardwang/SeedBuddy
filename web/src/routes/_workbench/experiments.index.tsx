@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FlaskConical, Plus } from "lucide-react";
+import { Beaker, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { ExperimentsTable } from "../../features/experiments/ExperimentsTable";
@@ -46,7 +46,7 @@ function ExperimentsPage() {
         experiments={experiments}
         empty={
           <Empty
-            icon={FlaskConical}
+            icon={Beaker}
             title={m.experiments_empty()}
             description={m.experiments_empty_description()}
             action={create}

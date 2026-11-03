@@ -12,6 +12,7 @@ import type {
 } from "../../domain/experiments/schema";
 import { updateManualReadings } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
+import { Absent } from "../../ui/Absent";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -166,9 +167,7 @@ function ManualReadingsForm({
             }),
           m.manual_readings_not_saved(),
           {
-            onSuccess: () => {
-              onDone();
-            },
+            onSuccess: onDone,
           },
         );
       }}
@@ -235,7 +234,11 @@ function ManualReadingsForm({
                 ))}
                 <TableCell align="right">
                   <Text as="span" type="tertiary" className="tabular-nums">
-                    {photographed ? formatCount(photographed.count) : null}
+                    {photographed ? (
+                      formatCount(photographed.count)
+                    ) : (
+                      <Absent />
+                    )}
                   </Text>
                 </TableCell>
               </TableRow>

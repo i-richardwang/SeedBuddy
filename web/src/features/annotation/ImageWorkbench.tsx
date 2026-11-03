@@ -16,7 +16,7 @@ import { Button } from "../../ui/kit/Button";
 import { DescriptionsSkeleton } from "../../ui/kit/Descriptions";
 import { StatisticHeroSkeleton } from "../../ui/kit/Statistic";
 import { Status } from "../../ui/kit/Status";
-import { ToolbarSeparator } from "../../ui/kit/Toolbar";
+import { ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { Tooltip } from "../../ui/kit/Tooltip";
 import { ShellActions } from "../../ui/shell/Shell";
 import {
@@ -34,7 +34,7 @@ import {
   type ViewportFocus,
 } from "../../ui/viewport/ImageViewport";
 import { UnclearAlert, UnclearSection } from "../images/unclear";
-import { ChecksLayer, EditableBoxLayer } from "./BoxLayer";
+import { ChecksLayer, EditableBoxLayer } from "./box-layers";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
 import { useSaveKey, useWorkbenchKeys } from "./keys";
 import { standingLabel, standingTone } from "./labels";
@@ -219,15 +219,19 @@ export function ImageSubject({
         </WorkbenchAlert>
       ) : null}
       <WorkbenchToolbar label={m.annotation_tools()} inert={saving}>
-        <ActionIcon
-          icon={locked ? LockOpen : Lock}
-          size="small"
-          title={locked ? m.annotation_unlock() : m.annotation_lock()}
-          tooltipProps={{ placement: "bottom" }}
-          onClick={() => {
-            session.setSelectedId(null);
-            setEditLocked(!locked);
-          }}
+        <ToolbarButton
+          render={
+            <ActionIcon
+              icon={locked ? LockOpen : Lock}
+              size="small"
+              title={locked ? m.annotation_unlock() : m.annotation_lock()}
+              tooltipProps={{ placement: "bottom" }}
+              onClick={() => {
+                session.setSelectedId(null);
+                setEditLocked(!locked);
+              }}
+            />
+          }
         />
         {locked ? null : (
           <>

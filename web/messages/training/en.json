@@ -2,7 +2,6 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "attempt_column_number": "Attempt",
   "attempt_column_reason": "Reason",
-  "attempt_column_result": "Result",
   "attempt_column_started": "Started",
   "attempt_empty_title": "No Worker has picked up this run yet",
   "attempt_number": [
@@ -102,8 +101,10 @@
   "training_menu_resume": "Continue training…",
   "training_menu_retry": "Retry training…",
   "training_no_epochs_finished": "No epochs finished",
+  "training_not_cancelled": "Training not cancelled",
   "training_not_continued": "Training not continued",
   "training_not_paused": "Training not paused",
+  "training_not_retried": "Training not retried",
   "training_not_started": "Training not started",
   "training_parameters_group": "Training parameters",
   "training_parameters_heading": "Parameters",

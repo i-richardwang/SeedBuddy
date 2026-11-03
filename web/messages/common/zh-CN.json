@@ -1,7 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "account_label": "账户",
-  "action_not_completed": "{action}未完成",
   "active_label": "正常",
   "add_action": "添加",
   "ai_proposal_label": "AI 建议",
@@ -10,12 +9,12 @@
   "boxes_label": "标注框",
   "change_label": "变化",
   "column_actions": "操作",
+  "counts_label": "计数",
   "create_action": "创建",
   "dataset_label": "训练集",
   "delete_action": "删除",
-  "details_label": "详细信息",
   "document_title": "{page} · {app}",
-  "dropzone_label": "将图片拖到此处，或从文件夹选择",
+  "dropzone_label": "将照片拖到此处或从文件夹选择",
   "dropzone_limits": [
     {
       "declarations": [
@@ -30,7 +29,7 @@
     }
   ],
   "dropzone_ready": "就绪",
-  "dropzone_select": "选择图片",
+  "dropzone_select": "选择照片",
   "email_label": "邮箱",
   "error_conflict": "当前状态不允许此操作，请刷新页面后重试。",
   "error_dataset_model": "图片和训练集必须使用同一个模型。",
@@ -75,6 +74,7 @@
   "nav_home": "首页",
   "nav_settings": "设置",
   "new_password_label": "新密码",
+  "not_counted_label": "未计数",
   "not_found": "未找到",
   "note_label": "备注",
   "password_changed": "密码已修改",
@@ -129,18 +129,18 @@
     }
   ],
   "remove_action": "移除",
+  "retry_action": "重试",
   "return_to_experiments": "返回实验列表",
   "reviewed_label": "已复核",
   "save_action": "保存",
   "scopes_label": "权限范围",
-  "something_went_wrong": "出了点问题",
   "status_label": "状态",
   "to_review_label": "待复核",
   "treatment_label": "处理",
   "treatments_label": "处理",
   "unclear_label": "不清晰",
   "unclear_not_saved": "标记未保存",
-  "unclear_section": "照片不清晰",
+  "unclear_photo": "照片不清晰",
   "unclear_switch_description": "无法看清，例如瓶盖起雾或培养皿失焦",
   "units_label": "试验单元",
   "upload_cancelled": "上传已取消",
@@ -148,6 +148,7 @@
   "users_label": "用户",
   "version_label": "版本",
   "workbench_inspector": "信息",
+  "workbench_not_loaded": "工作台未加载",
   "worker_label": "计算节点",
   "workers_label": "计算节点"
 }

@@ -15,7 +15,7 @@ const STANDING_LABELS = {
   reviewed: { tone: "success", label: m.reviewed_label },
   proposal: { tone: "info", label: m.annotation_standing_proposal },
   detection: { tone: "info", label: m.annotation_standing_detection },
-  unread: { tone: "neutral", label: m.annotation_standing_unread },
+  unread: { tone: "neutral", label: m.not_counted_label },
 } as const satisfies Record<
   Standing,
   { tone: StatusTone; label: () => string }

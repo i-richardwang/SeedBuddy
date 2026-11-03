@@ -61,13 +61,17 @@ interface Day {
 }
 
 const DESIGN_COLUMNS = [{ width: 22 }, { width: 16 }, { width: 14 }];
+
 const HEADING_ROWS = 2;
+
 const DAY_WIDTH = 14;
 
 /** The summary's design columns: a treatment and its factor. */
 const SUMMARY_DESIGN_COLUMNS = [{ width: 22 }, { width: 16 }];
+
 /** A day of the summary: its date over its measure over n, mean, SD and SE. */
 const SUMMARY_HEADING_ROWS = 3;
+
 const SUMMARY_DAY_COLUMNS = [
   { width: 6 },
   { width: 10 },

@@ -9,6 +9,7 @@ import type { Unit } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { removeCultureEvent } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -23,12 +24,12 @@ import { toast } from "../../ui/kit/Toast";
 import { cultureEventLabel, observationLabel } from "./labels";
 import { RecordCultureEventDialog } from "./RecordCultureEventDialog";
 
+const FORM_ID = "remove-culture-event";
+
 /**
  * The unit's culture status, as a menu of what changes it: recording an
  * event, or taking one back.
  */
-const REMOVE_EVENT_FORM = "remove-culture-event";
-
 export function CultureMenu({
   experiment,
   unit,
@@ -113,7 +114,7 @@ function RemoveCultureEventDialog({
       onClose={onClose}
       title={m.culture_event_remove()}
       okText={m.remove_action()}
-      formId={REMOVE_EVENT_FORM}
+      formId={FORM_ID}
       busy={action.busy}
       danger
     >
@@ -142,6 +143,7 @@ function RemoveCultureEventForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
+  const confirmDestructive = useConfirmDestructive();
   const { events } = unit;
   const [event, setEvent] = useState(events.at(-1)?.id ?? "");
   const describe = (item: (typeof events)[number]) => {
@@ -158,23 +160,25 @@ function RemoveCultureEventForm({
 
   return (
     <Form
-      id={REMOVE_EVENT_FORM}
+      id={FORM_ID}
       onSubmit={(formEvent) => {
         formEvent.preventDefault();
         const removed = events.find((item) => item.id === event);
         if (!removed) return;
-        void action.run(
-          () => removeCultureEvent({ data: { experiment, event } }),
-          m.culture_event_not_removed(),
-          {
-            onSuccess: () => {
-              toast.success(
-                m.culture_event_removed({ event: describe(removed) }),
-              );
-              onDone();
-            },
+        confirmDestructive({
+          title: m.culture_event_remove_title({ event: describe(removed) }),
+          confirmLabel: m.remove_action(),
+          failure: m.culture_event_not_removed(),
+          onConfirm: async () => {
+            await removeCultureEvent({ data: { experiment, event } });
           },
-        );
+          onSuccess: () => {
+            toast.success(
+              m.culture_event_removed({ event: describe(removed) }),
+            );
+            onDone();
+          },
+        });
       }}
     >
       <Form.Field label={m.status_label()} required>

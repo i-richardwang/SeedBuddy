@@ -16,6 +16,7 @@ interface TrainingParametersFormProps {
 }
 
 const BASIC_FIELDS = PARAMETER_FIELDS.filter((field) => !field.advanced);
+
 const ADVANCED_FIELDS = PARAMETER_FIELDS.filter((field) => field.advanced);
 
 /** Display resolved values while retaining only the user's adjustments. */

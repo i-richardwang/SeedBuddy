@@ -1,10 +1,14 @@
-import type { sourceImageFileError } from "../../domain/images/canonical";
+import {
+  MAX_IMAGE_BYTES,
+  type sourceImageFileError,
+} from "../../domain/images/canonical";
 import { m } from "../../paraglide/messages";
 
 const FILE_ERRORS = {
   unsupported: m.image_file_unsupported,
   empty: m.image_file_empty,
-  too_large: m.image_file_too_large,
+  too_large: () =>
+    m.image_file_too_large({ megabytes: MAX_IMAGE_BYTES / (1024 * 1024) }),
 } as const satisfies Record<
   NonNullable<ReturnType<typeof sourceImageFileError>>,
   () => string

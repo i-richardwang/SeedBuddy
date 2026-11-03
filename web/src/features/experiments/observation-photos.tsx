@@ -15,7 +15,7 @@ import { Button } from "../../ui/kit/Button";
 import { Select } from "../../ui/kit/Select";
 import { Tag } from "../../ui/kit/Tag";
 import { ImageDropZone } from "../upload/ImageDropZone";
-import type { ListedImage } from "../upload/state";
+import type { ListedImage } from "../upload/useUploads";
 import { type Uploads, useUploads } from "../upload/useUploads";
 
 /** Photographs being uploaded for one observation day and matched to its units. */
@@ -139,7 +139,7 @@ export function ObservationPhotosField({
       {photos.conflicts.size > 0 ? (
         <Alert
           type="warning"
-          title={m.observation_images_conflicting({
+          title={m.observation_photos_conflicting({
             count: photos.conflicts.size,
           })}
         />
@@ -147,14 +147,14 @@ export function ObservationPhotosField({
       {photos.unmatched > 0 ? (
         <Alert
           type="warning"
-          title={m.observation_images_remaining({ count: photos.unmatched })}
+          title={m.observation_photos_remaining({ count: photos.unmatched })}
           action={
             <Button
               size="small"
               disabled={disabled || photos.vacant <= 0}
               onClick={photos.fillInOrder}
             >
-              {m.observation_images_fill_in_order()}
+              {m.observation_photos_fill_in_order()}
             </Button>
           }
         />
@@ -218,11 +218,11 @@ function ConflictTag({ conflict }: { conflict: PhotoConflict }) {
   return (
     <Tag color="warning" size="small">
       {conflict.kind === "placed"
-        ? m.observation_images_placed({
+        ? m.observation_photos_placed({
             unit: conflict.placed.unit,
             day: formatDay(conflict.placed.observedOn),
           })
-        : m.observation_images_repeated({ file: conflict.filename })}
+        : m.observation_photos_repeated({ file: conflict.filename })}
     </Tag>
   );
 }
@@ -246,13 +246,13 @@ function UnitChoice({
   if (image.state.status !== "stored") return null;
   return (
     <Select
-      aria-label={m.observation_images_unit_label({ file: image.file.name })}
+      aria-label={m.observation_photos_unit_label({ file: image.file.name })}
       className="w-28 mobile:w-44"
       size="small"
       variant="filled"
       allowClear
       disabled={disabled}
-      placeholder={m.observation_images_unassigned()}
+      placeholder={m.observation_photos_unassigned()}
       options={units.map((unit) => ({
         label: unit.code,
         value: unit.id,

@@ -32,6 +32,7 @@
   "api_key_issued_title": "Save this key",
   "api_key_never_used": "Never used",
   "api_key_not_created": "API key not created",
+  "api_key_not_revoked": "Key not revoked",
   "api_key_revoke": "Revoke",
   "api_key_revoke_title": "Revoke {name}?",
   "api_key_revoked": "{name} revoked",
@@ -66,6 +67,7 @@
   "mcp_empty": "No MCP clients yet",
   "mcp_empty_description": "Clients appear here once you add a server address and approve them.",
   "mcp_empty_show_servers": "Show server addresses",
+  "mcp_not_disconnected": "Client not disconnected",
   "mcp_server_annotation": "Annotation MCP",
   "mcp_server_experiments": "Experiments MCP"
 }

@@ -6,7 +6,7 @@ import {
 } from "../../domain/datasets/archive-format";
 import type { DatasetManifest } from "../../domain/datasets/manifest";
 import { type ArchiveEntry, storedZip } from "../../lib/archive/zip";
-import { DatasetArchiveError, importDatasetArchive } from "./import-archive";
+import { importDatasetArchive } from "./import-archive";
 
 const DIGEST = "a".repeat(64);
 
@@ -100,7 +100,7 @@ test("archive import reports reading before storage", async () => {
         await archive([manifestEntry(manifest([]))]),
         (progress) => phases.push(progress.phase),
       ),
-    ).rejects.toBeInstanceOf(DatasetArchiveError);
+    ).rejects.toThrow("Request failed (404)");
   } finally {
     request.mockRestore();
   }

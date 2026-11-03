@@ -3,10 +3,12 @@ import { useState } from "react";
 import { identifierLabel } from "../../domain/identifiers/schema";
 import type { TrainingRunDetail } from "../../domain/training/read-model";
 import type { TrainingControl } from "../../domain/training/schema";
+import { isTrainingRunActive } from "../../domain/training/schema";
 import { updateTrainingRun } from "../../functions/training";
 import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 
 /**
  * What the run's page can do to the run: pause it, open the dialog that
@@ -17,6 +19,11 @@ import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 export function useTrainingRunControl(detail: TrainingRunDetail) {
   const confirmDestructive = useConfirmDestructive();
   const { run } = detail;
+  // A blocked run follows the other run as it moves.
+  useRouteRefresh(
+    10_000,
+    isTrainingRunActive(run) || detail.blockedBy !== null,
+  );
   const action = useAsyncAction();
   const [resuming, setResuming] = useState(false);
   const send = (control: TrainingControl) => controlRun(detail, control);
@@ -31,6 +38,7 @@ export function useTrainingRunControl(detail: TrainingRunDetail) {
         title: m.training_cancel_title({ run: identifierLabel(run.id) }),
         content: m.training_cancel_note(),
         confirmLabel: m.training_cancel_confirm(),
+        failure: m.training_not_cancelled(),
         onConfirm: async () => {
           await send({ action: "cancel" });
         },

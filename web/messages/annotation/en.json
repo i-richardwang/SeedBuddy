@@ -9,7 +9,6 @@
   "annotation_conflict": "This review changed in another page",
   "annotation_conflict_description": "Saving is blocked. Reloading discards your changes and reads the latest review.",
   "annotation_counted_classes": "Only {classes}",
-  "annotation_counts": "Counts",
   "annotation_detection_threshold": "Threshold",
   "annotation_discard": "Don't save",
   "annotation_discard_confirm": "Discard unsaved changes?",
@@ -28,6 +27,7 @@
     }
   ],
   "annotation_next_unreviewed": "Next to review",
+  "annotation_not_discarded": "Edits not discarded",
   "annotation_not_reloaded": "Review not reloaded",
   "annotation_not_saved": "Review not saved",
   "annotation_readings": "Readings",
@@ -38,7 +38,6 @@
   "annotation_standing_detection": "Model count · to review",
   "annotation_standing_edited": "Unsaved",
   "annotation_standing_proposal": "AI proposal · to review",
-  "annotation_standing_unread": "Not read yet",
   "annotation_tools": "Annotation tools",
   "annotation_undo": "Undo",
   "annotation_unlock": "Unlock editing"

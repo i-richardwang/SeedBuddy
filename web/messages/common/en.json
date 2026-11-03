@@ -1,7 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "account_label": "Account",
-  "action_not_completed": "{action} not completed",
   "active_label": "Active",
   "add_action": "Add",
   "ai_proposal_label": "AI proposal",
@@ -10,12 +9,12 @@
   "boxes_label": "Boxes",
   "change_label": "Change",
   "column_actions": "Actions",
+  "counts_label": "Counts",
   "create_action": "Create",
   "dataset_label": "Dataset",
   "delete_action": "Delete",
-  "details_label": "Details",
   "document_title": "{page} · {app}",
-  "dropzone_label": "Drop images here or choose from a folder",
+  "dropzone_label": "Drop photos here or choose from a folder",
   "dropzone_limits": [
     {
       "declarations": [
@@ -30,7 +29,7 @@
     }
   ],
   "dropzone_ready": "Ready",
-  "dropzone_select": "Select images",
+  "dropzone_select": "Select photos",
   "email_label": "Email",
   "error_conflict": "The current state does not allow this action. Refresh the page and try again.",
   "error_dataset_model": "The images and dataset must use the same model.",
@@ -75,6 +74,7 @@
   "nav_home": "Home",
   "nav_settings": "Settings",
   "new_password_label": "New password",
+  "not_counted_label": "Not counted",
   "not_found": "Not found",
   "note_label": "Note",
   "password_changed": "Password changed",
@@ -129,18 +129,18 @@
     }
   ],
   "remove_action": "Remove",
+  "retry_action": "Retry",
   "return_to_experiments": "Return to experiments",
   "reviewed_label": "Reviewed",
   "save_action": "Save",
   "scopes_label": "Scopes",
-  "something_went_wrong": "Something went wrong",
   "status_label": "Status",
   "to_review_label": "To review",
   "treatment_label": "Treatment",
   "treatments_label": "Treatments",
   "unclear_label": "Unclear",
   "unclear_not_saved": "Mark not saved",
-  "unclear_section": "Unclear photo",
+  "unclear_photo": "Unclear photo",
   "unclear_switch_description": "It cannot be read clearly, such as a fogged lid or a dish out of focus",
   "units_label": "Units",
   "upload_cancelled": "Upload cancelled",
@@ -148,6 +148,7 @@
   "users_label": "Users",
   "version_label": "Version",
   "workbench_inspector": "Info",
+  "workbench_not_loaded": "Workbench not loaded",
   "worker_label": "Worker",
   "workers_label": "Workers"
 }

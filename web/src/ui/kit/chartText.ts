@@ -11,7 +11,7 @@ const widths = new Map<string, number>();
 let context: CanvasRenderingContext2D | null | undefined;
 
 /** Width of `text` at the label size, cached per text. */
-export function textWidth(text: string): number {
+function textWidth(text: string): number {
   const cached = widths.get(text);
   if (cached !== undefined) return cached;
   if (context === undefined)

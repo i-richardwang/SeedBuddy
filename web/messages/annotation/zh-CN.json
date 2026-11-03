@@ -9,7 +9,6 @@
   "annotation_conflict": "这份复核已在其他页面修改",
   "annotation_conflict_description": "当前无法保存。重新载入会放弃你的修改并读取最新复核。",
   "annotation_counted_classes": "只计{classes}",
-  "annotation_counts": "计数",
   "annotation_detection_threshold": "阈值",
   "annotation_discard": "不保存",
   "annotation_discard_confirm": "放弃未保存的修改？",
@@ -28,6 +27,7 @@
     }
   ],
   "annotation_next_unreviewed": "下一个待复核",
+  "annotation_not_discarded": "修改未放弃",
   "annotation_not_reloaded": "复核未重新加载",
   "annotation_not_saved": "复核未保存",
   "annotation_readings": "读数",
@@ -38,7 +38,6 @@
   "annotation_standing_detection": "模型计数 · 待复核",
   "annotation_standing_edited": "未保存",
   "annotation_standing_proposal": "AI 建议 · 待复核",
-  "annotation_standing_unread": "尚无读数",
   "annotation_tools": "标注工具",
   "annotation_undo": "撤销",
   "annotation_unlock": "解锁编辑"

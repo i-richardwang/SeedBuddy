@@ -25,8 +25,8 @@ export function FactorField({
   onChange: (factor: TreatmentFactor) => void;
 }) {
   return (
-    <div className="flex min-w-0 gap-3">
-      <Form.Field className="min-w-0 flex-1" label={m.treatment_factor_label()}>
+    <>
+      <Form.Field label={m.treatment_factor_label()}>
         <Input
           disabled={disabled}
           placeholder={m.treatment_factor_placeholder()}
@@ -34,7 +34,7 @@ export function FactorField({
           onValueChange={(name) => onChange({ ...factor, name })}
         />
       </Form.Field>
-      <Form.Field className="w-24 shrink-0" label={m.treatment_level_label()}>
+      <Form.Field label={m.treatment_level_label()}>
         <Input
           disabled={disabled}
           placeholder={m.treatment_level_placeholder()}
@@ -42,7 +42,7 @@ export function FactorField({
           onValueChange={(level) => onChange({ ...factor, level })}
         />
       </Form.Field>
-      <Form.Field className="w-24 shrink-0" label={m.treatment_unit_label()}>
+      <Form.Field label={m.treatment_unit_label()}>
         <Input
           disabled={disabled}
           placeholder={m.treatment_unit_placeholder()}
@@ -50,7 +50,7 @@ export function FactorField({
           onValueChange={(unit) => onChange({ ...factor, unit })}
         />
       </Form.Field>
-    </div>
+    </>
   );
 }
 

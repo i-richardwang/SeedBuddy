@@ -8,6 +8,7 @@ import { removeWorker } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Status } from "../../ui/kit/Status";
 import {
   Table,
@@ -20,7 +21,11 @@ import {
 import { TextLink } from "../../ui/kit/TextLink";
 import { toast } from "../../ui/kit/Toast";
 import { formatAge } from "../../ui/relative-time";
-import { workerPresenceLabel, workerPresenceTone } from "./labels";
+import {
+  workerActivityLabel,
+  workerPresenceLabel,
+  workerPresenceTone,
+} from "./labels";
 
 export function WorkersTable({
   workers,
@@ -31,6 +36,7 @@ export function WorkersTable({
   administers: boolean;
   empty: ReactNode;
 }) {
+  useRouteRefresh(5000);
   return (
     <Table
       narrow="cards"
@@ -68,6 +74,7 @@ function WorkerRow({
   worker: WorkerOverview;
   administers: boolean;
 }) {
+  useRouteRefresh(5000);
   return (
     <TableRow>
       <TableCell cellSlot="title">{worker.workerId}</TableCell>
@@ -111,6 +118,7 @@ function WorkerMenu({ workerId }: { workerId: string }) {
               title: m.worker_remove_title({ name: workerId }),
               content: m.worker_remove_description(),
               confirmLabel: m.remove_action(),
+              failure: m.worker_not_removed(),
               onConfirm: async () => {
                 await removeWorker({ data: { workerId } });
               },
@@ -127,9 +135,7 @@ function WorkerMenu({ workerId }: { workerId: string }) {
 function Activity({ activity }: { activity: WorkerActivity | null }) {
   if (!activity) return m.worker_activity_idle();
   if (activity.kind === "inference") {
-    return m.worker_activity_inference({
-      image: activity.subject.filename ?? "an image",
-    });
+    return workerActivityLabel(activity);
   }
   return (
     <TextLink
@@ -143,7 +149,7 @@ function Activity({ activity }: { activity: WorkerActivity | null }) {
         />
       }
     >
-      {m.worker_activity_training({ dataset: activity.subject.dataset.name })}
+      {workerActivityLabel(activity)}
     </TextLink>
   );
 }

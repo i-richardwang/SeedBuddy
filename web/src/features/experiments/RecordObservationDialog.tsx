@@ -18,9 +18,10 @@ import { ObservationFields, type ObservationValue } from "./ObservationFields";
 import {
   ObservationPhotosField,
   useObservationPhotos,
-} from "./ObservationPhotos";
+} from "./observation-photos";
 
 const FORM_ID = "observation";
+
 const NO_UNITS: ReadonlySet<string> = new Set();
 /**
  * Records an observation day in one step: the date, the model its
@@ -83,7 +84,7 @@ function RecordObservationSession({
       title={m.observation_record()}
       okText={
         photos.uploads.storing
-          ? m.observation_images_uploading()
+          ? m.observation_photos_uploading()
           : photos.ready.length > 0
             ? m.observation_record_count({ count: photos.ready.length })
             : m.observation_record()
@@ -102,7 +103,7 @@ function RecordObservationSession({
               createObservation({
                 data: { experiment, ...value, images: photos.ready },
               }),
-            m.observation_not_added(),
+            m.observation_not_recorded(),
             {
               onSuccess: onClose,
             },

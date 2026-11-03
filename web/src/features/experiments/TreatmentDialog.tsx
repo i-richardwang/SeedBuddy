@@ -16,7 +16,7 @@ import { Input } from "../../ui/kit/Input";
 import { FactorField, factorDraft, submittedFactor } from "./FactorField";
 import { DEFAULT_REPLICATES, ReplicatesField } from "./ReplicatesField";
 
-const TREATMENT_FORM = "treatment";
+const FORM_ID = "treatment";
 
 /** Creates a treatment with its replicates, or edits one. */
 export function TreatmentDialog({
@@ -42,7 +42,7 @@ export function TreatmentDialog({
           : m.treatment_edit({ name: treatment.name })
       }
       okText={creating ? m.add_action() : m.save_action()}
-      formId={TREATMENT_FORM}
+      formId={FORM_ID}
       busy={action.busy}
     >
       <TreatmentForm
@@ -74,7 +74,7 @@ function TreatmentForm({
 
   return (
     <Form
-      id={TREATMENT_FORM}
+      id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
         if (!treatmentNameSchema.safeParse(name).success) return;

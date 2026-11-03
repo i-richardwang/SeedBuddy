@@ -1,10 +1,11 @@
 import type { DatasetImageOverview } from "../../domain/datasets/read-model";
 import { Absent } from "../../ui/Absent";
-import { QualityTags } from "../../ui/DetectionQuality";
+import { QualityTags } from "../../ui/detection-quality";
 import { Flexbox } from "../../ui/kit/Flex";
 import { Text } from "../../ui/kit/Text";
 import { formatCount } from "../../ui/numbers";
 import { UnclearTag } from "../images/unclear";
+import { qualityWarningLabels } from "./labels";
 
 /** Whether anything is said against the image: the detector's warnings, or a person's mark. */
 export function hasQualityNotes(image: DatasetImageOverview): boolean {
@@ -20,7 +21,7 @@ export function ImageQuality({ image }: { image: DatasetImageOverview }) {
     <Flexbox horizontal gap={4} wrap="wrap">
       {image.unclear ? <UnclearTag /> : null}
       {image.quality && image.quality.status !== "ok" ? (
-        <QualityTags quality={image.quality} />
+        <QualityTags labels={qualityWarningLabels(image.quality)} />
       ) : null}
     </Flexbox>
   );

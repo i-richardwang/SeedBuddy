@@ -6,6 +6,7 @@ import type { DatasetImageOverview } from "../../domain/datasets/read-model";
 import type { NamedDataset } from "../../domain/datasets/schema";
 import { m } from "../../paraglide/messages";
 import { usePagedSearch } from "../../ui/hooks/usePagedSearch";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Empty } from "../../ui/kit/Empty";
 import { Icon } from "../../ui/kit/Icon";
 import { Input } from "../../ui/kit/Input";
@@ -21,14 +22,13 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { BoxCount, ImageQuality } from "./ImageFacts";
+import { BoxCount, ImageQuality } from "./image-facts";
 import {
   DATASET_IMAGE_STATES,
   type DatasetImageState,
   datasetImageState,
-  datasetImageStateLabel,
-  datasetImageStateTone,
-} from "./labels";
+} from "./image-state";
+import { datasetImageStateLabel, datasetImageStateTone } from "./labels";
 import { RemoveImageButton } from "./RemoveImageButton";
 
 type Filter = DatasetImageState | "all";
@@ -45,6 +45,7 @@ export function DatasetImagesTable({
   images: DatasetImageOverview[];
   image?: string;
 }) {
+  useRouteRefresh(10_000);
   const states = new Map(
     images.map((image) => [image.digest, datasetImageState(image)]),
   );

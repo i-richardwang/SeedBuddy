@@ -21,7 +21,7 @@ function classList(text: string): string[] {
     .filter((line) => line.length > 0);
 }
 
-export function ModelDialog({
+export function NewModelDialog({
   open,
   onClose,
 }: {

@@ -55,6 +55,7 @@ export function TreatmentMenu({
             title: m.item_delete_title({ name: treatment.name }),
             content: m.treatment_delete_note(),
             confirmLabel: m.treatment_delete(),
+            failure: m.treatment_not_deleted(),
             onConfirm: async () => {
               await removeTreatment({
                 data: { experiment, treatment: treatment.id },

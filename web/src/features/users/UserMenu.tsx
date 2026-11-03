@@ -53,7 +53,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
             onClick: () =>
               act(
                 () => removeUserSessions({ data: { user: account.id } }),
-                m.user_sessions_not_revoked(),
+                m.user_not_signed_out_everywhere({ name: account.name }),
                 m.user_signed_out_everywhere({ name: account.name }),
               ),
           },
@@ -80,6 +80,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
                     title: m.user_suspend_title({ name: account.name }),
                     content: m.user_suspend_body(),
                     confirmLabel: m.user_suspend_confirm(),
+                    failure: m.user_not_suspended(),
                     onConfirm: async () => {
                       await updateUserStatus({
                         data: { user: account.id, suspended: true },
@@ -98,6 +99,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
                 title: m.item_delete_title({ name: account.name }),
                 content: m.user_delete_body(),
                 confirmLabel: m.user_delete_confirm(),
+                failure: m.user_not_deleted(),
                 onConfirm: async () => {
                   await removeUser({ data: { user: account.id } });
                 },
@@ -117,7 +119,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
   );
 }
 
-const RESET_FORM_ID = "reset-password";
+const FORM_ID = "reset-password";
 
 function ResetPasswordDialog({
   account,
@@ -135,7 +137,7 @@ function ResetPasswordDialog({
       onClose={onClose}
       title={m.user_reset_password_title({ name: account.name })}
       okText={m.save_action()}
-      formId={RESET_FORM_ID}
+      formId={FORM_ID}
       busy={action.busy}
     >
       <ResetPasswordForm account={account} action={action} onDone={onClose} />
@@ -154,7 +156,7 @@ function ResetPasswordForm({
 }) {
   return (
     <Form
-      id={RESET_FORM_ID}
+      id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);

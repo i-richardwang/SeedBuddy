@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { today } from "../domain/experiments/schema";
+import { experimentIdSchema, today } from "../domain/experiments/schema";
 import {
   experimentWorkbook,
   experimentWorkbookFilename,
@@ -13,6 +13,8 @@ export const Route = createFileRoute("/experiments/$experiment/workbook")({
   server: {
     handlers: {
       GET: async ({ params }) => {
+        if (!experimentIdSchema.safeParse(params.experiment).success)
+          return new Response("Not found", { status: 404 });
         const grid = await experimentGridDetail(params.experiment);
         if (!grid) return new Response("Not found", { status: 404 });
         const workbook = experimentWorkbook(
