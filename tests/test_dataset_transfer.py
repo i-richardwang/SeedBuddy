@@ -436,3 +436,17 @@ def test_pull_bounds_streamed_blobs_and_preserves_cached_bytes(
     assert cached.read_bytes() == b"old"
     assert list(cached.parent.iterdir()) == [cached]
     assert not (tmp_path / "datasets").exists()
+
+
+def test_push_validates_the_encoded_document_before_any_request(tmp_path, monkeypatch):
+    _data_root(tmp_path)
+    original = DatasetManifest.to_dict
+
+    def malformed(self):
+        return {**original(self), "schemaVersion": 99}
+
+    monkeypatch.setattr(DatasetManifest, "to_dict", malformed)
+    handle, received = _receiver()
+    with pytest.raises(DatasetTransferError, match="schemaVersion"):
+        _push(tmp_path, handle)
+    assert received == []

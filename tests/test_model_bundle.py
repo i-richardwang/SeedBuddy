@@ -227,3 +227,66 @@ def test_training_bundle_refuses_unusable_validation(tmp_path):
     (tmp_path / "training-context.json").write_text("{}")
     with pytest.raises(ValueError, match="usable validation"):
         training_bundle(tmp_path / "best.pt", summary, ["seed"], {})
+
+
+@pytest.mark.parametrize("invalid_structure", [False, True])
+def test_pack_validates_before_runtime_and_never_publishes_a_rejected_bundle(
+    tmp_path, monkeypatch, recipe, invalid_structure
+):
+    from vitroctl.cli import models
+    from vitroctl.contracts import validation
+
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"weights")
+    document = model_bundle(weights, recipe)
+    if invalid_structure:
+        document["classes"] = ["seed", "seed"]
+    metadata = tmp_path / "metadata.json"
+    metadata.write_text(json.dumps(document))
+    target = tmp_path / "bundle"
+    checked = []
+    runtime_calls = []
+    validator = validation._validator
+
+    def track(name):
+        checked.append(name)
+        return validator(name)
+
+    def reject(document, source):
+        runtime_calls.append(source)
+        raise ValueError("Weights declare different classes")
+
+    monkeypatch.setattr(validation, "_validator", track)
+    monkeypatch.setattr(models, "_verify_runtime", reject)
+    assert (
+        main(
+            [
+                "models",
+                "pack",
+                "--weights",
+                str(weights),
+                "--metadata",
+                str(metadata),
+                "--output",
+                str(target),
+            ]
+        )
+        == 2
+    )
+    assert checked == ["model-bundle"]
+    assert runtime_calls == ([] if invalid_structure else [weights])
+    assert not target.exists()
+
+
+def test_remote_training_rejects_invalid_recipe_before_send(
+    tmp_path, monkeypatch, recipe
+):
+    monkeypatch.setenv("VITROFLOW_SERVER_URL", "https://workbench.example")
+    monkeypatch.setenv("VITROFLOW_API_KEY", "secret")
+    calls = []
+    monkeypatch.setattr(WorkbenchClient, "call", lambda *args: calls.append(args))
+    recipe["parameters"]["epochs"] = 0
+    spec = tmp_path / "spec.json"
+    spec.write_text(json.dumps({"dataset": "dataset-id", "recipe": recipe}))
+    assert main(["training", "run", "--spec", str(spec)]) == 2
+    assert calls == []
