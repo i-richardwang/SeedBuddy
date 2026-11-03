@@ -32,10 +32,7 @@ Dependency version inventories and the coverage margin are excluded. Behavior ch
 
 ## Maintenance
 
-The maintenance process automatically refreshes unavailable or obsolete analysis.
-It analyzes up to two images serially, then waits 30 seconds. Blob collection runs
-on its own hourly cadence; infrastructure failures back off for one minute without
-stopping the other responsibility. Maintenance uses one Sharp processing thread
+`web/scripts/maintenance.ts` runs three independent loops: inference reconciliation every 10 seconds, blob collection every hour, and image analysis every 30 seconds. Analysis refreshes unavailable or obsolete results, processing up to two images serially per pass. Each loop waits its interval after completing a pass; infrastructure failures back off for one minute without stopping the other loops. Maintenance uses one Sharp processing thread
 and its own compute runtime, so its resource budget is separate from the
 workbench's. Compose and the Zeabur template include this process as an
 application service. Built command entry points are listed in [Backend architecture](backend-architecture.md#persistence-and-startup).

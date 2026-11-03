@@ -24,16 +24,15 @@ spec:
 
         ## Services
         - workbench — built from `Dockerfile.web`, serves the UI, the agent
-          API, and the MCP endpoint on port 3000
-        - maintenance — built from the same `Dockerfile.web`, refreshes dish
-          analysis and collects unreferenced blobs without a public port
+          API, and the two MCP servers on port 3000
+        - maintenance — built from the same `Dockerfile.web`, runs the three maintenance loops documented in
+          `docs/images.md#maintenance`, without a public port
         - postgres — Postgres 18, the source of truth for records
         - minio — S3-compatible object store for immutable blobs
 
         Workers are not part of this template. They only make outbound calls,
-        so run them next to their GPUs. An administrator enrolls each machine on
-        the workbench's Workers page, which shows the token and the setup command
-        for it once.
+        so run them next to their GPUs. Enrollment and setup are described in
+        `docs/vitroctl.md#workers`.
 
         ## After deploying
         Bind your own domain to the workbench in its Networking tab; no domain is
@@ -56,7 +55,7 @@ spec:
         - key: PUBLIC_DOMAIN
           type: STRING
           name: Workbench Domain
-          description: "The full domain the workbench is served on, such as vitroflow.example.com. Bind it in the Networking tab after deploying. It is also the auth issuer and the MCP endpoint origin."
+          description: "The full domain the workbench is served on, such as vitroflow.example.com. Bind it in the Networking tab after deploying. It is also the auth issuer and the origin for both MCP servers."
         - key: VITROFLOW_ADMIN_EMAIL
           type: STRING
           name: Administrator Email

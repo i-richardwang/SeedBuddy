@@ -10,19 +10,19 @@ VitroFlow has a Web control plane and two Python packages: `vitroctl` (`src/vitr
 
 The server module map and transaction rules are described in [Backend architecture](backend-architecture.md). Vite protects server files from client imports. `bun run architecture:check` additionally checks layer directions, pure-module capabilities, test isolation, all source-file cycles, and server public APIs. Service public entries expose only consumed names; namespace and dynamic consumers are retained conservatively. Operation-owned command handlers must reference their executor parameter. Imports, type imports, and re-exports participate in the rules. Dynamic imports must use literal paths.
 
-## Shared rules and presentation
+## Shared contracts and validation
 
 `domain/datasets/archive-format.ts` owns archive entry names and limits. `features/datasets/import-archive.ts` reads a browser archive, checks the destination, uploads its images, and applies the manifest. Services import the format without importing the browser workflow.
 
 Image admission returns stable refusal codes. Training parameters, annotation configuration, and inference model manifests use authoritative Zod schemas. Forms derive bounds from those schemas and own only labels and interaction steps. The [wire contract boundary](backend-architecture.md#wire-contracts) defines Python validation.
 
-Domain exceptions inherit shared categories from `domain/errors.ts` and carry stable codes. The Server Function boundary converts expected refusals to an explicit `business_failure` document containing its code, category, and declared JSON details; it does not rely on preserving an Error subclass across serialization. The UI validates and translates that document. Diagnostic messages remain English, and unexpected exceptions are logged and passed to the framework's error handling. HTTP and MCP adapters retain their explicit protocol mappings.
+Domain exceptions inherit shared categories from `domain/errors.ts` and carry stable codes. The Server Function boundary converts expected refusals to an explicit `business_failure` document containing its code, category, and declared JSON details. The UI validates and translates that document. Diagnostic messages remain English, and unexpected exceptions are logged and passed to the framework's error handling. HTTP and MCP adapters retain their explicit protocol mappings.
 
 ## Annotation lifetime
 
 `features/annotation/ImageWorkbench.tsx` owns one `Workbench` and one `ImageViewport`. The image's boxes are a draft from the first frame, and the same viewport stays mounted through edits, saves and conflicts. The edit lock gates changes to that draft rather than switching viewport modes. `features/annotation/lock.ts` holds process-global state outside the draft session: each page load begins locked, and unlocking persists from image to image until reload. Display layers, manual zoom, and pan survive all of them. The viewport shows the image's preview from its first frame and lays the image itself over it once that has arrived.
 
-`domain/annotation/draft.ts` owns the pure annotation draft, undo/redo, and the submission freeze; `features/annotation/session.ts` opens it from the page's readings. The draft begins from the reading on view (review, AI proposal, or detections) and its base is the stored review the page loaded. While nothing has been edited it follows the readings as they refresh; once edited it holds, and showing another reading over the edits begins again from it as an undoable step. The save sends the base with the boxes, so a review changed elsewhere is refused and the draft stays open until its edits are dropped and the readings read again. The primary command stores the boxes on view and the page stays on the image: it reads Save over edits and Confirm over a machine's reading taken as it is, and Mod+S does the same. On a reviewed image it leads to the next one still to review, so storing and moving on are two presses of Enter. The DOM lifecycle test pans and zooms, edits, confirms, and meets a conflict, and verifies the original image node and its transform remain intact throughout.
+`domain/annotation/draft.ts` owns the pure annotation draft, undo/redo, and the submission freeze; `features/annotation/session.ts` opens it from the page's readings. The draft begins from the reading on view (review, AI proposal, or detections) and its base is the stored review the page loaded, or null for an unreviewed image. While nothing has been edited it follows the readings as they refresh; once edited it holds, and showing another reading over the edits begins again from it as an undoable step. The save sends the base with the boxes, so a review changed elsewhere is refused and the draft stays open until its edits are dropped and the readings read again. The primary command stores the boxes on view and the page stays on the image: it reads Save over edits and Confirm over an automated reading taken as it is, and Mod+S does the same. On a reviewed image it leads to the next one still to review, so storing and moving on are two presses of Enter. The DOM lifecycle test pans and zooms, edits, confirms, and meets a conflict, and verifies the original image node and its transform remain intact throughout.
 
 ## Python boundaries
 
@@ -39,13 +39,13 @@ The allowed internal dependencies are defined by layer:
 | `detector_contracts` | `contracts` |
 | `image_geometry` | `contracts` |
 | `datasets` | `contracts`, `detector_contracts`, `io` |
-| `training` | `contracts`, `datasets` |
+| `training` | `contracts` |
 | `traditional` | `contracts`, `datasets`, `detector_contracts`, `image_geometry`, `io` |
 | `ultralytics` | `contracts`, `datasets`, `detector_contracts`, `io`, `training` |
-| `worker` | `contracts`, `datasets`, `detector_contracts`, `io`, `models`, `traditional`, `training`, `ultralytics` |
-| `host` | `contracts`, `io`, `worker` |
+| `worker` | `contracts`, `detector_contracts`, `io`, `models`, `traditional`, `training`, `ultralytics` |
+| `host` | `io`, `worker` |
 | `models` | `contracts`, `io` |
-| `cli` | `contracts`, `datasets`, `detector_contracts`, `host`, `io`, `models`, `traditional`, `training`, `ultralytics`, `worker` |
+| `cli` | `datasets`, `host`, `io`, `models`, `traditional`, `training`, `ultralytics` |
 | `entry` | None |
 
 `detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. Reviewed dataset loading belongs to `datasets/annotations.py`.
@@ -66,4 +66,4 @@ Startup applies all forward migrations in `web/drizzle/` through `web/src/server
 
 The `Quality` workflow runs the [verification gate](../README.md#verification) on pull requests and main-branch pushes with locked dependencies, then checks PostgreSQL concurrency and S3 immutability against disposable storage. The workflow exposes a `check` job for branch protection. Private reference images are an explicit operator check.
 
-`bun test` in `web/` uses `web/test/setup.ts` to compile missing or stale messages before tests; it requires no prior production build.
+Test invocation and message compilation are described in [Verification](../README.md#verification).
