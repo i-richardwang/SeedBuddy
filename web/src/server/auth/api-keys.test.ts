@@ -8,7 +8,7 @@ import {
   listApiKeys,
   revokeApiKey,
 } from "./api-keys";
-import { apiKeyHeaders, signInAs } from "../testing/fixtures";
+import { apiKeyHeaders, signInAs } from "../testing/auth";
 import { banUser } from "./users";
 
 function requestWith(secret: string | null): Request {

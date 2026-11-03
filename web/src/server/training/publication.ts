@@ -1,7 +1,5 @@
 import { modelBundleSchema } from "../../domain/models/bundle";
-import { eq } from "drizzle-orm";
 import { database, transaction } from "../infra/db/client";
-import { trainingRuns } from "../infra/db/schema";
 import { canonicalJson } from "../../lib/json/canonical";
 import type { TrainingAttemptOwner } from "../../domain/training/schema";
 import {
@@ -17,7 +15,7 @@ import {
 } from "../models/public";
 import {
   readTrainingRun,
-  requireTrainingRunRow,
+  lockTrainingRun,
   requireOwnedRunningRun,
   transitionTrainingRun,
 } from "./runs";
@@ -74,12 +72,7 @@ export async function publishTrainingArtifact(
     await uploadModelWeights(upload.uploadId, weights);
   }
   return transaction(async (tx) => {
-    const [row] = await tx
-      .select()
-      .from(trainingRuns)
-      .where(eq(trainingRuns.id, runId))
-      .for("update");
-    const locked = requireTrainingRunRow(row, runId);
+    const locked = await lockTrainingRun(runId, tx);
     if (locked.attempt !== owner.attempt)
       throw new TrainingRunConflictError("Training attempt was superseded");
     if (locked.state.status !== "succeeded")

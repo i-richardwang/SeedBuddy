@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 test("a CIMD public client completes OAuth through the pinned HTTPS transport", async () => {
   // Isolate built-in network mocks from the auth server and other tests.
   const setup = new URL("../../../test/setup.ts", import.meta.url).pathname;
-  const fixtures = new URL("../testing/fixtures.ts", import.meta.url).pathname;
+  const fixtures = new URL("../testing/auth.ts", import.meta.url).pathname;
   const annotation = new URL("../transport/mcp/annotation.ts", import.meta.url)
     .pathname;
   const requests = new URL("../testing/mcp.ts", import.meta.url).pathname;

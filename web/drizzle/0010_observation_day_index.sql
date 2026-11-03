@@ -1,0 +1,1 @@
+DROP INDEX "experiment_observations_observed_idx";

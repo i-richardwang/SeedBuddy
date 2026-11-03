@@ -28,6 +28,7 @@ import type {
   ObservationImageRef,
 } from "../../domain/experiments/schema";
 import {
+  atObservationImage,
   listObservations,
   listUnits,
   lockExperiment,
@@ -231,13 +232,6 @@ export async function unassignObservationImage(
       );
     }
   });
-}
-
-function atObservationImage(experimentId: string, observationImageId: string) {
-  return and(
-    eq(experimentObservationImages.experimentId, experimentId),
-    eq(experimentObservationImages.id, observationImageId),
-  );
 }
 
 export async function retryObservationImageAnalysis(

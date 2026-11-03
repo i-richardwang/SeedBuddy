@@ -13,7 +13,7 @@ import { transaction } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";
 import {
   activeTrainingRun,
-  requireTrainingRunRow,
+  lockTrainingRun,
   transitionTrainingRun,
   validateTrainingTarget,
 } from "./runs";
@@ -29,12 +29,7 @@ export async function controlTrainingRun(
   if (control.action === "resume")
     await validateTrainingTarget(control.targetWorkerId);
   return transaction(async (tx) => {
-    const [row] = await tx
-      .select()
-      .from(trainingRuns)
-      .where(eq(trainingRuns.id, runId))
-      .for("update");
-    const run = requireTrainingRunRow(row, runId);
+    const run = await lockTrainingRun(runId, tx);
     const dataset = await readDataset(datasetId, tx);
     const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, tx);
     if (!dataset || snapshot?.datasetId !== dataset.id)

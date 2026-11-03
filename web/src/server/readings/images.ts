@@ -1,5 +1,5 @@
 import { and, eq, sql, type SQLWrapper } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { alias, type PgSelect } from "drizzle-orm/pg-core";
 
 import type { AnnotationProposal } from "../../domain/annotation-runs/schema";
 import {
@@ -21,14 +21,11 @@ import { shownDetectingVersion } from "../inference/public";
 
 type Row = typeof annotationRuns.$inferSelect;
 
-export const proposalRuns = alias(annotationRuns, "proposal_runs");
-export const activeRuns = alias(annotationRuns, "active_runs");
+const proposalRuns = alias(annotationRuns, "proposal_runs");
+const activeRuns = alias(annotationRuns, "active_runs");
 
 /** Joins the image's run in progress for the model, of which there is at most one. */
-export const atActiveRun = (
-  imageId: SQLWrapper,
-  modelId: SQLWrapper | string,
-) =>
+const atActiveRun = (imageId: SQLWrapper, modelId: SQLWrapper | string) =>
   and(
     eq(activeRuns.imageId, imageId),
     eq(activeRuns.modelId, modelId),
@@ -49,6 +46,53 @@ export function proposalRunId(
     order by r.created_at desc, r.id desc
     limit 1
   )`;
+}
+
+/** The active reading can be joined alone when listing unfinished annotation work. */
+export function activeReadingJoin(
+  imageId: SQLWrapper,
+  modelId: SQLWrapper | string,
+) {
+  return {
+    run: activeRuns,
+    apply: <T extends PgSelect>(query: T) =>
+      query.leftJoin(activeRuns, atActiveRun(imageId, modelId)),
+  };
+}
+
+/** Callers choose the detection version; reviews and proposals belong to the model. */
+export function readingsJoin({
+  imageId,
+  modelId,
+  version,
+}: {
+  imageId: SQLWrapper;
+  modelId: SQLWrapper | string;
+  version: SQLWrapper;
+}) {
+  return {
+    proposal: proposalRuns,
+    apply: <T extends PgSelect>(query: T) =>
+      query
+        .leftJoin(
+          annotations,
+          and(
+            eq(annotations.imageId, imageId),
+            eq(annotations.modelId, modelId),
+          ),
+        )
+        .leftJoin(
+          inferenceOutcomes,
+          and(
+            eq(inferenceOutcomes.imageId, imageId),
+            eq(inferenceOutcomes.modelVersionId, version),
+          ),
+        )
+        .leftJoin(
+          proposalRuns,
+          eq(proposalRuns.id, proposalRunId(imageId, modelId)),
+        ),
+  };
 }
 
 function toProposal(row: Row | null): AnnotationProposal | null {
@@ -76,39 +120,31 @@ export async function readReadings(
   ref: AnnotationRef,
   db: Executor,
 ): Promise<Readings | null> {
-  const shown = shownDetectingVersion(images.id, ref.modelId);
-  const [row] = await db
-    .select({
-      width: images.width,
-      height: images.height,
-      detection: sql<DetectionResult | null>`${inferenceOutcomes.document}`,
-      annotation: annotations.document,
-      proposal: proposalRuns,
-      progress: {
-        completed: activeRuns.completed,
-        total: activeRuns.total,
-      },
-    })
-    .from(images)
-    .leftJoin(
-      annotations,
-      and(
-        eq(annotations.imageId, images.id),
-        eq(annotations.modelId, ref.modelId),
+  const readings = readingsJoin({
+    imageId: images.id,
+    modelId: ref.modelId,
+    version: shownDetectingVersion(images.id, ref.modelId),
+  });
+  const active = activeReadingJoin(images.id, ref.modelId);
+  const [row] = await active
+    .apply(
+      readings.apply(
+        db
+          .select({
+            width: images.width,
+            height: images.height,
+            detection: sql<DetectionResult | null>`${inferenceOutcomes.document}`,
+            annotation: annotations.document,
+            proposal: proposalRuns,
+            progress: {
+              completed: activeRuns.completed,
+              total: activeRuns.total,
+            },
+          })
+          .from(images)
+          .$dynamic(),
       ),
     )
-    .leftJoin(
-      inferenceOutcomes,
-      and(
-        eq(inferenceOutcomes.imageId, images.id),
-        eq(inferenceOutcomes.modelVersionId, shown),
-      ),
-    )
-    .leftJoin(
-      proposalRuns,
-      eq(proposalRuns.id, proposalRunId(images.id, ref.modelId)),
-    )
-    .leftJoin(activeRuns, atActiveRun(images.id, ref.modelId))
     .where(eq(images.id, ref.digest));
   if (!row) return null;
   return {

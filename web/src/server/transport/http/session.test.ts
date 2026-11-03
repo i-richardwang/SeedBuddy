@@ -2,11 +2,7 @@ import { expect, test } from "bun:test";
 
 import { Route as LoginRoute } from "../../../routes/login";
 import { readSession, redirect } from "./session";
-import {
-  TEST_PASSWORD,
-  sessionHeaders,
-  signInAs,
-} from "../../testing/fixtures";
+import { TEST_PASSWORD, sessionHeaders, signInAs } from "../../testing/auth";
 
 type LoginGet = (context: {
   request: Request;

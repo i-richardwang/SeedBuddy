@@ -181,7 +181,7 @@ function unreachable(store: string, error: unknown): Error {
   return new Error(`Blob store ${store} ${reason}`, { cause: error });
 }
 
-export interface S3BlobStoreOptions {
+interface S3BlobStoreOptions {
   endpoint: string;
   bucket: string;
   region?: string;

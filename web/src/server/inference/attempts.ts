@@ -22,7 +22,7 @@ import type {
 import type { Worker, WorkerIdentity } from "../../domain/workers/schema";
 import { readModel, toModelVersion } from "../models/public";
 import { lockWorkerSession, leaseIsHeld } from "../workers/public";
-import { contentDigest } from "../infra/digest";
+import { documentDigest } from "../infra/digest";
 import { canonicalJson } from "../../lib/json/canonical";
 import { storeInferenceOutcome, type DetectionTarget } from "./outcomes";
 import {
@@ -272,7 +272,7 @@ export async function completeInferenceClaim(
     const task = await lockTask(tx, target);
     const attempt = await ownedAttempt(tx, target, owner);
     const parsed = detectionResultSchema.parse(result);
-    const digest = contentDigest(canonicalJson(parsed));
+    const digest = documentDigest(parsed);
     if (attempt.status === "succeeded" && attempt.resultDigest === digest)
       return;
     requireLive(task, attempt, await inferenceTime(tx, suppliedAt));

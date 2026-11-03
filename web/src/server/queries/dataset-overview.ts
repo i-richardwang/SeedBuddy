@@ -1,8 +1,8 @@
 import type { Dataset } from "../../domain/datasets/schema";
 import type { Model } from "../../domain/models/schema";
 import type {
-  TrainingRunSummary,
-  TrainingSummary,
+  TrainingRunListing,
+  DatasetTrainingReadiness,
 } from "../../domain/training/read-model";
 import {
   TRAINING_PRESETS,
@@ -18,9 +18,9 @@ import {
   type ImageSummary,
 } from "../datasets/public";
 import { readModel } from "../models/public";
-import { listTrainingRunSummaries } from "../training/public";
+import { listTrainingRunSummaries } from "./training-runs";
 
-import { trainingSummary } from "./training-summary";
+import { datasetTrainingReadiness } from "./training-summary";
 
 /**
  * What a training set's page shows: its model and images, how many are
@@ -32,10 +32,10 @@ interface DatasetOverview {
   model: Model;
   images: ImageSummary[];
   reviewedCount: number;
-  training: TrainingSummary;
+  training: DatasetTrainingReadiness;
   trainingPresets: readonly TrainingPreset[];
   defaultTrainingPresetId: TrainingPresetId;
-  runs: TrainingRunSummary[];
+  runs: TrainingRunListing[];
 }
 
 export async function datasetOverview(
@@ -52,7 +52,7 @@ export async function datasetOverview(
     model,
     images: records.map(summarize),
     reviewedCount: countReviewed(records),
-    training: await trainingSummary(dataset, records, at),
+    training: await datasetTrainingReadiness(dataset, records, at),
     trainingPresets: TRAINING_PRESETS,
     defaultTrainingPresetId: DEFAULT_TRAINING_PRESET_ID,
     runs: await listTrainingRunSummaries({ datasetId: dataset.id }),

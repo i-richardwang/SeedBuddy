@@ -4,11 +4,8 @@ import { serveAnnotationMcp } from "./annotation";
 import { serveExperimentsMcp } from "./experiments";
 import { annotationResourceMetadata } from "./access";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
-import {
-  authorizeMcpClient,
-  observeImagesForModel,
-  signInAs,
-} from "../../testing/fixtures";
+import { observeImagesForModel } from "../../testing/fixtures";
+import { authorizeMcpClient, signInAs } from "../../testing/auth";
 import { legacyRequest, requestEras, rpcMessage } from "../../testing/mcp";
 import { createModel } from "../../models/public";
 

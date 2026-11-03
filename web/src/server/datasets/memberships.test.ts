@@ -37,7 +37,7 @@ import {
   observeImagesForModel,
   registerTrainedVersion,
   resultFor,
-  uploadTexts,
+  observeTextsIntoDataset,
 } from "../testing/fixtures";
 import { createModel, registerModel } from "../models/registry";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
@@ -308,7 +308,9 @@ describe("datasets", () => {
 
 describe("removal", () => {
   test("removes the membership; the review and the detection stay with the image", async () => {
-    const { version, digests, dataset } = await uploadTexts("rm", ["rm-bytes"]);
+    const { version, digests, dataset } = await observeTextsIntoDataset("rm", [
+      "rm-bytes",
+    ]);
     const digest = digests[0]!;
     const ref = { dataset: dataset.id, digest };
     const target = { versionId: version.id, digest };
@@ -334,9 +336,10 @@ describe("removal", () => {
   });
 
   test("a review keeps the image alive after its last membership and observation are gone", async () => {
-    const { digests, images, dataset } = await uploadTexts("share-a", [
-      "shared-bytes",
-    ]);
+    const { digests, images, dataset } = await observeTextsIntoDataset(
+      "share-a",
+      ["shared-bytes"],
+    );
     const digest = digests[0]!;
     const { dataset: shareB } =
       await addExperimentObservationImagesToNewDataset({

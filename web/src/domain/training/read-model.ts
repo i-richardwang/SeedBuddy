@@ -4,7 +4,7 @@ import type { Model, ModelVersion } from "../models/schema";
 import type { TrainingAttempt, TrainingEpoch, TrainingRun } from "./schema";
 import type { TrainingRunStall } from "./stall";
 
-export interface TrainingRunSummary {
+export interface TrainingRunListing {
   dataset: NamedDataset;
   run: TrainingRun;
   completed: number;
@@ -12,7 +12,7 @@ export interface TrainingRunSummary {
 }
 
 /** Whether a training set can start a run now, and what the run would train on. */
-export interface TrainingSummary {
+export interface DatasetTrainingReadiness {
   /** The model's run in progress, whichever training set feeds it. */
   active: TrainingRun | null;
   reviewedSinceLastRun: number;

@@ -20,12 +20,12 @@ import {
   experimentObservations,
   models,
 } from "../infra/db/schema";
-import { activeRuns, atActiveRun, proposalRunId } from "../readings/public";
+import { activeReadingJoin, proposalRunId } from "../readings/public";
 
 /** How many images one listing names; the total says how many remain. */
 const LISTED = 100;
 
-export interface PendingAnnotation {
+interface PendingAnnotation {
   ref: AnnotationRef;
   filename: string;
   /** The progress of the run already at work on it, which an agent continues. */
@@ -38,6 +38,7 @@ export interface PendingAnnotation {
  * model says how to annotate.
  */
 function awaiting(imageId: SQLWrapper, modelId: SQLWrapper) {
+  const { run: activeRuns } = activeReadingJoin(imageId, modelId);
   const unread = and(
     sql`${models.annotation}->>'instructions' <> ''`,
     notExists(
@@ -57,24 +58,33 @@ export async function listPendingAnnotations(modelId?: string): Promise<{
   images: PendingAnnotation[];
 }> {
   const db = await database();
+  const datasetActive = activeReadingJoin(
+    datasetImages.imageId,
+    datasets.modelId,
+  );
+  const observationActive = activeReadingJoin(
+    experimentObservationImages.imageId,
+    experimentObservations.modelId,
+  );
+  const { run: activeRuns } = datasetActive;
   const progress = {
     completed: activeRuns.completed,
     total: activeRuns.total,
   };
   const [inDatasets, inExperiments] = await Promise.all([
-    db
-      .select({
-        digest: datasetImages.imageId,
-        modelId: datasets.modelId,
-        filename: datasetImages.filename,
-        progress,
-      })
-      .from(datasetImages)
-      .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-      .innerJoin(models, eq(models.id, datasets.modelId))
-      .leftJoin(
-        activeRuns,
-        atActiveRun(datasetImages.imageId, datasets.modelId),
+    datasetActive
+      .apply(
+        db
+          .select({
+            digest: datasetImages.imageId,
+            modelId: datasets.modelId,
+            filename: datasetImages.filename,
+            progress,
+          })
+          .from(datasetImages)
+          .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
+          .innerJoin(models, eq(models.id, datasets.modelId))
+          .$dynamic(),
       )
       .where(
         and(
@@ -82,34 +92,31 @@ export async function listPendingAnnotations(modelId?: string): Promise<{
           modelId ? eq(datasets.modelId, modelId) : undefined,
         ),
       ),
-    db
-      .select({
-        digest: experimentObservationImages.imageId,
-        modelId: experimentObservations.modelId,
-        filename: experimentObservationImages.filename,
-        progress,
-      })
-      .from(experimentObservationImages)
-      .innerJoin(
-        experimentObservations,
-        and(
-          eq(
-            experimentObservations.experimentId,
-            experimentObservationImages.experimentId,
-          ),
-          eq(
-            experimentObservations.id,
-            experimentObservationImages.observationId,
-          ),
-        ),
-      )
-      .innerJoin(models, eq(models.id, experimentObservations.modelId))
-      .leftJoin(
-        activeRuns,
-        atActiveRun(
-          experimentObservationImages.imageId,
-          experimentObservations.modelId,
-        ),
+    observationActive
+      .apply(
+        db
+          .select({
+            digest: experimentObservationImages.imageId,
+            modelId: experimentObservations.modelId,
+            filename: experimentObservationImages.filename,
+            progress,
+          })
+          .from(experimentObservationImages)
+          .innerJoin(
+            experimentObservations,
+            and(
+              eq(
+                experimentObservations.experimentId,
+                experimentObservationImages.experimentId,
+              ),
+              eq(
+                experimentObservations.id,
+                experimentObservationImages.observationId,
+              ),
+            ),
+          )
+          .innerJoin(models, eq(models.id, experimentObservations.modelId))
+          .$dynamic(),
       )
       .where(
         and(

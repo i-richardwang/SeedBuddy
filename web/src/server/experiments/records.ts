@@ -256,3 +256,13 @@ export function requireObservation(
   }
   return observation;
 }
+
+export function atObservationImage(
+  experimentId: string,
+  observationImageId: string,
+) {
+  return and(
+    eq(experimentObservationImages.experimentId, experimentId),
+    eq(experimentObservationImages.id, observationImageId),
+  );
+}

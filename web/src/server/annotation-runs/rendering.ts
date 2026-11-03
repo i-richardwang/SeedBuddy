@@ -1,8 +1,7 @@
 import sharp from "sharp";
 import { createSingleFlight, createWorkGate } from "../../lib/async/work";
 import { ByteCache } from "../../lib/cache/bytes";
-import { canonicalJson } from "../../lib/json/canonical";
-import { contentDigest } from "../infra/digest";
+import { documentDigest } from "../infra/digest";
 import type { ImageRegionEvidence } from "../images/public";
 import type { BoundingBox } from "../../domain/annotation/schema";
 import type {
@@ -197,7 +196,7 @@ export async function renderTask(
         })),
       );
       const initial = await marked(
-        `${evidence.key}/references/${contentDigest(canonicalJson(boxes))}`,
+        `${evidence.key}/references/${documentDigest(boxes)}`,
         clean,
         width,
         height,

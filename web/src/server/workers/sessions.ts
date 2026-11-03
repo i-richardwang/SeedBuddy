@@ -103,7 +103,7 @@ export async function currentWorkerSession(
   return sessionOf(identity, row);
 }
 
-/** The current session with its row locked, so one worker claims one job at a time. */
+/** The current session with its row locked, so one worker claims one task at a time. */
 export async function lockWorkerSession(
   identity: WorkerIdentity,
   tx: Executor,

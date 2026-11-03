@@ -171,7 +171,7 @@ export async function createDatasetSnapshot(
 }
 
 /** The training set each snapshot was taken of, and how many reviewed images it froze. */
-export async function snapshotSummaries(
+export async function datasetSnapshotSummaries(
   snapshotIds: string[],
 ): Promise<Map<string, { datasetId: string; images: number }>> {
   if (snapshotIds.length === 0) return new Map();

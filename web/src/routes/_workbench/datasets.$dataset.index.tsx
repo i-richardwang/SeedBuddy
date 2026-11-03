@@ -311,7 +311,7 @@ function DatasetPage() {
                     <BoxCount
                       detected={image.detectionCount}
                       proposed={image.proposalCount}
-                      boxes={image.instanceCount}
+                      boxes={image.reviewCount}
                     />
                   </TableCell>
                   <TableCell cellSlot="actions" className="text-end">
@@ -370,7 +370,7 @@ function ImagePreview({
           <BoxCount
             detected={image.detectionCount}
             proposed={image.proposalCount}
-            boxes={image.instanceCount}
+            boxes={image.reviewCount}
           />
         </DescriptionsItem>
         {hasQualityNotes(image) ? (

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
 
 import { inTransaction, type Executor } from "../infra/db/client";
-import { isUniqueViolation } from "../infra/db/errors";
+import { refusingUnique } from "../infra/db/errors";
 import {
   experimentCultureEvents,
   experimentManualReadings,
@@ -77,14 +77,12 @@ async function refuseTakenName<T>(
   name: string,
   write: () => Promise<T>,
 ): Promise<T> {
-  try {
-    return await write();
-  } catch (error) {
-    if (!isUniqueViolation(error, "experiments_name")) throw error;
-    throw new ExperimentRejectedError(
-      `An experiment named ${name} already exists`,
-    );
-  }
+  return refusingUnique(
+    "experiments_name",
+    () =>
+      new ExperimentRejectedError(`An experiment named ${name} already exists`),
+    write,
+  );
 }
 
 export async function updateExperiment(

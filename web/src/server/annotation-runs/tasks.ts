@@ -1,10 +1,9 @@
-import { createHash } from "node:crypto";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AnnotationRef } from "../../domain/annotation/schema";
 import { prepareProposal } from "../../domain/annotation-runs/tasks";
 import { collectRegions } from "../../domain/annotation-runs/results";
 import { AnnotationRunConflictError } from "../../domain/annotation-runs/errors";
-import { canonicalJson } from "../../lib/json/canonical";
+import { documentDigest } from "../infra/digest";
 import { database, transaction } from "../infra/db/client";
 import {
   annotationRuns,
@@ -16,8 +15,6 @@ import { inProgress } from "./runs";
 const conflict = (message: string): never => {
   throw new AnnotationRunConflictError(message);
 };
-const contentDigest = (value: unknown) =>
-  createHash("sha256").update(canonicalJson(value)).digest("hex");
 const acceptance = (
   taskId: string,
   run: typeof annotationRuns.$inferSelect,
@@ -65,7 +62,7 @@ export async function savePreview(taskId: string, value: unknown) {
     task.region,
     run.definition,
   );
-  const proposalId = contentDigest({ taskId, response });
+  const proposalId = documentDigest({ taskId, response });
   await (
     await database()
   )

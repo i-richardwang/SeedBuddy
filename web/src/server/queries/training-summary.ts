@@ -1,7 +1,7 @@
 import type { AnnotationDocument } from "../../domain/annotation/schema";
 import type { Dataset } from "../../domain/datasets/schema";
 import type { TrainingRun } from "../../domain/training/schema";
-import type { TrainingSummary } from "../../domain/training/read-model";
+import type { DatasetTrainingReadiness } from "../../domain/training/read-model";
 import {
   readDatasetSnapshot,
   activeTrainingRun,
@@ -51,11 +51,11 @@ function boxes(annotation: AnnotationDocument): string {
  * Readiness is the dataset's own; the active run is the model's, because one
  * run at a time trains a model whichever dataset feeds it.
  */
-export async function trainingSummary(
+export async function datasetTrainingReadiness(
   dataset: Dataset,
   records: ImageRecord[],
   at: Date,
-): Promise<TrainingSummary> {
+): Promise<DatasetTrainingReadiness> {
   const [online, active, latest] = await Promise.all([
     listOnlineTrainers(at),
     activeTrainingRun(dataset.modelId),

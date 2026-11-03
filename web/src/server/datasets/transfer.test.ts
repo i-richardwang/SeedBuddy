@@ -22,7 +22,7 @@ import {
   imageDigest,
   reviewedDataset,
   storeTexts,
-  uploadTexts,
+  observeTextsIntoDataset,
 } from "../testing/fixtures";
 
 async function canonicalBytes(content: string) {
@@ -93,7 +93,7 @@ describe("dataset transfer", () => {
     expect(manifest.images).toHaveLength(2);
     expect(manifest.images.every((image) => image.annotation)).toBe(true);
 
-    const other = await uploadTexts("transfer-fresh", ["ts-c"]);
+    const other = await observeTextsIntoDataset("transfer-fresh", ["ts-c"]);
     const [otherRecord] = await listImageRecords(other.dataset.id);
     if (!otherRecord) throw new Error("no fresh image");
     const fresh = {
@@ -142,7 +142,7 @@ describe("dataset transfer", () => {
   });
 
   test("a manifest says which photographs are unclear, and an import never clears a mark made here", async () => {
-    const source = await uploadTexts("transfer-unclear-source", [
+    const source = await observeTextsIntoDataset("transfer-unclear-source", [
       "tu-fogged",
       "tu-clear",
       "tu-local",
