@@ -4,7 +4,7 @@ import type { AnnotationDocument } from "../../domain/annotation/schema";
 import type {
   DatasetContents,
   DatasetImageRef,
-  DatasetSummary,
+  DatasetOverview,
 } from "../../domain/datasets/schema";
 import type {
   DetectionQuality,
@@ -13,14 +13,8 @@ import type {
 import { markedUnclear } from "../images/public";
 import { shownDetectingVersion } from "../inference/public";
 import { database, type Executor } from "../infra/db/client";
-import {
-  annotations,
-  datasetImages,
-  datasets,
-  images,
-  inferenceOutcomes,
-} from "../infra/db/schema";
-import { readingsJoin } from "../readings/public";
+import { datasetImages, datasets, images } from "../infra/db/schema";
+import { readingsSubquery } from "../readings/public";
 import {
   type DatasetImage,
   listDatasets,
@@ -31,7 +25,7 @@ import {
   toDatasetImage,
 } from "./memberships";
 
-export interface ImageSummary extends DatasetImageRef {
+export interface ImageOverview extends DatasetImageRef {
   filename: string;
   /** Boxes of the newest detection, or null until a version has run. */
   detectionCount: number | null;
@@ -65,7 +59,7 @@ export interface ReviewedRecord extends ImageRecord {
   annotation: AnnotationDocument;
 }
 
-export function summarize(record: ImageRecord): ImageSummary {
+export function summarize(record: ImageRecord): ImageOverview {
   const { image, detection, annotation } = record;
   return {
     dataset: image.dataset,
@@ -81,28 +75,24 @@ export function summarize(record: ImageRecord): ImageSummary {
 
 /** Memberships with their images and the documents that decide their state. */
 function recordQuery(db: Executor) {
-  const readings = readingsJoin({
-    imageId: datasetImages.imageId,
+  const readings = readingsSubquery(db, {
     modelId: datasets.modelId,
     version: shownDetectingVersion(datasetImages.imageId, datasets.modelId),
   });
-  const { proposal: proposalRuns } = readings;
-  return readings.apply(
-    db
-      .select({
-        membership: datasetImages,
-        image: images,
-        modelId: datasets.modelId,
-        detection: sql<DetectionResult | null>`${inferenceOutcomes.document}`,
-        proposal: sql<AnnotationDocument | null>`${proposalRuns.result}->'document'`,
-        annotation: annotations.document,
-        unclear: markedUnclear(datasetImages.imageId),
-      })
-      .from(datasetImages)
-      .innerJoin(images, eq(images.id, datasetImages.imageId))
-      .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-      .$dynamic(),
-  );
+  return db
+    .select({
+      membership: datasetImages,
+      image: images,
+      modelId: datasets.modelId,
+      detection: readings.detection,
+      proposal: sql<AnnotationDocument | null>`${readings.proposal}->'document'`,
+      annotation: readings.annotation,
+      unclear: markedUnclear(datasetImages.imageId),
+    })
+    .from(datasetImages)
+    .innerJoin(images, eq(images.id, datasetImages.imageId))
+    .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
+    .leftJoinLateral(readings, eq(readings.imageId, datasetImages.imageId));
 }
 
 function toRecord(
@@ -144,11 +134,8 @@ export async function listReviewedRecords(
   lock = false,
 ): Promise<ReviewedRecord[]> {
   const query = recordQuery(db)
-    .where(
-      and(
-        eq(datasetImages.datasetId, datasetId),
-        isNotNull(annotations.imageId),
-      ),
+    .where(({ annotation }) =>
+      and(eq(datasetImages.datasetId, datasetId), isNotNull(annotation)),
     )
     .orderBy(...membershipOrder());
   const rows = lock
@@ -166,9 +153,9 @@ export function countReviewed(records: ImageRecord[]): number {
 }
 
 /** Every dataset, or those training one model, with its image and review counts. */
-export async function listDatasetSummaries(
+export async function listDatasetOverviews(
   modelId?: string,
-): Promise<DatasetSummary[]> {
+): Promise<DatasetOverview[]> {
   const datasets = modelId
     ? await listDatasetsForModel(modelId)
     : await listDatasets();

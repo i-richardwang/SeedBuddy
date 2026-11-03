@@ -2,6 +2,13 @@ import { z } from "zod";
 
 import { exclusionSchema, unitExclusions } from "./analysis";
 import {
+  cellReading,
+  cellReadingSchema,
+  type ObservationCells,
+  observationCells,
+  unitDays,
+} from "./cell-reading";
+import {
   type ExperimentGrid,
   type ObservationImageCell,
   observationImageCellSchema,
@@ -12,13 +19,6 @@ import {
   type ObservationOrdinals,
   observationOrdinals,
 } from "./culture-events";
-import {
-  cellReading,
-  type ObservationCells,
-  observationCells,
-  readingSchema,
-  unitDays,
-} from "./readings";
 import {
   experimentObservationSchema,
   experimentSchema,
@@ -60,7 +60,7 @@ const cellManualSchema = manualReadingSchema.omit({
 const sheetCellSchema = z.strictObject({
   unit: unitIdSchema,
   observation: observationIdSchema,
-  reading: readingSchema.nullable(),
+  reading: cellReadingSchema.nullable(),
   exclusion: exclusionSchema.nullable(),
   image: cellImageSchema.nullable(),
   manual: cellManualSchema.nullable(),

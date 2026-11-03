@@ -15,7 +15,7 @@ export class ModelInUseError extends ConflictError {
 }
 /** Boxes, or the classes an observation counts, name a class the model does not declare. */
 export class UnknownClassError extends ValidationError {
-  readonly code = "unknown_class";
+  readonly code = "class_invalid";
 }
 
 export class ModelPublicationError extends ValidationError {

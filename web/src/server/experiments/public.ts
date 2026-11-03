@@ -18,11 +18,7 @@ export {
   retryObservationImageAnalysis,
   unassignObservationImage,
 } from "./observation-images";
-export {
-  addObservation,
-  deleteObservation,
-  updateObservation,
-} from "./observations";
+export { deleteObservation, updateObservation } from "./observations";
 export {
   listExperimentNames,
   listExperiments,

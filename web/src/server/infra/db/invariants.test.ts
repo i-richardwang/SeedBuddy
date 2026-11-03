@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 
 import { recordCultureEvent } from "../../experiments/culture-events";
 import { createExperiment } from "../../experiments/design";
-import { addObservation } from "../../experiments/observations";
+import { createObservation } from "../../experiments/observations";
 import { listTreatments, listUnits } from "../../experiments/records";
 import {
   baselineVersion,
@@ -35,13 +35,13 @@ test("the database rejects a second terminal event", async () => {
     treatments: [{ name: "Control", factor: null, note: "", replicates: 1 }],
   });
   const [unit] = await listUnits(experiment.id, await database());
-  const day7 = await addObservation({
+  const day7 = await createObservation({
     experiment: experiment.id,
     observedOn: "2026-08-08",
     note: "",
     modelId: version.modelId,
   });
-  const day14 = await addObservation({
+  const day14 = await createObservation({
     experiment: experiment.id,
     observedOn: "2026-08-15",
     note: "",

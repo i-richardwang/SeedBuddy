@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 import type { NamedDataset } from "../datasets/schema";
-import { resourceIdSchema, timestampSchema } from "../identifiers/schema";
+import { resourceIdSchema } from "../identifiers/schema";
 import { runtimeDescriptorSchema } from "../inference/schema";
+import { timestampSchema } from "../time";
 
 const runtimesSchema = z
   .array(runtimeDescriptorSchema)
@@ -26,25 +27,21 @@ export const workerSessionSchema = z.strictObject({
 export const attemptOwnerSchema = workerSessionSchema.extend({
   attempt: z.number().int().positive(),
 });
-export type AttemptOwner = z.infer<typeof attemptOwnerSchema> & {
-  workerId: string;
+export type AttemptOwner = WorkerIdentity & {
+  attempt: number;
 };
 
 /** What a worker process reports about itself on every heartbeat. */
-export const workerReportSchema = workerSessionSchema
-  .extend({
-    startedAt: timestampSchema,
-    runtimes: runtimesSchema,
-    memoryBytes: z.number().int().positive(),
-  })
-  .strict();
+export const workerReportSchema = workerSessionSchema.extend({
+  startedAt: timestampSchema,
+  runtimes: runtimesSchema,
+  memoryBytes: z.number().int().positive(),
+});
 
-export const workerSchema = workerReportSchema
-  .extend({
-    workerId: resourceIdSchema,
-    lastSeenAt: timestampSchema,
-  })
-  .strict();
+export const workerSchema = workerReportSchema.extend({
+  workerId: resourceIdSchema,
+  lastSeenAt: timestampSchema,
+});
 
 /** A worker by the name its administrator enrolled it under. */
 export const workerRefSchema = z.strictObject({ workerId: resourceIdSchema });

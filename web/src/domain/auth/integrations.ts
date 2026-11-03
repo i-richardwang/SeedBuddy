@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { timestampSchema } from "../identifiers/schema";
+import { timestampSchema } from "../time";
 
 /**
  * Programmatic access to the workbench belongs to accounts. A personal API

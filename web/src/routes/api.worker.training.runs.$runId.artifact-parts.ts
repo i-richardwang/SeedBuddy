@@ -6,7 +6,7 @@ import { artifactPartSize } from "../domain/training/artifact";
 import { saveTrainingArtifactPart } from "../server/training/public";
 import {
   parseArtifactQuery,
-  parseTrainingQuery,
+  parseAttemptOwner,
   parseWorkerValue,
   WorkerRequestError,
   workerErrorResponse,
@@ -20,7 +20,7 @@ export const Route = createFileRoute(
     handlers: {
       PUT: async ({ params, request, context }) => {
         try {
-          const owner = parseTrainingQuery(request, context.workerId);
+          const owner = parseAttemptOwner(request, context.workerId);
           const query = new URL(request.url).searchParams;
           const upload = parseArtifactQuery(request);
           const part = parseWorkerValue(

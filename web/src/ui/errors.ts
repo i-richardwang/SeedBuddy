@@ -21,8 +21,8 @@ const BUSINESS_ERROR_LABELS: ReadonlyMap<string, Label> = new Map<
     () => m.error_observation_model_has_counts(),
   ],
   ["experiment_has_records", () => m.error_experiment_has_records()],
-  ["user_rejected", () => m.error_user_rejected()],
-  ["worker_already_enrolled", () => m.error_worker_name_taken()],
+  ["user_invalid", () => m.error_user_rejected()],
+  ["worker_name_taken", () => m.error_worker_name_taken()],
 ]);
 
 function imageAlreadyUsed(details: BusinessFailure["details"]): string | null {

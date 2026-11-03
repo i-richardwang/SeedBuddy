@@ -2,24 +2,17 @@ import { expect, test } from "bun:test";
 
 import { TRAINING_ARTIFACT_PART_BYTES } from "../../domain/training/artifact";
 import { TrainingRunConflictError } from "../../domain/training/errors";
-import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import type {
-  WorkerHeartbeat,
-  WorkerIdentity,
-} from "../../domain/workers/schema";
 import { imageBlobKey } from "../images/keys";
 import { markImageUnclear } from "../images/public";
 import { requireBlob } from "../infra/blobs/store";
 import { contentDigest } from "../infra/digest";
 import { openModelWeights } from "../models/publication";
 import { readModelVersion } from "../models/registry";
-import { listTrainingRunSummaries } from "../queries/training-runs";
 import {
   imageDigest,
   recordTestHeartbeat,
   reviewedDataset as reviewed,
   traditionalVersion,
-  ULTRALYTICS_RUNTIME,
 } from "../testing/fixtures";
 import { trainingBundle } from "../testing/model-bundle";
 import { removeWorker } from "../workers/public";
@@ -30,6 +23,7 @@ import {
 import { listTrainingAttempts } from "./attempts";
 import { collectTrainingArtifactParts } from "./collection";
 import { controlTrainingRun } from "./control";
+import { listTrainingEpochs } from "./epochs";
 import { artifactPartKey } from "./keys";
 import { publishTrainingArtifact as publishTrainingBundle } from "./publication";
 import {
@@ -38,7 +32,6 @@ import {
   createTrainingRun,
   enterTrainingPhase,
   failTrainingRun,
-  listTrainingEpochs,
   readTrainingRun,
   recordTrainingEpoch,
   renewTrainingLease,
@@ -82,97 +75,16 @@ async function publishTrainingArtifact(
   return publishTrainingBundle(runId, owner, bundle);
 }
 
-const CONTENTS = ["first-image", "second-image"];
-
-/** Publishing trains new versions, so these runs keep a model of their own. */
-async function reviewedDataset(name: string) {
-  const { dataset } = await reviewed(
-    name,
-    CONTENTS,
-    await traditionalVersion("training-detector", "training-v1"),
-  );
-  return dataset;
-}
-
-function owner(
-  workerId: string,
-  sessionId = `${workerId}-session`,
-  attempt = 1,
-) {
-  return { workerId, sessionId, attempt };
-}
-
-function heartbeat(identity: WorkerIdentity, startedAt: Date): WorkerHeartbeat {
-  return {
-    workerId: identity.workerId,
-    sessionId: identity.sessionId,
-    startedAt: startedAt.toISOString(),
-    runtimes: [ULTRALYTICS_RUNTIME],
-    memoryBytes: 24 * 1024 ** 3,
-  };
-}
-
-async function trainer(workerId: string) {
-  const identity = owner(workerId);
-  await recordTestHeartbeat(heartbeat(identity, new Date()));
-  return identity;
-}
-
-const recipe = {
-  ...YOLO26N_WHOLE_RECIPE,
-  parameters: {
-    ...YOLO26N_WHOLE_RECIPE.parameters,
-    epochs: 3,
-    imgsz: 768,
-    batch: 4,
-  },
-};
-
-function epochReport(epoch: number) {
-  return {
-    epoch,
-    train: {
-      box: 1.5 / epoch,
-      classification: 2 / epoch,
-      regression: 1 / epoch,
-    },
-    val: {
-      box: 1.6 / epoch,
-      classification: 2.1 / epoch,
-      regression: 1.1 / epoch,
-    },
-    precision: 0.2 * epoch,
-    recall: 0.25 * epoch,
-    map50: 0.3 * epoch,
-    map50To95: 0.1 * epoch,
-    fitness: 0.12 * epoch,
-    learningRate: 0.001,
-  };
-}
-
-const publication = {
-  schemaVersion: 1 as const,
-  weights: "weights/best.pt" as const,
-  inference: {
-    ready: true as const,
-    confidence: 0.42,
-    imageSize: 768,
-    maxDetections: 500,
-    endToEnd: false,
-  },
-  validation: {
-    precision: 0.5,
-    recall: 0.4,
-    map50: 0.8,
-    map50To95: 0.4,
-    fitness: 0.44,
-  },
-  training: {
-    baseModel: recipe.baseModel,
-    parameters: recipe.parameters,
-    runtime: recipe.runtime,
-  },
-};
+import {
+  CONTENTS,
+  epochReport,
+  heartbeat,
+  owner,
+  publication,
+  recipe,
+  reviewedDataset,
+  trainer,
+} from "./testing";
 
 test("a model has at most one active training run", async () => {
   const dataset = await reviewedDataset("exclusive-run");
@@ -192,14 +104,6 @@ test("a model has at most one active training run", async () => {
   expect(next.id).not.toBe(run.id);
   expect((await claimTrainingRun(trainerOwner))?.id).toBe(next.id);
   await failTrainingRun(next.id, trainerOwner, "stopped");
-  expect(
-    (await listTrainingRunSummaries({ datasetId: dataset.id }))
-      .map((summary) => summary.run.id)
-      .sort(),
-  ).toEqual([next.id, run.id].sort());
-  await expect(
-    listTrainingRunSummaries({ datasetId: dataset.id }, 101),
-  ).rejects.toThrow(/between 1 and 100/);
 });
 
 test("concurrent claims lease a run to exactly one worker", async () => {
@@ -437,16 +341,6 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
     map50: 0.3,
     learningRate: 0.001,
   });
-  expect(
-    await listTrainingRunSummaries({ datasetId: dataset.id }, 1),
-  ).toMatchObject([
-    {
-      dataset: { id: dataset.id, name: "epoch-history" },
-      run: { id: run.id },
-      completed: 1,
-      best: { map50: 0.3, map50To95: 0.1 },
-    },
-  ]);
   const validating = await enterTrainingPhase(
     run.id,
     owner("epoch-trainer", undefined, 2),

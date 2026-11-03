@@ -1,10 +1,10 @@
 import { useState } from "react";
 
+import { imageReading } from "../../domain/experiments/cell-reading";
 import type {
   ObservationImageCell,
   Unit,
 } from "../../domain/experiments/contracts";
-import { imageReading } from "../../domain/experiments/readings";
 import type {
   ExperimentObservation,
   ManualReading,

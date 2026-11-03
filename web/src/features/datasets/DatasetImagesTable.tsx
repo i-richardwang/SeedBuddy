@@ -22,7 +22,7 @@ import { TextLink } from "../../ui/kit/TextLink";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import {
   BoxCount,
-  type DatasetOverviewImage,
+  type DatasetImageOverview,
   ImageQuality,
 } from "./ImageFacts";
 import {
@@ -45,14 +45,14 @@ export function DatasetImagesTable({
 }: {
   dataset: NamedDataset;
   empty: ReactNode;
-  images: DatasetOverviewImage[];
+  images: DatasetImageOverview[];
   previewed?: string;
 }) {
   const states = new Map(
     images.map((image) => [image.digest, datasetImageState(image)]),
   );
   const { query, setQuery, filter, setFilter, matches, shown, pagination } =
-    usePagedSearch<DatasetOverviewImage, Filter>(images, {
+    usePagedSearch<DatasetImageOverview, Filter>(images, {
       text: (image) => image.filename,
       initialFilter: "all",
       accepts: (image, filter) =>

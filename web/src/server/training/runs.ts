@@ -9,12 +9,10 @@ import {
 } from "../../domain/training/errors";
 import {
   ACTIVE_TRAINING_RUN_STATUSES,
-  type TrainingEpoch,
   type TrainingEpochReport,
   type TrainingPhase,
   type TrainingRecipe,
   type TrainingRun,
-  trainingEpochSchema,
   trainingRecipeSchema,
   trainingRunId,
 } from "../../domain/training/schema";
@@ -29,7 +27,6 @@ import {
   datasetSnapshots,
   inferenceAttempts,
   trainingAttempts,
-  trainingEpochs,
   trainingRuns,
 } from "../infra/db/schema";
 import {
@@ -41,6 +38,7 @@ import {
   sessionIsCurrent,
 } from "../workers/public";
 import { finishAttempt } from "./attempts";
+import { latestTrainingEpoch, saveTrainingEpoch } from "./epochs";
 import { toTrainingRun } from "./records";
 import { createDatasetSnapshot, readDatasetSnapshot } from "./snapshots";
 
@@ -59,7 +57,6 @@ const NEXT_PHASE: Record<TrainingPhase, TrainingPhase | null> = {
 };
 
 type Row = typeof trainingRuns.$inferSelect;
-type EpochRow = typeof trainingEpochs.$inferSelect;
 type RunningTrainingRun = TrainingRun & {
   state: Extract<TrainingRun["state"], { status: "running" }>;
 };
@@ -71,29 +68,6 @@ function requireTrainingRunRow(
   if (!row)
     throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
   return toTrainingRun(row);
-}
-
-function toEpoch(row: EpochRow): TrainingEpoch {
-  return trainingEpochSchema.parse({
-    epoch: row.epoch,
-    recordedAt: row.recordedAt.toISOString(),
-    train: {
-      box: row.trainBoxLoss,
-      classification: row.trainClassificationLoss,
-      regression: row.trainRegressionLoss,
-    },
-    val: {
-      box: row.valBoxLoss,
-      classification: row.valClassificationLoss,
-      regression: row.valRegressionLoss,
-    },
-    precision: row.precision,
-    recall: row.recall,
-    map50: row.map50,
-    map50To95: row.map50To95,
-    fitness: row.fitness,
-    learningRate: row.learningRate,
-  });
 }
 
 /** Every state column, so a transition never leaves stale values behind. */
@@ -208,12 +182,27 @@ function ownershipConflict(runId: string, owner: AttemptOwner) {
 async function ownedTransition(
   runId: string,
   owner: AttemptOwner,
-  changes: Partial<Pick<Row, keyof ReturnType<typeof stateColumns>>>,
+  state: TrainingRun["state"],
   db: Executor,
 ): Promise<TrainingRun> {
   const [row] = await db
     .update(trainingRuns)
-    .set(changes)
+    .set(stateColumns(state))
+    .where(and(eq(trainingRuns.id, runId), ownedBy(owner, new Date())))
+    .returning();
+  if (!row) throw ownershipConflict(runId, owner);
+  return toTrainingRun(row);
+}
+
+async function ownedUpdate(
+  runId: string,
+  owner: AttemptOwner,
+  leaseExpiresAt: Date,
+  db: Executor,
+): Promise<TrainingRun> {
+  const [row] = await db
+    .update(trainingRuns)
+    .set({ leaseExpiresAt })
     .where(and(eq(trainingRuns.id, runId), ownedBy(owner, new Date())))
     .returning();
   if (!row) throw ownershipConflict(runId, owner);
@@ -412,16 +401,23 @@ export async function claimTrainingRun(
   });
 }
 
-export async function lockTrainingRun(
+async function selectRunForUpdate(
   runId: string,
   tx: Executor,
-): Promise<TrainingRun> {
+): Promise<Row | undefined> {
   const [row] = await tx
     .select()
     .from(trainingRuns)
     .where(eq(trainingRuns.id, runId))
     .for("update");
-  return requireTrainingRunRow(row, runId);
+  return row;
+}
+
+export async function lockTrainingRun(
+  runId: string,
+  tx: Executor,
+): Promise<TrainingRun> {
+  return requireTrainingRunRow(await selectRunForUpdate(runId, tx), runId);
 }
 
 /** The run as its leaseholder sees it; any other caller gets a conflict. */
@@ -430,11 +426,13 @@ async function lockOwnedTrainingRun(
   owner: AttemptOwner,
   db: Executor,
 ): Promise<RunningTrainingRun> {
-  const run = await lockTrainingRun(runId, db).catch((error: unknown) => {
-    if (error instanceof TrainingRunNotFoundError) return null;
-    throw error;
-  });
-  return requireOwnedRunningRun(runId, run, owner, db);
+  const row = await selectRunForUpdate(runId, db);
+  return requireOwnedRunningRun(
+    runId,
+    row ? toTrainingRun(row) : null,
+    owner,
+    db,
+  );
 }
 
 export async function requireOwnedRunningRun(
@@ -444,12 +442,16 @@ export async function requireOwnedRunningRun(
   db: Executor,
 ): Promise<RunningTrainingRun> {
   await currentWorkerSession(owner, db);
-  const [owned] = await db
-    .select({ id: trainingRuns.id })
-    .from(trainingRuns)
-    .where(and(eq(trainingRuns.id, runId), ownedBy(owner, new Date())));
-  if (!run || !owned) throw ownershipConflict(runId, owner);
-  return run as RunningTrainingRun;
+  if (
+    run?.state.status !== "running" ||
+    run.state.workerId !== owner.workerId ||
+    run.state.sessionId !== owner.sessionId ||
+    run.attempt !== owner.attempt ||
+    new Date(run.state.leaseExpiresAt) <= new Date()
+  ) {
+    throw ownershipConflict(runId, owner);
+  }
+  return { ...run, state: run.state };
 }
 
 /** Renew ownership without changing the run's phase or business progress. */
@@ -458,12 +460,7 @@ export async function renewTrainingLease(
   owner: AttemptOwner,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
-  return ownedTransition(
-    runId,
-    owner,
-    { leaseExpiresAt: leaseUntil(at) },
-    await database(),
-  );
+  return ownedUpdate(runId, owner, leaseUntil(at), await database());
 }
 
 /** Advance through the ordered execution phases; retries are idempotent. */
@@ -491,14 +488,14 @@ export async function enterTrainingPhase(
     return ownedTransition(
       runId,
       owner,
-      stateColumns({
+      {
         status: "running",
         workerId: owner.workerId,
         sessionId: owner.sessionId,
         leaseExpiresAt: leaseFrom(at),
         phase,
         progress: Math.max(current.state.progress, PHASE_PROGRESS[phase]),
-      }),
+      },
       db,
     );
   });
@@ -527,18 +524,8 @@ export async function recordTrainingEpoch(
         `Training run ${runId} has ${total} epochs, not ${report.epoch}`,
       );
     }
-    const [previous] = await tx
-      .select({ epoch: trainingEpochs.epoch })
-      .from(trainingEpochs)
-      .where(
-        and(
-          eq(trainingEpochs.runId, runId),
-          eq(trainingEpochs.attempt, owner.attempt),
-        ),
-      )
-      .orderBy(desc(trainingEpochs.epoch))
-      .limit(1);
-    if (!previous || report.epoch > previous.epoch)
+    const previous = await latestTrainingEpoch(runId, owner.attempt, tx);
+    if (previous === null || report.epoch > previous)
       await tx
         .update(trainingRuns)
         .set({
@@ -553,52 +540,11 @@ export async function recordTrainingEpoch(
                 },
         })
         .where(eq(trainingRuns.id, runId));
-    await tx
-      .insert(trainingEpochs)
-      .values({
-        runId,
-        attempt: current.attempt,
-        epoch: report.epoch,
-        recordedAt: at,
-        trainBoxLoss: report.train.box,
-        trainClassificationLoss: report.train.classification,
-        trainRegressionLoss: report.train.regression,
-        valBoxLoss: report.val.box,
-        valClassificationLoss: report.val.classification,
-        valRegressionLoss: report.val.regression,
-        precision: report.precision,
-        recall: report.recall,
-        map50: report.map50,
-        map50To95: report.map50To95,
-        fitness: report.fitness,
-        learningRate: report.learningRate,
-      })
-      .onConflictDoUpdate({
-        target: [
-          trainingEpochs.runId,
-          trainingEpochs.attempt,
-          trainingEpochs.epoch,
-        ],
-        set: {
-          recordedAt: at,
-          trainBoxLoss: report.train.box,
-          trainClassificationLoss: report.train.classification,
-          trainRegressionLoss: report.train.regression,
-          valBoxLoss: report.val.box,
-          valClassificationLoss: report.val.classification,
-          valRegressionLoss: report.val.regression,
-          precision: report.precision,
-          recall: report.recall,
-          map50: report.map50,
-          map50To95: report.map50To95,
-          fitness: report.fitness,
-          learningRate: report.learningRate,
-        },
-      });
+    await saveTrainingEpoch(runId, current.attempt, report, at, tx);
     return ownedTransition(
       runId,
       owner,
-      stateColumns({
+      {
         status: "running",
         workerId: owner.workerId,
         sessionId: owner.sessionId,
@@ -609,34 +555,10 @@ export async function recordTrainingEpoch(
           PHASE_PROGRESS.training +
             TRAINING_PROGRESS_RANGE * (report.epoch / total),
         ),
-      }),
+      },
       tx,
     );
   });
-}
-
-/**
- * The run's curve: the epochs of its current attempt. An attempt that resumes
- * reports again the epochs it carries forward; an abandoned attempt's are not
- * the run's.
- */
-export async function listTrainingEpochs(
-  runId: string,
-): Promise<TrainingEpoch[]> {
-  const db = await database();
-  const rows = await db
-    .select({ epoch: trainingEpochs })
-    .from(trainingEpochs)
-    .innerJoin(
-      trainingRuns,
-      and(
-        eq(trainingRuns.id, trainingEpochs.runId),
-        eq(trainingRuns.attempt, trainingEpochs.attempt),
-      ),
-    )
-    .where(eq(trainingEpochs.runId, runId))
-    .orderBy(asc(trainingEpochs.epoch));
-  return rows.map(({ epoch }) => toEpoch(epoch));
 }
 
 export async function failTrainingRun(

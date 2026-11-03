@@ -19,13 +19,13 @@ import { canonicalJson } from "../../lib/json/canonical";
 import { openBlob, putImmutableBlob, removeBlob } from "../infra/blobs/store";
 import { database, type Executor, transaction } from "../infra/db/client";
 import { modelUploads, modelVersions } from "../infra/db/schema";
-import { contentDigest } from "../infra/digest";
+import { contentDigest, documentDigest } from "../infra/digest";
 import { readModel, readModelVersion, registerModelVersion } from "./registry";
 
 const UPLOAD_LIFETIME = 24 * 60 * 60 * 1000;
 
 export function bundleDigest(bundle: ModelBundle): string {
-  return contentDigest(canonicalJson(bundle));
+  return documentDigest(bundle);
 }
 
 /** The adapter fingerprint; bundle identity additionally binds classes, runtime and provenance. */
@@ -49,7 +49,7 @@ export async function prepareModelUpload(modelId: string, value: ModelBundle) {
     throw new ModelPublicationError(
       "Bundle classes and their order must match the model",
     );
-  const uploadId = `upload-${contentDigest(canonicalJson({ modelId, bundle }))}`;
+  const uploadId = `upload-${documentDigest({ modelId, bundle })}`;
   const expiresAt = new Date(Date.now() + UPLOAD_LIFETIME);
   const db = await database();
   await db
@@ -115,7 +115,7 @@ export async function registerUploadedModel(
     bundleDigest: bundleDigest(row.bundle),
     provenance: row.bundle.provenance,
   };
-  const id = `version-${contentDigest(canonicalJson({ modelId: row.modelId, bundle: row.bundle, source: origin }))}`;
+  const id = `version-${documentDigest({ modelId: row.modelId, bundle: row.bundle, source: origin })}`;
   const existing = await readModelVersion(id, tx);
   if (existing) return existing;
   if (!row.artifactDigest)

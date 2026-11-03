@@ -1,4 +1,4 @@
-import type { getDatasetOverview } from "../../functions/datasets";
+import type { getDatasetDetail } from "../../functions/datasets";
 import { Absent } from "../../ui/Absent";
 import { QualityTags } from "../../ui/DetectionQuality";
 import { Flexbox } from "../../ui/kit/Flex";
@@ -6,19 +6,19 @@ import { Text } from "../../ui/kit/Text";
 import { formatCount } from "../../ui/numbers";
 import { UnclearTag } from "../images/unclear";
 
-export type DatasetOverviewImage = NonNullable<
-  Awaited<ReturnType<typeof getDatasetOverview>>
+export type DatasetImageOverview = NonNullable<
+  Awaited<ReturnType<typeof getDatasetDetail>>
 >["images"][number];
 
 /** Whether anything is said against the image: the detector's warnings, or a person's mark. */
-export function hasQualityNotes(image: DatasetOverviewImage): boolean {
+export function hasQualityNotes(image: DatasetImageOverview): boolean {
   return (
     (image.quality !== null && image.quality.status !== "ok") || image.unclear
   );
 }
 
 /** What is said against the image, or nothing. */
-export function ImageQuality({ image }: { image: DatasetOverviewImage }) {
+export function ImageQuality({ image }: { image: DatasetImageOverview }) {
   if (!hasQualityNotes(image)) return <Absent />;
   return (
     <Flexbox horizontal gap={4} wrap="wrap">

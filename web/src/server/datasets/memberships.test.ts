@@ -353,3 +353,17 @@ describe("removal", () => {
     expect(await blobExists(imageBlobKey(digest))).toBe(true);
   });
 });
+
+test("missing dataset source images use the experiment-owned refusal", async () => {
+  await expect(
+    addExperimentObservationImagesToNewDataset({
+      name: `Missing source ${crypto.randomUUID()}`,
+      images: [
+        {
+          experiment: crypto.randomUUID(),
+          observationImage: crypto.randomUUID(),
+        },
+      ],
+    }),
+  ).rejects.toMatchObject({ code: "experiment_observation_image_not_found" });
+});

@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-import { resourceIdSchema, timestampSchema } from "../identifiers/schema";
+import { resourceIdSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema, tallySchema } from "../models/classes";
+import { timestampSchema } from "../time";
 
 export const experimentIdSchema = z.uuid();
 export const observationIdSchema = z.uuid();

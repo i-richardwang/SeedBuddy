@@ -1,4 +1,4 @@
-import type { DatasetSummary } from "../../domain/datasets/schema";
+import type { DatasetOverview } from "../../domain/datasets/schema";
 import type {
   VersionComparison,
   VersionComparisonDetail,
@@ -6,23 +6,23 @@ import type {
 import type { ModelCatalogueEntry } from "../../domain/models/contracts";
 import type { ModelVersion } from "../../domain/models/schema";
 import type {
-  TrainingRunListing,
+  TrainingRunOverview,
   VersionOverview,
 } from "../../domain/training/read-model";
-import { listDatasetSummaries } from "../datasets/public";
+import { listDatasetOverviews } from "../datasets/public";
 import { listAllModelVersions, readCurrentVersionId } from "../models/public";
-import { datasetSnapshotSummaries } from "../training/public";
+import { datasetSnapshotOverviews } from "../training/public";
 import { modelCatalogue } from "./model-catalogue";
-import { listTrainingRunSummaries } from "./training-runs";
+import { listTrainingRunOverviews } from "./training-runs";
 import { versionComparisons } from "./version-comparison";
 
 /** A model with what has been built for it. */
-interface ModelOverview extends ModelCatalogueEntry {
+interface ModelDetail extends ModelCatalogueEntry {
   versions: VersionOverview[];
   /** The training sets of the model. */
-  datasets: DatasetSummary[];
+  datasets: DatasetOverview[];
   /** The newest runs across those sets. */
-  runs: TrainingRunListing[];
+  runs: TrainingRunOverview[];
 }
 
 /**
@@ -30,17 +30,17 @@ interface ModelOverview extends ModelCatalogueEntry {
  * trained each, which one reads and how each candidate compares with it,
  * the training sets that train it, and their runs.
  */
-export async function modelOverview(
+export async function modelDetail(
   modelId: string,
-): Promise<ModelOverview | null> {
+): Promise<ModelDetail | null> {
   const entry = (await modelCatalogue()).find(
     (item) => item.model.id === modelId,
   );
   if (!entry) return null;
   const [versions, datasets, runs] = await Promise.all([
     listVersionOverviews(modelId),
-    listDatasetSummaries(modelId),
-    listTrainingRunSummaries({ modelId }),
+    listDatasetOverviews(modelId),
+    listTrainingRunOverviews({ modelId }),
   ]);
   return { ...entry, versions, datasets, runs };
 }
@@ -54,7 +54,7 @@ async function listVersionOverviews(
   const [currentVersionId, comparisons, snapshots] = await Promise.all([
     readCurrentVersionId(modelId),
     versionComparisons(modelId),
-    datasetSnapshotSummaries(
+    datasetSnapshotOverviews(
       versions.flatMap((version) =>
         version.source.kind === "training_run"
           ? [version.source.datasetSnapshotId]

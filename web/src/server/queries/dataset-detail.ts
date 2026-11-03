@@ -2,7 +2,7 @@ import type { Dataset } from "../../domain/datasets/schema";
 import type { Model } from "../../domain/models/schema";
 import type {
   DatasetTrainingReadiness,
-  TrainingRunListing,
+  TrainingRunOverview,
 } from "../../domain/training/read-model";
 import {
   DEFAULT_TRAINING_PRESET_ID,
@@ -12,35 +12,35 @@ import {
 } from "../../domain/training/recipes";
 import {
   countReviewed,
-  type ImageSummary,
+  type ImageOverview,
   listImageRecords,
   readDataset,
   summarize,
 } from "../datasets/public";
 import { readModel } from "../models/public";
-import { listTrainingRunSummaries } from "./training-runs";
-import { datasetTrainingReadiness } from "./training-summary";
+import { datasetTrainingReadiness } from "./training-readiness";
+import { listTrainingRunOverviews } from "./training-runs";
 
 /**
  * What a training set's page shows: its model and images, how many are
  * reviewed and so train, the state of training with the recipe a new run
  * starts from, and the set's runs.
  */
-interface DatasetOverview {
+interface DatasetDetail {
   dataset: Dataset;
   model: Model;
-  images: ImageSummary[];
+  images: ImageOverview[];
   reviewedCount: number;
   training: DatasetTrainingReadiness;
   trainingPresets: readonly TrainingPreset[];
   defaultTrainingPresetId: TrainingPresetId;
-  runs: TrainingRunListing[];
+  runs: TrainingRunOverview[];
 }
 
-export async function datasetOverview(
+export async function datasetDetail(
   datasetId: string,
   at: Date = new Date(),
-): Promise<DatasetOverview | null> {
+): Promise<DatasetDetail | null> {
   const dataset = await readDataset(datasetId);
   if (!dataset) return null;
   const model = await readModel(dataset.modelId);
@@ -54,6 +54,6 @@ export async function datasetOverview(
     training: await datasetTrainingReadiness(dataset, records, at),
     trainingPresets: TRAINING_PRESETS,
     defaultTrainingPresetId: DEFAULT_TRAINING_PRESET_ID,
-    runs: await listTrainingRunSummaries({ datasetId: dataset.id }),
+    runs: await listTrainingRunOverviews({ datasetId: dataset.id }),
   };
 }

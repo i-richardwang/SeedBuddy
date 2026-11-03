@@ -4,7 +4,7 @@ import { detectionResultSchema } from "../domain/detection/schema";
 import { inferenceTargetSchema } from "../domain/inference/assignments";
 import { completeInferenceClaim } from "../server/inference/public";
 import {
-  parseInferenceQuery,
+  parseAttemptOwner,
   parseWorkerJson,
   parseWorkerValue,
   workerErrorResponse,
@@ -17,7 +17,7 @@ export const Route = createFileRoute(
     handlers: {
       PUT: async ({ params, request, context }) => {
         try {
-          const worker = parseInferenceQuery(request, context.workerId);
+          const worker = parseAttemptOwner(request, context.workerId);
           const target = parseWorkerValue(
             params,
             inferenceTargetSchema,

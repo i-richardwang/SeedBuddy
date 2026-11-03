@@ -23,7 +23,7 @@ export class CultureEventNotFoundError extends NotFoundError {
 }
 
 export class ExperimentRejectedError extends ConflictError {
-  readonly code = "experiment_rejected";
+  readonly code = "experiment_name_taken";
 }
 export class ExperimentHasRecordsError extends ConflictError {
   readonly code = "experiment_has_records";
@@ -32,23 +32,26 @@ export class ImagesNotStoredError extends ConflictError {
   readonly code = "images_not_stored";
 }
 export class ObservationRejectedError extends ConflictError {
-  readonly code = "observation_rejected";
+  readonly code = "observation_invalid";
 }
 export class ObservationModelHasCountsError extends ConflictError {
   readonly code = "observation_model_has_counts";
 }
 
+export class TreatmentNameTakenError extends ConflictError {
+  readonly code = "treatment_name_taken";
+}
 export class TreatmentRejectedError extends ConflictError {
-  readonly code = "treatment_rejected";
+  readonly code = "treatment_invalid";
 }
 export class UnitRejectedError extends ConflictError {
-  readonly code = "unit_rejected";
+  readonly code = "unit_invalid";
 }
 export class ObservationImageRejectedError extends ConflictError {
-  readonly code = "observation_image_rejected";
+  readonly code = "observation_image_invalid";
 }
 export class ManualReadingRejectedError extends ConflictError {
-  readonly code = "manual_reading_rejected";
+  readonly code = "manual_reading_invalid";
 }
 
 /** The photographs a refused assignment would have placed a second time. */

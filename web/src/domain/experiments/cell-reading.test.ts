@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
 import { UnknownClassError } from "../models/errors";
-import type { ObservationImageCell } from "./contracts";
 import {
   cellReading,
   countChange,
@@ -9,7 +8,8 @@ import {
   observationCells,
   resolveCountedClasses,
   unitReading,
-} from "./readings";
+} from "./cell-reading";
+import type { ObservationImageCell } from "./contracts";
 import type { ExperimentObservation, ManualReading } from "./schema";
 
 function cell(

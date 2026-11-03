@@ -3,17 +3,17 @@ import { FlaskConical, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { unitExclusions } from "../../domain/experiments/analysis";
+import {
+  cellKey,
+  observationCells,
+  unitDays,
+} from "../../domain/experiments/cell-reading";
 import type { Unit } from "../../domain/experiments/contracts";
 import {
   observationOrdinals,
   unitIsAvailableAt,
 } from "../../domain/experiments/culture-events";
 import { placedPhotos } from "../../domain/experiments/photos";
-import {
-  cellKey,
-  observationCells,
-  unitDays,
-} from "../../domain/experiments/readings";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { experimentSummary } from "../../domain/experiments/summary";
 import type { getExperimentGrid } from "../../functions/experiments";

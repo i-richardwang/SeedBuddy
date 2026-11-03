@@ -9,7 +9,7 @@ import { Status } from "../../ui/kit/Status";
 import { previewSrc } from "../../ui/viewport/picture";
 import {
   BoxCount,
-  type DatasetOverviewImage,
+  type DatasetImageOverview,
   hasQualityNotes,
   ImageQuality,
 } from "./ImageFacts";
@@ -26,7 +26,7 @@ export function ImagePreview({
   state,
 }: {
   dataset: string;
-  image: DatasetOverviewImage;
+  image: DatasetImageOverview;
   state: DatasetImageState;
 }) {
   return (

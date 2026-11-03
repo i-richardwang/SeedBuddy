@@ -32,7 +32,7 @@ import {
 } from "../datasets/memberships";
 import { createExperiment } from "../experiments/design";
 import { assignObservationImages } from "../experiments/observation-images";
-import { addObservation } from "../experiments/observations";
+import { createObservation } from "../experiments/observations";
 import { readExperimentGrid } from "../experiments/queries";
 import { listUnits } from "../experiments/records";
 import { canonicalize } from "../images/ingest";
@@ -306,7 +306,7 @@ export async function observeImagesForModel(
     ]),
   );
   const digests = await storeTexts(contents);
-  const observation = await addObservation({
+  const observation = await createObservation({
     experiment: experiment.id,
     observedOn: "2026-08-08",
     note: "",

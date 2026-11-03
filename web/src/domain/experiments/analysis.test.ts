@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import { unitExclusions } from "./analysis";
+import type { UnitDay } from "./cell-reading";
 import type { ObservationImageCell } from "./contracts";
 import { observationOrdinals } from "./culture-events";
-import type { UnitDay } from "./readings";
 import type { CultureEvent, ExperimentObservation } from "./schema";
 
 function observation(ordinal: number): ExperimentObservation {

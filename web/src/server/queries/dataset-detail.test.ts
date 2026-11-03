@@ -17,8 +17,8 @@ import {
   createTrainingRun,
   failTrainingRun,
 } from "../training/runs";
-import { datasetOverview } from "./dataset-overview";
-import { modelOverview } from "./model-overview";
+import { datasetDetail } from "./dataset-detail";
+import { modelDetail } from "./model-detail";
 
 /** This test's clock; workers heartbeating at wall-clock time are offline here. */
 const HEARTBEAT_AT = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -50,7 +50,7 @@ test("the overview derives review progress and training readiness", async () => 
     );
   }
 
-  let overview = await datasetOverview(dataset.id, at);
+  let overview = await datasetDetail(dataset.id, at);
   if (!overview) throw new Error("missing overview");
   expect(overview.model.id).toBe(version.modelId);
   expect(overview.defaultTrainingPresetId).toBe("yolo26n-whole-v1");
@@ -71,7 +71,7 @@ test("the overview derives review progress and training readiness", async () => 
   });
 
   const run = await createTrainingRun(dataset.id, YOLO26N_WHOLE_RECIPE);
-  overview = await datasetOverview(dataset.id, at);
+  overview = await datasetDetail(dataset.id, at);
   expect(overview?.training.active?.id).toBe(run.id);
   expect(overview?.training.reviewedSinceLastRun).toBe(0);
   const owner = await recordTestHeartbeat(
@@ -84,7 +84,7 @@ test("the overview derives review progress and training readiness", async () => 
   );
   expect((await claimTrainingRun(owner))?.id).toBe(run.id);
   await failTrainingRun(run.id, { ...owner, attempt: 1 }, "stopped");
-  overview = await datasetOverview(dataset.id, at);
+  overview = await datasetDetail(dataset.id, at);
   expect(overview?.training.active).toBeNull();
   expect(overview?.training.workerMemoryBytes).toBe(24 * 1024 ** 3);
 
@@ -93,7 +93,7 @@ test("the overview derives review progress and training readiness", async () => 
   if (!annotation) throw new Error("missing annotation");
   await storeAnnotation(a, annotation.instances, annotation.instances);
   expect(
-    (await datasetOverview(dataset.id, at))?.training.reviewedSinceLastRun,
+    (await datasetDetail(dataset.id, at))?.training.reviewedSinceLastRun,
   ).toBe(0);
   await storeAnnotation(
     a,
@@ -107,14 +107,14 @@ test("the overview derives review progress and training readiness", async () => 
     annotation.instances,
   );
   expect(
-    (await datasetOverview(dataset.id, at))?.training.reviewedSinceLastRun,
+    (await datasetDetail(dataset.id, at))?.training.reviewedSinceLastRun,
   ).toBe(1);
 
   expect(
-    (await datasetOverview(dataset.id, at))?.runs.map(({ run }) => run.id),
+    (await datasetDetail(dataset.id, at))?.runs.map(({ run }) => run.id),
   ).toEqual([run.id]);
 
-  const model = await modelOverview(version.modelId);
+  const model = await modelDetail(version.modelId);
   expect(model?.versions.map((item) => item.version.id)).toContain(version.id);
   expect(model?.datasets.map((item) => item.dataset.name)).toContain(
     "overview",
@@ -125,6 +125,6 @@ test("the overview derives review progress and training readiness", async () => 
 });
 
 test("the overview is absent for unknown datasets and models", async () => {
-  expect(await datasetOverview(crypto.randomUUID())).toBeNull();
-  expect(await modelOverview("nowhere")).toBeNull();
+  expect(await datasetDetail(crypto.randomUUID())).toBeNull();
+  expect(await modelDetail("nowhere")).toBeNull();
 });

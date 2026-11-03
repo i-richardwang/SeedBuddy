@@ -35,16 +35,17 @@ const ANNOTATION_TOOLS = [
 ];
 
 describe("annotation MCP authorization", () => {
-  const request = modernRequest;
-  const era = "2026-07-28";
   const annotation = (
     token: string,
     method: string,
     params?: Record<string, unknown>,
-  ) => serveAnnotationMcp(request(annotationEndpoint(), method, params, token));
+  ) =>
+    serveAnnotationMcp(
+      modernRequest(annotationEndpoint(), method, params, token),
+    );
   const experiments = (token: string) =>
     serveExperimentsMcp(
-      request(experimentsEndpoint(), "tools/list", undefined, token),
+      modernRequest(experimentsEndpoint(), "tools/list", undefined, token),
     );
   test("tool hints warn that cancellation discards progress, submission is idempotent and reads change nothing", async () => {
     const { headers } = await signInAs("member");
@@ -91,7 +92,7 @@ describe("annotation MCP authorization", () => {
 
   test("a request without a token is challenged toward the annotation resource metadata", async () => {
     const response = await serveAnnotationMcp(
-      request(annotationEndpoint(), "tools/list"),
+      modernRequest(annotationEndpoint(), "tools/list"),
     );
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toContain(
@@ -191,8 +192,8 @@ describe("annotation MCP authorization", () => {
       server: "annotation",
     });
     const model = await createModel({
-      id: `mcp-annotation-${era}`,
-      name: `Annotation over MCP (${era})`,
+      id: "mcp-annotation",
+      name: "Annotation over MCP",
       classes: ["ungerminated", "germinated"],
       annotation: {
         area: "image",
@@ -203,8 +204,8 @@ describe("annotation MCP authorization", () => {
       },
     });
     const observed = await observeImagesForModel(
-      `mcp-annotation-${era}`,
-      [`mcp-annotation-${era}`],
+      "mcp-annotation",
+      ["mcp-annotation"],
       model.id,
     );
     const ref = { digest: observed.digests[0]!, modelId: model.id };

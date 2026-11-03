@@ -30,7 +30,7 @@ async function storing(
  * belongs to the experiment observation that submits it, not to the image.
  */
 export async function handleImageUpload(request: Request): Promise<Response> {
-  const body = await exactLengthBody(request, MAX_IMAGE_BYTES, 400);
+  const body = await exactLengthBody(request, MAX_IMAGE_BYTES);
   if (body instanceof Response) return body;
   return storing(() => storeImage(body));
 }
@@ -46,7 +46,7 @@ export async function handleCanonicalImageUpload(
 ): Promise<Response> {
   const parsed = imageDigestSchema.safeParse(digest);
   if (!parsed.success) return uploadFailure("Not an image digest", 400);
-  const body = await exactLengthBody(request, MAX_IMAGE_BYTES, 400);
+  const body = await exactLengthBody(request, MAX_IMAGE_BYTES);
   if (body instanceof Response) return body;
   return storing(() => storeCanonicalImage(parsed.data, body));
 }

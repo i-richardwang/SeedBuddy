@@ -11,7 +11,7 @@ import { modelCrumbs } from "../../features/models/crumbs";
 import { TrainButton } from "../../features/training/TrainButton";
 import { TrainDialog, trainRefusal } from "../../features/training/TrainDialog";
 import { TrainingRunsTable } from "../../features/training/TrainingRunsTable";
-import { getDatasetOverview } from "../../functions/datasets";
+import { getDatasetDetail } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
@@ -27,9 +27,7 @@ import {
   PageSectionSkeleton,
 } from "../../ui/Page";
 
-type DatasetOverview = NonNullable<
-  Awaited<ReturnType<typeof getDatasetOverview>>
->;
+type DatasetDetail = NonNullable<Awaited<ReturnType<typeof getDatasetDetail>>>;
 
 /** `image` names the image previewed beside the list. */
 const datasetSearchSchema = z.object({
@@ -39,7 +37,7 @@ const datasetSearchSchema = z.object({
 export const Route = createFileRoute("/_workbench/datasets/$dataset/")({
   validateSearch: datasetSearchSchema,
   loader: async ({ params }) => {
-    const overview = await getDatasetOverview({
+    const overview = await getDatasetDetail({
       data: { dataset: params.dataset },
     });
     if (!overview) throw notFound();
@@ -47,8 +45,8 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/")({
   },
   staticData: {
     crumbs: ({ loaderData }) => [
-      ...modelCrumbs((loaderData as DatasetOverview).model),
-      { label: (loaderData as DatasetOverview).dataset.name },
+      ...modelCrumbs((loaderData as DatasetDetail).model),
+      { label: (loaderData as DatasetDetail).dataset.name },
     ],
   },
   head: ({ loaderData }) => ({

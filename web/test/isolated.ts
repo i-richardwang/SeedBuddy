@@ -11,11 +11,14 @@ export async function expectIsolatedRun(
   args: readonly string[],
   done: string,
 ) {
-  const child = Bun.spawn([Bun.which("bun")!, harness, ...args], {
-    cwd: WEB_DIR,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  const child = Bun.spawn(
+    [Bun.which("bun")!, "--preload", "./test/dom.ts", harness, ...args],
+    {
+      cwd: WEB_DIR,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
   const [exit, stdout, stderr] = await Promise.all([
     child.exited,
     new Response(child.stdout).text(),

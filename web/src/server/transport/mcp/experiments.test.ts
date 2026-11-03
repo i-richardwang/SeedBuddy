@@ -100,11 +100,12 @@ describe("experiment MCP surface", () => {
 });
 
 describe("experiment MCP authorization", () => {
-  const request = modernRequest;
   const endpoint = () => `${process.env.BETTER_AUTH_URL}/api/experiments/mcp`;
 
   const call = (token?: string): Promise<Response> =>
-    serveExperimentsMcp(request(endpoint(), "tools/list", undefined, token));
+    serveExperimentsMcp(
+      modernRequest(endpoint(), "tools/list", undefined, token),
+    );
 
   test("a request without a token is challenged toward the resource metadata", async () => {
     const response = await call();

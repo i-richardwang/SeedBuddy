@@ -1,11 +1,8 @@
 import { z } from "zod";
 
-import {
-  resourceIdSchema,
-  sha256Schema,
-  timestampSchema,
-} from "../identifiers/schema";
+import { resourceIdSchema, sha256Schema } from "../identifiers/schema";
 import type { RuntimeDescriptor } from "../inference/schema";
+import { timestampSchema } from "../time";
 import {
   detectionValidationSchema,
   trainingRecipeSchema,

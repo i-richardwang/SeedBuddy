@@ -40,9 +40,9 @@ import {
   readUnit,
   recordCultureEvents,
   recordManualReadings,
-  recordObservation as recordObservationRecord,
-  retryObservationImageAnalysis as retryObservationImageAnalysisRecord,
-  unassignObservationImage as unassignObservationImageRecord,
+  recordObservation,
+  retryObservationImageAnalysis,
+  unassignObservationImage,
   updateExperiment,
   updateObservation,
   updateTreatment,
@@ -140,9 +140,9 @@ export const removeCultureEvent = createServerFn({ method: "POST" })
   .validator(cultureEventRefSchema)
   .handler(({ data }) => deleteCultureEvent(data));
 
-export const recordObservation = createServerFn({ method: "POST" })
+export const createObservation = createServerFn({ method: "POST" })
   .validator(observationRecordSchema)
-  .handler(({ data }) => recordObservationRecord(data));
+  .handler(({ data }) => recordObservation(data));
 
 export const editObservation = createServerFn({ method: "POST" })
   .validator(observationUpdateSchema)
@@ -160,12 +160,12 @@ export const assignImagesToObservation = createServerFn({ method: "POST" })
   .validator(observationImageAssignmentSchema)
   .handler(({ data }) => assignObservationImages(data));
 
-export const unassignObservationImage = createServerFn({ method: "POST" })
+export const removeObservationImage = createServerFn({ method: "POST" })
   .validator(observationImageRefSchema)
-  .handler(({ data }) => unassignObservationImageRecord(data));
+  .handler(({ data }) => unassignObservationImage(data));
 
-export const retryObservationImageAnalysis = createServerFn({ method: "POST" })
+export const retryImageAnalysis = createServerFn({ method: "POST" })
   .validator(observationImageRefSchema)
   .handler(async ({ data }) => {
-    await retryObservationImageAnalysisRecord(data);
+    await retryObservationImageAnalysis(data);
   });

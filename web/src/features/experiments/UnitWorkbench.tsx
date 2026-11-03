@@ -5,6 +5,10 @@ import { useCallback, useEffect, useEffectEvent } from "react";
 import type { ReviewSource } from "../../domain/annotation/schema";
 import type { NamedDataset } from "../../domain/datasets/schema";
 import { unitExclusions } from "../../domain/experiments/analysis";
+import {
+  cellReading,
+  imageReview,
+} from "../../domain/experiments/cell-reading";
 import type {
   ImageReview,
   UnitSeries,
@@ -14,9 +18,8 @@ import {
   latestCultureEvent,
   observationOrdinals,
 } from "../../domain/experiments/culture-events";
-import { cellReading, imageReview } from "../../domain/experiments/readings";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
-import { retryObservationImageAnalysis } from "../../functions/experiments";
+import { retryImageAnalysis } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { useStep } from "../../ui/hooks/useStep";
@@ -452,7 +455,7 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
       loading={action.busy}
       onClick={async () => {
         await action.run(
-          () => retryObservationImageAnalysis({ data: image }),
+          () => retryImageAnalysis({ data: image }),
           m.unit_retry_failed(),
         );
       }}

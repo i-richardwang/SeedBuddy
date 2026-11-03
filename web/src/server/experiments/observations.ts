@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
+import { resolveCountedClasses } from "../../domain/experiments/cell-reading";
 import {
   cultureEventIsTerminal,
   observationOrdinals,
@@ -11,7 +12,6 @@ import {
   ObservationNotFoundError,
   ObservationRejectedError,
 } from "../../domain/experiments/errors";
-import { resolveCountedClasses } from "../../domain/experiments/readings";
 import type {
   Experiment,
   ExperimentObservation,
@@ -77,7 +77,7 @@ export async function requireModel(
   return model;
 }
 
-export async function addObservation(
+export async function createObservation(
   value: ObservationRequest,
   executor?: Executor,
 ): Promise<ExperimentObservation> {

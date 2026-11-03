@@ -7,9 +7,10 @@ import {
   boundingBoxSchema,
   REVIEW_SOURCES,
 } from "../annotation/schema";
-import { sha256Schema, timestampSchema } from "../identifiers/schema";
+import { sha256Schema } from "../identifiers/schema";
 import { imageCoverageSchema } from "../images/coverage";
 import { annotationConfigSchema } from "../models/annotation";
+import { timestampSchema } from "../time";
 
 export const ANNOTATION_RUN_STATUSES = [
   "running",
