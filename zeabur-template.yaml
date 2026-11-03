@@ -30,14 +30,13 @@ spec:
         - postgres — Postgres 18, the source of truth for records
         - minio — S3-compatible object store for immutable blobs
 
-        Workers are not part of this template. They only make outbound calls,
-        so run them next to their GPUs. Enrollment and setup are described in
+        Worker processes run outside this template and only make outbound calls.
+        Run them on the enrolled machines next to their GPUs. Enrollment and setup are described in
         `docs/vitroctl.md#workers`.
 
         ## After deploying
         Bind your own domain to the workbench in its Networking tab; no domain is
-        bound for you. It has to be the domain you gave as the workbench domain,
-        because that value is the auth issuer.
+        bound for you.
 
         Database startup follows `docs/architecture.md#database-schema`. The workbench creates
         the first administrator from the supplied credentials. Maintenance starts after
@@ -55,7 +54,7 @@ spec:
         - key: PUBLIC_DOMAIN
           type: STRING
           name: Workbench Domain
-          description: "The full domain the workbench is served on, such as vitroflow.example.com. Bind it in the Networking tab after deploying. It is also the auth issuer and the origin for both MCP servers."
+          description: "The full domain the workbench is served on, such as vitroflow.example.com. Bind it in the Networking tab after deploying."
         - key: VITROFLOW_ADMIN_EMAIL
           type: STRING
           name: Administrator Email

@@ -100,7 +100,7 @@ design, a cell for every unit on every observation, and the summary by
 treatment. Each cell is resolved here, by the same functions the grid and the
 spreadsheet use: the reading counted in the statistics and who stood behind it, why
 the day is out of the statistics if it is, and under them the photograph and the
-count entered by hand the reading came from. An agent therefore never ranks readings,
+count entered by hand the reading came from. An agent therefore never ranks annotation layers,
 applies the exclusion rules, or averages a treatment itself, and a change to
 any of them changes what every reader sees at once. The workbench grid is a
 different view: it also shows what the workbench is still doing with a
@@ -127,7 +127,7 @@ first observation itself has none, and a day read for another model has
 counts alone. A day is read by its rate where any treatment has one, and by
 its count otherwise.
 
-The [experiment page](interface.md#pages) presents the summary. The spreadsheet carries it as its second sheet, with n, mean, SD and SE under each date; the agent’s sheet carries it under the cells. Whether the
+The [experiment page](interface.md#pages-and-interaction-ownership) presents the summary. The spreadsheet carries it as its second sheet, with n, mean, SD and SE under each date; the agent’s sheet carries it under the cells. Whether the
 treatments differ significantly is a question the summary does not answer:
 the test and the multiple-comparison method are the researcher's to choose,
 so that work is done on the exported numbers.

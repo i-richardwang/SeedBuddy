@@ -1,8 +1,8 @@
 # vitroctl
 
-Operator CLI and native Worker runtime for a [VitroFlow](../README.md) workbench. The workbench owns experiments, datasets, review state, and training runs; this package runs the Workers that detect and train for it and moves datasets between a workbench and a local data root.
+Operator CLI and native Worker process runtime for a [VitroFlow](../README.md) workbench. The workbench owns experiments, datasets, review state, and training runs; this package runs the Worker processes that detect and train for it and moves datasets between a workbench and a local data root.
 
-Worker services run under `launchd` and therefore require macOS. The `dataset`, `recognize`, `traditional`, `training`, and `models` commands run wherever Python 3.11+ is available.
+Worker profile management uses `launchd` and requires macOS. The `dataset`, `recognize`, `traditional`, `training`, and `models` commands run wherever Python 3.11+ is available.
 
 ## Install
 
@@ -14,7 +14,7 @@ cd VitroFlow
 uv tool install --from '.[yolo]' vitroctl
 ```
 
-The `yolo` extra installs the pinned Ultralytics runtime that Workers advertise. Without it, a Worker serves the bundled traditional detector and takes no training runs.
+The `yolo` extra installs the pinned Ultralytics runtime that Worker processes advertise. Without it, a Worker process serves the bundled traditional detector and takes no training runs.
 
 ## Workers
 
@@ -43,29 +43,33 @@ vitroctl worker stop mac-studio
 
 `launchd` restarts a Worker process that crashes. Removing its Worker from the Workers page stops the process and keeps it stopped, and `worker list` shows why; enroll it again and rerun `setup --force` with the enrollment token.
 
-`vitroctl worker start <profile>` loads the installed LaunchAgent. `stop` and `restart` return once the Worker process has exited; `restart` then loads the current LaunchAgent definition. Training runs in a child process. On cancellation, shutdown or lease loss, the Worker process supervisor terminates the child’s process group, including data-loader children, even during a blocked GPU operation. The server revokes ownership immediately; the Worker process detects revocation on its next training request or lease renewal. Each attempt uses a private directory. Completed but undelivered bundles are retained; other attempt directories are removed when execution exits.
+`vitroctl worker start <profile>` checks the profile, writes its LaunchAgent and loads it or asks `launchd` to start the loaded job. `stop` and `restart` return once the Worker process has exited; `restart` then loads the current LaunchAgent definition. Training runs in a child process. On cancellation, shutdown or lease loss, the Worker process supervisor terminates the child’s process group, including data-loader children, even during a blocked GPU operation. The server revokes ownership immediately; the Worker process detects revocation on its next training request or lease renewal.
 
-Inference execution and retry policy are described in the [Worker control planes](backend-architecture.md#worker-control-planes). Worker processes make outbound calls only and expose no inbound port. Web and Workers share wire contracts with no mixed-version protocol: stop Workers, deploy Web, install the matching Worker package, then start Workers with `vitroctl worker restart <profile>`.
+Inference execution and retry policy are described in the [Worker control planes](backend-architecture.md#worker-control-planes). Worker processes make outbound calls only and expose no inbound port. The workbench and Worker processes share wire contracts with no mixed-version protocol: stop Worker processes, deploy the workbench, install the matching Worker package, then start Worker processes with `vitroctl worker restart <profile>`.
 
-Training presets pin model weights, parameters, and the framework version. The Web dialog accepts parameter adjustments, and the server validates and freezes the resolved recipe in the run; resuming does not consult the preset registry.
+Training presets pin model weights, parameters, and the framework version. The workbench dialog accepts parameter adjustments, and the server validates and freezes the resolved recipe in the run; resuming does not consult the preset registry.
 
 Worker processes validate both training recipes and the training metadata in published model manifests. A framework version match alone does not establish application-contract compatibility; both sides validate the shared contracts.
 
-The training dialog assigns work automatically or to a specific enrolled Worker. The [training-run status menu](interface.md#pages) exposes run controls. Pause revokes the current attempt and releases the model immediately; cancellation ends the task. A paused or failed task continues once no other run of its model is in progress, on the training Worker its dialog names, from its saved epoch or with a fresh attempt. A pinned task waits for its selected Worker rather than silently moving elsewhere.
+The training dialog assigns work automatically or to a specific enrolled Worker. The [training-run status menu](interface.md#pages-and-interaction-ownership) exposes run controls. Pause revokes the current attempt and releases the model immediately; cancellation ends the task. A paused or failed task continues once no other run of its model is in progress. A task pinned before its first claim waits for its selected Worker.
 
-Each epoch saves the latest resumable weights, best weights, and epoch journal on the Worker. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes stay on the Worker during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. Missing or invalid files fail with an explicit restart instruction; host or disk loss is not recoverable from the workbench.
+Each epoch saves `weights/last.pt`, `weights/best.pt` and `epochs.jsonl` on the Worker; `detectors/ultralytics/checkpoints.py` owns this layout. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes stay on the Worker during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. Missing or invalid files fail with an explicit restart instruction; host or disk loss is not recoverable from the workbench.
 
-Local recovery checks the run, frozen dataset snapshot, recipe, and Worker identity before atomically copying each recovery directory into the next attempt. The trainer verifies the checkpoint and epoch journal before resuming. Attempts with local weights or a finished bundle are excluded from automatic stale-run cleanup; their log identifies the retained directory. Remove retained directories explicitly when unneeded.
+Local recovery checks the run, frozen dataset snapshot, recipe, and Worker identity before atomically copying each recovery directory into the next attempt. The trainer verifies the checkpoint and epoch journal before resuming.
 
-Only the final model is uploaded. `PUT /api/worker/training/runs/:runId/artifact-parts` transfers sequential weight parts of at most 8 MiB, with a total limit of 512 MiB. `POST /api/worker/training/runs/:runId/artifact` submits the model manifest and publishes the verified weights. Part size and SHA-256, complete-file identity, recipe, and attempt ownership are checked before publication. Part retries and publication retries are idempotent. Maintenance removes parts after publication or after the attempt ends or expires. A failed delivery retains the finished bundle; retrying on the same Worker publishes it without training again.
+Only the final model is uploaded. `PUT /api/worker/training/runs/:runId/artifact-parts` transfers sequential weight parts of at most 8 MiB, with a total limit of 512 MiB. `POST /api/worker/training/runs/:runId/artifact` submits the model manifest and publishes the verified weights. Part size and SHA-256, complete-file identity, recipe, and attempt ownership are checked before publication. Part retries and publication retries are idempotent. Maintenance removes parts after publication or after the attempt ends or expires.
 
 Completed epochs report losses, precision, recall, mAP50, mAP50-95, fitness and learning rate. Execution advances through `preparing`, `training` and `validating`.
 
-The run page lists execution attempts and the last reported local checkpoint epoch. Lease renewal does not count as training progress. If a Worker loses contact, its run waits for that Worker; an operator can pause it and explicitly restart elsewhere. A held run without progress for 15 minutes shows a warning. Every execution request carries its session and attempt, so cancelled or superseded attempts cannot report progress or publish models.
+The run page lists execution attempts and the last reported local checkpoint epoch. Lease renewal does not count as training progress. An operator can pause a stalled run and explicitly restart elsewhere. A held run without progress for 15 minutes shows a warning. Every execution request carries its session and attempt, so cancelled or superseded attempts cannot report progress or publish models.
 
 `vitroctl worker run <profile>` runs a Worker process in the foreground without `launchd`.
 
 A Worker process keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
+
+### Attempt storage
+
+Each attempt uses a private directory. Local weights and completed but undelivered bundles are retained and excluded from stale-run cleanup; the log identifies their directory. Other attempt directories are removed when execution exits, including after successful publication. Retrying a retained finished bundle publishes it without training again; the CLI can also import it. Remove retained directories explicitly when unneeded.
 
 ## Datasets
 
@@ -128,21 +132,21 @@ vitroctl traditional train \
 
 Training and model registration are independent. A Worker process and local training produce the same Model Bundle: `bundle.json` and `weights.pt`. The manifest fixes ordered classes, weight digest and size, inference settings, the training recipe, runtime requirements, dataset provenance, and evaluation/calibration evidence. Checkpoints remain separate and are only needed to continue training.
 
-Example input and output paths below are operator-selected files, not bundled fixtures. A training specification is JSON with `dataset` and `recipe`. `recipe` has the same structure as the bare recipe document in `configs/yolo26/yolo26n-whole-v1.recipe.json`: pinned base-model reference and digest, training parameters, and framework version. Optional `nbs`, scale, rotation, flip, translation and HSV parameters override the pinned framework's defaults. The resolved scalar trainer arguments and a training-code fingerprint are saved in `training-context.json` and included in generated bundles.
+Example input and output paths below are operator-selected files, not bundled fixtures. A training specification is JSON with `dataset` and `recipe`. `recipe` has the same structure as the bare recipe document in `configs/yolo26/yolo26n-whole-v1.recipe.json`: pinned base-model reference and digest, training parameters, and framework version. Optional `nbs`, scale, rotation, flip, translation and HSV parameters override the pinned framework's defaults. Bundle provenance contains the resolved scalar trainer arguments and training-code fingerprint.
 
 - `configs/yolo26/yolo26n-whole-v1.recipe.json` (default): YOLO26n, image size 1536, batch 4, nominal batch size 64, 50 epochs, patience 20, warmup 3.
 - `configs/yolo26/yolo26s-whole-2048-v1.recipe.json`: YOLO26s, image size 2048, batch 1, nominal batch size 8, 50 epochs, no warmup or early stopping.
 
 Both presets use AdamW with learning rate 0.001 and disable Mosaic, MixUp, and Copy-Paste. Other augmentation settings come from the pinned runtime. For local training, put the selected recipe and any deliberate parameter overrides in `training.json`. Epochs defines the learning-rate schedule; pausing a run does not shorten that schedule.
 
-Validation uses at most the actual per-device training batch, including after automatic batch reduction. The best checkpoint is calibrated with best-F1 confidence. `execution.json` records actual framework arguments, batch sizes, and gradient accumulation. Worker processes preserve these diagnostics in their profile log before removing the attempt directory.
+Validation uses at most the actual per-device training batch, including after automatic batch reduction. The best checkpoint is calibrated with best-F1 confidence. `execution.json` records actual framework arguments, batch sizes, and gradient accumulation. Local diagnostic documents omit `schemaVersion`. Worker processes preserve these diagnostics in their profile log before removing the attempt directory.
 
 Preset manifests are immutable and their filenames identify their versions.
 
 For local training, `dataset` is the name of a pulled dataset. For managed training, it is the workbench dataset ID returned by `list-datasets`.
 
 ```bash
-# Local compute; no server or Worker registration required.
+# Local compute; no server or Worker enrollment required.
 vitroctl training run --local --spec training.json --data-root data \
   --device mps --output output/my-training
 
@@ -160,7 +164,7 @@ vitroctl training resume <run-id> --dataset <dataset-id> --attempt 1 --restart -
 vitroctl training cancel <run-id> --dataset <dataset-id> --attempt 2
 ```
 
-`training resume --restart` discards the recovery reference and starts training afresh, allowing another Worker to claim the run. Without it, resume uses the bound Worker and its recovery files.
+`--data-root` is accepted only with `--local`. `training resume --restart` discards the recovery reference and starts training afresh, allowing another Worker to claim the run. Recovery follows the [Worker binding rules](#workers).
 
 Local outputs retain the fixed input manifest, exported data and split membership, checkpoints, epoch journal, inference summary, and `bundle/`. Resume requires the saved `input.json` to exactly match the canonical JSON identity built from the spec and manifest, including their camelCase wire keys, before using a checkpoint; changing data or parameters requires another output directory. A completed training cannot be resumed from a stripped final checkpoint. Its bundle can still be imported repeatedly without training.
 
@@ -169,7 +173,7 @@ Local outputs retain the fixed input manifest, exported data and split membershi
 vitroctl models import output/my-training/bundle --model seed-detector
 vitroctl models list --model seed-detector
 
-# Select the returned version ID explicitly. Selecting any registered ID uses that version.
+# Select a version (see the model lifecycle linked below).
 vitroctl models use --model seed-detector --version <version-id>
 ```
 
@@ -183,9 +187,7 @@ vitroctl models import output/candidate --model seed-detector
 
 Packaging and CLI import load the weights on CPU to verify their ordered classes and require the declared Ultralytics version. The supported delivery pipeline is `mode: "whole_image"` with explicit `iou: 0.7`, recorded from `YOLO_IOU` in `contracts/inference.py`. Tiling or another IoU is rejected. Such pipelines require an adapter and contract extension before they can be registered. Registration validates metadata and byte identity; a reported accuracy metric is provenance, not a platform-certified score. Version selection follows the [model lifecycle](domain.md#models-and-versions).
 
-The workbench uses content-derived upload identities and version identities covering the entire bundle and its origin. Repeating import safely returns the same version; changing inference settings creates another version even with identical weights. Upload reservations expire after 24 hours unless registered, and preparing the same bundle renews the reservation. Upload and registration are separate so connection failures can be retried. Delivered versions retain their immutable bytes independently of their training run.
-
-The CLI can import a retained Worker bundle to recover completed work after failed publication. A successful publication removes the current local attempt directory. Recovery files retained from earlier attempts can be removed explicitly.
+The workbench uses content-derived upload identities and version identities covering the entire bundle and its origin. Repeating import safely returns the same version; changing inference settings creates another version even with identical weights. Upload reservations expire after 24 hours unless registered, and preparing the same bundle renews the reservation. Weight upload and registration each support retries. Delivered versions retain their immutable bytes independently of their training run.
 
 ### HTTP and MCP
 

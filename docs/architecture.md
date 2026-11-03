@@ -1,6 +1,6 @@
 # Architecture
 
-VitroFlow has a Web control plane and two Python packages: `vitroctl` (`src/vitroctl`) runs Workers, moves datasets and trains detectors for operators, and `vitroflow` (`packages/vitroflow`) prepares photographs for experimenters. Source boundaries describe the capabilities a module may use; each boundary is organized by the domain or lifecycle it owns. React components can render on the server, so a frontend directory does not authorize browser globals during rendering.
+VitroFlow has a workbench and two Python packages: `vitroctl` (`src/vitroctl`) runs Worker processes, moves datasets and trains detectors for operators, and `vitroflow` (`packages/vitroflow`) prepares photographs for experimenters. Source boundaries describe the capabilities a module may use; each boundary is organized by the domain or lifecycle it owns. React components can render on the server, so a frontend directory does not authorize browser globals during rendering.
 
 ## Web boundaries
 
@@ -22,7 +22,7 @@ Domain exceptions inherit shared categories from `domain/errors.ts` and carry st
 
 `features/annotation/ImageWorkbench.tsx` owns one `Workbench` and one `ImageViewport`. The image's boxes are a draft from the first frame, and the same viewport stays mounted through edits, saves and conflicts. The edit lock gates changes to that draft rather than switching viewport modes. `features/annotation/lock.ts` holds process-global state outside the draft session: each page load begins locked, and unlocking persists from image to image until reload. Display layers, manual zoom, and pan survive all of them. The viewport shows the image's preview from its first frame and lays the image itself over it once that has arrived.
 
-`domain/annotation/draft.ts` owns the pure annotation draft, undo/redo, and the submission freeze; `features/annotation/session.ts` opens it from the page's readings. The draft begins from the reading on view (review, AI proposal, or detections) and its base is the stored review the page loaded, or null for an unreviewed image. While nothing has been edited it follows the readings as they refresh; once edited it holds, and showing another reading over the edits begins again from it as an undoable step. The save sends the base with the boxes, so a review changed elsewhere is refused and the draft stays open until its edits are dropped and the readings read again. The primary command stores the boxes on view and the page stays on the image: it reads Save over edits and Confirm over an automated reading taken as it is, and Mod+S does the same. On a reviewed image it leads to the next one still to review, so storing and moving on are two presses of Enter. The DOM lifecycle test pans and zooms, edits, confirms, and meets a conflict, and verifies the original image node and its transform remain intact throughout.
+`domain/annotation/draft.ts` owns the pure annotation draft, undo/redo, and the submission freeze; `features/annotation/session.ts` opens it from the page's annotations. The draft begins from the annotation layer on view (review, AI proposal, or detections) and its base is the stored review the page loaded, or null for an unreviewed image. While nothing has been edited it follows the annotations as they refresh; once edited it holds, and showing another annotation layer over the edits begins again from it as an undoable step. The save sends the base with the boxes, so a review changed elsewhere is refused and the draft stays open until its edits are dropped and the annotations read again. The primary command stores the boxes on view and the page stays on the image: it reads Save over edits and Confirm over an automated annotation taken as it is, and Mod+S does the same. On a reviewed image it leads to the next one still to review, so storing and moving on are two presses of Enter. The DOM lifecycle test pans and zooms, edits, confirms, and meets a conflict, and verifies the original image node and its transform remain intact throughout.
 
 ## Python boundaries
 
@@ -48,24 +48,24 @@ The allowed internal dependencies are defined by layer:
 | `cli` | `contracts`, `datasets`, `host`, `io`, `models`, `traditional`, `training`, `ultralytics` |
 | `entry` | None |
 
-`detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. `DatasetManifest.annotated` in `datasets/manifest.py` filters the manifest to reviewed images. Traditional configuration defaults are `DEFAULT_PIPELINE_CONFIG` in `detectors/traditional/config.py`; split assignment belongs to `detectors/ultralytics/dataset.py`, which defines `assign_splits` without exporting it from the package.
+`detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. `DatasetManifest.annotated` in `datasets/manifest.py` filters the manifest to reviewed images. Traditional configuration defaults are `DEFAULT_PIPELINE_CONFIG` in `detectors/traditional/config.py`; candidate training uses `_DEFAULT_GRID` in `detectors/traditional/training/training.py` unless its caller supplies a `SelectionGrid`; split assignment belongs to `detectors/ultralytics/dataset.py`, which defines `assign_splits` without exporting it from the package.
 
 `scripts/check_architecture.py` defines these layer names and checks ownership, dependency directions, unresolved package imports and cycles, including type-only and function-local imports.
 
 ## Execution identity
 
-Traditional execution identity lives in `detectors/traditional/identity.py`. Its source fingerprint includes the pipeline's behavior dependencies, including image decoding in `io/image_io.py`. The detector runtime fingerprint also includes its adapter and common contract. Source paths are explicit and resolved relative to their owning implementation. Digest helpers in `io/files.py` are outside the pipeline fingerprint inventory.
+Traditional execution identity lives in `detectors/traditional/identity.py`. Its source fingerprint includes the pipeline's behavior dependencies, including image decoding in `io/image_io.py`. The detector runtime fingerprint also includes its adapter, common detector contract and annotation validator. The Ultralytics runtime fingerprint hashes its installed framework version with those three source files. Source paths are explicit and resolved relative to their owning implementation. Digest helpers in `io/files.py` are outside the pipeline fingerprint inventory.
 
-A runtime fingerprint identifies execution code. A traditional artifact digest identifies the candidate model and configuration. Model Bundle version identity is defined in the [operator guide](vitroctl.md#training-and-model-delivery). These identities have different purposes: a source change can change runtime identity without changing the artifact or inventing another model version. Regression tests check this distinction by varying behavior-source and dish-recipe bytes. An import-closure check requires traditional and image-geometry algorithm modules reachable from the pipeline to remain in the fingerprint inventory.
+A runtime fingerprint identifies execution code. A traditional artifact digest identifies the candidate model and configuration. Model Bundle version identity is defined in the [operator guide](vitroctl.md#training-and-model-delivery). Regression tests check this distinction by varying behavior-source and dish-recipe bytes. An import-closure check requires traditional and image-geometry algorithm modules reachable from the pipeline to remain in the fingerprint inventory.
 
 ## Database schema
 
 Startup applies all forward migrations in `web/drizzle/` through the [database preparation chain](backend-architecture.md#persistence-and-startup). The schema describes the records, and applied migrations are immutable. Tests cover empty database initialization and populated records.
 
-## Continuous verification
+## Verification and test locations
 
 The `Quality` workflow runs the [verification gate](../README.md#verification) on pull requests and main-branch pushes with locked dependencies, then checks PostgreSQL concurrency and S3 immutability against disposable storage. The workflow exposes a `check` job for branch protection. Private reference images are an explicit operator check.
 
 Authentication tests live in `web/src/server/auth/service.test.ts`, Worker HTTP tests in `web/src/server/transport/http/worker.test.ts`, and database constraint tests in `web/src/server/infra/db/schema.test.ts`.
 
-Test invocation and message compilation are described in [Verification](../README.md#verification).
+The Python Ultralytics tests use the `tests/test_yolo_*` family.
