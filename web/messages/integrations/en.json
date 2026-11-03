@@ -1,6 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "api_key_column_actions": "Actions",
   "api_key_column_expires": "Expires",
   "api_key_column_key": "Key",
   "api_key_column_last_used": "Last used",

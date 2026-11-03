@@ -4,6 +4,7 @@
   "role_label": "Role",
   "role_member": "Member",
   "user_actions": "Actions for {name}",
+  "user_column_status": "Status",
   "user_delete_body": "Experiment records stay.",
   "user_delete_confirm": "Delete user",
   "user_delete_title": "Delete {name}?",
@@ -35,8 +36,6 @@
   "user_suspend_confirm": "Suspend user",
   "user_suspend_title": "Suspend {name}?",
   "user_suspended": "{name} suspended",
-  "users_column_actions": "Actions",
-  "users_column_status": "Status",
   "users_new": "New user",
   "users_title": "Users",
   "users_you": "You"

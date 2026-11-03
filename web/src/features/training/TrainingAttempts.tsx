@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Server } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
 import type { TrainingRunDetail } from "../../domain/training/read-model";
@@ -11,7 +11,6 @@ import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
-import { Empty } from "../../ui/kit/Empty";
 import {
   Table,
   TableBody,
@@ -37,7 +36,9 @@ import { TrainingAttemptState } from "./TrainingRunState";
 export function TrainingAttempts({
   detail: { run, stall, blockedBy, attempts },
   control,
+  empty,
 }: {
+  empty: ReactNode;
   detail: TrainingRunDetail;
   control: TrainingRunControl;
 }) {
@@ -95,11 +96,7 @@ export function TrainingAttempts({
       <Table
         aria-label={m.training_attempts()}
         size="small"
-        empty={
-          attempts.length === 0 ? (
-            <Empty icon={Server} title={m.attempt_empty_title()} />
-          ) : undefined
-        }
+        empty={attempts.length === 0 ? empty : undefined}
       >
         <TableHeader>
           <tr>

@@ -5,6 +5,7 @@ import type { TrainingRunOverview } from "../../domain/training/read-model";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { IdentifierName } from "../../ui/IdentifierName";
+import { CopyButton } from "../../ui/kit/CopyButton";
 import { Progress } from "../../ui/kit/Progress";
 import {
   Table,
@@ -20,7 +21,7 @@ import { Metric } from "../../ui/Metric";
 import { TrainingRunState } from "./TrainingRunState";
 
 /**
- * Training runs, each named with its state after it; across training sets
+ * Training runs, each with its own status column; across training sets
  * (`datasetColumn`) each run names its set. `empty` stands in for no runs.
  */
 export function TrainingRunsTable({
@@ -41,6 +42,7 @@ export function TrainingRunsTable({
       <TableHeader>
         <tr>
           <TableHead>{m.run_column_run()}</TableHead>
+          <TableHead>{m.run_column_status()}</TableHead>
           {datasetColumn && <TableHead>{m.run_column_dataset()}</TableHead>}
           <TableHead className="w-32" numeric>
             {m.parameter_epochs()}
@@ -52,32 +54,35 @@ export function TrainingRunsTable({
             {m.epoch_series_map50_95()}
           </TableHead>
           <TableHead className="w-48">{m.run_column_version()}</TableHead>
+          <TableHead className="w-12">
+            <span className="sr-only">{m.column_actions()}</span>
+          </TableHead>
         </tr>
       </TableHeader>
       <TableBody>
         {runs.map(({ dataset, run, completed, best }) => (
           <TableRow key={run.id} clickable>
             <TableCell cellSlot="title">
-              <span className="flex items-center gap-2">
-                <IdentifierName
-                  id={run.id}
-                  render={
-                    <TextLink
-                      render={
-                        <Link
-                          to="/datasets/$dataset/runs/$runId"
-                          params={{ dataset: dataset.id, runId: run.id }}
-                        />
-                      }
-                    />
-                  }
-                />
-                <Tooltip
-                  title={run.state.status === "failed" ? run.state.error : null}
-                >
-                  <TrainingRunState run={run} />
-                </Tooltip>
-              </span>
+              <IdentifierName
+                id={run.id}
+                render={
+                  <TextLink
+                    render={
+                      <Link
+                        to="/datasets/$dataset/runs/$runId"
+                        params={{ dataset: dataset.id, runId: run.id }}
+                      />
+                    }
+                  />
+                }
+              />
+            </TableCell>
+            <TableCell cellLabel={m.run_column_status()}>
+              <Tooltip
+                title={run.state.status === "failed" ? run.state.error : null}
+              >
+                <TrainingRunState run={run} />
+              </Tooltip>
             </TableCell>
             {datasetColumn && (
               <TableCell cellLabel={m.run_column_dataset()}>
@@ -102,6 +107,9 @@ export function TrainingRunsTable({
               ) : (
                 <Absent />
               )}
+            </TableCell>
+            <TableCell cellSlot="actions">
+              <CopyButton content={run.id} title={m.run_copy_id()} />
             </TableCell>
           </TableRow>
         ))}

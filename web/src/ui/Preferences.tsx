@@ -17,6 +17,7 @@ import { Button } from "./kit/Button";
 import { DropdownMenu } from "./kit/DropdownMenu";
 import { Select } from "./kit/Select";
 import { Text } from "./kit/Text";
+import { localeLabel } from "./labels";
 
 /*
  * The reader's language and color scheme, as quiet menus for the footer of
@@ -24,11 +25,6 @@ import { Text } from "./kit/Text";
  * Choosing a language stores the locale cookie and reloads, so the server
  * renders the next document in that language.
  */
-
-const LOCALE_NAMES: Record<Locale, () => string> = {
-  en: m.account_language_en,
-  "zh-CN": m.account_language_zh_cn,
-};
 
 const SCHEMES: { value: ColorScheme; icon: typeof Sun; label: () => string }[] =
   [
@@ -48,7 +44,7 @@ export function LanguageMenu() {
     <DropdownMenu
       items={locales.map((locale) => ({
         key: locale,
-        label: LOCALE_NAMES[locale](),
+        label: localeLabel(locale),
         icon: locale === current ? Check : undefined,
         onClick: () => chooseLocale(locale),
       }))}
@@ -60,7 +56,7 @@ export function LanguageMenu() {
         type="text"
       >
         <Text as="span" size="xs">
-          {LOCALE_NAMES[current]()}
+          {localeLabel(current)}
         </Text>
       </Button>
     </DropdownMenu>
@@ -100,7 +96,7 @@ export function LanguageSelect({
       value={getLocale()}
       options={locales.map((locale) => ({
         value: locale,
-        label: LOCALE_NAMES[locale](),
+        label: localeLabel(locale),
       }))}
       onChange={chooseLocale}
     />

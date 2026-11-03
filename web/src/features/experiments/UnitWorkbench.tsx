@@ -22,6 +22,7 @@ import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { retryImageAnalysis } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { useStep } from "../../ui/hooks/useStep";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Alert } from "../../ui/kit/Alert";
@@ -98,6 +99,14 @@ export function UnitWorkbench({
   onCompareChange: (observation: string | undefined) => void;
 }) {
   const { experiment, unit, treatments, navigation, shown } = series;
+
+  useRouteRefresh(
+    5000,
+    shown !== null &&
+      ((shown.review.detection === null && shown.failure === null) ||
+        shown.review.progress !== null),
+  );
+
   const treatment = treatments.find((item) => item.id === unit.treatment)!;
   const at = navigation.findIndex((item) => item.id === unit.id);
   const title = m.unit_title({

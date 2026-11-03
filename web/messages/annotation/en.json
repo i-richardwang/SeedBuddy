@@ -15,7 +15,6 @@
     }
   ],
   "annotation_ai_running": "Annotating",
-  "annotation_ai_section": "AI proposal",
   "annotation_box_class": "Mark class",
   "annotation_check_next": "Next check",
   "annotation_check_previous": "Previous check",
@@ -45,6 +44,7 @@
     }
   ],
   "annotation_next_unreviewed": "Next to review",
+  "annotation_proposal_label": "AI proposal",
   "annotation_readings": "Readings",
   "annotation_redo": "Redo",
   "annotation_reload": "Reload",

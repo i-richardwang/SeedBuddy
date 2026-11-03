@@ -19,6 +19,7 @@ import { Alert } from "../../ui/kit/Alert";
 import { Form } from "../../ui/kit/Form";
 import { Select } from "../../ui/kit/Select";
 import { toast } from "../../ui/kit/Toast";
+import { trainingPresetDescription, trainingPresetLabel } from "./labels";
 import { TrainingParametersForm } from "./TrainingParametersForm";
 import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
 
@@ -129,14 +130,14 @@ function TrainSession({
         ) : null}
         <Form.Field
           label={m.training_preset()}
-          desc={PRESET_PRESENTATION[presetId].description()}
+          desc={trainingPresetDescription(presetId)}
         >
           <Select
             value={presetId}
             disabled={action.busy}
             options={trainingPresets.map((option) => ({
               value: option.id,
-              label: PRESET_PRESENTATION[option.id].label(),
+              label: trainingPresetLabel(option.id),
             }))}
             onChange={(id) => {
               setPresetId(id);
@@ -164,20 +165,3 @@ function TrainSession({
     </FormDialog>
   );
 }
-
-const PRESET_PRESENTATION: Record<
-  TrainingPresetId,
-  {
-    label: () => string;
-    description: () => string;
-  }
-> = {
-  "yolo26n-whole-v1": {
-    label: m.training_preset_nano,
-    description: m.training_preset_nano_description,
-  },
-  "yolo26s-whole-2048-v1": {
-    label: m.training_preset_small,
-    description: m.training_preset_small_description,
-  },
-};

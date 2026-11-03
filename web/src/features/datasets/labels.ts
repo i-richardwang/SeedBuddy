@@ -47,10 +47,13 @@ export function datasetImageStateLabel(state: DatasetImageState): string {
   return STATE_LABELS[state]();
 }
 
-/** The status tone of each state; the bar and the legend draw the same colors. */
-export const DATASET_IMAGE_STATE_TONE = {
+const DATASET_IMAGE_STATE_TONE = {
   reviewed: "success",
   proposed: "info",
   detected: "warning",
   unread: "neutral",
 } as const satisfies Record<DatasetImageState, StatusTone>;
+
+export function datasetImageStateTone(state: DatasetImageState): StatusTone {
+  return DATASET_IMAGE_STATE_TONE[state];
+}

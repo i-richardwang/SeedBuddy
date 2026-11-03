@@ -1,6 +1,5 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "api_key_column_actions": "操作",
   "api_key_column_expires": "过期时间",
   "api_key_column_key": "密钥",
   "api_key_column_last_used": "最近使用",

@@ -21,7 +21,7 @@ export function formatErrorChange(change: number): string {
   return formatDecimalChange(change, ERROR_DIGITS);
 }
 
-export type Movement = "better" | "worse" | "none";
+type Movement = "better" | "worse" | "none";
 
 /**
  * Which way a count error moves from one version to the next, judged on the

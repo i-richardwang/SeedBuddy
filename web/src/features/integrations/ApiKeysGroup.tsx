@@ -1,5 +1,5 @@
-import { KeyRound, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
 import type { ApiKey } from "../../domain/auth/integrations";
 import { removeApiKey } from "../../functions/integrations";
@@ -7,7 +7,6 @@ import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
-import { Empty } from "../../ui/kit/Empty";
 import { Flexbox } from "../../ui/kit/Flex";
 import { SettingsGroup } from "../../ui/kit/Settings";
 import {
@@ -26,7 +25,13 @@ import { apiScopeLabel } from "./labels";
 import { NewApiKeyDialog } from "./NewApiKeyDialog";
 
 /** The reader's API keys, and the one place a new key is created. */
-export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
+export function ApiKeysGroup({
+  apiKeys,
+  empty,
+}: {
+  apiKeys: ApiKey[];
+  empty: (create: () => void) => ReactNode;
+}) {
   const [creating, setCreating] = useState(false);
   const create = () => setCreating(true);
 
@@ -49,20 +54,7 @@ export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
           narrow="cards"
           variant="borderless"
           aria-label={m.integrations_api_keys()}
-          empty={
-            apiKeys.length === 0 ? (
-              <Empty
-                icon={KeyRound}
-                title={m.api_key_empty()}
-                description={m.api_key_empty_description()}
-                action={
-                  <Button type="primary" icon={Plus} onClick={create}>
-                    {m.integrations_new_key()}
-                  </Button>
-                }
-              />
-            ) : undefined
-          }
+          empty={apiKeys.length === 0 ? empty(create) : undefined}
         >
           <TableHeader>
             <tr>
@@ -72,7 +64,7 @@ export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
               <TableHead>{m.api_key_column_expires()}</TableHead>
               <TableHead>{m.api_key_column_last_used()}</TableHead>
               <TableHead className="w-12">
-                <span className="sr-only">{m.api_key_column_actions()}</span>
+                <span className="sr-only">{m.column_actions()}</span>
               </TableHead>
             </tr>
           </TableHeader>

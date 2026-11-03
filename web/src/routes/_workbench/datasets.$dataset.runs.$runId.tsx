@@ -1,8 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ChartLine } from "lucide-react";
+import { ChartLine, Server } from "lucide-react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
-import { bestEpoch } from "../../domain/training/metrics";
 import type { TrainingRunDetail } from "../../domain/training/read-model";
 import {
   isTrainingRunActive,
@@ -17,7 +16,7 @@ import {
   ParametersList,
   ParametersListSkeleton,
 } from "../../features/training/ParametersList";
-import { runPlacement } from "../../features/training/placement";
+import { trainingRunPresentation } from "../../features/training/presentation";
 import { ResumeTrainingDialog } from "../../features/training/ResumeTrainingDialog";
 import { useTrainingRunControl } from "../../features/training/run-control";
 import { TrainingAttempts } from "../../features/training/TrainingAttempts";
@@ -96,27 +95,15 @@ export const Route = createFileRoute(
 
 function TrainingRunPage() {
   const detail = Route.useLoaderData();
-  const { run, epochs, version, model, current } = detail;
+  const { run, epochs, model, current } = detail;
   const live = isTrainingRunActive(run);
   const control = useTrainingRunControl(detail);
 
   // A run waiting for another of its model reads again as that one moves.
   useRouteRefresh(10_000, live || detail.blockedBy !== null);
 
-  const best = bestEpoch(epochs);
-  const total = run.recipe.parameters.epochs;
-  const published =
-    version && version.artifact.kind === "ultralytics" ? version : null;
-  const placement = runPlacement(run);
-  const lead = published
-    ? m.training_kpi_published({ version: identifierLabel(published.id) })
-    : best
-      ? m.epoch_tooltip_epoch({ epoch: best.epoch })
-      : null;
-  const saved =
-    run.checkpoint && (live || isTrainingRunResumable(run))
-      ? m.training_kpi_saved({ epoch: run.checkpoint.epoch })
-      : null;
+  const { best, total, published, placement, facts } =
+    trainingRunPresentation(detail);
 
   return (
     <Page
@@ -157,7 +144,7 @@ function TrainingRunPage() {
       <StatisticHero
         title={m.training_kpi_best_map()}
         value={<Metric value={best?.map50To95 ?? null} />}
-        facts={[lead, saved].filter((fact) => fact !== null)}
+        facts={facts}
         aside={
           <ProgressMeter
             label={m.parameter_epochs()}
@@ -188,7 +175,11 @@ function TrainingRunPage() {
       </PageSection>
 
       <PageSection title={m.training_attempts()}>
-        <TrainingAttempts detail={detail} control={control} />
+        <TrainingAttempts
+          detail={detail}
+          control={control}
+          empty={<Empty icon={Server} title={m.attempt_empty_title()} />}
+        />
       </PageSection>
 
       <PageSection title={m.training_parameters_heading()}>

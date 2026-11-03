@@ -1,5 +1,6 @@
 import { imageRefSchema } from "../../domain/images/schema";
 import { parseHttpJson } from "../../lib/http/json";
+import { m } from "../../paraglide/messages";
 
 export function storeImage(
   file: File,
@@ -29,11 +30,11 @@ export function storeImage(
     };
     request.onerror = () => {
       signal.removeEventListener("abort", abort);
-      reject(new Error("Upload failed"));
+      reject(new Error(m.upload_failed()));
     };
     request.onabort = () => {
       signal.removeEventListener("abort", abort);
-      reject(new Error("Upload cancelled"));
+      reject(new Error(m.upload_cancelled()));
     };
     request.send(file);
   });

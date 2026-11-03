@@ -18,7 +18,7 @@ import { canonicalJson } from "../../lib/json/canonical";
 import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { classForShortcut } from "./controls";
+import { classForShortcut } from "./class-keys";
 import { isOwnedKey } from "./keys";
 
 /** The readings a draft opens from: which one is shown, and the stored review. */
@@ -110,7 +110,7 @@ function reduceSession(
 export type Standing =
   "edited" | "reviewed" | Exclude<ReviewSource, "review"> | "unread";
 
-export interface ImageSession {
+interface ImageSession {
   instances: AnnotationInstance[];
   /** The reading the draft descends from. */
   origin: ReviewSource | null;

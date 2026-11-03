@@ -28,7 +28,7 @@ export interface ActionSuccess<T> {
   invalidate?: false;
 }
 
-/** One action's busy flag and a `runAction` that raises it while the work runs. */
+/** One action's busy flag and a `run` that raises it while the work runs. */
 export function useAsyncAction() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

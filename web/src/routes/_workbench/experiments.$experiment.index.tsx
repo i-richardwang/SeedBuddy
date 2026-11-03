@@ -79,7 +79,9 @@ function ExperimentPage() {
     <ExperimentView
       data={data}
       tab={tab}
-      onTabChange={(next) => navigate({ search: { tab: next }, replace: true })}
+      onTabChange={(next) =>
+        void navigate({ search: { tab: next }, replace: true })
+      }
     />
   );
 }

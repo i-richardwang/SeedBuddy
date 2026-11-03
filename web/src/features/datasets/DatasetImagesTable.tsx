@@ -23,11 +23,11 @@ import { TextLink } from "../../ui/kit/TextLink";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { BoxCount, ImageQuality } from "./ImageFacts";
 import {
-  DATASET_IMAGE_STATE_TONE,
   DATASET_IMAGE_STATES,
   type DatasetImageState,
   datasetImageState,
   datasetImageStateLabel,
+  datasetImageStateTone,
 } from "./labels";
 import { RemoveImageButton } from "./RemoveImageButton";
 
@@ -38,12 +38,12 @@ export function DatasetImagesTable({
   dataset,
   empty,
   images,
-  previewed,
+  image: selectedImage,
 }: {
   dataset: NamedDataset;
   empty: ReactNode;
   images: DatasetImageOverview[];
-  previewed?: string;
+  image?: string;
 }) {
   const states = new Map(
     images.map((image) => [image.digest, datasetImageState(image)]),
@@ -107,13 +107,13 @@ export function DatasetImagesTable({
       <TableHeader>
         <tr>
           <TableHead>{m.dataset_column_image()}</TableHead>
-          <TableHead className="w-28">{m.dataset_column_state()}</TableHead>
+          <TableHead className="w-28">{m.state_label()}</TableHead>
           <TableHead className="w-1/4">{m.dataset_column_quality()}</TableHead>
           <TableHead className="w-20" numeric>
-            {m.dataset_column_boxes()}
+            {m.boxes_label()}
           </TableHead>
           <TableHead className="w-12">
-            <span className="sr-only">{m.dataset_column_actions()}</span>
+            <span className="sr-only">{m.column_actions()}</span>
           </TableHead>
         </tr>
       </TableHeader>
@@ -124,7 +124,9 @@ export function DatasetImagesTable({
             <TableRow
               key={image.digest}
               clickable
-              data-state={image.digest === previewed ? "selected" : undefined}
+              data-state={
+                image.digest === selectedImage ? "selected" : undefined
+              }
             >
               <TableCell cellSlot="title">
                 <TextLink
@@ -140,15 +142,15 @@ export function DatasetImagesTable({
                   {image.filename}
                 </TextLink>
               </TableCell>
-              <TableCell cellLabel={m.dataset_column_state()}>
-                <Status tone={DATASET_IMAGE_STATE_TONE[state]}>
+              <TableCell cellLabel={m.state_label()}>
+                <Status tone={datasetImageStateTone(state)}>
                   {datasetImageStateLabel(state)}
                 </Status>
               </TableCell>
               <TableCell cellLabel={m.dataset_column_quality()}>
                 <ImageQuality image={image} />
               </TableCell>
-              <TableCell cellLabel={m.dataset_column_boxes()} numeric>
+              <TableCell cellLabel={m.boxes_label()} numeric>
                 <BoxCount
                   detected={image.detectionCount}
                   proposed={image.proposalCount}

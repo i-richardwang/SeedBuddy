@@ -48,10 +48,10 @@ export function TreatmentMenu({
         key: "delete",
         icon: Trash2,
         danger: true,
-        label: m.treatment_menu_remove(),
+        label: m.treatment_menu_delete(),
         onClick: () =>
           confirmDestructive({
-            title: m.experiment_delete_title({ name: treatment.name }),
+            title: m.item_delete_title({ name: treatment.name }),
             content: m.treatment_delete_note(),
             confirmLabel: m.treatment_delete(),
             onConfirm: async () => {
@@ -60,7 +60,7 @@ export function TreatmentMenu({
               });
             },
             onSuccess: () => {
-              toast.success(m.experiment_deleted({ name: treatment.name }));
+              toast.success(m.item_deleted({ name: treatment.name }));
             },
           }),
       },
@@ -69,10 +69,7 @@ export function TreatmentMenu({
 
   return (
     <>
-      <RowMenu
-        label={m.experiment_actions({ name: treatment.name })}
-        items={items}
-      />
+      <RowMenu label={m.item_actions({ name: treatment.name })} items={items} />
       <TreatmentDialog
         experiment={experiment}
         treatment={treatment}

@@ -15,7 +15,6 @@
     }
   ],
   "annotation_ai_running": "标注中",
-  "annotation_ai_section": "AI 建议",
   "annotation_box_class": "标记类别",
   "annotation_check_next": "下一处待确认",
   "annotation_check_previous": "上一处待确认",
@@ -45,6 +44,7 @@
     }
   ],
   "annotation_next_unreviewed": "下一个待复核",
+  "annotation_proposal_label": "AI 建议",
   "annotation_readings": "读数",
   "annotation_redo": "重做",
   "annotation_reload": "重新载入",

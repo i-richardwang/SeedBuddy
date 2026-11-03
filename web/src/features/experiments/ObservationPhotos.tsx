@@ -19,7 +19,7 @@ import type { ListedImage } from "../upload/state";
 import { type Uploads, useUploads } from "../upload/useUploads";
 
 /** Photographs being uploaded for one observation day and matched to its units. */
-export interface ObservationPhotos {
+interface ObservationPhotos {
   uploads: Uploads;
   units: readonly Unit[];
   /** Units that already have a photograph that day. */

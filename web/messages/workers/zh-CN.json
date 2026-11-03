@@ -36,6 +36,10 @@
       }
     }
   ],
+  "worker_column_activity": "当前工作",
+  "worker_column_presence": "状态",
+  "worker_column_seen": "最近联系",
+  "worker_column_worker": "计算节点",
   "worker_enroll": "登记计算节点",
   "worker_enroll_command_description": "在这台计算节点上运行，按提示粘贴令牌。",
   "worker_enroll_command_label": "安装命令",
@@ -56,11 +60,6 @@
   "worker_remove_description": "它的令牌会立即失效，手上的任务会回到队列。要让这台计算节点重新连接，需要重新登记。",
   "worker_remove_title": "移除 {name}？",
   "worker_removed": "已移除 {name}",
-  "workers_column_actions": "操作",
-  "workers_column_activity": "当前工作",
-  "workers_column_presence": "状态",
-  "workers_column_seen": "最近联系",
-  "workers_column_worker": "计算节点",
   "workers_empty": "还没有登记计算节点",
   "workers_empty_description_admin": "登记一台计算节点，然后在计算节点上运行设置命令。",
   "workers_empty_description_member": "运行检测与训练的计算节点由管理员登记。",
