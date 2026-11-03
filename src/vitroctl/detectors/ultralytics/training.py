@@ -5,15 +5,18 @@ import json
 import shutil
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Protocol
 
 import numpy as np
 
 from vitroctl.detectors.ultralytics.checkpoints import EPOCH_JOURNAL
-from vitroctl.detectors.ultralytics.runtime import load_training_trainer, load_yolo
-from vitroctl.io.files import write_text_atomically
+from vitroctl.detectors.ultralytics.runtime import (
+    load_training_trainer,
+    load_yolo,
+    require_ultralytics_version,
+)
+from vitroctl.io.files import file_digest, write_text_atomically
 from vitroctl.training.parameters import parse_training_parameters
 
 
@@ -204,14 +207,6 @@ def _model_source(model: str | Path, weights_dir: Path) -> str:
     return str(source)
 
 
-def _file_digest(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _load_checkpoint(path: Path) -> Mapping[str, Any]:
     from ultralytics.utils.patches import torch_load
 
@@ -279,12 +274,7 @@ def train_yolo_detector(
     data_path = Path(dataset).resolve()
     if not data_path.is_file():
         raise FileNotFoundError(data_path)
-    installed_runtime_version = version("ultralytics")
-    if installed_runtime_version != runtime_version:
-        raise ValueError(
-            "Training runtime version differs from the immutable recipe: "
-            f"{installed_runtime_version} != {runtime_version}"
-        )
+    installed_runtime_version = require_ultralytics_version(runtime_version)
     output = Path(output_dir).resolve()
     completed = _completed_epochs(output, int(fixed_parameters["epochs"]))
     if resume_required and not completed:
@@ -322,7 +312,7 @@ def train_yolo_detector(
     else:
         model_source = Path(_model_source(model, output.parent / "weights"))
         trainer_model = yolo(str(model_source))
-        if not model_source.is_file() or _file_digest(model_source) != model_digest:
+        if not model_source.is_file() or file_digest(model_source) != model_digest:
             raise ValueError("Training base model failed digest verification")
         train_options = {
             **fixed_parameters,

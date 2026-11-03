@@ -18,7 +18,8 @@ def test_launch_agent_runs_the_profile_in_foreground(tmp_path, monkeypatch) -> N
         ),
     )
 
-    document = launch_agent_document("mps-trainer", "/opt/bin/vitroctl")
+    monkeypatch.setattr(worker_launchd.shutil, "which", lambda _: "/opt/bin/vitroctl")
+    document = launch_agent_document("mps-trainer")
 
     assert service_label("mps-trainer") == "com.vitroflow.worker.mps-trainer"
     assert document["ProgramArguments"] == [

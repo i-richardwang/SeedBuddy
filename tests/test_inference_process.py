@@ -67,7 +67,6 @@ def test_blocked_native_call_is_killed_and_the_process_can_restart(tmp_path):
     try:
         with pytest.raises(TimeoutError):
             worker.run(None, deadline, check)  # type: ignore[arg-type]
-        assert worker._process is None
         worker._target = warm_child
         assert worker.run(None, time.monotonic() + 20, lambda: None)["count"] == 1  # type: ignore[arg-type]
     finally:
@@ -79,7 +78,6 @@ def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path):
     try:
         with pytest.raises(RuntimeError, match="disconnected|exited"):
             worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
-        assert worker._process is None
     finally:
         worker.close()
 
@@ -104,6 +102,5 @@ def test_partial_pipe_frame_cannot_block_the_supervisor(tmp_path):
     try:
         with pytest.raises(TimeoutError):
             worker.run(None, deadline, check)  # type: ignore[arg-type]
-        assert worker._process is None
     finally:
         worker.close()

@@ -17,12 +17,7 @@ from vitroctl.models.bundle import (
 from vitroctl.models.client import WorkbenchClient
 
 
-def bundle(weights: Path):
-    recipe = json.loads(
-        (
-            Path(__file__).parents[1] / "configs/yolo26/yolo26n-whole-v1.recipe.json"
-        ).read_text()
-    )["recipe"]
+def bundle(weights: Path, recipe):
     return {
         "schemaVersion": 1,
         "classes": ["seed"],
@@ -63,10 +58,11 @@ def bundle(weights: Path):
 
 def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
     tmp_path,
+    recipe,
 ):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"trained once")
-    document = bundle(weights)
+    document = bundle(weights, recipe)
     target = write_bundle(weights, document, tmp_path / "bundle")
     actual, copied = read_bundle(target)
     assert actual == document
@@ -80,11 +76,11 @@ def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
 
 
 def test_import_only_prepares_uploads_and_registers_and_can_be_retried(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, recipe
 ):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"trained once")
-    document = bundle(weights)
+    document = bundle(weights, recipe)
     operations = []
     uploaded = []
 
@@ -118,7 +114,7 @@ def test_import_only_prepares_uploads_and_registers_and_can_be_retried(
 
 
 def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
-    tmp_path, monkeypatch, capsys
+    tmp_path, monkeypatch, capsys, recipe
 ):
     operations = []
     monkeypatch.setenv("VITROFLOW_SERVER_URL", "https://workbench.example")
@@ -129,11 +125,6 @@ def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
         return {"id": "result"}
 
     monkeypatch.setattr(WorkbenchClient, "call", call)
-    recipe = json.loads(
-        (
-            Path(__file__).parents[1] / "configs/yolo26/yolo26n-whole-v1.recipe.json"
-        ).read_text()
-    )["recipe"]
     spec = tmp_path / "spec.json"
     spec.write_text(json.dumps({"dataset": "dataset-id", "recipe": recipe}))
     assert main(["training", "run", "--spec", str(spec), "--worker", "local-gpu"]) == 0
@@ -172,17 +163,12 @@ def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
 
 
 def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resume_inputs(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, recipe
 ):
     from types import SimpleNamespace
 
     from vitroctl.cli import training
 
-    recipe = json.loads(
-        (
-            Path(__file__).parents[1] / "configs/yolo26/yolo26n-whole-v1.recipe.json"
-        ).read_text()
-    )["recipe"]
     spec = tmp_path / "training.json"
     spec.write_text(json.dumps({"dataset": "local", "recipe": recipe}))
     manifest = SimpleNamespace(
@@ -208,7 +194,7 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
         output.mkdir()
         weights = output / "best.pt"
         weights.write_bytes(b"trained once")
-        metadata = bundle(weights)
+        metadata = bundle(weights, recipe)
         (output / "training-context.json").write_text(
             json.dumps(
                 {
@@ -262,10 +248,10 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
 
 
 @pytest.mark.parametrize("size", [2560, 3072])
-def test_high_resolution_bundle_roundtrips(tmp_path, size):
+def test_high_resolution_bundle_roundtrips(tmp_path, size, recipe):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"high resolution weights")
-    document = bundle(weights)
+    document = bundle(weights, recipe)
     document["training"]["parameters"]["imgsz"] = size
     document["inference"]["imageSize"] = size
     target = write_bundle(weights, document, tmp_path / "bundle")

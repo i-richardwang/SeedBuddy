@@ -26,8 +26,8 @@ class InferenceRunner:
     def close(self) -> None:
         self.process.close()
 
-    def run_once(self, stopped: threading.Event | None = None) -> bool:
-        if stopped and stopped.is_set():
+    def run_once(self, stopped: threading.Event) -> bool:
+        if stopped.is_set():
             return False
         claimed_at = time.monotonic()
         assignment = self.client.claim()
@@ -55,7 +55,7 @@ class InferenceRunner:
         def check() -> None:
             nonlocal lease_until, next_renewal
             now = time.monotonic()
-            if stopped and stopped.is_set():
+            if stopped.is_set():
                 raise InferenceExecutionError("interrupted", "Worker is stopping")
             if now >= deadline:
                 raise InferenceExecutionError(

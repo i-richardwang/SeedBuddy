@@ -20,7 +20,7 @@ from vitroctl.worker.inference_process import InferenceProcess
 from vitroctl.worker.inference_protocol import InferenceClient
 from vitroctl.worker.runtime import shutdown_signals
 from vitroctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
-from vitroctl.worker.training import TrainingClient, process_training_job
+from vitroctl.worker.training import TrainingClient, serve_training_claim
 
 LOGGER = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class Worker:
                 self.runner.close()
                 images = ImageCache(self.settings.work_dir / "images")
                 try:
-                    process_training_job(
+                    serve_training_claim(
                         self.training,
                         job,
                         self.settings.work_dir,

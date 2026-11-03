@@ -2,19 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from vitroctl.annotations import BoundingBox
-from vitroctl.contracts.documents import (
-    as_integer,
-    as_list,
-    as_number,
-    as_object,
-    as_string,
-    expect_fields,
-    expect_schema_version,
-)
+from vitroctl.contracts.annotation import BoundingBox
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import (
-    DETECTION_SCHEMA_VERSION,
     DetectionDiagnostics,
     DetectionInstance,
     DetectionProducer,
@@ -25,112 +15,73 @@ from vitroctl.detectors.contract import (
 )
 
 
-def _runtime(value: Any, context: str) -> RuntimeDescriptor:
-    descriptor = as_object(value, context)
-    expect_fields(descriptor, {"adapter", "fingerprint"}, context)
+def _runtime(descriptor: dict[str, Any]) -> RuntimeDescriptor:
     return RuntimeDescriptor(
-        adapter=as_string(descriptor["adapter"], f"{context}.adapter"),
-        fingerprint=as_string(descriptor["fingerprint"], f"{context}.fingerprint"),
+        adapter=descriptor["adapter"],
+        fingerprint=descriptor["fingerprint"],
     )
 
 
-def _producer(value: Any, context: str) -> DetectionProducer:
-    producer = as_object(value, context)
-    expect_fields(producer, {"modelVersionId", "artifactDigest", "runtime"}, context)
+def _producer(producer: dict[str, Any]) -> DetectionProducer:
     return DetectionProducer(
-        model_version_id=as_string(
-            producer["modelVersionId"], f"{context}.modelVersionId"
-        ),
-        artifact_digest=as_string(
-            producer["artifactDigest"], f"{context}.artifactDigest"
-        ),
-        runtime=_runtime(producer["runtime"], f"{context}.runtime"),
+        model_version_id=producer["modelVersionId"],
+        artifact_digest=producer["artifactDigest"],
+        runtime=_runtime(producer["runtime"]),
     )
 
 
-def _diagnostics(value: Any, context: str) -> DetectionDiagnostics:
-    diagnostics = as_object(value, context)
-    expect_fields(diagnostics, set(), context, {"dish", "metrics"})
+def _diagnostics(diagnostics: dict[str, Any]) -> DetectionDiagnostics:
     dish = None
     if "dish" in diagnostics:
-        raw_dish = as_object(diagnostics["dish"], f"{context}.dish")
-        expect_fields(raw_dish, {"centerX", "centerY", "radius"}, f"{context}.dish")
+        raw_dish = diagnostics["dish"]
         dish = DishGeometry(
-            center_x=as_number(raw_dish["centerX"], f"{context}.dish.centerX"),
-            center_y=as_number(raw_dish["centerY"], f"{context}.dish.centerY"),
-            radius=as_number(raw_dish["radius"], f"{context}.dish.radius"),
+            center_x=raw_dish["centerX"],
+            center_y=raw_dish["centerY"],
+            radius=raw_dish["radius"],
         )
-    metrics: dict[str, float] = {}
-    if "metrics" in diagnostics:
-        raw_metrics = as_object(diagnostics["metrics"], f"{context}.metrics")
-        metrics = {
-            as_string(name, f"{context}.metrics key"): as_number(
-                metric, f"{context}.metrics.{name}"
-            )
-            for name, metric in raw_metrics.items()
-        }
-    return DetectionDiagnostics(dish=dish, metrics=metrics)
+    return DetectionDiagnostics(dish=dish, metrics=dict(diagnostics.get("metrics", {})))
 
 
-def _instance(value: Any, context: str) -> DetectionInstance:
-    instance = as_object(value, context)
-    expect_fields(instance, {"id", "class", "bbox", "score"}, context)
-    bbox_context = f"{context}.bbox"
-    raw_bbox = as_object(instance["bbox"], bbox_context)
-    expect_fields(raw_bbox, {"x", "y", "width", "height"}, bbox_context)
+def _instance(instance: dict[str, Any]) -> DetectionInstance:
+    raw_bbox = instance["bbox"]
     return DetectionInstance(
-        instance_id=as_string(instance["id"], f"{context}.id"),
-        class_name=as_string(instance["class"], f"{context}.class"),
+        instance_id=instance["id"],
+        class_name=instance["class"],
         bbox=BoundingBox(
-            x=as_number(raw_bbox["x"], f"{bbox_context}.x"),
-            y=as_number(raw_bbox["y"], f"{bbox_context}.y"),
-            width=as_number(raw_bbox["width"], f"{bbox_context}.width"),
-            height=as_number(raw_bbox["height"], f"{bbox_context}.height"),
+            x=raw_bbox["x"],
+            y=raw_bbox["y"],
+            width=raw_bbox["width"],
+            height=raw_bbox["height"],
         ),
-        score=as_number(instance["score"], f"{context}.score"),
+        score=instance["score"],
     )
 
 
 def parse_detection_result(value: Any, context: str = "detection") -> DetectionResult:
     validate_wire_contract("detection-result", value, context)
-    payload = as_object(value, context)
-    expect_schema_version(payload, "schemaVersion", DETECTION_SCHEMA_VERSION, context)
-    image_context = f"{context}.image"
-    image = as_object(payload.get("image"), image_context)
-    producer = _producer(payload.get("producer"), f"{context}.producer")
+    return detection_from_document(value)
 
-    expect_fields(
-        payload,
-        {"schemaVersion", "image", "producer", "instances", "quality"},
-        context,
-        {"diagnostics"},
-    )
-    expect_fields(image, {"digest", "width", "height"}, image_context)
-    quality_context = f"{context}.quality"
-    quality = as_object(payload["quality"], quality_context)
-    expect_fields(quality, {"status", "warnings"}, quality_context)
-    warnings = as_list(quality["warnings"], f"{quality_context}.warnings")
+
+def detection_from_document(payload: dict[str, Any]) -> DetectionResult:
+    """Build a result from a schema-validated document; its constructor checks bounds and IDs."""
+    image = payload["image"]
+    producer = _producer(payload["producer"])
+
+    quality = payload["quality"]
+    warnings = quality["warnings"]
 
     return DetectionResult(
-        digest=as_string(image["digest"], f"{image_context}.digest"),
-        width=as_integer(image["width"], f"{image_context}.width", 1),
-        height=as_integer(image["height"], f"{image_context}.height", 1),
+        digest=image["digest"],
+        width=image["width"],
+        height=image["height"],
         producer=producer,
-        instances=tuple(
-            _instance(raw, f"{context}.instances[{index}]")
-            for index, raw in enumerate(
-                as_list(payload["instances"], f"{context}.instances")
-            )
-        ),
+        instances=tuple(_instance(raw) for raw in payload["instances"]),
         quality=DetectionQuality(
-            status=as_string(quality["status"], f"{quality_context}.status"),
-            warnings=tuple(
-                as_string(warning, f"{quality_context}.warnings[{index}]")
-                for index, warning in enumerate(warnings)
-            ),
+            status=quality["status"],
+            warnings=tuple(warnings),
         ),
         diagnostics=(
-            _diagnostics(payload["diagnostics"], f"{context}.diagnostics")
+            _diagnostics(payload["diagnostics"])
             if "diagnostics" in payload
             else DetectionDiagnostics()
         ),

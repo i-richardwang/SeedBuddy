@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from vitroctl.annotations import AnnotationDocument, BoundingBox
+from vitroctl.contracts.annotation import AnnotationDocument, BoundingBox
 from vitroctl.datasets.manifest import verified_blob
 from vitroctl.detectors.traditional.candidates import FEATURE_NAMES, CandidateEvidence
 from vitroctl.detectors.traditional.config import PipelineConfig

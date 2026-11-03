@@ -11,7 +11,7 @@ from vitroctl.detectors.traditional.candidates import (
 )
 from vitroctl.detectors.traditional.config import PipelineConfig
 from vitroctl.detectors.traditional.detection import CandidateSelection, detect_seeds
-from vitroctl.detectors.traditional.geometry import DishGeometry, estimate_geometry
+from vitroctl.detectors.traditional.geometry import DishRegions, estimate_geometry
 from vitroctl.detectors.traditional.identity import ExecutionIdentity
 from vitroctl.detectors.traditional.normalization import (
     NormalizedImage,
@@ -22,13 +22,14 @@ from vitroctl.detectors.traditional.regions import render_regions
 from vitroctl.detectors.traditional.rendering import render_debug, render_overlay
 from vitroctl.detectors.traditional.results import CountResult, QualityReport
 from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL, CandidateModel
-from vitroctl.io.image_io import image_digest, read_image
+from vitroctl.io.files import file_digest
+from vitroctl.io.image_io import read_image
 
 
 @dataclass(frozen=True)
 class CandidateAnalysis:
     image: np.ndarray
-    geometry: DishGeometry
+    geometry: DishRegions
     normalized: NormalizedImage
     proposals: list[SeedProposal]
     evidence: list[CandidateEvidence]
@@ -36,9 +37,8 @@ class CandidateAnalysis:
 
 def analyze_candidates(
     path: str | Path,
-    config: PipelineConfig | None = None,
+    config: PipelineConfig = PipelineConfig(),  # noqa: B008
 ) -> CandidateAnalysis:
-    config = config or PipelineConfig()
     image = read_image(path)
     geometry = estimate_geometry(image, config)
     normalized = normalize_image(image, geometry.reference_mask, geometry.radius)
@@ -65,7 +65,7 @@ def analyze_candidates(
 
 
 def _assess_quality(
-    geometry: DishGeometry,
+    geometry: DishRegions,
     normalized: NormalizedImage,
     config: PipelineConfig,
 ) -> QualityReport:
@@ -90,7 +90,7 @@ class Recognition:
 
     result: CountResult
     image: np.ndarray
-    geometry: DishGeometry
+    geometry: DishRegions
     normalized: NormalizedImage
     detection: CandidateSelection
     regions: np.ndarray
@@ -107,10 +107,9 @@ class Recognition:
 def recognize(
     image_path: str | Path,
     *,
-    config: PipelineConfig | None = None,
+    config: PipelineConfig = PipelineConfig(),  # noqa: B008
     model: CandidateModel = DEFAULT_MODEL,
 ) -> Recognition:
-    config = config or PipelineConfig()
     analysis = analyze_candidates(image_path, config)
     image = analysis.image
     geometry = analysis.geometry
@@ -127,7 +126,7 @@ def recognize(
     regions = render_regions(image.shape[:2], detection.detections, window_radius)
     result = CountResult(
         path=Path(image_path),
-        digest=image_digest(image_path),
+        digest=file_digest(image_path),
         width=image.shape[1],
         height=image.shape[0],
         detections=detection.detections,
@@ -142,7 +141,7 @@ def recognize(
 def count_seeds(
     image_path: str | Path,
     *,
-    config: PipelineConfig | None = None,
+    config: PipelineConfig = PipelineConfig(),  # noqa: B008
     model: CandidateModel = DEFAULT_MODEL,
 ) -> CountResult:
     return recognize(image_path, config=config, model=model).result

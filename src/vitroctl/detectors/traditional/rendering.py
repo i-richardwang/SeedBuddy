@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from vitroctl.detectors.traditional.detection import CandidateSelection
-from vitroctl.detectors.traditional.geometry import DishGeometry
+from vitroctl.detectors.traditional.geometry import DishRegions
 from vitroctl.detectors.traditional.normalization import NormalizedImage
 
 
@@ -48,7 +48,7 @@ def _draw_detections(image: np.ndarray, detection: CandidateSelection) -> None:
 
 def render_overlay(
     image: np.ndarray,
-    geometry: DishGeometry,
+    geometry: DishRegions,
     detection: CandidateSelection,
     labels: np.ndarray,
 ) -> np.ndarray:
@@ -71,7 +71,7 @@ def render_overlay(
 
 def render_debug(
     image: np.ndarray,
-    geometry: DishGeometry,
+    geometry: DishRegions,
     normalized: NormalizedImage,
     detection: CandidateSelection,
     labels: np.ndarray,

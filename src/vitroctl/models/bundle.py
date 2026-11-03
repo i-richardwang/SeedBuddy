@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 from pathlib import Path
 from typing import Any
 
 from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.io.files import atomic_directory
+from vitroctl.io.files import atomic_directory, file_digest
 
 
 def weights_descriptor(weights: Path) -> dict[str, Any]:
-    with weights.open("rb") as stream:
-        digest = hashlib.file_digest(stream, "sha256").hexdigest()
-    return {"digest": digest, "bytes": weights.stat().st_size}
+    return {"digest": file_digest(weights), "bytes": weights.stat().st_size}
 
 
 def validate_bundle(document: Any, weights: Path) -> dict[str, Any]:

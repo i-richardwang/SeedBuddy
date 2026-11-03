@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -18,14 +17,14 @@ ultralytics = pytest.importorskip("ultralytics")
 
 
 @pytest.mark.parametrize(
-    "filename", ["yolo26n-whole-v1.recipe.json", "yolo26s-whole-2048-v1.recipe.json"]
+    "recipe",
+    ["yolo26n-whole-v1.recipe.json", "yolo26s-whole-2048-v1.recipe.json"],
+    indirect=True,
 )
-def test_seed_recipe_parameters_are_accepted_ultralytics_arguments(filename) -> None:
+def test_seed_recipe_parameters_are_accepted_ultralytics_arguments(recipe) -> None:
     from ultralytics.cfg import get_cfg
 
-    project_root = Path(__file__).resolve().parents[1]
-    manifest = json.loads((project_root / "configs/yolo26" / filename).read_text())
-    parameters = manifest["recipe"]["parameters"]
+    parameters = recipe["parameters"]
 
     cfg = get_cfg(overrides=dict(parameters))
 

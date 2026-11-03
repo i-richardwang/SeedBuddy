@@ -33,7 +33,7 @@ def _encode_jpeg(image: np.ndarray) -> bytes:
 def create_image_artifacts(
     image_path: str | Path,
     *,
-    config: PipelineConfig | None = None,
+    config: PipelineConfig = PipelineConfig(),  # noqa: B008
     model: CandidateModel = DEFAULT_MODEL,
 ) -> ImageArtifacts:
     recognition = recognize(image_path, config=config, model=model)

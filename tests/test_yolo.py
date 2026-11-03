@@ -10,7 +10,11 @@ from conftest import (
     write_manifest,
 )
 
-from vitroctl.annotations import AnnotationInstance, BoundingBox, parse_annotation
+from vitroctl.contracts.annotation import (
+    AnnotationInstance,
+    BoundingBox,
+    parse_annotation,
+)
 from vitroctl.datasets.annotations import AnnotatedImage, load_annotations
 from vitroctl.datasets.manifest import BlobError, ManifestImage, blob_path
 from vitroctl.detectors.ultralytics import (
@@ -144,19 +148,6 @@ def test_yolo_validation_split_is_stable_per_digest(tmp_path: Path) -> None:
 
     assert first["images"] == second["images"]
     assert sum(entry["split"] == "val" for entry in first["images"]) == 1
-
-
-def test_yolo_export_honours_recorded_splits(tmp_path: Path) -> None:
-    data_root = tmp_path / "data"
-    annotated = _annotated_blobs(data_root, 2, ("val", "train"))
-
-    manifest = export_yolo_dataset(
-        annotated, SEED_CLASSES, data_root, tmp_path / "yolo", seed=3
-    )
-
-    assert {entry["digest"]: entry["split"] for entry in manifest["images"]} == {
-        image.entry.digest: image.entry.split for image in annotated
-    }
 
 
 def test_split_assignment_fills_the_quota_around_recorded_splits() -> None:

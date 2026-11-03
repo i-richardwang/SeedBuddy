@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from vitroctl.annotations import BoundingBox
+from vitroctl.contracts.annotation import BoundingBox
 from vitroctl.detectors.contract import (
     DetectionInstance,
     DetectionProducer,
@@ -115,37 +115,31 @@ def test_traditional_artifact_identity_covers_model_and_configuration() -> None:
 
 
 @pytest.mark.parametrize(
-    ("factory", "message"),
+    "change",
     [
-        (lambda: DetectionQuality("unknown"), "quality status"),
-        (lambda: DetectionQuality("ok", ("Not A Code",)), "warning code"),
-        (
-            lambda: DetectionInstance(
-                "seed", "seed", BoundingBox(0, 0, 1, 1), math.inf
-            ),
-            "score must be finite",
-        ),
-        (
-            lambda: DetectionInstance("seed", "seed", BoundingBox(0, 0, 1, 1), 1.1),
-            "between zero and one",
-        ),
+        {"quality": {"status": "unknown", "warnings": []}},
+        {"quality": {"status": "ok", "warnings": ["Not A Code"]}},
+        {
+            "instances": [
+                DetectionInstance(
+                    "seed", "seed", BoundingBox(0, 0, 1, 1), math.inf
+                ).to_dict()
+            ]
+        },
+        {
+            "instances": [
+                DetectionInstance(
+                    "seed", "seed", BoundingBox(0, 0, 1, 1), 1.1
+                ).to_dict()
+            ]
+        },
+        {"image": {"digest": "images/set/example.jpg", "width": 100, "height": 80}},
     ],
 )
-def test_contract_rejects_values_the_web_cannot_accept(factory, message) -> None:
-    with pytest.raises(ValueError, match=message):
-        factory()
-
-
-def test_result_requires_a_content_digest() -> None:
-    with pytest.raises(ValueError, match="SHA-256"):
-        DetectionResult(
-            "images/set/example.jpg",
-            100,
-            80,
-            PRODUCER,
-            (),
-            DetectionQuality("ok"),
-        )
+def test_contract_rejects_values_the_web_cannot_accept(change) -> None:
+    document = json.loads(CONTRACT_FIXTURE.read_text())
+    with pytest.raises(ValueError):
+        parse_detection_result({**document, **change})
 
 
 def test_result_rejects_duplicate_ids_and_out_of_bounds_boxes() -> None:

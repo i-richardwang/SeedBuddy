@@ -18,10 +18,11 @@ from vitroctl.detectors.ultralytics import (
     YoloTrainingInterruptedError,
     export_dataset_images,
 )
+from vitroctl.io.files import file_digest
 from vitroctl.io.image_io import verify_digest
 from vitroctl.models.bundle import training_bundle, write_bundle
 from vitroctl.training.documents import (
-    TrainingJob,
+    TrainingClaim,
     TrainingPhase,
     TrainingSnapshot,
     parse_training_snapshot,
@@ -44,12 +45,12 @@ class TrainingClient:
     def __init__(self, worker: WorkerClient) -> None:
         self.worker = worker
 
-    def _identity(self, job: TrainingJob) -> dict[str, str | int]:
+    def _identity(self, job: TrainingClaim) -> dict[str, str | int]:
         if job.session_id != self.worker.session.session_id:
             raise ValueError("Training execution belongs to another worker session")
         return {"sessionId": job.session_id, "attempt": job.attempt}
 
-    def claim(self) -> TrainingJob | None:
+    def claim(self) -> TrainingClaim | None:
         response = self.worker.request(
             "POST",
             "api/worker/training/claim",
@@ -60,12 +61,11 @@ class TrainingClient:
         expect_fields(document, {"run"}, "training claim response")
         if document["run"] is None:
             return None
-        job = TrainingJob.parse(document["run"])
-        if job.session_id != self.worker.session.session_id:
-            raise ValueError("Training claim returned another session's lease")
+        job = TrainingClaim.parse(document["run"])
+        self._identity(job)
         return job
 
-    def fetch_snapshot(self, job: TrainingJob) -> TrainingSnapshot:
+    def fetch_snapshot(self, job: TrainingClaim) -> TrainingSnapshot:
         response = self.worker.request(
             "GET",
             f"api/worker/training/runs/{job.run_id}/snapshot",
@@ -74,7 +74,7 @@ class TrainingClient:
         self.worker.require_current_session(response)
         return parse_training_snapshot(response.json())
 
-    def enter_phase(self, job: TrainingJob, phase: TrainingPhase) -> None:
+    def enter_phase(self, job: TrainingClaim, phase: TrainingPhase) -> None:
         response = self.worker.request(
             "POST",
             f"api/worker/training/runs/{job.run_id}/phase",
@@ -85,7 +85,7 @@ class TrainingClient:
         )
         self.worker.require_current_session(response)
 
-    def renew_lease(self, job: TrainingJob) -> None:
+    def renew_lease(self, job: TrainingClaim) -> None:
         response = self.worker.request(
             "POST",
             f"api/worker/training/runs/{job.run_id}/lease",
@@ -93,7 +93,7 @@ class TrainingClient:
         )
         self.worker.require_current_session(response)
 
-    def report_epoch(self, job: TrainingJob, report: EpochReport) -> None:
+    def report_epoch(self, job: TrainingClaim, report: EpochReport) -> None:
         response = self.worker.request(
             "POST",
             f"api/worker/training/runs/{job.run_id}/epochs",
@@ -101,7 +101,7 @@ class TrainingClient:
         )
         self.worker.require_current_session(response)
 
-    def download_image(self, job: TrainingJob, digest: str) -> bytes:
+    def download_image(self, job: TrainingClaim, digest: str) -> bytes:
         response = self.worker.request(
             "GET",
             f"api/worker/training/runs/{job.run_id}/images/{digest}",
@@ -110,19 +110,17 @@ class TrainingClient:
         self.worker.require_current_session(response)
         return verify_digest(response.content, digest)
 
-    def publish_artifact(self, job: TrainingJob, weights: Path, bundle: Path) -> None:
+    def publish_artifact(self, job: TrainingClaim, weights: Path, bundle: Path) -> None:
         document = json.loads(bundle.read_text())
         descriptor = document["weights"]
         identity = self._identity(job)
         url = f"api/worker/training/runs/{job.run_id}/artifact"
         if weights.stat().st_size != descriptor["bytes"]:
             raise ValueError("Final weights size differs from the model manifest")
-        digest = sha256()
         with weights.open("rb") as stream:
             for part, chunk in enumerate(
                 iter(lambda: stream.read(ARTIFACT_PART_BYTES), b"")
             ):
-                digest.update(chunk)
                 response = self.worker.request(
                     "PUT",
                     f"{url}-parts",
@@ -134,12 +132,12 @@ class TrainingClient:
                     },
                 )
                 self.worker.require_current_session(response)
-        if digest.hexdigest() != descriptor["digest"]:
+        if file_digest(weights) != descriptor["digest"]:
             raise ValueError("Final weights digest differs from the model manifest")
         response = self.worker.request("POST", url, params=identity, json=document)
         self.worker.require_current_session(response)
 
-    def report_failure(self, job: TrainingJob, error: str) -> None:
+    def report_failure(self, job: TrainingClaim, error: str) -> None:
         response = self.worker.request(
             "POST",
             f"api/worker/training/runs/{job.run_id}/fail",
@@ -152,7 +150,7 @@ class TrainingClient:
 
 def materialize_snapshot(
     client: TrainingClient,
-    job: TrainingJob,
+    job: TrainingClaim,
     output: Path,
     *,
     images: ImageCache,
@@ -227,7 +225,7 @@ def _prune_stale_runs(runs: Path) -> None:
 
 def _train_bundle(
     client: TrainingClient,
-    job: TrainingJob,
+    job: TrainingClaim,
     root: Path,
     device: str | None,
     images: ImageCache,
@@ -283,13 +281,13 @@ def _train_bundle(
     return write_bundle(result.best_weights, document, root / "bundle")
 
 
-def process_training_job(
+def serve_training_claim(
     client: TrainingClient,
-    job: TrainingJob,
+    job: TrainingClaim,
     work_root: Path,
     device: str | None,
     images: ImageCache,
-    stopped: threading.Event | None = None,
+    stopped: threading.Event,
 ) -> None:
     runs = work_root / RUNS_DIRECTORY
     _prune_stale_runs(runs)
@@ -300,7 +298,7 @@ def process_training_job(
         with keep_lease(
             client.worker,
             lambda: client.renew_lease(job),
-            cancelled=stopped.is_set if stopped else None,
+            cancelled=stopped.is_set,
         ) as cancelled:
             client.enter_phase(job, "preparing")
             prepare_local_training(job, root)

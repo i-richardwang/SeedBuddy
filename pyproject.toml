@@ -65,7 +65,7 @@ markers = [
 ]
 
 [tool.pyright]
-include = ["src", "scripts", "packages/vitroflow/src"]
+include = ["src", "scripts", "packages/vitroflow/src", "tests", "packages/vitroflow/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
 
@@ -74,13 +74,9 @@ packages = ["src/vitroctl"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "/configs",
   "/docs/vitroctl.md",
   "/LICENSE",
   "/README.md",
   "/pyproject.toml",
-  "/scripts",
   "/src/vitroctl",
-  "/tests",
-  "/uv.lock",
 ]

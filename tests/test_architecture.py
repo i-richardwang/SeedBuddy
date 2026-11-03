@@ -36,8 +36,8 @@ def test_local_and_type_only_cycles_are_checked() -> None:
 def test_package_dependency_direction_is_checked_without_a_file_cycle() -> None:
     errors = architecture.check_architecture(
         {
-            "vitroctl.annotations": "from vitroctl.datasets.manifest import Manifest",
-            "vitroctl.datasets.manifest": "from vitroctl.annotations import Annotation",
+            "vitroctl.contracts.annotation": "from vitroctl.datasets.manifest import Manifest",
+            "vitroctl.datasets.manifest": "from vitroctl.contracts.annotation import Annotation",
         }
     )
     assert any("direction" in error for error in errors)

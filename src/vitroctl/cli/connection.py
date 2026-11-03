@@ -8,16 +8,26 @@ import os
 from vitroctl.models.client import WorkbenchClient
 
 
-def client(args: argparse.Namespace) -> WorkbenchClient:
+def connection(args: argparse.Namespace, scope: str) -> tuple[str, str]:
     server = args.server or os.environ.get("VITROFLOW_SERVER_URL")
     token = args.token or os.environ.get("VITROFLOW_API_KEY")
     if not server or not token:
         raise ValueError(
-            "Set VITROFLOW_SERVER_URL and VITROFLOW_API_KEY (experiments scope), or --server and --token"
+            f"Set VITROFLOW_SERVER_URL and VITROFLOW_API_KEY ({scope} scope), or --server and --token"
         )
-    return WorkbenchClient(server, token)
+    return server, token
 
 
-def connection_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--server")
-    parser.add_argument("--token")
+def client(args: argparse.Namespace) -> WorkbenchClient:
+    return WorkbenchClient(*connection(args, "experiments"))
+
+
+def connection_options(
+    parser: argparse.ArgumentParser, scope: str = "experiments"
+) -> None:
+    parser.add_argument(
+        "--server", help="Workbench URL (default: VITROFLOW_SERVER_URL)"
+    )
+    parser.add_argument(
+        "--token", help=f"API key with the {scope} scope (default: VITROFLOW_API_KEY)"
+    )
