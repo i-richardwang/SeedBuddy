@@ -198,3 +198,13 @@ test("starting a run never waits for image processing or creates regional eviden
     await blocked;
   }
 });
+
+test("starting on an absent canonical image uses the shared image refusal", async () => {
+  await expect(
+    createAnnotationRun({
+      ref: { digest: "0".repeat(64), modelId: "seed-detector" },
+      input: null,
+      scope: null,
+    }),
+  ).rejects.toMatchObject({ code: "image_not_found" });
+});

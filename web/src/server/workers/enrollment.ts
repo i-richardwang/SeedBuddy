@@ -70,7 +70,7 @@ export async function authenticateWorker(
 
 /** The names of the enrolled workers, in the order they were enrolled. */
 export async function listEnrolledWorkers(db: Executor): Promise<string[]> {
-  const rows = await (db ?? (await database()))
+  const rows = await db
     .select({ id: workers.id })
     .from(workers)
     .orderBy(asc(workers.enrolledAt), asc(workers.id));

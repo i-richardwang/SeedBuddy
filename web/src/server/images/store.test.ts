@@ -29,6 +29,7 @@ test("upload and canonical import persist the same analysis without preparing re
   const stored = await row(first.digest);
   const analysis = stored.dishAnalysis;
   expect(stored.dishAnalysisAttemptedAt).toBeInstanceOf(Date);
+  expect(stored.dishAnalysisAttemptedAt).toEqual(stored.receivedAt);
   expect(first.digest).toBe(canonical.digest);
   expect(analysis?.recipe).toBe(DISH_RECIPE_ID);
   expect(analysis?.circle).not.toBeNull();

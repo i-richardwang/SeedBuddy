@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
@@ -9,6 +10,8 @@ import { imageBlobKey } from "../images/keys";
 import { storeImage } from "../images/store";
 import { markImageUnclear } from "../images/unclear";
 import { blobExists, requireBlob } from "../infra/blobs/store";
+import { database } from "../infra/db/client";
+import { datasetImages, datasets } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
 import { createModel, registerModel } from "../models/registry";
 import { observeTextsIntoDataset } from "../testing/datasets";
@@ -343,4 +346,26 @@ test("missing dataset source images use the experiment-owned refusal", async () 
       ],
     }),
   ).rejects.toMatchObject({ code: "experiment_observation_image_not_found" });
+});
+
+test("founding a dataset and adding its images share one operation clock", async () => {
+  const { images } = await observeImages("dataset-clock-observation", [
+    "dataset-clock-a",
+    "dataset-clock-b",
+  ]);
+  const { dataset } = await addExperimentObservationImagesToNewDataset({
+    name: "dataset-clock",
+    images,
+  });
+  const db = await database();
+  const [created] = await db
+    .select({ at: datasets.createdAt })
+    .from(datasets)
+    .where(eq(datasets.id, dataset.id));
+  const members = await db
+    .select({ at: datasetImages.addedAt })
+    .from(datasetImages)
+    .where(eq(datasetImages.datasetId, dataset.id));
+  expect(members).toHaveLength(2);
+  for (const member of members) expect(member.at).toEqual(created!.at);
 });

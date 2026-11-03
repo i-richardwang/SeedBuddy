@@ -107,3 +107,13 @@ test("a base compares content regardless of JSON object property order", async (
   await storeAnnotation(ref, [], base);
   expect((await readAnnotation(ref))!.instances).toEqual([]);
 });
+
+test("reviewing an absent canonical image uses the shared image refusal", async () => {
+  await expect(
+    storeAnnotation(
+      { digest: "0".repeat(64), modelId: "seed-detector" },
+      [],
+      null,
+    ),
+  ).rejects.toMatchObject({ code: "image_not_found" });
+});

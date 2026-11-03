@@ -15,7 +15,12 @@ import {
   type ReviewedRecord,
   readDataset,
 } from "../datasets/public";
-import { database, type Executor } from "../infra/db/client";
+import {
+  database,
+  type Executor,
+  inSnapshot,
+  snapshot,
+} from "../infra/db/client";
 import {
   datasetImages,
   datasetSnapshotImages,
@@ -103,21 +108,22 @@ export async function readDatasetSnapshot(
   snapshotId: string,
   db?: Executor,
 ): Promise<DatasetSnapshot | null> {
-  db ??= await database();
-  const [row] = await db
-    .select()
-    .from(datasetSnapshots)
-    .where(eq(datasetSnapshots.id, snapshotId));
-  if (!row) return null;
-  const model = await requireModel(row.modelId, db);
-  return datasetSnapshotSchema.parse({
-    schemaVersion: 1,
-    id: row.id,
-    datasetId: row.datasetId,
-    modelId: row.modelId,
-    classes: model.classes,
-    createdAt: row.createdAt.toISOString(),
-    images: await snapshotImages(snapshotId, db),
+  return inSnapshot(db, async (db) => {
+    const [row] = await db
+      .select()
+      .from(datasetSnapshots)
+      .where(eq(datasetSnapshots.id, snapshotId));
+    if (!row) return null;
+    const model = await requireModel(row.modelId, db);
+    return datasetSnapshotSchema.parse({
+      schemaVersion: 1,
+      id: row.id,
+      datasetId: row.datasetId,
+      modelId: row.modelId,
+      classes: model.classes,
+      createdAt: row.createdAt.toISOString(),
+      images: await snapshotImages(snapshotId, db),
+    });
   });
 }
 
@@ -192,10 +198,11 @@ export async function datasetSnapshotOverviews(
 }
 
 export async function snapshotForRun(runId: string, owner: AttemptOwner) {
-  const db = await database();
-  const stored = await requireTrainingRun(runId, db);
-  const run = await requireOwnedRunningRun(stored, owner, db);
-  return requireSnapshot(run.datasetSnapshotId, db);
+  return snapshot(async (db) => {
+    const stored = await requireTrainingRun(runId, db);
+    const run = await requireOwnedRunningRun(stored, owner, db);
+    return requireSnapshot(run.datasetSnapshotId, db);
+  });
 }
 
 /** A run holds its snapshot through a foreign key. */

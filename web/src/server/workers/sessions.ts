@@ -10,12 +10,7 @@ import {
   type WorkerIdentity,
   workerSchema,
 } from "../../domain/workers/schema";
-import {
-  database,
-  type Executor,
-  operationTime,
-  transaction,
-} from "../infra/db/client";
+import { type Executor, operationTime, transaction } from "../infra/db/client";
 import { workerSessions } from "../infra/db/schema";
 
 function toWorker(row: typeof workerSessions.$inferSelect): Worker {
@@ -151,7 +146,7 @@ export function leaseIsHeld(
 
 /** The latest session of every worker that has connected, newest first. */
 export async function listWorkers(db: Executor): Promise<Worker[]> {
-  const rows = await (db ?? (await database()))
+  const rows = await db
     .select()
     .from(workerSessions)
     .orderBy(desc(workerSessions.lastSeenAt));
