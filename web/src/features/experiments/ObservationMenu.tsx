@@ -122,9 +122,11 @@ export function ObservationMenu({
               await removeObservation({
                 data: { experiment, observation: observation.id },
               });
-              toast.success(m.observation_deleted({ observation: name }));
-              await router.invalidate();
             },
+            onSuccess: () => {
+              toast.success(m.observation_deleted({ observation: name }));
+            },
+            invalidate: () => router.invalidate(),
           }),
       },
     );

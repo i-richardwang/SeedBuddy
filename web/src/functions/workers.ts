@@ -5,7 +5,7 @@ import { getSystemStatus } from "../server/queries/public";
 import { requireAdministrator } from "./access";
 import { enrollWorker, removeWorker } from "../server/workers/public";
 
-export const getStatus = createServerFn({ method: "GET" }).handler(
+export const getWorkers = createServerFn({ method: "GET" }).handler(
   getSystemStatus,
 );
 

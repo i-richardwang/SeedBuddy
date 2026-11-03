@@ -12,7 +12,7 @@ import {
   SettingsRow,
   SettingsValueRow,
 } from "../../ui/kit/Settings";
-import { USER_ROLE_LABELS } from "../../ui/user-roles";
+import { USER_ROLE_LABELS } from "../../features/users/labels";
 
 const workbench = getRouteApi("/_workbench");
 

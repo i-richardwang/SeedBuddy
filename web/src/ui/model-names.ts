@@ -20,11 +20,11 @@ export function modelName(model: Pick<Model, "id" | "name">): string {
 }
 
 /** A class the product ships is named by the product; any other keeps its identifier. */
-export function className(name: string): string {
+export function classLabel(name: string): string {
   return BUILTIN_CLASS_NAMES.get(name)?.() ?? name;
 }
 
 /** The classes a count sums, each named as the reader knows it, in a list of the reader's language. */
 export function countedClassesName(names: readonly string[]): string {
-  return formatList(names.map(className));
+  return formatList(names.map(classLabel));
 }

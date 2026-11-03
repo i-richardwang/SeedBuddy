@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 
 import { m } from "../paraglide/messages";
-import { errorMessage } from "./errors";
+import { runAction, type ActionSuccess } from "./hooks/useAsyncAction";
 import { confirmModal } from "./kit/Modal";
-import { toast } from "./kit/Toast";
 
 /**
  * Asks before an irreversible action. The dialog stays open while the action
@@ -17,26 +16,31 @@ export function confirmDestructive({
   confirmLabel,
   onConfirm,
   onCancel,
+  onSuccess,
+  invalidate,
 }: {
   title: string;
   content?: ReactNode;
   confirmLabel: string;
   onConfirm: () => void | Promise<void>;
   onCancel?: () => void;
-}): () => void {
+} & ActionSuccess<void>): () => void {
   return confirmModal({
     title,
     content,
     okText: confirmLabel,
     danger: true,
-    onOk: () =>
-      onConfirm()?.catch((error: unknown) => {
-        toast.error({
-          title: m.action_failed({ action: confirmLabel }),
-          description: errorMessage(error),
-        });
-        throw error;
-      }),
+    onOk: async () => {
+      const result = await runAction(
+        async () => {
+          await onConfirm();
+          await onSuccess?.();
+          await invalidate?.();
+        },
+        m.action_failed({ action: confirmLabel }),
+      );
+      if (!result.ok) throw result.error;
+    },
     onCancel,
   });
 }

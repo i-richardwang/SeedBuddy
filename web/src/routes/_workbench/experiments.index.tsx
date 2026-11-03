@@ -40,7 +40,7 @@ function ExperimentsPage() {
     <Page
       title={m.experiments_title()}
       description={m.experiments_description()}
-      action={experiments.length > 0 ? create : undefined}
+      actions={experiments.length > 0 ? create : undefined}
     >
       <ExperimentsTable
         experiments={experiments}

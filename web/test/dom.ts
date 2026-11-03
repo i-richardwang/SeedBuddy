@@ -40,7 +40,7 @@ Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
 });
 
 export const body = browser.document.body;
-export const mount = browser.document.createElement("div");
+const mount = browser.document.createElement("div");
 body.append(mount);
 const root = createRoot(mount as unknown as HTMLElement);
 

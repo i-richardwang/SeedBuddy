@@ -16,7 +16,10 @@ import {
 } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
-import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import {
+  useAsyncAction,
+  type AsyncAction,
+} from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
 import { CountedClassesField } from "./CountedClassesField";
@@ -117,19 +120,17 @@ function RecordObservationSession({
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
-          void action
-            .run(
-              () =>
-                recordObservation({
-                  data: { experiment, ...value, images: photos.ready },
-                }),
-              m.observation_not_added(),
-            )
-            .then(async (result) => {
-              if (!result.ok) return;
-              onClose();
-              await router.invalidate();
-            });
+          void action.run(
+            () =>
+              recordObservation({
+                data: { experiment, ...value, images: photos.ready },
+              }),
+            m.observation_not_added(),
+            {
+              onSuccess: onClose,
+              invalidate: () => router.invalidate(),
+            },
+          );
         }}
       >
         <ObservationFields
@@ -201,7 +202,7 @@ function EditObservationForm({
   models: readonly Model[];
   observation: ExperimentObservation;
   observations: readonly ExperimentObservation[];
-  action: ReturnType<typeof useAsyncAction>;
+  action: AsyncAction;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -216,19 +217,17 @@ function EditObservationForm({
       id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
-        void action
-          .run(
-            () =>
-              editObservation({
-                data: { experiment, observation: observation.id, ...value },
-              }),
-            m.observation_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onClose();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            editObservation({
+              data: { experiment, observation: observation.id, ...value },
+            }),
+          m.observation_not_saved(),
+          {
+            onSuccess: onClose,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <ObservationFields

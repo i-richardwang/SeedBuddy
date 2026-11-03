@@ -80,24 +80,22 @@ function CultureEventForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (observation === "" || units.length === 0) return;
-        void action
-          .run(
-            () =>
-              createCultureEvents({
-                data: {
-                  experiment,
-                  units: units.map((unit) => unit.id),
-                  type,
-                  observation,
-                },
-              }),
-            m.culture_event_not_recorded(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            createCultureEvents({
+              data: {
+                experiment,
+                units: units.map((unit) => unit.id),
+                type,
+                observation,
+              },
+            }),
+          m.culture_event_not_recorded(),
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <Form.Field label={m.culture_event_label()}>

@@ -129,14 +129,14 @@ function TrainingRunPage() {
           control={control}
         />
       }
-      action={
+      actions={
         published && !current ? (
           <Button
             render={
               <Link
                 to="/models/$model"
                 params={{ model: model.id }}
-                search={{ compare: published.id }}
+                search={{ version: published.id }}
               />
             }
           >
@@ -191,7 +191,7 @@ function TrainingRunPage() {
         <TrainingAttempts detail={detail} control={control} />
       </PageSection>
 
-      <PageSection title={m.training_parameters()}>
+      <PageSection title={m.training_parameters_heading()}>
         <Card>
           <ParametersList parameters={run.recipe.parameters} />
         </Card>

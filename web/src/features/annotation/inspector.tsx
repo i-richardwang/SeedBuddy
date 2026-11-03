@@ -22,7 +22,7 @@ import { countedClassesName } from "../../ui/model-names";
 import { Stepper } from "../../ui/Stepper";
 import { WorkbenchSection } from "../../ui/shell/Workbench";
 import { ClassLabel } from "./controls";
-import { sourceLabels } from "./labels";
+import { SOURCE_LABELS } from "./labels";
 import { Text } from "../../ui/kit/Text";
 
 /**
@@ -40,7 +40,7 @@ export function CountsSection({
   review,
   sources,
   shown,
-  onSourceChange,
+  onShowChange,
 }: {
   classes: string[];
   counted: readonly string[];
@@ -48,7 +48,7 @@ export function CountsSection({
   review: Review;
   sources: ReviewSource[];
   shown: ReviewSource | null;
-  onSourceChange: (source: ReviewSource) => void;
+  onShowChange: (source: ReviewSource) => void;
 }) {
   return (
     <WorkbenchSection>
@@ -93,14 +93,14 @@ export function CountsSection({
             options={sources.map((source) => ({
               value: source,
               label: m.annotation_named_count({
-                name: sourceLabels[source](),
+                name: SOURCE_LABELS[source](),
                 count: countClasses(
                   tally(sourceInstances(review, source) ?? []),
                   counted,
                 ),
               }),
             }))}
-            onChange={onSourceChange}
+            onChange={onShowChange}
           />
         </div>
       ) : null}

@@ -76,18 +76,20 @@ function AddToDatasetForm({
           ? addToNewDataset({ data: { name, images } })
           : addToDataset({ data: { dataset: choice, images } }),
       m.dataset_add_nothing_added(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      const { added, existing } = result.value;
-      const dataset = result.value.dataset.name;
-      onDone();
-      toast.success(
-        existing > 0
-          ? m.dataset_add_result_existing({ added, dataset, existing })
-          : m.dataset_add_result({ added, dataset }),
-      );
-      await router.invalidate();
-    });
+      {
+        onSuccess: (value) => {
+          const { added, existing } = value;
+          const dataset = value.dataset.name;
+          onDone();
+          toast.success(
+            existing > 0
+              ? m.dataset_add_result_existing({ added, dataset, existing })
+              : m.dataset_add_result({ added, dataset }),
+          );
+        },
+        invalidate: () => router.invalidate(),
+      },
+    );
   };
 
   return (

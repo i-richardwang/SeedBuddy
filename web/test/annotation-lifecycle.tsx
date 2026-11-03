@@ -3,14 +3,7 @@ import assert from "node:assert/strict";
 import { mock } from "bun:test";
 import { act, createElement, type ReactNode } from "react";
 
-import {
-  body,
-  browser,
-  button,
-  mount,
-  render as renderNode,
-  unmount,
-} from "./dom";
+import { body, browser, button, render as renderNode, unmount } from "./dom";
 
 Object.defineProperty(browser.HTMLElement.prototype, "clientWidth", {
   configurable: true,
@@ -74,7 +67,7 @@ const { ImageWorkbench } =
   await import("../src/features/annotation/ImageWorkbench");
 const { SEED_DETECTOR } = await import("../src/domain/models/builtins");
 const { m } = await import("../src/paraglide/messages");
-const { className } = await import("../src/ui/model-names");
+const { classLabel } = await import("../src/ui/model-names");
 const imageSize = { digest: "a".repeat(64), width: 1000, height: 800 };
 const annotation = {
   schemaVersion: 1 as const,
@@ -122,8 +115,8 @@ const render = ({
       model: SEED_DETECTOR,
       review,
       unclear: false,
-      source,
-      onSourceChange(next) {
+      show: source,
+      onShowChange(next) {
         sourceChanges++;
         source = next;
       },
@@ -143,7 +136,7 @@ const refuses = async (element: { click(): void } | undefined) => {
 };
 const says = (text: string) => body.textContent?.includes(text) ?? false;
 await render();
-const image = mount.querySelector("img")!;
+const image = body.querySelector("img")!;
 const surface = image.parentElement! as import("happy-dom").HTMLElement;
 const frame = surface.parentElement!;
 const layer = surface.querySelector("svg")!;
@@ -192,7 +185,7 @@ assert.equal(boxes(), 1, "the reviewer's boxes outrank the agent's");
 await tapEmpty();
 assert.equal(boxes(), 1, "locked boxes take no edits");
 const named = (label: string) =>
-  mount.ownerDocument.querySelector(`button[aria-label="${label}"]`);
+  browser.document.querySelector(`button[aria-label="${label}"]`);
 await act(async () =>
   (named(m.annotation_unlock()) as unknown as { click(): void }).click(),
 );
@@ -226,7 +219,7 @@ assert.equal(boxes(), 1);
 assert.equal(checks(), 0, "the review outranks the agent's proposal");
 
 const countedOnly = m.annotation_counted_classes({
-  classes: className("germinated"),
+  classes: classLabel("germinated"),
 });
 assert.ok(!says(countedOnly), "an image counting every class names none");
 await render({ counted: ["germinated"] });
@@ -270,7 +263,7 @@ await tapEmpty();
 assert.equal(boxes(), 2, "pressing empty image adds a box");
 assert.ok(says(m.annotation_standing_edited()), "an edit is unsaved");
 assert.ok(button(m.annotation_discard_edits()));
-assert.strictEqual(mount.querySelector("img"), image);
+assert.strictEqual(body.querySelector("img"), image);
 assert.equal(surface.style.transform, held, "editing must hold the view");
 await tapEmpty();
 assert.equal(boxes(), 2, "pressing empty image first clears the selection");
@@ -347,7 +340,7 @@ assert.ok(
   "a saved image leads on to the next to review",
 );
 
-assert.strictEqual(mount.querySelector("img"), image);
+assert.strictEqual(body.querySelector("img"), image);
 assert.equal(surface.style.transform, held);
 assert.equal(observed(), 1, "editing must not remount the viewport");
 assert.equal(disconnected(), 0);

@@ -1,6 +1,6 @@
 import { classColor } from "../../domain/models/classes";
 import { ColorSwatch } from "../../ui/kit/ColorSwatch";
-import { className } from "../../ui/model-names";
+import { classLabel } from "../../ui/model-names";
 
 /** Theme colors of the canvas drawing; boxes take their class's color. */
 export const CANVAS_COLORS = {
@@ -20,7 +20,7 @@ export function ClassLabel({
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
       <ColorSwatch color={classColor(classes, name).hex} />
-      <span className="truncate">{className(name)}</span>
+      <span className="truncate">{classLabel(name)}</span>
     </span>
   );
 }

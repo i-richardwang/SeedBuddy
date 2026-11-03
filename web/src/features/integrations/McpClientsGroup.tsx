@@ -108,9 +108,11 @@ function McpClientRow({ client }: { client: McpClient }) {
               confirmLabel: m.mcp_disconnect(),
               onConfirm: async () => {
                 await removeMcpClient({ data: { client: client.id } });
-                toast.success(m.mcp_disconnected({ name: client.name }));
-                await router.invalidate();
               },
+              onSuccess: () => {
+                toast.success(m.mcp_disconnected({ name: client.name }));
+              },
+              invalidate: () => router.invalidate(),
             })
           }
         />

@@ -24,11 +24,11 @@ export function useTrainingRunControl(detail: TrainingRunDetail) {
   return {
     busy: action.busy,
     pause: () => {
-      void action
-        .run(() => send({ action: "pause" }), m.training_pause_failed())
-        .then(async (result) => {
-          if (result.ok) await router.invalidate();
-        });
+      void action.run(
+        () => send({ action: "pause" }),
+        m.training_pause_failed(),
+        { invalidate: () => router.invalidate() },
+      );
     },
     resume: () => setResuming(true),
     cancel: () => {
@@ -38,8 +38,8 @@ export function useTrainingRunControl(detail: TrainingRunDetail) {
         confirmLabel: m.training_cancel_confirm(),
         onConfirm: async () => {
           await send({ action: "cancel" });
-          await router.invalidate();
         },
+        invalidate: () => router.invalidate(),
       });
     },
     resuming,

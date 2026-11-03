@@ -41,7 +41,7 @@ function ModelsPage() {
     <Page
       title={m.models_title()}
       description={m.models_description()}
-      action={entries.length > 0 ? create : undefined}
+      actions={entries.length > 0 ? create : undefined}
     >
       <CardGrid
         aria-label={m.models_title()}

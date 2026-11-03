@@ -129,24 +129,22 @@ function EditExperimentForm({
       onSubmit={(event) => {
         event.preventDefault();
         const fields = readExperimentFields(new FormData(event.currentTarget));
-        void action
-          .run(
-            () =>
-              editExperiment({
-                data: {
-                  experiment: experiment.id,
-                  ...fields,
-                  inoculatedOn,
-                  countsUnclear,
-                },
-              }),
-            m.experiment_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            editExperiment({
+              data: {
+                experiment: experiment.id,
+                ...fields,
+                inoculatedOn,
+                countsUnclear,
+              },
+            }),
+          m.experiment_not_saved(),
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <ExperimentFields

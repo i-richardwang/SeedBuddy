@@ -93,7 +93,7 @@ export function DayComparison({
         inView ? (
           <ComparedDay day={inView} link={link} pending={pending}>
             <Select
-              aria-label={m.observations_label()}
+              aria-label={m.observation_list_label()}
               size="small"
               variant="borderless"
               popupWidth="content"

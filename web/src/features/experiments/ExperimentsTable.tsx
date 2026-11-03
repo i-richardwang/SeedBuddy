@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { Search, SearchX } from "lucide-react";
-import { useState, type ReactNode } from "react";
-
+import type { ReactNode } from "react";
 import type { ExperimentOverview } from "../../domain/experiments/contracts";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { Day } from "../../ui/Day";
+import { usePagedSearch } from "../../ui/hooks/usePagedSearch";
 import { Empty } from "../../ui/kit/Empty";
 import { Icon } from "../../ui/kit/Icon";
 import { Input } from "../../ui/kit/Input";
@@ -21,8 +21,6 @@ import {
 import { TextLink } from "../../ui/kit/TextLink";
 import { formatCount } from "../../ui/numbers";
 import { joinFacts } from "./labels";
-
-const PAGE_SIZE = 20;
 
 /** What an experiment is found by: its name and what it grows on what. */
 function searchable({ experiment }: ExperimentOverview): string {
@@ -48,16 +46,10 @@ export function ExperimentsTable({
   experiments: ExperimentOverview[];
   empty: ReactNode;
 }) {
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-
-  const needle = query.trim().toLowerCase();
-  const matches = experiments.filter((summary) =>
-    searchable(summary).includes(needle),
+  const { query, setQuery, matches, shown, pagination } = usePagedSearch(
+    experiments,
+    { text: searchable },
   );
-  const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
-  const current = Math.min(page, pages);
-  const shown = matches.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
   return (
     <Table
@@ -75,21 +67,11 @@ export function ExperimentsTable({
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
-              setPage(1);
             }}
           />
         ) : undefined
       }
-      footer={
-        matches.length > PAGE_SIZE ? (
-          <Pagination
-            current={current}
-            pageSize={PAGE_SIZE}
-            total={matches.length}
-            onChange={setPage}
-          />
-        ) : undefined
-      }
+      footer={pagination ? <Pagination {...pagination} /> : undefined}
       empty={
         experiments.length === 0 ? (
           empty

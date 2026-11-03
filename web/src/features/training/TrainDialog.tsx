@@ -40,9 +40,9 @@ export function trainRefusal({
   reviewed,
   training,
 }: Pick<TrainingSet, "reviewed" | "training">) {
-  if (training.active !== null) return m.train_refused_active();
+  if (training.active !== null) return m.training_refused_active();
   if (reviewed < MIN_SNAPSHOT_IMAGES) {
-    return m.train_refused_reviewed({ count: MIN_SNAPSHOT_IMAGES });
+    return m.training_refused_reviewed({ count: MIN_SNAPSHOT_IMAGES });
   }
   return null;
 }
@@ -93,20 +93,20 @@ function TrainSession({
   const valid = trainingOverridesSchema.safeParse(overrides).success;
 
   const submit = () => {
-    void action
-      .run(
-        () =>
-          startTrainingRun({
-            data: { dataset, presetId, overrides, targetWorkerId },
-          }),
-        m.train_not_started(),
-      )
-      .then(async (result) => {
-        if (!result.ok) return;
-        onClose();
-        toast.success(m.train_queued());
-        await router.invalidate();
-      });
+    void action.run(
+      () =>
+        startTrainingRun({
+          data: { dataset, presetId, overrides, targetWorkerId },
+        }),
+      m.training_not_started(),
+      {
+        onSuccess: () => {
+          onClose();
+          toast.success(m.training_queued());
+        },
+        invalidate: () => router.invalidate(),
+      },
+    );
   };
 
   return (
@@ -114,8 +114,8 @@ function TrainSession({
       open={open}
       onClose={onClose}
       afterClose={afterClose}
-      title={m.train_dialog_title()}
-      okText={m.train_button()}
+      title={m.training_dialog_title()}
+      okText={m.training_button()}
       formId={FORM_ID}
       busy={action.busy}
       okDisabled={!valid}
@@ -128,10 +128,10 @@ function TrainSession({
         }}
       >
         {training.workerMemoryBytes === null ? (
-          <Alert type="warning" title={m.train_dialog_no_worker()} />
+          <Alert type="warning" title={m.training_dialog_no_worker()} />
         ) : null}
         <Form.Field
-          label={m.train_preset()}
+          label={m.training_preset()}
           desc={PRESET_PRESENTATION[presetId].description()}
         >
           <Select
@@ -176,11 +176,11 @@ const PRESET_PRESENTATION: Record<
   }
 > = {
   "yolo26n-whole-v1": {
-    label: m.train_preset_n,
-    description: m.train_preset_n_description,
+    label: m.training_preset_nano,
+    description: m.training_preset_nano_description,
   },
   "yolo26s-whole-2048-v1": {
-    label: m.train_preset_s,
-    description: m.train_preset_s_description,
+    label: m.training_preset_small,
+    description: m.training_preset_small_description,
   },
 };

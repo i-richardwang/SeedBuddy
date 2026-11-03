@@ -13,7 +13,7 @@ const COLUMN = "flex w-full flex-col gap-6 max-mobile:gap-4";
 
 /**
  * A document page in the shell's card: a `PageHeader` carrying the page's
- * `action`, then the page's figure and sections. A page about one thing sets
+ * `actions`, then the page's figure and sections. A page about one thing sets
  * its `icon`, `status` and `meta`. A page below another names the way back
  * up in the shell's top bar, from the route's crumbs. A page that previews
  * its rows beside itself passes `preview`, null while nothing is open, and
@@ -25,7 +25,7 @@ export function Page({
   description,
   status,
   meta,
-  action,
+  actions,
   preview,
   children,
 }: {
@@ -38,7 +38,7 @@ export function Page({
   /** Facts about the subject under the description. */
   meta?: ReactNode[];
   /** Commands at the header's end: at most one primary button, then a menu. */
-  action?: ReactNode;
+  actions?: ReactNode;
   preview?: Preview | null;
   children: ReactNode;
 }) {
@@ -51,7 +51,7 @@ export function Page({
         description={description}
         status={status}
         meta={meta}
-        actions={action}
+        actions={actions}
       />
       {children}
     </div>
@@ -118,17 +118,17 @@ const SETTINGS_COLUMN = "mx-auto flex w-full max-w-5xl flex-col gap-9 pb-26";
  */
 export function SettingsPage({
   title,
-  action,
+  actions,
   children,
 }: {
   title: string;
-  action?: ReactNode;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className={SETTINGS_COLUMN}>
       <div className="flex flex-col gap-6 pt-3">
-        <PageHeader title={title} actions={action} />
+        <PageHeader title={title} actions={actions} />
         <hr className="border-border-secondary" />
       </div>
       {children}

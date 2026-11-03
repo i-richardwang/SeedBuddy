@@ -19,7 +19,6 @@ import { experimentSummary } from "../../domain/experiments/summary";
 import type { getExperimentGrid } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Select } from "../../ui/kit/Select";
 import {
@@ -46,7 +45,7 @@ import { UnitSelectionBar } from "./UnitSelectionBar";
 
 /**
  * The parts of an experiment, one on show at a time: its units and what they
- * read, the summary of them by treatment, then its design.
+ * read, the summary of them by treatment, then its treatments.
  */
 export const EXPERIMENT_TABS = ["units", "summary", "treatments"] as const;
 
@@ -59,9 +58,9 @@ type ExperimentGridData = NonNullable<
 /**
  * One experiment, in three tabs: its units, a row per unit with the treatment
  * it belongs to and what it read on each day; the summary, each treatment's
- * mean and spread on each day; and its design, a row per treatment.
+ * mean and spread on each day; and its treatments, a row per treatment.
  */
-export function ExperimentGridView({
+export function ExperimentView({
   data,
   tab,
   onTabChange,
@@ -83,9 +82,6 @@ export function ExperimentGridView({
   const [recording, setRecording] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [treatment, setTreatment] = useState<string | null>(null);
-
-  const waiting = images.some((image) => image.state === "pending");
-  useRouteRefresh(5000, waiting);
 
   const cells = observationCells(images, manualReadings);
   const ordinals = observationOrdinals(observations);
@@ -281,7 +277,7 @@ export function ExperimentGridView({
           day: formatDay(experiment.inoculatedOn),
         }),
       ].filter(Boolean)}
-      action={
+      actions={
         <>
           <Button type="primary" icon={Plus} onClick={() => setRecording(true)}>
             {m.observation_record()}

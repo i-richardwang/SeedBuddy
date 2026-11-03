@@ -1,3 +1,4 @@
+import { digestLabel } from "../../ui/IdentifierName";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -29,7 +30,7 @@ import {
 import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
 import { toast } from "../../ui/kit/Toast";
-import { className } from "../../ui/model-names";
+import { classLabel } from "../../ui/model-names";
 import { formatCount, formatCountChange } from "../../ui/numbers";
 import {
   formatError,
@@ -107,12 +108,14 @@ function VersionSession({
           data: { model: model.id, version: version.id },
         }),
       m.version_not_made_current(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      toast.success(m.version_made_current({ version: label }));
-      onClose();
-      await router.invalidate();
-    });
+      {
+        onSuccess: () => {
+          toast.success(m.version_made_current({ version: label }));
+          onClose();
+        },
+        invalidate: () => router.invalidate(),
+      },
+    );
   };
 
   return (
@@ -175,8 +178,10 @@ function Comparison({
   return (
     <Flexbox gap={12}>
       <Text type="secondary">
-        {m.version_dialog_held_out({ count: total })}
-        {currentVersionId === null ? ` ${m.version_dialog_no_current()}` : ""}
+        {m.version_dialog_held_out({
+          count: heldOut,
+          hasCurrent: currentVersionId === null ? "no" : "yes",
+        })}
       </Text>
       {isReading(comparison) ? (
         <Text type="tertiary">
@@ -235,7 +240,7 @@ function AccuracyTable({
   const rows = [
     ...classes.map((name) => ({
       key: name,
-      label: m.version_dialog_mean_error({ class: className(name) }),
+      label: m.version_dialog_mean_error({ class: classLabel(name) }),
       error: (accuracy: CountAccuracy) => accuracy.meanError[name] ?? 0,
     })),
     {
@@ -349,7 +354,7 @@ function ImageTable({
             {groups.flatMap((group) =>
               classes.map((name) => (
                 <TableHead key={`${group}:${name}`} numeric>
-                  {className(name)}
+                  {classLabel(name)}
                 </TableHead>
               )),
             )}
@@ -366,7 +371,7 @@ function ImageTable({
                   key={name}
                   cellLabel={m.version_dialog_cell_label({
                     column: reviewedLabel,
-                    class: className(name),
+                    class: classLabel(name),
                   })}
                   numeric
                 >
@@ -399,7 +404,7 @@ function ImageName({ image }: { image: ComparedImage }) {
   if (!image.dataset) {
     return (
       <Text as="span" type="tertiary">
-        {image.digest.slice(0, 12)}
+        {digestLabel(image.digest)}
       </Text>
     );
   }
@@ -455,7 +460,7 @@ function ReadingCells({
         key={name}
         cellLabel={m.version_dialog_cell_label({
           column,
-          class: className(name),
+          class: classLabel(name),
         })}
         numeric
       >

@@ -24,11 +24,14 @@ export function UnclearSection({
   const { busy, run } = useAsyncAction();
   const save = async (on: boolean) => {
     const data = { digest };
-    const result = await run(async () => {
-      if (on) await markUnclear({ data });
-      else await clearUnclear({ data });
-    }, m.unclear_not_saved());
-    if (result.ok) await router.invalidate();
+    await run(
+      async () => {
+        if (on) await markUnclear({ data });
+        else await clearUnclear({ data });
+      },
+      m.unclear_not_saved(),
+      { invalidate: () => router.invalidate() },
+    );
   };
 
   return (

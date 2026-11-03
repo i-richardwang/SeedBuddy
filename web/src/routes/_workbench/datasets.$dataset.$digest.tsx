@@ -121,8 +121,8 @@ function DatasetImagePage() {
       model={model}
       review={review}
       unclear={unclear}
-      source={show}
-      onSourceChange={(show) =>
+      show={show}
+      onShowChange={(show) =>
         void navigate({ search: (previous) => ({ ...previous, show }) })
       }
       onNext={stepTo(nextUnreviewed)}

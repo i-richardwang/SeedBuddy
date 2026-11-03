@@ -1,3 +1,4 @@
+import { STANDING_LABELS } from "./labels";
 import { Lock, LockOpen } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
@@ -15,7 +16,7 @@ import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
 import { DescriptionsSkeleton } from "../../ui/kit/Descriptions";
 import { StatisticHeroSkeleton } from "../../ui/kit/Statistic";
-import { Status, type StatusTone } from "../../ui/kit/Status";
+import { Status } from "../../ui/kit/Status";
 import { ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { Tooltip } from "../../ui/kit/Tooltip";
 import { ShellActions } from "../../ui/shell/Shell";
@@ -38,27 +39,19 @@ import type { LayerKey } from "./controls";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
 import { useSaveKey, useWorkbenchKeys } from "./keys";
 import { setEditLocked, useEditLocked } from "./lock";
-import { useImageSession, type Standing } from "./session";
+import { useImageSession } from "./session";
 import { EditTools, LayerControls } from "./tools";
 import type { ImageWorkbenchContext } from "./types";
 import { UnclearAlert, UnclearSection } from "./unclear";
-
-const STANDING: Record<Standing, { tone: StatusTone; label: () => string }> = {
-  edited: { tone: "warning", label: m.annotation_standing_edited },
-  reviewed: { tone: "success", label: m.annotation_standing_reviewed },
-  proposal: { tone: "info", label: m.annotation_standing_proposal },
-  detection: { tone: "info", label: m.annotation_standing_detection },
-  unread: { tone: "neutral", label: m.annotation_standing_unread },
-};
 
 interface ImageSubjectProps {
   model: Model;
   review: Review;
   /** Whether a person marked the photograph unclear. */
   unclear: boolean;
-  source?: ReviewSource;
+  show?: ReviewSource;
   /** Shows another reading; none returns to the best. */
-  onSourceChange: (source: ReviewSource | undefined) => void;
+  onShowChange: (source: ReviewSource | undefined) => void;
   /** Opens the next image still to review, when there is one. */
   onNext?: () => unknown;
   /** Another image is on its way; this one stays until it can be replaced whole. */
@@ -130,8 +123,8 @@ export function ImageSubject({
   model,
   review,
   unclear,
-  source,
-  onSourceChange,
+  show,
+  onShowChange,
   onNext,
   stepping = false,
   context = {},
@@ -140,8 +133,7 @@ export function ImageSubject({
     () => new Set(["boxes", "checks"]),
   );
   const sources = availableSources(review);
-  const shown =
-    source && sources.includes(source) ? source : (sources[0] ?? null);
+  const shown = show && sources.includes(show) ? show : (sources[0] ?? null);
   const locked = useEditLocked();
   const session = useImageSession({ review, shown, model, locked });
   const { standing, saving, instances } = session;
@@ -165,7 +157,7 @@ export function ImageSubject({
     }));
 
   const store = async () => {
-    if (await session.confirm()) onSourceChange(undefined);
+    if (await session.confirm()) onShowChange(undefined);
   };
   const ready = !saving && !session.conflict;
   const stores = standing !== "reviewed";
@@ -178,7 +170,7 @@ export function ImageSubject({
     : onNext && { label: m.annotation_next_unreviewed(), run: onNext };
   useWorkbenchKeys({ Enter: primary && ready ? primary.run : undefined });
   useSaveKey(stores && ready ? store : undefined);
-  const badge = STANDING[standing];
+  const badge = STANDING_LABELS[standing];
 
   return (
     <>
@@ -263,7 +255,7 @@ export function ImageSubject({
           review={review}
           sources={sources}
           shown={shown}
-          onSourceChange={onSourceChange}
+          onShowChange={onShowChange}
         />
         <ChecksSection
           review={review}

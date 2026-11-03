@@ -1,3 +1,4 @@
+import { STANDING_LABELS } from "../annotation/labels";
 import { Link, linkOptions, useRouter } from "@tanstack/react-router";
 import { Columns2, ImageOff } from "lucide-react";
 import { useCallback, useEffect, useEffectEvent } from "react";
@@ -23,7 +24,7 @@ import {
   DescriptionsSkeleton,
 } from "../../ui/kit/Descriptions";
 import { Skeleton } from "../../ui/kit/Skeleton";
-import { StatusDot, type StatusTone } from "../../ui/kit/Status";
+import { StatusDot } from "../../ui/kit/Status";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { m } from "../../paraglide/messages";
 import type {
@@ -75,15 +76,15 @@ import { Text } from "../../ui/kit/Text";
 export function UnitWorkbench({
   series,
   datasets,
-  source,
-  onSourceChange,
+  show,
+  onShowChange,
   compare,
   onCompareChange,
 }: {
   series: UnitSeries;
   datasets: NamedDataset[];
-  source?: ReviewSource;
-  onSourceChange: (source: ReviewSource | undefined) => void;
+  show?: ReviewSource;
+  onShowChange: (source: ReviewSource | undefined) => void;
   /** The day the day in view stands beside, if any. */
   compare?: string;
   /** Sets the day to stand beside the day in view; none returns to one day. */
@@ -220,7 +221,7 @@ export function UnitWorkbench({
         </Text>
       ) : days.length > 1 ? (
         <ToggleGroup
-          aria-label={m.observations_label()}
+          aria-label={m.observation_list_label()}
           value={series.observation ?? undefined}
           options={days.map(({ observation, image }) => ({
             value: observation.id,
@@ -262,10 +263,10 @@ export function UnitWorkbench({
     </WorkbenchSection>
   );
 
+  const inView = series.observations.find(
+    (item) => item.observation.id === series.observation,
+  );
   if (reference) {
-    const inView = series.observations.find(
-      (item) => item.observation.id === series.observation,
-    );
     return (
       <Workbench title={title}>
         {steps}
@@ -308,9 +309,6 @@ export function UnitWorkbench({
     // A day in view is one this unit was not photographed on, though a
     // person may have counted it; without one, it has not been photographed
     // at all.
-    const inView = series.observations.find(
-      (item) => item.observation.id === series.observation,
-    );
     const counted = inView ? cellReading(inView, inView.observation) : null;
     const missing = series.observation
       ? {
@@ -356,8 +354,8 @@ export function UnitWorkbench({
         model={shown.model}
         review={shown.review}
         unclear={shown.unclear}
-        source={source}
-        onSourceChange={onSourceChange}
+        show={show}
+        onShowChange={onShowChange}
         onNext={toUnit(toReview[0])}
         stepping={pending}
         context={{
@@ -438,16 +436,8 @@ function framedPictures(
   );
 }
 
-const REVIEW_DOTS: Record<
-  ImageReview,
-  { tone: StatusTone; label: () => string }
-> = {
-  reviewed: { tone: "success", label: m.annotation_standing_reviewed },
-  unreviewed: { tone: "neutral", label: m.annotation_standing_unreviewed },
-};
-
 function ReviewDot({ review }: { review: ImageReview }) {
-  const { tone, label } = REVIEW_DOTS[review];
+  const { tone, label } = STANDING_LABELS[review];
   return <StatusDot tone={tone} label={label()} />;
 }
 
@@ -459,11 +449,11 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
       size="small"
       loading={action.busy}
       onClick={async () => {
-        const result = await action.run(
+        await action.run(
           () => retryObservationImageAnalysis({ data: image }),
           m.unit_retry_failed(),
+          { invalidate: () => router.invalidate() },
         );
-        if (result.ok) await router.invalidate();
       }}
     >
       {m.unit_retry()}

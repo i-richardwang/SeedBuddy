@@ -63,7 +63,7 @@ function settingsPlaces(user: WorkbenchUser): AppNavItem[] {
   const items: AppNavItem[] = [
     { href: "/account", icon: CircleUser, label: m.nav_account() },
     { href: "/integrations", icon: KeyRound, label: m.nav_integrations() },
-    { href: "/status", icon: Server, label: m.nav_workers() },
+    { href: "/workers", icon: Server, label: m.nav_workers() },
   ];
   if (isAdmin(user)) {
     items.push({ href: "/users", icon: Users, label: m.nav_users() });

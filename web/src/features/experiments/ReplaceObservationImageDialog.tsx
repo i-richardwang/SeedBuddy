@@ -69,23 +69,21 @@ function ReplaceObservationImageSession({
         onSubmit={(event) => {
           event.preventDefault();
           if (!replacement) return;
-          void action
-            .run(
-              () =>
-                assignImagesToObservation({
-                  data: {
-                    experiment: image.ref.experiment,
-                    observation: image.observation.id,
-                    images: [replacement],
-                  },
-                }),
-              m.unit_image_not_replaced(),
-            )
-            .then(async (result) => {
-              if (!result.ok) return;
-              onClose();
-              await router.invalidate();
-            });
+          void action.run(
+            () =>
+              assignImagesToObservation({
+                data: {
+                  experiment: image.ref.experiment,
+                  observation: image.observation.id,
+                  images: [replacement],
+                },
+              }),
+            m.unit_image_not_replaced(),
+            {
+              onSuccess: onClose,
+              invalidate: () => router.invalidate(),
+            },
+          );
         }}
       >
         <ImageDropZone

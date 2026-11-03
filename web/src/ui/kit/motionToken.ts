@@ -39,7 +39,7 @@ function read(token: DurationToken | EaseToken): string {
 }
 
 /** A duration token in milliseconds, or undefined before styles apply. */
-export function durationMs(token: DurationToken): number | undefined {
+function durationMs(token: DurationToken): number | undefined {
   const ms = Number.parseFloat(read(token));
   return Number.isFinite(ms) ? ms : undefined;
 }
