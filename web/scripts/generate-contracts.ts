@@ -16,10 +16,10 @@ import {
 } from "../src/domain/training/schema";
 
 import { dishRecipeSchema } from "../src/domain/images/coverage";
+import { modelBundleSchema } from "../src/domain/models/bundle";
 
 const OUTPUT = path.resolve(import.meta.dir, "../../src/vitroctl/contracts");
 const CHECK = process.argv.includes("--check");
-import { modelBundleSchema } from "../src/domain/models/bundle";
 
 const contracts: ReadonlyArray<[string, ZodType]> = [
   ["model-bundle", modelBundleSchema],

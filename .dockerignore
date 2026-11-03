@@ -10,3 +10,8 @@
 !web/**
 web/node_modules/
 web/dist/
+web/.env.*
+web/.tanstack/
+web/src/paraglide/
+web/src/routeTree.gen.ts
+web/project.inlang/cache/

@@ -3,7 +3,13 @@
 .env.*
 !.env.example
 !web/.env.example
-.cursor/mcp.json
+.cursor/
+.claude/settings.local.json
+.codex/
+.mcp.json
+.agents/
+.lody/
+skills-lock.json
 .venv/
 __pycache__/
 .pytest_cache/
@@ -15,5 +21,3 @@ __pycache__/
 /output/
 /data/
 /tests/fixtures/images/
-*.pglite/
-.pglite/
