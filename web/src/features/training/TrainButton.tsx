@@ -20,7 +20,7 @@ export function TrainButton({
         disabled={refusal !== null}
         onClick={onClick}
       >
-        {m.train_button()}
+        {m.training_button()}
       </Button>
     </Tooltip>
   );

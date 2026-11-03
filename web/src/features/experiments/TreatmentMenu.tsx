@@ -59,9 +59,11 @@ export function TreatmentMenu({
               await removeTreatment({
                 data: { experiment, treatment: treatment.id },
               });
-              toast.success(m.treatment_deleted({ name: treatment.name }));
-              await router.invalidate();
             },
+            onSuccess: () => {
+              toast.success(m.treatment_deleted({ name: treatment.name }));
+            },
+            invalidate: () => router.invalidate(),
           }),
       },
     );

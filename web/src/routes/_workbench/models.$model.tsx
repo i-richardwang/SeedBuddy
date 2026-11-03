@@ -24,7 +24,7 @@ import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
 import { CardGrid, CardGridSkeleton } from "../../ui/kit/SummaryCard";
 import { formatList } from "../../ui/lists";
-import { className, modelName } from "../../ui/model-names";
+import { classLabel, modelName } from "../../ui/model-names";
 import {
   Page,
   PageColumnSkeleton,
@@ -34,20 +34,20 @@ import {
 
 type ModelOverview = NonNullable<Awaited<ReturnType<typeof getModelOverview>>>;
 
-/** `compare` names the version whose comparison with the current one is open. */
+/** `version` names the version whose comparison with the current one is open. */
 const modelSearchSchema = z.object({
-  compare: z.string().optional().catch(undefined),
+  version: z.string().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_workbench/models/$model")({
   validateSearch: modelSearchSchema,
-  loaderDeps: ({ search }) => ({ compare: search.compare }),
+  loaderDeps: ({ search }) => ({ version: search.version }),
   loader: async ({ params, deps }) => {
     const [overview, comparison] = await Promise.all([
       getModelOverview({ data: { model: params.model } }),
-      deps.compare
+      deps.version
         ? getVersionComparison({
-            data: { model: params.model, version: deps.compare },
+            data: { model: params.model, version: deps.version },
           })
         : null,
     ]);
@@ -88,11 +88,11 @@ export const Route = createFileRoute("/_workbench/models/$model")({
 function ModelPage() {
   const { model, records, versions, datasets, runs, comparison } =
     Route.useLoaderData();
-  const { compare } = Route.useSearch();
+  const { version: selectedVersion } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const [importing, setImporting] = useState(false);
   const compared = versions.find(
-    ({ version, current }) => version.id === compare && !current,
+    ({ version, current }) => version.id === selectedVersion && !current,
   );
 
   useRouteRefresh(10_000);
@@ -101,8 +101,8 @@ function ModelPage() {
     <Page
       title={modelName(model)}
       icon={Network}
-      meta={[model.id, formatList(model.classes.map(className))]}
-      action={<ModelMenu model={model} deletable={modelIsFree(records)} />}
+      meta={[model.id, formatList(model.classes.map(classLabel))]}
+      actions={<ModelMenu model={model} deletable={modelIsFree(records)} />}
     >
       <PageSection title={m.model_versions()}>
         <VersionsTable

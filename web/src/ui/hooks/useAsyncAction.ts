@@ -25,17 +25,33 @@ export async function runAction<T>(
   }
 }
 
+export interface ActionSuccess<T> {
+  /** Runs after the write succeeds and the busy flag clears, before reloading. */
+  onSuccess?: (value: T) => void | Promise<void>;
+  invalidate?: () => Promise<void>;
+}
+
 /** One action's busy flag and a `runAction` that raises it while the work runs. */
 export function useAsyncAction() {
   const [busy, setBusy] = useState(false);
   const run = useCallback(
-    async <T>(work: () => Promise<T>, failure: string) => {
+    async <T>(
+      work: () => Promise<T>,
+      failure: string,
+      options: ActionSuccess<T> = {},
+    ) => {
       setBusy(true);
+      let result: ActionResult<T>;
       try {
-        return await runAction(work, failure);
+        result = await runAction(work, failure);
       } finally {
         setBusy(false);
       }
+      if (result.ok) {
+        await options.onSuccess?.(result.value);
+        await options.invalidate?.();
+      }
+      return result;
     },
     [],
   );

@@ -70,11 +70,11 @@ function ModelForm({
           },
         }),
       m.model_not_created(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      onDone();
-      await router.invalidate();
-    });
+      {
+        onSuccess: onDone,
+        invalidate: () => router.invalidate(),
+      },
+    );
   };
 
   return (

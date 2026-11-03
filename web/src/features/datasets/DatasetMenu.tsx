@@ -93,11 +93,11 @@ function RenameDatasetForm({
     void run(
       () => editDataset({ data: { dataset: dataset.id, name } }),
       m.dataset_rename_failed(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      onDone();
-      await router.invalidate();
-    });
+      {
+        onSuccess: onDone,
+        invalidate: () => router.invalidate(),
+      },
+    );
   };
 
   return (

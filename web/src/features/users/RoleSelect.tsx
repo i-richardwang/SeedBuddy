@@ -4,7 +4,7 @@ import {
   type SelectSize,
   type SelectVariant,
 } from "../../ui/kit/Select";
-import { USER_ROLE_LABELS } from "../../ui/user-roles";
+import { USER_ROLE_LABELS } from "./labels";
 
 export function RoleSelect({
   "aria-label": ariaLabel,

@@ -65,11 +65,11 @@ function NewUserForm({
               },
             }),
           m.user_not_added(),
-        ).then(async (result) => {
-          if (!result.ok) return;
-          onDone();
-          await router.invalidate();
-        });
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <Form.Field label={m.user_dialog_name_label()} name="name" required>

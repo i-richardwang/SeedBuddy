@@ -90,23 +90,21 @@ function TreatmentForm({
           factor: submittedFactor(factor),
           note,
         };
-        void action
-          .run(
-            () =>
-              creating
-                ? createTreatment({
-                    data: { experiment, ...draft, replicates },
-                  })
-                : editTreatment({
-                    data: { experiment, treatment: treatment.id, ...draft },
-                  }),
-            creating ? m.treatment_not_added() : m.treatment_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            creating
+              ? createTreatment({
+                  data: { experiment, ...draft, replicates },
+                })
+              : editTreatment({
+                  data: { experiment, treatment: treatment.id, ...draft },
+                }),
+          creating ? m.treatment_not_added() : m.treatment_not_saved(),
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <Form.Field label={m.treatment_name_label()} required>
@@ -187,19 +185,17 @@ function ReplicatesForm({
       id={REPLICATES_FORM}
       onSubmit={(event) => {
         event.preventDefault();
-        void action
-          .run(
-            () =>
-              createReplicates({
-                data: { experiment, treatment: treatment.id, replicates },
-              }),
-            m.treatment_replicates_not_added(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            createReplicates({
+              data: { experiment, treatment: treatment.id, replicates },
+            }),
+          m.treatment_replicates_not_added(),
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <ReplicatesField

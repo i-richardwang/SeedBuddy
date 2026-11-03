@@ -10,7 +10,7 @@ import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { ColorSwatch } from "../../ui/kit/ColorSwatch";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { ToolbarSeparator } from "../../ui/kit/Toolbar";
-import { className } from "../../ui/model-names";
+import { classLabel } from "../../ui/model-names";
 import { classShortcut, type LayerKey } from "./controls";
 
 /**
@@ -49,7 +49,7 @@ export function EditTools({
             options={classes.map((name) => ({
               value: name,
               label: m.annotation_named_count({
-                name: className(name),
+                name: classLabel(name),
                 count: classCount(tally, name),
               }),
               mark: <ColorSwatch color={classColor(classes, name).hex} />,

@@ -127,11 +127,11 @@ function ModelAnnotationForm({
           },
         }),
       m.model_annotation_not_saved(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      onDone();
-      await router.invalidate();
-    });
+      {
+        onSuccess: onDone,
+        invalidate: () => router.invalidate(),
+      },
+    );
   };
 
   return (

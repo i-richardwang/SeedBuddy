@@ -74,19 +74,17 @@ function UnitForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (code.trim() === "") return;
-        void action
-          .run(
-            () =>
-              editUnit({
-                data: { experiment, unit: unit.id, code, treatment },
-              }),
-            m.unit_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            editUnit({
+              data: { experiment, unit: unit.id, code, treatment },
+            }),
+          m.unit_not_saved(),
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <Form.Field label={m.unit_code_label()} required>

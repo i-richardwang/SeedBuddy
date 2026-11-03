@@ -158,9 +158,11 @@ export function UnitMenu({
           confirmLabel: m.unit_delete(),
           onConfirm: async () => {
             await removeUnit({ data: { experiment, unit: unit.id } });
-            toast.success(m.unit_deleted({ code: unit.code }));
-            await router.invalidate();
           },
+          onSuccess: () => {
+            toast.success(m.unit_deleted({ code: unit.code }));
+          },
+          invalidate: () => router.invalidate(),
         }),
     });
   }
@@ -333,19 +335,19 @@ function RemoveCultureEventForm({
         formEvent.preventDefault();
         const removed = events.find((item) => item.id === event);
         if (!removed) return;
-        void action
-          .run(
-            () => removeCultureEvent({ data: { experiment, event } }),
-            m.culture_event_not_removed(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            toast.success(
-              m.culture_event_removed({ event: describe(removed) }),
-            );
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () => removeCultureEvent({ data: { experiment, event } }),
+          m.culture_event_not_removed(),
+          {
+            onSuccess: () => {
+              toast.success(
+                m.culture_event_removed({ event: describe(removed) }),
+              );
+              onDone();
+            },
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <Form.Field label={m.culture_event_label()} required>

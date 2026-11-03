@@ -87,7 +87,7 @@ export function VersionsTable({
                         <Link
                           to="/models/$model"
                           params={{ model: version.modelId }}
-                          search={{ compare: version.id }}
+                          search={{ version: version.id }}
                           resetScroll={false}
                         />
                       }

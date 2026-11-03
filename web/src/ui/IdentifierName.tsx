@@ -19,3 +19,8 @@ export function IdentifierName({
   const name = cloneElement(render, undefined, label);
   return label === id ? name : <Tooltip title={id}>{name}</Tooltip>;
 }
+
+/** Content digests have no generated-id prefix; twelve hex digits identify an image in a list. */
+export function digestLabel(digest: string): string {
+  return digest.slice(0, 12);
+}

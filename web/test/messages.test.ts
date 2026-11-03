@@ -54,3 +54,12 @@ test("every message key is unique and called from a source file", async () => {
     }
   }
 });
+
+test("message keys are sorted in every locale", async () => {
+  for (const module of modules) {
+    for (const locale of LOCALES) {
+      const keys = await messageKeys(module, locale);
+      expect(keys).toEqual([...keys].sort());
+    }
+  }
+});

@@ -4,17 +4,17 @@ import {
   stripSearchParams,
 } from "@tanstack/react-router";
 import { z } from "zod";
-
 import type { ExperimentGrid } from "../../domain/experiments/contracts";
 import { experimentIdSchema } from "../../domain/experiments/schema";
 import {
   EXPERIMENT_TABS,
-  ExperimentGridView,
-} from "../../features/experiments/ExperimentGridView";
+  ExperimentView,
+} from "../../features/experiments/ExperimentView";
 import { getExperimentGrid } from "../../functions/experiments";
-import { documentTitle } from "../../ui/documentTitle";
-import { PageColumnSkeleton } from "../../ui/Page";
 import { m } from "../../paraglide/messages";
+import { PageColumnSkeleton } from "../../ui/Page";
+import { documentTitle } from "../../ui/documentTitle";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import {
   PageHeaderSkeleton,
   TableSkeleton,
@@ -68,10 +68,15 @@ export const Route = createFileRoute("/_workbench/experiments/$experiment/")({
 
 function ExperimentPage() {
   const { tab } = Route.useSearch();
+  const data = Route.useLoaderData();
+  useRouteRefresh(
+    5000,
+    data.images.some((image) => image.state === "pending"),
+  );
   const navigate = Route.useNavigate();
   return (
-    <ExperimentGridView
-      data={Route.useLoaderData()}
+    <ExperimentView
+      data={data}
       tab={tab}
       onTabChange={(next) => navigate({ search: { tab: next }, replace: true })}
     />

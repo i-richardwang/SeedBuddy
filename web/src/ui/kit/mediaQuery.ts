@@ -48,7 +48,7 @@ const belowLaptop = createMediaQueryStore(() => {
  * Server snapshot is `false`, so the server HTML and the first client frame
  * agree and the real value arrives in the render after hydration.
  */
-export function useMediaQuery(store: MediaQueryStore) {
+function useMediaQuery(store: MediaQueryStore) {
   return useSyncExternalStore(store.subscribe, store.matches, () => false);
 }
 

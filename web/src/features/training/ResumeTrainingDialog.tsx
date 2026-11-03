@@ -72,24 +72,22 @@ function ResumeTrainingForm({
       id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
-        void action
-          .run(
-            () =>
-              controlRun(detail, {
-                action: "resume",
-                targetWorkerId:
-                  from === "saved"
-                    ? (run.checkpoint?.workerId ?? run.targetWorkerId)
-                    : targetWorkerId,
-                restart: from === "start",
-              }),
-            m.training_resume_failed(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            controlRun(detail, {
+              action: "resume",
+              targetWorkerId:
+                from === "saved"
+                  ? (run.checkpoint?.workerId ?? run.targetWorkerId)
+                  : targetWorkerId,
+              restart: from === "start",
+            }),
+          m.training_resume_failed(),
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <Form.Field label={m.training_worker()}>

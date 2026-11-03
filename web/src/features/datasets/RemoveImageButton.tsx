@@ -34,14 +34,16 @@ export function RemoveImageButton({
             await removeFromDataset({
               data: { dataset: dataset.id, digests: [image.digest] },
             });
+          },
+          onSuccess: () => {
             toast.success(
               m.dataset_image_removed({
                 file: image.filename,
                 dataset: dataset.name,
               }),
             );
-            await router.invalidate();
           },
+          invalidate: () => router.invalidate(),
         })
       }
     />

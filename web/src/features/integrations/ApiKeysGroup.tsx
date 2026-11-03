@@ -140,9 +140,11 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
               confirmLabel: m.api_key_revoke(),
               onConfirm: async () => {
                 await removeApiKey({ data: { key: apiKey.id } });
-                toast.success(m.api_key_revoked({ name: apiKey.name }));
-                await router.invalidate();
               },
+              onSuccess: () => {
+                toast.success(m.api_key_revoked({ name: apiKey.name }));
+              },
+              invalidate: () => router.invalidate(),
             })
           }
         />

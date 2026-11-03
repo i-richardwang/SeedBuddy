@@ -74,23 +74,21 @@ function AddPhotosSession({
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
-          void action
-            .run(
-              () =>
-                assignImagesToObservation({
-                  data: {
-                    experiment,
-                    observation: observation.id,
-                    images: photos.ready,
-                  },
-                }),
-              m.observation_images_assign_failed(),
-            )
-            .then(async (result) => {
-              if (!result.ok) return;
-              onClose();
-              await router.invalidate();
-            });
+          void action.run(
+            () =>
+              assignImagesToObservation({
+                data: {
+                  experiment,
+                  observation: observation.id,
+                  images: photos.ready,
+                },
+              }),
+            m.observation_images_assign_failed(),
+            {
+              onSuccess: onClose,
+              invalidate: () => router.invalidate(),
+            },
+          );
         }}
       >
         <ObservationPhotosField photos={photos} disabled={action.busy} />

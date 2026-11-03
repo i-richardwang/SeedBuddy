@@ -82,23 +82,21 @@ function MoveForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (treatment === "" || units.length === 0) return;
-        void action
-          .run(
-            () =>
-              editUnitsTreatment({
-                data: {
-                  experiment,
-                  units: units.map((unit) => unit.id),
-                  treatment,
-                },
-              }),
-            m.experiment_units_not_moved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            editUnitsTreatment({
+              data: {
+                experiment,
+                units: units.map((unit) => unit.id),
+                treatment,
+              },
+            }),
+          m.experiment_units_not_moved(),
+          {
+            onSuccess: onDone,
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <TreatmentField

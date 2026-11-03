@@ -30,10 +30,11 @@ export function UserMenu({ account }: { account: UserAccount }) {
 
   /** Runs a command; `done` confirms one whose effect the row does not show. */
   const act = (work: () => Promise<unknown>, failure: string, done?: string) =>
-    void run(work, failure).then(async (result) => {
-      if (!result.ok) return;
-      if (done) toast.success(done);
-      await router.invalidate();
+    void run(work, failure, {
+      onSuccess: () => {
+        if (done) toast.success(done);
+      },
+      invalidate: () => router.invalidate(),
     });
 
   return (
@@ -81,9 +82,11 @@ export function UserMenu({ account }: { account: UserAccount }) {
                     confirmLabel: m.user_suspend_confirm(),
                     onConfirm: async () => {
                       await suspendUser({ data: { user: account.id } });
-                      toast.success(m.user_suspended({ name: account.name }));
-                      await router.invalidate();
                     },
+                    onSuccess: () => {
+                      toast.success(m.user_suspended({ name: account.name }));
+                    },
+                    invalidate: () => router.invalidate(),
                   }),
               },
           { type: "divider" },
@@ -99,9 +102,11 @@ export function UserMenu({ account }: { account: UserAccount }) {
                 confirmLabel: m.user_delete_confirm(),
                 onConfirm: async () => {
                   await removeUser({ data: { user: account.id } });
-                  toast.success(m.user_deleted({ name: account.name }));
-                  await router.invalidate();
                 },
+                onSuccess: () => {
+                  toast.success(m.user_deleted({ name: account.name }));
+                },
+                invalidate: () => router.invalidate(),
               }),
           },
         ]}

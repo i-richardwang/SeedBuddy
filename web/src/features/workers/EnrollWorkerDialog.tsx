@@ -2,7 +2,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { RESOURCE_ID_PATTERN } from "../../domain/identifiers/schema";
-import { addWorker } from "../../functions/status";
+import { addWorker } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { CopyableCode } from "../../ui/CopyableCode";
 import { FormDialog } from "../../ui/FormDialog";

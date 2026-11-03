@@ -70,10 +70,10 @@ try {
   };
   const restore = (title: string) =>
     Array.from(group(title).querySelectorAll("button")).find(
-      (element) => element.textContent === m.train_restore_preset(),
+      (element) => element.textContent === m.training_restore_preset(),
     );
   const choose = async (label: string) => {
-    await press(field(m.train_preset()).querySelector('[role="combobox"]'));
+    await press(field(m.training_preset()).querySelector('[role="combobox"]'));
     await press(
       await waitFor(
         () =>
@@ -87,15 +87,15 @@ try {
 
   const form = body.querySelector("form")!;
   const missing = byRole("status").find((element) =>
-    element.textContent?.includes(m.train_dialog_no_worker()),
+    element.textContent?.includes(m.training_dialog_no_worker()),
   );
   assert.ok(
     missing &&
-      missing.compareDocumentPosition(field(m.train_preset())) &
+      missing.compareDocumentPosition(field(m.training_preset())) &
         browser.Node.DOCUMENT_POSITION_FOLLOWING,
     "the missing worker is said before any field",
   );
-  const advanced = group(m.train_advanced_parameters()).querySelector(
+  const advanced = group(m.training_advanced_parameters()).querySelector(
     "[aria-expanded]",
   );
   assert.equal(
@@ -104,16 +104,20 @@ try {
     "advanced parameters start closed",
   );
   assert.ok(!body.textContent?.includes(m.parameter_nbs()));
-  assert.equal(restore(m.train_parameters()), undefined, "nothing to restore");
+  assert.equal(
+    restore(m.training_parameters_group()),
+    undefined,
+    "nothing to restore",
+  );
 
   assert.equal(value(m.parameter_batch()), "4");
   await press(field(m.parameter_batch()).querySelector("button"));
   await lowest(m.parameter_patience());
   assert.equal(value(m.parameter_patience()), "0");
-  await choose(m.train_preset_s());
+  await choose(m.training_preset_small());
   assert.equal(value(m.parameter_batch()), "5", "an adjustment survives");
   assert.equal(value(m.parameter_imgsz()), "2048");
-  await choose(m.train_preset_n());
+  await choose(m.training_preset_nano());
   assert.equal(value(m.parameter_batch()), "5");
   assert.equal(
     value(m.parameter_patience()),
@@ -123,16 +127,16 @@ try {
 
   await press(advanced);
   assert.equal(value(m.parameter_nbs()), "64");
-  assert.equal(restore(m.train_advanced_parameters()), undefined);
+  assert.equal(restore(m.training_advanced_parameters()), undefined);
   await press(field(m.parameter_nbs()).querySelector("button"));
-  await press(restore(m.train_parameters()));
+  await press(restore(m.training_parameters_group()));
   assert.equal(value(m.parameter_batch()), "4", "a group restores its fields");
   assert.equal(value(m.parameter_nbs()), "65", "and only its own");
-  assert.equal(restore(m.train_parameters()), undefined);
-  assert.ok(restore(m.train_advanced_parameters()));
+  assert.equal(restore(m.training_parameters_group()), undefined);
+  assert.ok(restore(m.training_advanced_parameters()));
 
   await lowest(m.parameter_lr0());
-  await choose(m.train_preset_s());
+  await choose(m.training_preset_small());
   assert.equal(value(m.parameter_lr0()), "0.00001");
   await act(async () => {
     form.dispatchEvent(

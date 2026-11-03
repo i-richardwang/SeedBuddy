@@ -88,8 +88,8 @@ function UnitPage() {
     <UnitWorkbench
       series={series}
       datasets={datasets}
-      source={show}
-      onSourceChange={(show) =>
+      show={show}
+      onShowChange={(show) =>
         void navigate({ search: (previous) => ({ ...previous, show }) })
       }
       compare={compare}

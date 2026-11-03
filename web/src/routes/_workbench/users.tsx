@@ -1,3 +1,4 @@
+import { Status } from "../../ui/kit/Status";
 import {
   createFileRoute,
   getRouteApi,
@@ -57,7 +58,7 @@ function UsersPage() {
   return (
     <SettingsPage
       title={m.users_title()}
-      action={
+      actions={
         <Button type="primary" icon={Plus} onClick={() => setCreating(true)}>
           {m.users_new()}
         </Button>
@@ -69,6 +70,7 @@ function UsersPage() {
             <TableHead>{m.users_column_name()}</TableHead>
             <TableHead>{m.users_column_email()}</TableHead>
             <TableHead className="w-40">{m.users_column_role()}</TableHead>
+            <TableHead>{m.users_column_status()}</TableHead>
             <TableHead className="w-12">
               <span className="sr-only">{m.users_column_actions()}</span>
             </TableHead>
@@ -99,11 +101,6 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
         <Flexbox horizontal align="center" gap={8}>
           {account.name}
           {self ? <Tag size="small">{m.users_you()}</Tag> : null}
-          {account.banned ? (
-            <Tag size="small" color="warning">
-              {m.user_status_suspended()}
-            </Tag>
-          ) : null}
         </Flexbox>
       </TableCell>
       <TableCell cellLabel={m.users_column_email()}>{account.email}</TableCell>
@@ -119,11 +116,15 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
             void run(
               () => changeUserRole({ data: { user: account.id, role } }),
               m.user_role_not_changed(),
-            ).then(async (result) => {
-              if (result.ok) await router.invalidate();
-            });
+              { invalidate: () => router.invalidate() },
+            );
           }}
         />
+      </TableCell>
+      <TableCell cellLabel={m.users_column_status()}>
+        {account.banned ? (
+          <Status tone="warning">{m.user_status_suspended()}</Status>
+        ) : null}
       </TableCell>
       <TableCell cellSlot="actions" className="text-end">
         {self ? null : <UserMenu account={account} />}

@@ -6,7 +6,7 @@ import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
 import { SummaryCard, SummaryCardStats } from "../../ui/kit/SummaryCard";
 import { formatList } from "../../ui/lists";
-import { className, modelName } from "../../ui/model-names";
+import { classLabel, modelName } from "../../ui/model-names";
 import { formatCount } from "../../ui/numbers";
 
 /** A model in the catalogue: the classes it counts, and the versions, training sets and runs it holds. */
@@ -21,7 +21,7 @@ export function ModelCard({
     <SummaryCard
       icon={Network}
       title={modelName(model)}
-      description={formatList(model.classes.map(className))}
+      description={formatList(model.classes.map(classLabel))}
       render={<Link to="/models/$model" params={{ model: model.id }} />}
       footer={
         <SummaryCardStats

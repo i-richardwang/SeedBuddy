@@ -31,7 +31,7 @@ import {
 } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
 import { toast } from "../../ui/kit/Toast";
-import { className } from "../../ui/model-names";
+import { classLabel } from "../../ui/model-names";
 import { formatCount } from "../../ui/numbers";
 import { observationLabel } from "./labels";
 import {
@@ -157,26 +157,26 @@ function ManualReadingsForm({
           onDone();
           return;
         }
-        void action
-          .run(
-            () =>
-              enterManualReadings({
-                data: {
-                  experiment,
-                  observation: observation.id,
-                  readings: checked.entries,
-                },
-              }),
-            m.manual_readings_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            toast.success(
-              m.manual_readings_saved({ count: checked.entries.length }),
-            );
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            enterManualReadings({
+              data: {
+                experiment,
+                observation: observation.id,
+                readings: checked.entries,
+              },
+            }),
+          m.manual_readings_not_saved(),
+          {
+            onSuccess: () => {
+              onDone();
+              toast.success(
+                m.manual_readings_saved({ count: checked.entries.length }),
+              );
+            },
+            invalidate: () => router.invalidate(),
+          },
+        );
       }}
     >
       <Text as="p" size="sm" type="secondary">
@@ -203,7 +203,7 @@ function ManualReadingsForm({
             </TableHead>
             {classes.map((name) => (
               <TableHead key={name} className="min-w-28">
-                {className(name)}
+                {classLabel(name)}
               </TableHead>
             ))}
             <TableHead className="min-w-24" align="right">
@@ -230,7 +230,7 @@ function ManualReadingsForm({
                     <InputNumber
                       aria-label={m.manual_readings_field({
                         unit: unit.code,
-                        class: className(name),
+                        class: classLabel(name),
                       })}
                       className="w-24"
                       min={0}
