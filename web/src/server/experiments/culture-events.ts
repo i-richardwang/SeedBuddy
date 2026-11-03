@@ -13,6 +13,7 @@ import {
   observationOrdinal,
   observationOrdinals,
   unitIsAvailableAt,
+  type ObservationOrdinals,
 } from "../../domain/experiments/culture-events";
 import {
   CultureEventNotFoundError,
@@ -20,7 +21,9 @@ import {
   UnitNotFoundError,
   UnitRejectedError,
 } from "../../domain/experiments/errors";
+import type { Unit } from "../../domain/experiments/contracts";
 import type {
+  ExperimentObservation,
   CultureEvent,
   CultureEventRef,
   CultureEventRequest,
@@ -74,42 +77,13 @@ export async function recordCultureEvent(
       );
     }
     if (cultureEventIsTerminal(type)) {
-      const [imageObservations, manualObservations] = await Promise.all([
-        tx
-          .select({ observation: experimentObservationImages.observationId })
-          .from(experimentObservationImages)
-          .where(
-            and(
-              eq(experimentObservationImages.experimentId, experimentId),
-              eq(experimentObservationImages.unitId, unitId),
-            ),
-          ),
-        tx
-          .select({ observation: experimentManualReadings.observationId })
-          .from(experimentManualReadings)
-          .where(
-            and(
-              eq(experimentManualReadings.experimentId, experimentId),
-              eq(experimentManualReadings.unitId, unitId),
-            ),
-          ),
-      ]);
-      const hasLaterRecord =
-        [...imageObservations, ...manualObservations].some(
-          (record) =>
-            observationOrdinal(ordinals, record.observation) >
-            observation.ordinal,
-        ) ||
-        unit.events.some(
-          (event) =>
-            observationOrdinal(ordinals, event.observation) >
-            observation.ordinal,
-        );
-      if (hasLaterRecord) {
-        throw new UnitRejectedError(
-          `Unit ${unit.code} has records after this observation and cannot be removed here`,
-        );
-      }
+      await assertUnitRecordsEndAt(
+        experimentId,
+        unit,
+        observation,
+        ordinals,
+        tx,
+      );
     }
 
     const [row] = await tx
@@ -177,4 +151,48 @@ export async function deleteCultureEvent(
       throw new CultureEventNotFoundError(`Unknown culture event: ${eventId}`);
     }
   });
+}
+
+/** A terminal event and every dated record must describe one consistent unit lifetime. */
+export async function assertUnitRecordsEndAt(
+  experimentId: string,
+  unit: Unit,
+  observation: ExperimentObservation,
+  ordinals: ObservationOrdinals,
+  tx: Executor,
+): Promise<void> {
+  const [imageObservations, manualObservations] = await Promise.all([
+    tx
+      .select({ observation: experimentObservationImages.observationId })
+      .from(experimentObservationImages)
+      .where(
+        and(
+          eq(experimentObservationImages.experimentId, experimentId),
+          eq(experimentObservationImages.unitId, unit.id),
+        ),
+      ),
+    tx
+      .select({ observation: experimentManualReadings.observationId })
+      .from(experimentManualReadings)
+      .where(
+        and(
+          eq(experimentManualReadings.experimentId, experimentId),
+          eq(experimentManualReadings.unitId, unit.id),
+        ),
+      ),
+  ]);
+  const hasLaterRecord =
+    [...imageObservations, ...manualObservations].some(
+      (record) =>
+        observationOrdinal(ordinals, record.observation) > observation.ordinal,
+    ) ||
+    unit.events.some(
+      (event) =>
+        observationOrdinal(ordinals, event.observation) > observation.ordinal,
+    );
+  if (hasLaterRecord) {
+    throw new UnitRejectedError(
+      `Unit ${unit.code} has records after this observation and cannot be removed here`,
+    );
+  }
 }

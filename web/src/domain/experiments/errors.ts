@@ -34,6 +34,10 @@ export class ImagesNotStoredError extends ConflictError {
 export class ObservationRejectedError extends ConflictError {
   readonly code = "observation_rejected";
 }
+export class ObservationModelHasCountsError extends ConflictError {
+  readonly code = "observation_model_has_counts";
+}
+
 export class TreatmentRejectedError extends ConflictError {
   readonly code = "treatment_rejected";
 }

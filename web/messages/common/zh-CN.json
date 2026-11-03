@@ -49,5 +49,6 @@
   "error_model_id_taken": "该标识已被占用。",
   "error_model_in_use": "只有尚无任何记录的模型才能删除。",
   "error_worker_name_taken": "已有同名的计算节点。",
-  "workbench_inspector": "信息"
+  "workbench_inspector": "信息",
+  "error_observation_model_has_counts": "此观察已有手工计数。更换模型前，请先撤销这些计数；仍可调整同一模型下的统计类别。"
 }

@@ -117,6 +117,7 @@ export const experimentOperations = [
     },
   }),
   command({
+    transaction: "operation",
     name: "create-experiment",
     description:
       "Create an experiment with its design. countsUnclear says whether a unit with a photograph marked unclear stays in the analysis; by default it does not, and the unit is out on every day",
@@ -126,6 +127,7 @@ export const experimentOperations = [
     handler: (input, executor) => createExperiment(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "update-experiment",
     description:
       "Correct an experiment's name, protocol fields, notes, inoculation date, or whether its unclear photographs count; changing countsUnclear reads nothing again",
@@ -135,6 +137,7 @@ export const experimentOperations = [
     handler: (input, executor) => updateExperiment(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "delete-experiment",
     description: "Delete an experiment that holds no records",
     destructive: true,
@@ -143,6 +146,7 @@ export const experimentOperations = [
     handler: (input, executor) => deleteExperiment(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "create-treatment",
     description: "Add a treatment and lay out its replicates",
     destructive: false,
@@ -151,6 +155,7 @@ export const experimentOperations = [
     handler: (input, executor) => addTreatment(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "add-replicates",
     description: "Lay out more replicates of a treatment",
     destructive: false,
@@ -159,6 +164,7 @@ export const experimentOperations = [
     handler: (input, executor) => addReplicates(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "update-treatment",
     description: "Correct a treatment's name, factor, or note",
     destructive: true,
@@ -167,6 +173,7 @@ export const experimentOperations = [
     handler: (input, executor) => updateTreatment(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "delete-treatment",
     description:
       "Delete a treatment and its units; the experiment's last treatment stays, and so does one whose units hold records",
@@ -176,6 +183,7 @@ export const experimentOperations = [
     handler: (input, executor) => deleteTreatment(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "update-unit",
     description:
       "Correct a unit's code or treatment, preserving its identity and records",
@@ -185,6 +193,7 @@ export const experimentOperations = [
     handler: (input, executor) => updateUnit(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "move-units",
     description:
       "Move units to another treatment together; each keeps its code and records, and a treatment's last replicate stays",
@@ -194,6 +203,7 @@ export const experimentOperations = [
     handler: (input, executor) => moveUnits(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "delete-unit",
     description:
       "Delete a unit that holds no records and is not its treatment's last replicate",
@@ -203,6 +213,7 @@ export const experimentOperations = [
     handler: (input, executor) => deleteUnit(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "create-observation",
     description:
       "Add an observation to an experiment: the date, the recognition task its photographs are read for, which of that model's classes its count sums (every class when omitted), and the photographs taken on it matched to their units, or none yet",
@@ -212,6 +223,7 @@ export const experimentOperations = [
     handler: (input, executor) => recordObservation(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "update-observation",
     description:
       "Correct an observation's date, note, recognition task, or the classes its count sums; photographs already taken are read again for a new task, and a change of classes recounts every reading without reading again",
@@ -221,6 +233,7 @@ export const experimentOperations = [
     handler: (input, executor) => updateObservation(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "delete-observation",
     description: "Delete an observation that holds no records",
     destructive: true,
@@ -229,6 +242,7 @@ export const experimentOperations = [
     handler: (input, executor) => deleteObservation(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "assign-images-to-observation",
     description:
       "Match stored photographs to units in one observation; a unit already photographed that day is given the new one. Upload bytes first to obtain each digest. An entry with unclear true marks its photograph unclear in the same step; a mark the photograph has is never cleared here",
@@ -238,6 +252,7 @@ export const experimentOperations = [
     handler: (input, executor) => assignObservationImages(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "unassign-observation-image",
     description:
       "Detach a photograph from its observation; the stored image itself remains",
@@ -247,6 +262,7 @@ export const experimentOperations = [
     handler: (input, executor) => unassignObservationImage(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "retry-observation-image-analysis",
     description: "Queue a photograph whose analysis failed to be read again",
     destructive: true,
@@ -256,6 +272,7 @@ export const experimentOperations = [
       retryObservationImageAnalysis(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "mark-image-unclear",
     description:
       "Mark a stored photograph unclear by digest, such as a fogged lid or a dish out of focus, wherever it is observed. In an experiment that does not count unclear photographs, its unit leaves the analysis on every day: the sheet and comparisons leave it out, while it is still read and shown. Datasets train on it as on any other. marked is false when it was already marked, so repeating a call is safe",
@@ -265,6 +282,7 @@ export const experimentOperations = [
     handler: (input, executor) => markImageUnclear(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "clear-image-unclear",
     description:
       "Clear a photograph's unclear mark by digest, so it reads as clear again; nothing is read again. cleared is false when it had no mark, so repeating a call is safe",
@@ -274,6 +292,7 @@ export const experimentOperations = [
     handler: (input, executor) => clearImageUnclear(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "enter-manual-readings",
     description:
       "Enter the counts people took by hand on one observation, a tally per unit naming every class the day counts; a unit's entered count outranks every reading of its photograph, and a tally of null withdraws it. A unit that left the bench before the observation cannot be counted. Answers the observation's entered counts as they stand afterwards",
@@ -283,6 +302,7 @@ export const experimentOperations = [
     handler: (input, executor) => recordManualReadings(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "record-culture-events",
     description:
       "Record one culture event on units at an observation: contaminated, discarded, and missing take a unit out of the analysis from that observation on; discarded, harvested, and missing take it off the bench afterwards",
@@ -292,6 +312,7 @@ export const experimentOperations = [
     handler: (input, executor) => recordCultureEvents(input, executor),
   }),
   command({
+    transaction: "operation",
     name: "delete-culture-event",
     description: "Erase a culture event that was recorded by mistake",
     destructive: true,

@@ -3,7 +3,6 @@ export {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
   createDataset,
-  readDatasetByName,
   updateDataset,
   listDatasets,
   listDatasetsForModel,

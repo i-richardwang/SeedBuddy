@@ -1,64 +1,89 @@
 import type { z } from "zod";
 import type { Executor } from "../infra/db/client";
-/**
- * One protocol-neutral application operation. HTTP status codes and MCP tool
- * annotations are adapter concerns; the catalog says only whether an
- * operation reads or changes state and whether that change is destructive.
- */
-export interface AgentOperation {
+
+interface OperationMetadata {
   name: string;
   description: string;
-  kind: "query" | "command";
-  destructive: boolean;
-  transactional?: boolean;
   input: z.ZodType;
   output: z.ZodType;
-  handler: (input: unknown, executor?: Executor) => Promise<unknown>;
 }
 
-interface OperationDefinition<
-  Input extends z.ZodType,
-  Output extends z.ZodType,
-> {
+/** Transaction ownership is explicit; queries and service-owned commands receive no executor. */
+export type AgentOperation = OperationMetadata &
+  (
+    | {
+        kind: "query";
+        destructive: false;
+        handler: (input: unknown) => Promise<unknown>;
+      }
+    | {
+        kind: "command";
+        destructive: boolean;
+        transaction: "operation";
+        handler: (input: unknown, executor: Executor) => Promise<unknown>;
+      }
+    | {
+        kind: "command";
+        destructive: boolean;
+        transaction: "service";
+        handler: (input: unknown) => Promise<unknown>;
+      }
+  );
+
+interface Definition<Input extends z.ZodType, Output extends z.ZodType> {
   name: string;
   description: string;
-  transactional?: boolean;
   input: Input;
   output: Output;
-  handler: (
-    input: z.output<Input>,
-    executor?: Executor,
-    // biome-ignore lint/suspicious/noConfusingVoidType: a command answering `done` resolves to nothing, which execution reads as null
-  ) => Promise<z.input<Output> | void>;
 }
 
-function defineOperation<Input extends z.ZodType, Output extends z.ZodType>(
-  kind: AgentOperation["kind"],
-  destructive: boolean,
-  config: OperationDefinition<Input, Output>,
+// A command with a null output may resolve without a value.
+type Result<Output extends z.ZodType> =
+  | Promise<z.input<Output>>
+  | (null extends z.input<Output> ? Promise<void> : never);
+
+type IndependentHandler<Input extends z.ZodType, Output extends z.ZodType> = (
+  input: z.output<Input>,
+) => Result<Output>;
+
+export function query<Input extends z.ZodType, Output extends z.ZodType>(
+  config: Definition<Input, Output> & {
+    handler: IndependentHandler<Input, Output>;
+  },
 ): AgentOperation {
-  const { name, description, input, output, handler } = config;
   return {
-    name,
-    description,
-    kind,
-    destructive,
-    transactional: config.transactional ?? true,
-    input,
-    output,
-    handler: (value, executor) => handler(value as z.output<Input>, executor),
+    ...config,
+    kind: "query",
+    destructive: false,
+    handler: (input) => config.handler(input as z.output<Input>),
   };
 }
 
-export function query<Input extends z.ZodType, Output extends z.ZodType>(
-  config: OperationDefinition<Input, Output>,
-): AgentOperation {
-  return defineOperation("query", false, config);
-}
-
 export function command<Input extends z.ZodType, Output extends z.ZodType>(
-  config: OperationDefinition<Input, Output> & { destructive: boolean },
+  config: Definition<Input, Output> & { destructive: boolean } & (
+      | {
+          transaction: "operation";
+          handler: (
+            input: z.output<Input>,
+            executor: Executor,
+          ) => Result<Output>;
+        }
+      | { transaction: "service"; handler: IndependentHandler<Input, Output> }
+    ),
 ): AgentOperation {
-  const { destructive, ...definition } = config;
-  return defineOperation("command", destructive, definition);
+  if (config.transaction === "operation") {
+    return {
+      ...config,
+      kind: "command",
+      transaction: "operation",
+      handler: (input, executor) =>
+        config.handler(input as z.output<Input>, executor),
+    };
+  }
+  return {
+    ...config,
+    kind: "command",
+    transaction: "service",
+    handler: (input) => config.handler(input as z.output<Input>),
+  };
 }

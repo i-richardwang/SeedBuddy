@@ -32,11 +32,11 @@ export const trainingOperations = [
     handler: () => trainingWorkerOptions(),
   }),
   command({
+    transaction: "service",
     name: "start-training-run",
     description:
       "Freeze reviewed dataset contents and queue training on an optional target worker; returns immediately with a run id. Supply the complete immutable recipe.",
     destructive: false,
-    transactional: false,
     input: datasetRefSchema.extend({
       recipe: trainingRecipeSchema,
       targetWorkerId: resourceIdSchema.nullable(),
@@ -80,11 +80,11 @@ export const trainingOperations = [
       ),
   }),
   command({
+    transaction: "service",
     name: "control-training-run",
     description:
       "Pause, cancel or resume a training run using the observed attempt number; resume can assign another worker or explicitly restart",
     destructive: true,
-    transactional: false,
     input: datasetRefSchema.extend({
       runId: resourceIdSchema,
       attempt: z.number().int().nonnegative(),

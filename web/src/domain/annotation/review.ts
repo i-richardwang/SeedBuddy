@@ -77,15 +77,6 @@ export function reviewInstances(readings: Readings): AnnotationInstance[] {
   return source ? (sourceInstances(readings, source) ?? []) : [];
 }
 
-export function shownInstances(
-  readings: Readings,
-  source: ReviewSource | undefined,
-): AnnotationInstance[] {
-  return (
-    (source && sourceInstances(readings, source)) ?? reviewInstances(readings)
-  );
-}
-
 /**
  * The readings as an agent reads them: every reading as boxes in source
  * pixels, and which one the image reads by. A run names one of these

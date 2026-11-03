@@ -49,5 +49,6 @@
   "error_model_id_taken": "That identifier is already taken.",
   "error_model_in_use": "Only a model nothing records against can be deleted.",
   "error_worker_name_taken": "A worker with this name is already enrolled.",
-  "workbench_inspector": "Info"
+  "workbench_inspector": "Info",
+  "error_observation_model_has_counts": "Withdraw this observation’s manual counts before changing its model. Changing the counted classes within the same model is still allowed."
 }

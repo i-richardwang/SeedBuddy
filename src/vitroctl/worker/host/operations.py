@@ -6,6 +6,7 @@ import os
 import time
 from collections import deque
 
+from vitroctl.io.files import write_text_atomically
 from vitroctl.worker.connection import (
     WorkerConnection,
     WorkerHttpClient,
@@ -102,9 +103,7 @@ def _write_status(name: str, state: str, *, detail: str | None = None) -> None:
     document: dict[str, object] = {"state": state}
     if detail:
         document["detail"] = detail
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    write_text_atomically(path, json.dumps(document, indent=2) + "\n")
 
 
 def run_profile(name: str) -> int:

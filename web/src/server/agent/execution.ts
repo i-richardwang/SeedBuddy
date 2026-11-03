@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { transaction, type Executor } from "../infra/db/client";
+import { transaction } from "../infra/db/client";
 import {
   ConflictError,
   NotFoundError,
@@ -59,12 +59,13 @@ export async function executeAgentOperation(
   if ("ok" in prepared) return prepared;
   const { operation, input: parsed } = prepared;
   try {
-    const invoke = async (tx?: Executor) =>
-      operation.output.parse((await operation.handler(parsed, tx)) ?? null);
+    const validate = (value: unknown) => operation.output.parse(value ?? null);
     const output =
-      operation.kind === "query" || operation.transactional === false
-        ? await invoke()
-        : await transaction(invoke);
+      operation.kind === "command" && operation.transaction === "operation"
+        ? await transaction(async (tx) =>
+            validate(await operation.handler(parsed, tx)),
+          )
+        : validate(await operation.handler(parsed));
     return { ok: true, output };
   } catch (error) {
     if (error instanceof ValidationError)

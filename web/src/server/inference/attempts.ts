@@ -1,3 +1,4 @@
+import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 import { transaction, type Executor } from "../infra/db/client";
 import {
@@ -35,7 +36,6 @@ import {
   maintainInferenceTasks,
   finishFailedAttempt,
   inferenceTime,
-  InferenceAttemptConflictError,
   lockTask,
   taskKey,
   type Attempt,

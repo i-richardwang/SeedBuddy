@@ -1,4 +1,4 @@
-import { ConflictError } from "../../domain/errors";
+import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import { and, asc, eq, gt, lte, not, or, sql } from "drizzle-orm";
 import {
   snapshot,
@@ -16,9 +16,6 @@ import { INFERENCE_MAX_ATTEMPTS, retryDelaySeconds } from "./policy";
 
 export type Task = typeof inferenceTasks.$inferSelect;
 export type Attempt = typeof inferenceAttempts.$inferSelect;
-export class InferenceAttemptConflictError extends ConflictError {
-  readonly code = "inference_attempt_conflict";
-}
 
 export function taskKey(target: DetectionTarget) {
   return and(

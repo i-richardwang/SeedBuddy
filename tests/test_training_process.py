@@ -123,3 +123,32 @@ def test_supervisor_persists_child_execution_diagnostics_in_worker_log(
         )
     assert '"validationBatch": 1' in caplog.text
     assert '"accumulate": 8' in caplog.text
+
+
+def _partial_message(connection, _dataset, _output, _options):
+    import os
+    import struct
+
+    os.setsid()
+    os.write(connection.fileno(), struct.pack("!i", 1024) + b"partial")
+    time.sleep(2)
+
+
+def test_partial_event_does_not_block_training_cancellation(tmp_path, monkeypatch):
+    context = multiprocessing.get_context("fork")
+    monkeypatch.setattr(
+        training_process.multiprocessing, "get_context", lambda _: context
+    )
+    monkeypatch.setattr(training_process, "_train", _partial_message)
+    before = {child.pid for child in multiprocessing.active_children()}
+    started = time.monotonic()
+    with pytest.raises(YoloTrainingInterruptedError, match="revoked"):
+        training_process.run_training_process(
+            tmp_path / "dataset.yaml",
+            tmp_path / "run",
+            cancelled=lambda: time.monotonic() - started > 0.2,
+            on_training_start=lambda: None,
+            on_epoch=lambda _: None,
+            on_validation_start=lambda: None,
+        )
+    assert {child.pid for child in multiprocessing.active_children()} == before

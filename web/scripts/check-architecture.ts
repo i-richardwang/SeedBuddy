@@ -1,6 +1,8 @@
 import { resolve } from "node:path";
 
 import { checkArchitecture } from "./architecture";
+import { unusedPublicExports } from "./public-exports";
+import { checkOperationContracts } from "./operation-contracts";
 import { checkComposition } from "./composition";
 
 const root = resolve(import.meta.dir, "..");
@@ -11,6 +13,7 @@ const paths = [
     !file.startsWith("src/paraglide/") && file !== "src/routeTree.gen.ts",
 );
 paths.push(
+  "server.ts",
   "scripts/maintenance.ts",
   "scripts/collect-blobs.ts",
   "scripts/analyze-images.ts",
@@ -25,7 +28,12 @@ const sources = new Map(
       ),
   ),
 );
-const errors = [...checkArchitecture(sources), ...checkComposition(sources)];
+const errors = [
+  ...checkArchitecture(sources),
+  ...checkComposition(sources),
+  ...checkOperationContracts(sources),
+  ...unusedPublicExports(sources),
+];
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exitCode = 1;

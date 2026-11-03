@@ -64,6 +64,13 @@
       "when": 1793526822079,
       "tag": "0008_manual_readings",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793707361325,
+      "tag": "0009_remove_account_issuer",
+      "breakpoints": true
     }
   ]
 }

@@ -65,7 +65,14 @@ and the grid marks it as entered by hand so the difference stays visible. A
 unit removed from the bench before the observation can no more be counted
 than photographed, and a count is a record like a photograph: it keeps its
 observation and unit from being deleted, and holds the unit on the bench
-through the day it was counted on.
+through the day it was counted on. Correcting an observation date must preserve
+that lifetime: no photograph, manual count or culture event may move past the
+unit’s terminal observation.
+
+An observation with manual counts keeps its model until those counts are
+explicitly withdrawn. Even identically named classes in another model can
+mean different things; switching models never reinterprets those counts.
+Changing the counted classes within the same model remains allowed.
 
 A photograph's tally leaves out a class it found none of, and that class
 counts zero. A person's count may not: a class the day counts and the count

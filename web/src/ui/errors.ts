@@ -16,6 +16,10 @@ const BUSINESS_ERROR_LABELS: ReadonlyMap<string, Label> = new Map<
   ["model_id_taken", () => m.error_model_id_taken()],
   ["model_in_use", () => m.error_model_in_use()],
   ["experiment_observation_image_already_used", imageAlreadyUsed],
+  [
+    "observation_model_has_counts",
+    () => m.error_observation_model_has_counts(),
+  ],
   ["experiment_has_records", () => m.error_experiment_has_records()],
   ["user_rejected", () => m.error_user_rejected()],
   ["worker_already_enrolled", () => m.error_worker_name_taken()],

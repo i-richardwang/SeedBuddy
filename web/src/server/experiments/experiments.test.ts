@@ -24,6 +24,7 @@ import {
   ManualReadingRejectedError,
   ObservationImageRejectedError,
   ObservationNotFoundError,
+  ObservationModelHasCountsError,
   ObservationRejectedError,
   TreatmentNotFoundError,
   TreatmentRejectedError,
@@ -2355,4 +2356,119 @@ describe("counts entered by hand", () => {
     });
     await deleteUnit({ experiment: experiment.id, unit });
   });
+});
+
+test("correcting dates cannot move records beyond a unit's removal", async () => {
+  const version = await trainedVersion("date-lifetime");
+  const experiment = await createExperiment({
+    name: "Date lifetime",
+    inoculatedOn: INOCULATED,
+  });
+  const units = await unitsOf(experiment.id);
+  const unit = units.get("A-1")!;
+  const counted = await addObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-08",
+    note: "",
+    ...reading(version),
+  });
+  const removed = await addObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-15",
+    note: "",
+    ...reading(version),
+  });
+  await recordManualReadings({
+    experiment: experiment.id,
+    observation: counted.id,
+    readings: [{ unit, tally: { ungerminated: 2, germinated: 3 } }],
+  });
+  await recordCultureEvent({
+    experiment: experiment.id,
+    unit,
+    observation: removed.id,
+    type: "discarded",
+  });
+  for (const [observation, observedOn] of [
+    [counted, "2026-08-20"],
+    [removed, "2026-08-05"],
+  ] as const) {
+    await expect(
+      updateObservation({
+        experiment: experiment.id,
+        observation: observation.id,
+        observedOn,
+        note: "",
+        ...reading(version),
+        countedClasses: observation.countedClasses,
+      }),
+    ).rejects.toThrow(UnitRejectedError);
+    const grid = (await readExperimentGrid(experiment.id))!;
+    expect(
+      grid.observations.find((item) => item.id === observation.id)!.observedOn,
+    ).toBe(observation.observedOn);
+  }
+  const corrected = await updateObservation({
+    experiment: experiment.id,
+    observation: counted.id,
+    observedOn: "2026-08-09",
+    note: "",
+    ...reading(version),
+    countedClasses: counted.countedClasses,
+  });
+  expect(corrected.observedOn).toBe("2026-08-09");
+});
+
+test("a new model cannot reinterpret existing manual counts", async () => {
+  const version = await trainedVersion("manual-model-identity");
+  const experiment = await createExperiment({
+    name: "Manual model identity",
+    inoculatedOn: INOCULATED,
+  });
+  const unit = (await unitsOf(experiment.id)).get("A-1")!;
+  const observation = await addObservation({
+    experiment: experiment.id,
+    observedOn: INOCULATED,
+    note: "",
+    ...reading(version),
+  });
+  const other = await createModel({
+    id: "other-manual-model",
+    name: "Other meaning",
+    classes: ["ungerminated", "germinated"],
+  });
+  await recordManualReadings({
+    experiment: experiment.id,
+    observation: observation.id,
+    readings: [{ unit, tally: { ungerminated: 4, germinated: 1 } }],
+  });
+  const update = {
+    experiment: experiment.id,
+    observation: observation.id,
+    observedOn: INOCULATED,
+    note: "",
+    modelId: other.id,
+    countedClasses: other.classes,
+  };
+  await expect(updateObservation(update)).rejects.toThrow(
+    ObservationModelHasCountsError,
+  );
+  const grid = (await readExperimentGrid(experiment.id))!;
+  expect(grid.observations[0]!.modelId).toBe(version.modelId);
+  expect(grid.manualReadings[0]!.tally).toEqual({
+    ungerminated: 4,
+    germinated: 1,
+  });
+  const recounted = await updateObservation({
+    ...update,
+    modelId: version.modelId,
+    countedClasses: ["germinated"],
+  });
+  expect(recounted.countedClasses).toEqual(["germinated"]);
+  await recordManualReadings({
+    experiment: experiment.id,
+    observation: observation.id,
+    readings: [{ unit, tally: null }],
+  });
+  expect((await updateObservation(update)).modelId).toBe(other.id);
 });

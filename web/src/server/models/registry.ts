@@ -26,7 +26,12 @@ import {
   ModelNotFoundError,
   ModelVersionNotFoundError,
 } from "../../domain/models/errors";
-import { database, transaction, type Executor } from "../infra/db/client";
+import {
+  database,
+  transaction,
+  inTransaction,
+  type Executor,
+} from "../infra/db/client";
 import { modelVersions, models } from "../infra/db/schema";
 import { heldBy, modelRecords } from "./records";
 
@@ -147,7 +152,10 @@ export async function registerModel(
  * The insert is what claims the name, so two people naming the same task at
  * once get one model and one refusal.
  */
-export async function createModel(value: ModelRequest): Promise<Model> {
+export async function createModel(
+  value: ModelRequest,
+  executor?: Executor,
+): Promise<Model> {
   const request = modelRequestSchema.parse(value);
   const model = modelSchema.parse({
     schemaVersion: 1,
@@ -155,7 +163,7 @@ export async function createModel(value: ModelRequest): Promise<Model> {
     ...request,
     annotation: { ...DEFAULT_MODEL_ANNOTATION, ...request.annotation },
   });
-  const created = await insertModel(model, await database());
+  const created = await insertModel(model, executor ?? (await database()));
   if (!created) {
     throw new ModelIdTakenError(`Model ${model.id} already exists`);
   }
@@ -165,9 +173,10 @@ export async function createModel(value: ModelRequest): Promise<Model> {
 /** Changes how agents annotate the task. Its classes and records are untouched. */
 export async function setModelAnnotation(
   value: ModelAnnotationRequest,
+  executor?: Executor,
 ): Promise<Model> {
   const request = modelAnnotationRequestSchema.parse(value);
-  const db = await database();
+  const db = executor ?? (await database());
   const [row] = await db
     .update(models)
     .set({ annotation: request.annotation })
@@ -182,8 +191,11 @@ export async function setModelAnnotation(
  * before anything is counted against it, so the count is of every record that
  * got there first, and one arriving after finds the task gone.
  */
-export async function deleteModel(ref: ModelRef): Promise<void> {
-  await transaction(async (tx) => {
+export async function deleteModel(
+  ref: ModelRef,
+  executor?: Executor,
+): Promise<void> {
+  await inTransaction(executor, async (tx) => {
     const [taken] = await tx
       .select({ id: models.id })
       .from(models)

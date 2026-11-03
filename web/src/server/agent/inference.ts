@@ -15,13 +15,13 @@ export const inferenceOperations = [
     handler: readInferenceTask,
   }),
   command({
+    transaction: "service",
     name: "retry-inference-task",
     description:
       "Retry a terminally failed inference task with a fresh retry budget; preserves attempt history",
     input: inferenceTargetSchema,
     output: z.null(),
     destructive: true,
-    transactional: false,
     handler: (target) => retryInferenceTask(target),
   }),
 ];
