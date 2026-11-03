@@ -1,12 +1,12 @@
 # vitroctl
 
-Operator CLI and native Worker runtime for a [VitroFlow](https://github.com/i-richardwang/VitroFlow) workbench. The workbench owns experiments, datasets, review state, and training runs; this package runs the Workers that detect and train for it and moves datasets between a workbench and a local data root.
+Operator CLI and native Worker runtime for a [VitroFlow](../README.md) workbench. The workbench owns experiments, datasets, review state, and training runs; this package runs the Workers that detect and train for it and moves datasets between a workbench and a local data root.
 
 Worker services run under `launchd` and therefore require macOS. The `dataset`, `recognize`, `traditional`, `training`, and `models` commands run wherever Python 3.11+ is available.
 
 ## Install
 
-`vitroctl` is installed from source; it is not published on PyPI.
+Install `vitroctl` from source.
 
 ```bash
 git clone https://github.com/i-richardwang/VitroFlow.git
@@ -18,7 +18,7 @@ The `yolo` extra installs the pinned Ultralytics runtime that Workers advertise.
 
 ## Workers
 
-An administrator enrolls each machine on the workbench's Workers page, which shows the machine's token once. Each Worker profile holds that token and a private work directory; [Worker identity](backend-architecture.md#worker-control-planes) defines its authentication. Setup validates the token, runtime imports, and the selected device before saving the profile, then installs and starts a LaunchAgent:
+An administrator enrolls each Worker on the workbench's Workers page, which shows its token and setup command once. Each Worker profile holds that token and a private work directory; [Worker identity](backend-architecture.md#worker-control-planes) defines its authentication. Setup validates the token, runtime imports, and the selected device before saving the profile, then installs and starts a LaunchAgent:
 
 ```bash
 vitroctl worker setup mac-studio \
@@ -40,11 +40,11 @@ vitroctl worker restart mac-studio
 vitroctl worker stop mac-studio
 ```
 
-`launchd` restarts a Worker that crashes. A Worker whose machine is removed from the Workers page stops and stays stopped, and `worker list` shows why; enroll the machine again and rerun `setup --force` with the enrollment token.
+`launchd` restarts a Worker that crashes. A Worker removed from the Workers page stops and stays stopped, and `worker list` shows why; enroll it again and rerun `setup --force` with the enrollment token.
 
 `stop` and `restart` return once the Worker has exited; `restart` then loads the current LaunchAgent definition. Training runs in a supervised child process, so shutdown or detection of a revoked lease stops even a trainer blocked inside a GPU operation. The server revokes ownership immediately; the Worker detects revocation on its next training request or lease renewal. Each attempt uses a private directory. Completed but undelivered bundles are retained; other attempt directories are removed when execution exits.
 
-Inference execution and retry policy are described in the [Worker control planes](https://github.com/i-richardwang/VitroFlow/blob/main/docs/backend-architecture.md#worker-control-planes). Workers make outbound calls only and expose no inbound port. Web and Workers share wire contracts with no mixed-version protocol: stop Workers, deploy Web, install the matching Worker package, then start Workers with `vitroctl worker restart <profile>`.
+Inference execution and retry policy are described in the [Worker control planes](backend-architecture.md#worker-control-planes). Workers make outbound calls only and expose no inbound port. Web and Workers share wire contracts with no mixed-version protocol: stop Workers, deploy Web, install the matching Worker package, then start Workers with `vitroctl worker restart <profile>`.
 
 Training presets pin model weights, parameters, and the framework version. The Web dialog accepts parameter adjustments, and the server validates and freezes the resolved recipe in the run; resuming does not consult the preset registry.
 
@@ -52,7 +52,7 @@ Workers validate both training recipes and the training metadata in published mo
 
 The training dialog assigns work automatically or to a specific enrolled Worker. A run's status on its page is the menu that controls it: Pause training revokes the current attempt and releases the model immediately; Cancel training… asks before it ends the task. Pausing a task frees its model for another run; a paused or failed task continues once no other run of its model is in progress, on the training Worker its dialog names, from its saved epoch or from the beginning. A pinned task waits for its selected Worker rather than silently moving elsewhere.
 
-Each epoch saves the latest resumable weights, best weights, and epoch journal on the Worker. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes never leave the machine during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. The Start from the beginning command uses the restart behavior described below. Missing or invalid files fail with an explicit restart instruction; machine or disk loss is not recoverable from the workbench.
+Each epoch saves the latest resumable weights, best weights, and epoch journal on the Worker. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes stay on the Worker during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. The Start from the beginning command uses the restart behavior described below. Missing or invalid files fail with an explicit restart instruction; host or disk loss is not recoverable from the workbench.
 
 Local recovery checks the run, frozen dataset snapshot, recipe, and Worker identity before atomically copying each recovery directory into the next attempt. The trainer verifies the checkpoint and epoch journal before resuming. Attempts with local weights or a finished bundle are excluded from automatic stale-run cleanup; their log identifies the retained directory. Remove retained directories explicitly when unneeded.
 
@@ -64,7 +64,7 @@ The run page lists execution attempts and the last reported local checkpoint epo
 
 `vitroctl worker run <profile>` runs a Worker in the foreground without `launchd`.
 
-A Worker keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files instead of copying them. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
+A Worker keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
 
 ## Datasets
 
@@ -86,7 +86,7 @@ data/
 └── datasets/<dataset>.json
 ```
 
-Every command verifies blob digests before reading them. `push` sends a dataset only when the destination has no dataset of that name. Dataset archive rules are in [Records, models and datasets](https://github.com/i-richardwang/VitroFlow/blob/main/docs/domain.md#dataset-transfer).
+Every command verifies blob digests before reading them. `push` sends a dataset only when the destination has no dataset of that name. Dataset archive rules are in [Records, models and datasets](domain.md#dataset-transfer).
 
 Annotations export as a deterministic YOLO dataset:
 
@@ -98,6 +98,8 @@ vitroctl dataset export-yolo \
   --validation-fraction 0.2 \
   --seed 42
 ```
+
+## Local detection and traditional training
 
 Run the bundled traditional detector over a pulled dataset:
 
@@ -125,7 +127,7 @@ vitroctl traditional train \
 
 Training and model registration are independent. A Worker and local training produce the same Model Bundle: `bundle.json` and `weights.pt`. The manifest fixes ordered classes, weight digest and size, inference settings, the training recipe, runtime requirements, dataset provenance, and evaluation/calibration evidence. Checkpoints remain separate and are only needed to continue training.
 
-Example input and output paths below are operator-selected files, not bundled fixtures. A training specification is JSON with `dataset` and `recipe`. `recipe` has the same structure as the `recipe` member in `configs/yolo26/yolo26n-whole-v1.recipe.json`: pinned base-model reference and digest, training parameters, and framework version. Optional `nbs`, scale, rotation, flip, translation and HSV parameters override the pinned framework's defaults. The resolved scalar trainer arguments and a training-code fingerprint are saved in `training-context.json` and included in generated bundles.
+Example input and output paths below are operator-selected files, not bundled fixtures. A training specification is JSON with `dataset` and `recipe`. `recipe` has the same structure as the bare recipe document in `configs/yolo26/yolo26n-whole-v1.recipe.json`: pinned base-model reference and digest, training parameters, and framework version. Optional `nbs`, scale, rotation, flip, translation and HSV parameters override the pinned framework's defaults. The resolved scalar trainer arguments and a training-code fingerprint are saved in `training-context.json` and included in generated bundles.
 
 - `configs/yolo26/yolo26n-whole-v1.recipe.json` (default): YOLO26n, image size 1536, batch 4, nominal batch size 64, 50 epochs, patience 20, warmup 3.
 - `configs/yolo26/yolo26s-whole-2048-v1.recipe.json`: YOLO26s, image size 2048, batch 1, nominal batch size 8, 50 epochs, no warmup or early stopping.
@@ -170,7 +172,7 @@ vitroctl models list --model seed-detector
 vitroctl models use --model seed-detector --version <version-id>
 ```
 
-For experimental weights, prepare a manifest matching [the bundle contract](https://github.com/i-richardwang/VitroFlow/blob/main/src/vitroctl/contracts/model-bundle.schema.json). The `weights` descriptor can be omitted from the input metadata; `pack` computes it. Include the actual class order, chosen confidence and image size, original recipe, selected epoch if known, data fingerprint if available, and the separate calibration/evaluation descriptions. Unknown provenance is explicitly `null`; do not invent a snapshot or report full-dataset training for a subset experiment.
+For experimental weights, prepare a manifest matching [the bundle contract](../src/vitroctl/contracts/model-bundle.schema.json). The `weights` descriptor can be omitted from the input metadata; `pack` computes it. Include the actual class order, chosen confidence and image size, original recipe, selected epoch if known, data fingerprint if available, and the separate calibration/evaluation descriptions. Unknown provenance is explicitly `null`; do not invent a snapshot or report full-dataset training for a subset experiment.
 
 ```bash
 vitroctl models pack --weights output/experiment/weights/last.pt \
@@ -186,6 +188,6 @@ The CLI can import a retained Worker bundle to recover completed work after fail
 
 ### HTTP and MCP
 
-The experiments MCP endpoint exposes `list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload`, and `use-model-version`. These are the same operations exposed through `POST /api/agent/<operation>`; schema discovery remains `GET /api/agent/operations`.
+The experiments MCP endpoint exposes `list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload`, and `use-model-version`. These are the same operations exposed through `POST /api/agent/<operation>`; schema discovery is `GET /api/agent/operations`.
 
 `start-training-run` returns a task immediately; MCP does not execute a long GPU computation. To import local files, the CLI calls `prepare-model-upload`, PUTs raw weights to the returned upload path using its API key, then calls `register-model-upload`. An MCP client can prepare and register uploads but cannot read a user's local filesystem on its own. Weight transfers use HTTP, never base64 inside an MCP tool call.

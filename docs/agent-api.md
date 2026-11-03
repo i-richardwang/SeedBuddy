@@ -26,9 +26,9 @@ The MCP surface also opens to MCP clients the account approves through OAuth: se
 | `POST /api/agent/<name>`    | Call one operation with its JSON input                                                        |
 | `POST /api/agent/images`    | Store image bytes; the response is the digest a photograph is matched to its unit by          |
 
-Every result is validated against the operation's published output schema before it leaves the workbench; for commands sharing the operation transaction, this validation must succeed before that transaction commits. Uploads and other staged workflows own their transactions, so output validation at the adapter does not roll back an already completed stage. A successful call answers `{"result": ...}`. A failed call answers `{"error":{"code":"...","message":"..."}}`; HTTP maps the protocol-neutral code to the status describing what the agent can do about it:
+Every result is validated against the operation's published output schema before it leaves the workbench; for commands sharing the operation transaction, this validation must succeed before that transaction commits. Transaction ownership follows the [backend contract](backend-architecture.md#agent-control-plane). A successful call answers `{"result": ...}`. A failed call answers `{"error":{"code":"...","message":"..."}}`; HTTP maps the protocol-neutral code to the status describing what the agent can do about it:
 
-- `400` — the input does not satisfy the operation's schema; the message names the offending fields.
+- `400` — schema or domain validation fails, including a dataset/model mismatch.
 - `401` — the request presents no live API key with the experiment records scope.
 - `404` — the operation or the addressed record does not exist.
 - `409` — a domain rule rejected the request, such as deleting an observation that holds records, or entering a count that leaves out a class the day counts; the message says which rule.
@@ -48,7 +48,7 @@ Image upload posts the raw source bytes as the request body with an exact `Conte
 
 ## MCP surface
 
-`POST /api/experiments/mcp` is the experiment MCP server, serving MCP 2026-07-28 and 2025-06-18 Streamable HTTP clients. Its tools are exactly the operations of the registry. Drawing boxes on images is the job of the [annotation MCP server](ai-annotation.md), which an agent connects to and is authorized for on its own. Each tool carries the operation's input and output schemas and its behavior annotations, and a successful call returns the result as structured content. The MCP server validates arguments against the tool's input schema itself, so a call whose arguments do not fit is refused before the operation runs.
+`POST /api/experiments/mcp` is the experiment MCP server, serving MCP 2026-07-28 and 2025-06-18 Streamable HTTP clients. Its tools are exactly the operations of the registry. Drawing boxes follows the [annotation workflow and authorization](ai-annotation.md). Each tool carries the operation's input and output schemas and its behavior annotations, and a successful call returns the result as structured content.
 
 Both MCP servers use `createMcpHandler` with `legacy: "stateless"`. Clients negotiating 2025-06-18 initialize before tool requests and send `MCP-Protocol-Version`; 2026-07-28 clients send protocol metadata on each request. A per-request server factory serves both lifecycles, with no session identifier or server-side session store.
 
@@ -64,29 +64,27 @@ GET streams and DELETE sessions are not implemented.
 
 Better Auth verifies OAuth and issues challenges; the MCP SDK handles POST exchanges. Client ID Metadata Documents use a transport that resolves DNS once, rejects non-public addresses, pins the connection to a validated address, verifies TLS for the original hostname and refuses redirects.
 
-Configure each MCP endpoint in the client's HTTP connector and authorize each resource separately.
-
-Image bytes do not travel through MCP. Upload them to `POST /api/agent/images` and pass the returned digest to `create-observation` or `assign-images-to-observation`.
+Image bytes use the [HTTP upload surface](#http-surface); MCP operations take the returned digest.
 
 ## Error contract
 
-Validation refusals use `<subject>_invalid`; name collisions use `<subject>_name_taken`. Other domain codes describe missing records, ownership conflicts or lifecycle rules. The current domain codes are:
+Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subject>_mismatch`, `ConflictError` for `<subject>_name_taken` or `<subject>_conflict`, and `NotFoundError` for `<subject>_not_found`. Protocol adapters classify these domain errors: the agent transport emits `invalid_request`, `conflict`, `not_found`, `unauthorized` or `internal_error`. The current domain codes are:
 
 | Subject | Codes |
 | --- | --- |
 | annotation-runs | `annotation_run_conflict`, `annotation_run_not_found` |
-| auth | `user_not_found`, `user_invalid`, `api_key_not_found`, `mcp_client_not_found` |
+| auth | `user_not_found`, `user_account_conflict`, `api_key_not_found`, `mcp_client_not_found` |
 | datasets | `dataset_not_found`, `dataset_model_mismatch`, `dataset_import_invalid`, `dataset_name_taken` |
-| experiments | `experiment_not_found`, `experiment_observation_image_not_found`, `observation_not_found`, `treatment_not_found`, `unit_not_found`, `culture_event_not_found`, `experiment_name_taken`, `experiment_has_records`, `images_not_stored`, `observation_invalid`, `observation_model_has_counts`, `treatment_name_taken`, `treatment_invalid`, `unit_invalid`, `observation_image_invalid`, `manual_reading_invalid`, `experiment_observation_image_already_used` |
+| experiments | `experiment_not_found`, `experiment_observation_image_not_found`, `observation_not_found`, `treatment_not_found`, `unit_not_found`, `culture_event_not_found`, `experiment_name_taken`, `experiment_records_conflict`, `image_storage_conflict`, `observation_conflict`, `observation_model_counts_conflict`, `treatment_name_taken`, `treatment_conflict`, `unit_conflict`, `observation_image_conflict`, `manual_reading_conflict`, `experiment_observation_image_conflict`, `unit_name_taken` |
 | images | `image_not_found` |
-| inference | `detection_conflict`, `detection_outcome_invalid`, `detection_image_not_found`, `producer_invalid`, `inference_attempt_conflict` |
-| models | `model_not_found`, `model_version_not_found`, `model_id_taken`, `model_in_use`, `class_invalid`, `model_publication_invalid` |
+| inference | `detection_conflict`, `detection_outcome_invalid`, `detection_image_not_found`, `producer_mismatch`, `inference_attempt_conflict` |
+| models | `model_not_found`, `model_version_not_found`, `model_name_taken`, `model_usage_conflict`, `class_invalid`, `model_publication_invalid` |
 | training | `training_run_conflict`, `training_run_not_found`, `training_artifact_invalid` |
 | workers | `worker_not_found`, `worker_name_taken`, `worker_session_conflict` |
 
 Both MCP servers report tool handler failures as `isError: true` with JSON `{ "code": "…", "message": "…" }` in text content. The MCP SDK owns argument validation before handlers run.
 
-HTTP image and weight uploads use exact-length body admission. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Upload refusals return `{ "error": "…" }`.
+HTTP image and weight uploads use exact-length body admission. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. The `/api/transfer/*` surface uses `{ "error": "…" }`. Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
 
 ## Design and records
 
@@ -101,9 +99,9 @@ HTTP image and weight uploads use exact-length body admission. A declared size a
 - `image` is the photograph behind the cell: its observation image `id`, which datasets add it by; its `digest`, which marks and dataset removal address it by; its reading `state`; the three tallies it may carry; and whether it is `unclear`.
 - `manual` is the count a person entered: its `tally` by class and when it was recorded.
 
-A cell with neither reading nor exclusion has nothing yet. An agent reads numbers from the sheet; it never ranks a photograph's readings against an entered count or applies the exclusion rules itself.
+A cell with neither reading nor exclusion has nothing yet. Agents follow the [resolved-sheet rules](readings.md#what-an-agent-reads).
 
-Under the cells, `summary` contains `baseline` and one entry per treatment and observation. Each entry carries its units, counts, rates and statistics (`n`, `mean`, `sd`, `se`). Their [meaning and nullability](readings.md#what-the-summary-says) match the workbench and spreadsheet.
+Under the cells, `summary` contains `baseline` and `cells`, with one cell per treatment and observation. Each entry carries its units, counts, rates and statistics (`n`, `mean`, `sd`, `se`). Their [meaning and nullability](readings.md#what-the-summary-says) match the workbench and spreadsheet.
 
 ## Entering a day
 
@@ -111,7 +109,7 @@ A day enters as an observation and the records taken on it, by either or both of
 
 1. `get-experiment` reads the sheet: treatments, units with their codes, and the observations already made.
 2. `create-observation` adds the observation date, the model its photographs are read for, and `countedClasses`, the classes the day's count sums, every class when omitted; a germination trial's later days count `["germinated"]`. When the photographs are already uploaded, `images` matches them to their units in the same step, so the day and its photographs enter together or not at all; omit it to plan a day first.
-3. `POST /api/agent/images` stores each photo and returns its digest. `assign-images-to-observation` matches digests to units in an observation that already exists, keeping each source filename for traceability; a unit already photographed that day is given its replacement. Filenames may suggest unit codes, but the unit id in the assignment is authoritative.
+3. Upload each photo through the [HTTP surface](#http-surface). `assign-images-to-observation` matches digests to units in an observation that already exists, keeping each source filename for traceability; a unit already photographed that day is given its replacement. Filenames may suggest unit codes, but the unit id in the assignment is authoritative.
 4. `enter-manual-readings` submits counts entered by hand as class tallies per unit; `null` withdraws a tally. The [reading rules](readings.md#where-the-numbers-come-from) define completeness and precedence.
 5. `mark-image-unclear` and `clear-image-unclear` address an image by digest. Repeated calls return `marked: false` or `cleared: false` when there is nothing to change. Assignment entries also accept `unclear: true`. The experiment's `countsUnclear` setting is accepted by `create-experiment` and `update-experiment`; [exclusion rules](readings.md#what-takes-a-unit-out-of-the-statistics) define its effect.
 6. `record-culture-events` records an event for several units at one observation; `delete-culture-event` removes a mistaken event.
@@ -127,13 +125,13 @@ Photographs that a reviewer has annotated become training material once they bel
 3. `create-dataset` names an empty dataset for a model. The name is unique whatever its case and stays filename-safe, because transfer and `vitroctl` data roots know a dataset by name; `update-dataset` renames it later without touching its images, splits, snapshots, or runs. Every other dataset tool addresses the dataset by its id.
 4. `add-images-to-dataset` adds observation images to a dataset. One call takes images observed for the dataset's model; images already in the dataset are counted as `existing`, so repeating a call is safe.
 5. `get-dataset` lists a dataset's images by digest, each with whether it is reviewed, whether a person marked it `unclear`, and its training split; the digests match the photographs in the sheet's cells.
-6. `remove-images-from-dataset` takes images out by digest, for example a blurred photo or a unit found contaminated. The images and their reviews remain, and snapshots already taken keep what they froze; digests not in the dataset are counted as `absent`, so repeating a call is safe.
+6. `remove-images-from-dataset` takes images out by digest, for example a blurred photo or a unit found contaminated. The [dataset lifetime rules](domain.md#dataset-transfer) apply; digests not in the dataset are counted as `absent`, so repeating a call is safe.
 
 The train/validation split is not chosen here: a training snapshot gives each reviewed image a split it keeps from then on.
 
 ## Transactions
 
-Record commands such as entering counts, moving units and creating an observation with photographs commit atomically. The registry declares whether the operation or its service owns the transaction; staged uploads use service-owned transactions. The [backend contract](backend-architecture.md#agent-control-plane) defines this boundary.
+Record commands such as entering counts, moving units and creating an observation with photographs commit atomically. The [backend contract](backend-architecture.md#agent-control-plane) defines transaction ownership.
 
 ## Inference task control
 

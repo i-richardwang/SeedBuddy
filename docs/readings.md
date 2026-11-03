@@ -17,7 +17,7 @@ them, so a photograph annotated for it teaches the model both what a seed is
 and which state it is in. Seeds hidden under grown seedlings go unboxed, since
 nothing in the photograph shows them.
 
-A model is the question, not the machine that answers it. It exists as soon as
+A model defines the classes to count. It exists as soon as
 someone names it, with no version at all. Its images are then read by a
 reviewer, and those reviews are what a first version is eventually trained on.
 
@@ -51,7 +51,7 @@ Every photograph yields a tally: how many instances of each class the reading
 found. An image can hold three readings, and they rank: a reviewer's
 review outranks an AI agent's proposal, which outranks the detector's
 result. A proposal counts because an agent that sees the photograph reads it
-better than the detector, but it is still a machine's reading; only a review
+better than the detector, but it is still an automated reading; only a review
 marks the image reviewed, and the grid shows the difference.
 
 A count entered by hand is a tally too, kept by class, for a day that was
@@ -61,9 +61,7 @@ per unit and a field per class the day counts. It outranks every reading of
 the day's photograph: it is a person's deliberate statement about that cell,
 and the grid marks it as entered by hand so the difference stays visible. A
 unit removed from the bench before the observation can no more be counted
-than photographed, and a count is a record like a photograph: it keeps its
-observation and unit from being deleted, and holds the unit on the bench
-through the day it was counted on. Correcting an observation date must preserve
+than photographed, and counts follow the [record lifetime rules](domain.md#experimental-design). Correcting an observation date must preserve
 that lifetime: no photograph, count entered by hand or culture event may move past the
 unit’s terminal observation.
 
@@ -92,7 +90,7 @@ by reviewing the photograph or by entering it, is shown plain, one nobody
 has reviewed yet provisional, and one entered by hand carries a small mark.
 A day out of the statistics is struck through, and an unclear photograph
 carries a small mark whether or not it counts, so a unit struck through for
-one shows which. Hovering says why. A photograph not yet read appears as a photograph; a unit without a photograph or manual count shows no value. A failed image reading is marked.
+one shows which. Hovering says why. A photograph not yet read appears as a photograph; a unit without a photograph or count entered by hand shows no value. A failed image reading is marked.
 
 ## What the spreadsheet carries
 

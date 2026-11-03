@@ -6,8 +6,7 @@ VitroFlow serves visual annotation through its own MCP server,
 needs: one that annotates images connects here, one that maintains experiments
 connects there, and each is authorized on its own. VitroFlow supplies images
 waiting for annotation, regional evidence and validation; the connected agent
-supplies visual reasoning. The workbench shows a run's progress while an agent
-works and the proposal it leaves.
+supplies visual reasoning.
 
 ## Product workflow
 
@@ -42,7 +41,7 @@ a bearer token. The annotation server carries no experiment or model tools, and
 the experiment server accepts neither OAuth tokens bound to the annotation
 resource nor keys issued for annotation alone.
 
-OAuth discovery and connection behavior follow the [shared MCP contract](agent-api.md#mcp-surface). For annotation, the protected resource metadata is `/.well-known/oauth-protected-resource/api/annotation/mcp` and the token audience is `<BETTER_AUTH_URL>/api/annotation/mcp`; each resource requires its own authorization.
+OAuth discovery and connection behavior follow the [shared MCP contract](agent-api.md#mcp-surface). For annotation, the protected resource metadata is `/.well-known/oauth-protected-resource/api/annotation/mcp` and the token audience is `<BETTER_AUTH_URL>/api/annotation/mcp`.
 
 OAuth resource requests use Better Auth's verifier for both Bearer and DPoP
 access tokens. A DPoP-bound token requires the client's signed proof for the
@@ -72,17 +71,13 @@ source-coordinate list, the name of one of the image's readings (`"review"`,
 `"proposal"` or `"detection"`, as `annotation_read` lists them) taken as it stands
 when the run starts, or nothing to start from the image alone. Naming a
 reading the image lacks is refused. `scope` is an optional list of
-source-coordinate boxes `{x, y, width, height}`; the run then covers only the
-regions those boxes touch, and every other region keeps its `input` boxes in the
-result. With `input: "proposal"`, the run also freezes which boxes await confirmation
-and carries those of untouched regions into the result. This is a whole-region
-redraw, not an edit restricted to the exact scope rectangle. A scoped run requires
+source-coordinate boxes `{x, y, width, height}` with the [whole-region redraw semantics](#product-workflow). A scoped run requires
 `input`, and a scope touching no region or leaving the image is refused. While the
 image has a run in progress, starting another is refused with that run's progress.
 
 `annotation_next({ref})` returns progress and the `taskId` of the first region of
 the image's run still waiting for an answer. It returns the same region until that
-region is accepted, so a run interrupted in one conversation continues in another.
+region is accepted.
 It is refused when the image has no run in progress.
 
 `annotation_cancel({ref})` cancels the image's run in progress and discards its
@@ -119,6 +114,8 @@ Each region is then worked through four tools:
   proposal. Changed geometry requires another preview. Empty regions still submit an
   empty instance list. The final accepted region automatically completes the run.
 
+## Evidence and caches
+
 Images are MCP image content containing PNG bytes, not authenticated download URLs.
 Only the service reads canonical AVIFs from the blob store. The default
 512-pixel core, 32-pixel halo and 1× display preserve native region detail; the
@@ -145,13 +142,13 @@ two concurrent renders. Decoder and render working memory are additional to thes
 cache budgets. The run's state is checked even on cache hits.
 Collection removes derived assets when their source Image is unreferenced.
 
+## Dish coverage
+
 A dish run covers the dish its image's stored [analysis](images.md) found.
 Coverage expands the detected radius by 15%. A core is omitted only when its
 rectangle is wholly outside that coverage; crossing and tangent cores remain.
 Grid IDs, patches, halos and box ownership stay unchanged. Evidence and boxes are
-never masked or clipped to the circle. `scope` intersects coverage and retains its
-redraw semantics. Unassigned cores keep the input boxes and which await confirmation;
-human reviews are never overwritten. Progress counts assigned tasks.
+never masked or clipped to the circle. `scope` intersects coverage with the redraw regions. Progress counts assigned tasks.
 
 Starting a run reads metadata in one transaction, freezes coverage and tasks, and
 performs no image I/O, detection or PNG preparation. Missing, obsolete,
@@ -159,33 +156,18 @@ no-candidate or invalid-circle analysis keeps full-image coverage, and the start
 logs its reason with the image and run IDs. Analysis refreshes and model settings
 never alter a frozen run.
 
-A conversation handling multiple regions loads shared context once, then loops
-through next, view, preview and submit. It reloads context whenever the region's
-`contextId` changes or the previous context is unavailable. A newly
-launched agent always loads it, including an agent resuming a partially completed
-run. Context loading is read-only and does not advance the run.
+## Batch workflow
+
+A conversation loops through next, view, preview and submit using the [context loading rules](#tool-contract). Context loading is read-only and does not advance the run.
 
 For 20 fresh regions with one preview each, this flow delivers one overview,
 20 CLEAN views and 40 preview images. This counts image messages, not model
 tokens.
 
 For seed annotation, use the [annotator](ai-annotation-prompts/annotator.md) and
-[parent batch dispatch](ai-annotation-prompts/coordinator.md) templates. A fresh
-annotator handles one image for at most 12 accepted regions or 15 minutes, then ends;
-the next batch uses another subagent on the same run. Initial annotation and maintenance
+[parent batch dispatch](ai-annotation-prompts/coordinator.md) templates. The templates define batch limits and subagent handoff. Initial annotation and maintenance
 share this workflow, with different run inputs. Project criteria include user-confirmed
-early plump germination. Annotators inspect previews themselves; no separate reviewer
-or automatic full-image rerun is required. Human reviews retain precedence.
-
-> Use VitroFlow to annotate the images waiting for model MODEL. List them with
-> annotation_pending. For each image, continue its run if one is in progress,
-> otherwise start one, and get its next region. Call annotation_context
-> at conversation start and follow its classes and rules. Reuse that context across
-> regions with the same contextId; reload after switching contexts or context loss.
-> For each region, call annotation_view and inspect every returned image, preview
-> the complete boxes, inspect and correct them, and submit the previewed proposal.
-> Continue until annotation_submit reports the run succeeded, then move on to the
-> next image. The result is saved as an AI proposal.
+early plump germination. Annotators inspect previews themselves. Human reviews retain precedence.
 
 ## Persistence and failure semantics
 
@@ -208,15 +190,11 @@ regions overlapping by IoU ≥ 0.5 as one object, whatever class each region
 judged it, at most one box per region, strongest overlaps first. Each object
 yields one box, its class included: a retained input box first, then a box its
 region owns, then a whole halo reading over a cut one. A halo reading its owning
-region did not confirm is dropped. A scoped run
-reads the frozen input boxes of regions it did not redraw (those whose centers
-fall there) as retained readings, so its seams behave the same way. Overlaps
+region did not confirm is dropped. Seam collection treats frozen input under the [scope rules](#product-workflow) as retained readings. Overlaps
 within one region are never merged. Owned boxes touching internal patch edges
 are rejected. A box's uncertainty is the agent's own judgment and stays with
 the box chosen for its object. Frozen input uncertainty, when present, describes
 the input proposal; bare boxes carry no such assessment. Geometry validation does not
 establish visual accuracy.
 
-A run stays open until completed or cancelled; an agent that stops leaves its
-accepted regions for the next one. A transport retry of an accepted proposal is
-idempotent. A cancelled run is not resumed; another run starts over.
+A transport retry of an accepted proposal is idempotent. A cancelled run is not resumed; another run starts over.
