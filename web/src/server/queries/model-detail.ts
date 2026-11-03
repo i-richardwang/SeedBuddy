@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import type {
   ModelDetail,
@@ -9,13 +9,13 @@ import type {
 import type { ModelVersion } from "../../domain/models/schema";
 import { listDatasetOverviews } from "../datasets/public";
 import { type Executor, snapshot } from "../infra/db/client";
-import { models } from "../infra/db/schema";
+import { models, modelVersions } from "../infra/db/schema";
 import {
-  listModelVersions,
   modelRecordCounts,
   readCurrentVersionId,
   toModel,
   toModelRecords,
+  toModelVersion,
 } from "../models/public";
 import { datasetSnapshotOverviews } from "../training/public";
 import { findVersionComparisons } from "./find-version-comparisons";
@@ -49,7 +49,13 @@ async function listVersionOverviews(
   modelId: string,
   db: Executor,
 ): Promise<VersionOverview[]> {
-  const versions = await listModelVersions(modelId, db);
+  const versions = (
+    await db
+      .select()
+      .from(modelVersions)
+      .where(eq(modelVersions.modelId, modelId))
+      .orderBy(desc(modelVersions.createdAt), desc(modelVersions.id))
+  ).map(toModelVersion);
   const [currentVersionId, comparisons, snapshots] = await Promise.all([
     readCurrentVersionId(modelId, db),
     findVersionComparisons(modelId, undefined, db),

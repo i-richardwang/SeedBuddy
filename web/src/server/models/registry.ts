@@ -88,9 +88,8 @@ export async function requireModel(
 /** Bounded version discovery for one model, in deterministic newest-first order. */
 export async function listModelVersions(
   modelId: string,
-  executor?: Executor,
 ): Promise<ModelVersion[]> {
-  const db = executor ?? (await database());
+  const db = await database();
   return (
     await db
       .select()
