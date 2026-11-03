@@ -37,8 +37,8 @@ export async function completeTrainingRun(
   if (current.state.status !== "succeeded") {
     const weights = await readTrainingArtifactParts(
       runId,
-      owner,
       document.weights,
+      owner,
     );
     await uploadModelWeights(upload.uploadId, weights);
   }

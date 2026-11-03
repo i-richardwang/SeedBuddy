@@ -63,11 +63,13 @@ async function completeTrainingRun(
       );
       await saveTrainingArtifactPart(
         runId,
+        {
+          upload: bundle.weights,
+          part,
+          digest: contentDigest(chunk),
+          bytes: chunk,
+        },
         owner,
-        bundle.weights,
-        part,
-        contentDigest(chunk),
-        chunk,
       );
     }
   }
@@ -573,18 +575,19 @@ test("final artifact parts verify size and integrity before assembly and expire 
     part: number,
     chunk: Uint8Array,
     digest = contentDigest(chunk),
-  ) => saveTrainingArtifactPart(run.id, a, upload, part, digest, chunk);
+  ) =>
+    saveTrainingArtifactPart(run.id, { upload, part, digest, bytes: chunk }, a);
   await expect(put(0, first, "0".repeat(64))).rejects.toThrow(/digest/);
   await put(0, first);
   await put(0, first);
   await expect(put(0, new Uint8Array(first.length).fill(43))).rejects.toThrow(
     /different contents/,
   );
-  await expect(readTrainingArtifactParts(run.id, a, upload)).rejects.toThrow(
+  await expect(readTrainingArtifactParts(run.id, upload, a)).rejects.toThrow(
     /missing/,
   );
   await put(1, last);
-  expect(await readTrainingArtifactParts(run.id, a, upload)).toEqual(bytes);
+  expect(await readTrainingArtifactParts(run.id, upload, a)).toEqual(bytes);
   expect(await collectTrainingArtifactParts()).not.toContain(
     artifactPartKey(run.id, 1, upload, 0),
   );
