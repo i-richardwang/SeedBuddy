@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import {
   type TrainingEpoch,
@@ -94,4 +94,20 @@ export async function listTrainingEpochs(
     .where(eq(trainingEpochs.runId, runId))
     .orderBy(asc(trainingEpochs.epoch));
   return rows.map(({ epoch }) => toEpoch(epoch));
+}
+
+export async function latestTrainingEpoch(
+  runId: string,
+  attempt: number,
+  tx: Executor,
+): Promise<number | null> {
+  const [previous] = await tx
+    .select({ epoch: trainingEpochs.epoch })
+    .from(trainingEpochs)
+    .where(
+      and(eq(trainingEpochs.runId, runId), eq(trainingEpochs.attempt, attempt)),
+    )
+    .orderBy(desc(trainingEpochs.epoch))
+    .limit(1);
+  return previous?.epoch ?? null;
 }

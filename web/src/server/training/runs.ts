@@ -27,7 +27,6 @@ import {
   datasetSnapshots,
   inferenceAttempts,
   trainingAttempts,
-  trainingEpochs,
   trainingRuns,
 } from "../infra/db/schema";
 import {
@@ -39,7 +38,7 @@ import {
   sessionIsCurrent,
 } from "../workers/public";
 import { finishAttempt } from "./attempts";
-import { saveTrainingEpoch } from "./epochs";
+import { latestTrainingEpoch, saveTrainingEpoch } from "./epochs";
 import { toTrainingRun } from "./records";
 import { createDatasetSnapshot, readDatasetSnapshot } from "./snapshots";
 
@@ -525,18 +524,8 @@ export async function recordTrainingEpoch(
         `Training run ${runId} has ${total} epochs, not ${report.epoch}`,
       );
     }
-    const [previous] = await tx
-      .select({ epoch: trainingEpochs.epoch })
-      .from(trainingEpochs)
-      .where(
-        and(
-          eq(trainingEpochs.runId, runId),
-          eq(trainingEpochs.attempt, owner.attempt),
-        ),
-      )
-      .orderBy(desc(trainingEpochs.epoch))
-      .limit(1);
-    if (!previous || report.epoch > previous.epoch)
+    const previous = await latestTrainingEpoch(runId, owner.attempt, tx);
+    if (previous === null || report.epoch > previous)
       await tx
         .update(trainingRuns)
         .set({
