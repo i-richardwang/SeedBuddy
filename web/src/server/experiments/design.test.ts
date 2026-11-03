@@ -231,7 +231,10 @@ test("treatment names and unit codes are unique", async () => {
       note: "",
       replicates: 1,
     }),
-  ).rejects.toThrow(TreatmentRejectedError);
+  ).rejects.toMatchObject({
+    code: "treatment_name_taken",
+    category: "conflict",
+  });
   await expect(
     updateTreatment({
       experiment: experiment.id,
@@ -240,7 +243,10 @@ test("treatment names and unit codes are unique", async () => {
       factor: null,
       note: "",
     }),
-  ).rejects.toThrow(TreatmentRejectedError);
+  ).rejects.toMatchObject({
+    code: "treatment_name_taken",
+    category: "conflict",
+  });
 
   const units = await unitsOf(experiment.id);
   await expect(

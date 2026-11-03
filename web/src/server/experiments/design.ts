@@ -8,6 +8,7 @@ import {
   ExperimentNotFoundError,
   ExperimentRejectedError,
   ObservationRejectedError,
+  TreatmentNameTakenError,
   TreatmentNotFoundError,
   TreatmentRejectedError,
   UnitNotFoundError,
@@ -221,7 +222,9 @@ async function insertTreatment(
 ): Promise<Treatment> {
   const { replicates, ...fields } = design;
   if (existing.some((treatment) => sameName(treatment.name, fields.name))) {
-    throw new TreatmentRejectedError(`Treatment ${fields.name} already exists`);
+    throw new TreatmentNameTakenError(
+      `Treatment ${fields.name} already exists`,
+    );
   }
   const [row] = await tx
     .insert(experimentTreatments)
@@ -301,7 +304,7 @@ export async function updateTreatment(
         sameName(treatment.name, design.name) && treatment.id !== treatmentId,
     );
     if (taken) {
-      throw new TreatmentRejectedError(
+      throw new TreatmentNameTakenError(
         `Treatment ${design.name} already exists`,
       );
     }

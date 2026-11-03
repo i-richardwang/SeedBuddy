@@ -38,6 +38,9 @@ export class ObservationModelHasCountsError extends ConflictError {
   readonly code = "observation_model_has_counts";
 }
 
+export class TreatmentNameTakenError extends ConflictError {
+  readonly code = "treatment_name_taken";
+}
 export class TreatmentRejectedError extends ConflictError {
   readonly code = "treatment_invalid";
 }
