@@ -122,6 +122,8 @@ export async function submitProposal(taskId: string, proposalId: string) {
       })
       .where(eq(annotationRuns.id, runId))
       .returning();
-    return acceptance(taskId, updated!);
+    if (!updated)
+      throw new AnnotationRunConflictError("Annotation run was not updated");
+    return acceptance(taskId, updated);
   });
 }

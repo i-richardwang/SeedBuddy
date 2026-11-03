@@ -7,17 +7,16 @@ import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { Worker } from "../../domain/workers/schema";
 import { database } from "../infra/db/client";
 import { inferenceTasks } from "../infra/db/schema";
-import { listWorkerPresence } from "../queries/public";
+import { listWorkerOverviews } from "../queries/public";
+import { snapshotImages } from "../testing/datasets";
+import { observeImages } from "../testing/experiments";
+import { FIXTURE_EDGE } from "../testing/images";
+import { registerTrainedVersion, traditionalVersion } from "../testing/models";
 import {
-  FIXTURE_EDGE,
-  observeImages,
   recordTestHeartbeat,
-  registerTrainedVersion,
-  snapshotImages,
   testHeartbeat,
-  traditionalVersion,
   ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
+} from "../testing/workers";
 import { removeWorker } from "../workers/public";
 import {
   claimInferenceAssignment,
@@ -327,7 +326,7 @@ test("expired attempts do not appear as active recognition on the status page", 
     later(1),
   );
   expect(
-    (await listWorkerPresence()).workers.find((w) => w.workerId === o.workerId)
+    (await listWorkerOverviews()).workers.find((w) => w.workerId === o.workerId)
       ?.activity,
   ).toBeNull();
   expect(

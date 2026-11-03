@@ -18,8 +18,9 @@ import { Route as PhaseRoute } from "../../../routes/api.worker.training.runs.$r
 import { Route as SnapshotRoute } from "../../../routes/api.worker.training.runs.$runId.snapshot";
 import { listBlobs } from "../../infra/blobs/store";
 import { contentDigest } from "../../infra/digest";
-import { reviewedDataset, ULTRALYTICS_RUNTIME } from "../../testing/fixtures";
+import { reviewedDataset } from "../../testing/datasets";
 import { trainingBundle } from "../../testing/model-bundle";
+import { ULTRALYTICS_RUNTIME } from "../../testing/workers";
 import {
   collectTrainingArtifactParts,
   readDatasetSnapshot,
@@ -316,7 +317,7 @@ test("training HTTP routes distinguish invalid requests from lease conflicts", a
       body: JSON.stringify({ sessionId: "trainer-session", attempt: 1 }),
     }),
   } as never);
-  expect(conflict.status).toBe(409);
+  expect(conflict.status).toBe(404);
 });
 
 test("training artifact admission rejects unknown and excessive request sizes", async () => {

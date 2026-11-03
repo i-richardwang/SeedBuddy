@@ -1,11 +1,11 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
 import {
   CULTURE_EVENT_TYPES,
   type CultureEventType,
-  type ExperimentObservation,
-} from "../../domain/experiments/schema";
+} from "../../domain/experiments/culture-events";
+import type { Unit } from "../../domain/experiments/read-model";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { createCultureEvents } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";

@@ -1,25 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { workerRefSchema } from "../domain/workers/schema";
-import { listWorkerPresence } from "../server/queries/public";
-import { enrollWorker, removeWorker } from "../server/workers/public";
+import { listWorkerOverviews } from "../server/queries/public";
+import * as workersService from "../server/workers/public";
 import { requireAdministrator } from "./access";
 
 export const getWorkers = createServerFn({ method: "GET" }).handler(
-  listWorkerPresence,
+  listWorkerOverviews,
 );
 
 /** Administrators enroll the machines that may serve as workers. */
-export const addWorker = createServerFn({ method: "POST" })
+export const createWorker = createServerFn({ method: "POST" })
   .validator(workerRefSchema)
   .handler(async ({ data }) => {
     await requireAdministrator();
-    return enrollWorker(data.workerId);
+    return workersService.enrollWorker(data.workerId);
   });
 
-export const deleteWorker = createServerFn({ method: "POST" })
+export const removeWorker = createServerFn({ method: "POST" })
   .validator(workerRefSchema)
   .handler(async ({ data }) => {
     await requireAdministrator();
-    await removeWorker(data.workerId);
+    await workersService.removeWorker(data.workerId);
   });

@@ -8,7 +8,7 @@ import {
 } from "../../domain/models/bundle";
 import {
   ModelNotFoundError,
-  ModelPublicationError,
+  ModelPublicationInvalidError,
   ModelVersionNotFoundError,
 } from "../../domain/models/errors";
 import {
@@ -46,7 +46,7 @@ export async function prepareModelUpload(modelId: string, value: ModelBundle) {
   const model = await readModel(modelId);
   if (!model) throw new ModelNotFoundError(`Unknown model: ${modelId}`);
   if (canonicalJson(model.classes) !== canonicalJson(bundle.classes))
-    throw new ModelPublicationError(
+    throw new ModelPublicationInvalidError(
       "Bundle classes and their order must match the model",
     );
   const uploadId = `upload-${documentDigest({ modelId, bundle })}`;
@@ -80,7 +80,7 @@ export async function uploadModelWeights(
       weights.byteLength !== row.bundle.weights.bytes ||
       contentDigest(weights) !== row.bundle.weights.digest
     )
-      throw new ModelPublicationError(
+      throw new ModelPublicationInvalidError(
         "Weights differ from the bundle digest or size",
       );
     await putImmutableBlob(row.weightsKey, weights);
@@ -99,7 +99,9 @@ async function requireUpload(id: string, tx: Executor) {
     .for("update");
   if (!row) throw new ModelVersionNotFoundError(`Unknown model upload: ${id}`);
   if (!row.versionId && row.expiresAt.getTime() <= Date.now())
-    throw new ModelPublicationError("Upload expired; prepare the bundle again");
+    throw new ModelPublicationInvalidError(
+      "Upload expired; prepare the bundle again",
+    );
   return row;
 }
 
@@ -119,7 +121,7 @@ export async function registerUploadedModel(
   const existing = await readModelVersion(id, tx);
   if (existing) return existing;
   if (!row.artifactDigest)
-    throw new ModelPublicationError(
+    throw new ModelPublicationInvalidError(
       "Upload weights before registering the version",
     );
   const version = await registerModelVersion(
@@ -166,7 +168,9 @@ export async function openModelWeights(versionId: string) {
   if (!row)
     throw new ModelVersionNotFoundError(`Unknown model version: ${versionId}`);
   if (!row.weightsKey || row.artifact.kind !== "ultralytics")
-    throw new ModelPublicationError("Version has no downloadable weights");
+    throw new ModelPublicationInvalidError(
+      "Version has no downloadable weights",
+    );
   const blob = await openBlob(row.weightsKey);
   if (!blob || blob.size !== row.artifact.weights.bytes)
     throw new Error("Published model weights are missing or corrupt");

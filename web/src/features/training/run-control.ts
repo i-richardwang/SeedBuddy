@@ -3,7 +3,7 @@ import { useState } from "react";
 import { identifierLabel } from "../../domain/identifiers/schema";
 import type { TrainingRunDetail } from "../../domain/training/read-model";
 import type { TrainingControl } from "../../domain/training/schema";
-import { controlTraining } from "../../functions/training";
+import { updateTrainingRun } from "../../functions/training";
 import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -54,7 +54,7 @@ export function controlRun(
   { dataset, run }: Pick<TrainingRunDetail, "dataset" | "run">,
   control: TrainingControl,
 ) {
-  return controlTraining({
+  return updateTrainingRun({
     data: { dataset: dataset.id, runId: run.id, attempt: run.attempt, control },
   });
 }

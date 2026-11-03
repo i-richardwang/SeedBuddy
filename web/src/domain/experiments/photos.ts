@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { imageDigestSchema } from "../images/schema";
-import type { ExperimentGrid } from "./contracts";
+import type { ExperimentGridDetail } from "./read-model";
 import { calendarDaySchema } from "./schema";
 
 /** A photograph an experiment holds, named by the unit and day it shows. */
@@ -21,7 +21,7 @@ export type PhotoConflict =
 
 /** The photographs a grid holds, each with the unit and day it shows. */
 export function placedPhotos(
-  grid: Pick<ExperimentGrid, "units" | "observations" | "images">,
+  grid: Pick<ExperimentGridDetail, "units" | "observations" | "images">,
 ): PlacedPhoto[] {
   const codes = new Map(grid.units.map((unit) => [unit.id, unit.code]));
   const days = new Map(

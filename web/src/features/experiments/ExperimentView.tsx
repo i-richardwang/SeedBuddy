@@ -8,15 +8,17 @@ import {
   observationCells,
   unitDays,
 } from "../../domain/experiments/cell-reading";
-import type { Unit } from "../../domain/experiments/contracts";
 import {
   observationOrdinals,
   unitIsAvailableAt,
 } from "../../domain/experiments/culture-events";
 import { placedPhotos } from "../../domain/experiments/photos";
+import type {
+  ExperimentDetail,
+  Unit,
+} from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { experimentSummary } from "../../domain/experiments/summary";
-import type { getExperimentGrid } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
 import { Button } from "../../ui/kit/Button";
@@ -51,10 +53,6 @@ export const EXPERIMENT_TABS = ["units", "summary", "treatments"] as const;
 
 export type ExperimentTab = (typeof EXPERIMENT_TABS)[number];
 
-type ExperimentGridData = NonNullable<
-  Awaited<ReturnType<typeof getExperimentGrid>>
->;
-
 /**
  * One experiment, in three tabs: its units, a row per unit with the treatment
  * it belongs to and what it read on each day; the summary, each treatment's
@@ -65,7 +63,7 @@ export function ExperimentView({
   tab,
   onTabChange,
 }: {
-  data: ExperimentGridData;
+  data: ExperimentDetail;
   tab: ExperimentTab;
   onTabChange: (tab: ExperimentTab) => void;
 }) {

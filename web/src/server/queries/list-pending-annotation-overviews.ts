@@ -1,7 +1,9 @@
 import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 
-import type { AnnotationRef } from "../../domain/annotation/schema";
-import type { AnnotationProgress } from "../../domain/annotation-runs/schema";
+import type {
+  PendingAnnotationOverview,
+  PendingAnnotationsDetail,
+} from "../../domain/annotation/read-model";
 import { currentVersion } from "../inference/public";
 import { database } from "../infra/db/client";
 import {
@@ -15,13 +17,6 @@ import { readingsSubquery } from "../readings/public";
 
 /** How many images one listing names; the total says how many remain. */
 const LISTED = 100;
-
-interface PendingAnnotation {
-  ref: AnnotationRef;
-  filename: string;
-  /** The progress of the run already at work on it, which an agent continues. */
-  progress: AnnotationProgress | null;
-}
 
 /**
  * An image waits for an agent while a run on it is in progress, or while
@@ -43,10 +38,9 @@ function awaiting(readings: ReturnType<typeof readingsSubquery>) {
  * The images in datasets and experiment observations waiting for an agent,
  * runs already at work first. One model narrows the listing to its images.
  */
-export async function listPendingAnnotations(modelId?: string): Promise<{
-  total: number;
-  images: PendingAnnotation[];
-}> {
+export async function listPendingAnnotationOverviews(
+  modelId?: string,
+): Promise<PendingAnnotationsDetail> {
   const db = await database();
   const datasetReadings = readingsSubquery(db, {
     modelId: datasets.modelId,
@@ -110,7 +104,7 @@ export async function listPendingAnnotations(modelId?: string): Promise<{
         ),
       ),
   ]);
-  const pending = new Map<string, PendingAnnotation>();
+  const pending = new Map<string, PendingAnnotationOverview>();
   for (const row of [...inDatasets, ...inExperiments]) {
     const key = `${row.digest}/${row.modelId}`;
     if (!pending.has(key))

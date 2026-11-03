@@ -1,11 +1,11 @@
-import type { TrainingWorkerOption } from "../../domain/training/read-model";
 import { workerPresence } from "../../domain/workers/presence";
+import type { TrainingWorkerOverview } from "../../domain/workers/read-model";
 import { canTrain } from "../../domain/workers/schema";
 import { listEnrolledWorkers, listWorkers } from "../workers/public";
 
-export async function trainingWorkerOptions(
+export async function listTrainingWorkerOverviews(
   at = new Date(),
-): Promise<TrainingWorkerOption[]> {
+): Promise<TrainingWorkerOverview[]> {
   const [enrolled, sessions] = await Promise.all([
     listEnrolledWorkers(),
     listWorkers(),

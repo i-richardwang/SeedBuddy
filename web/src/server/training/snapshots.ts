@@ -1,7 +1,10 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
-import { TrainingRunConflictError } from "../../domain/training/errors";
+import {
+  TrainingRunConflictError,
+  TrainingRunNotFoundError,
+} from "../../domain/training/errors";
 import {
   type DatasetSnapshot,
   datasetSnapshotSchema,
@@ -9,6 +12,7 @@ import {
   type ImageSplit,
   MIN_SNAPSHOT_IMAGES,
 } from "../../domain/training/schema";
+import type { AttemptOwner } from "../../domain/workers/schema";
 import {
   listReviewedRecords,
   type ReviewedRecord,
@@ -23,6 +27,7 @@ import {
 } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
 import { readModel } from "../models/public";
+import { readTrainingRun, requireOwnedRunningRun } from "./ownership";
 
 /**
  * Gives every reviewed image a split it keeps across later snapshots, and
@@ -190,4 +195,15 @@ export async function datasetSnapshotOverviews(
     .where(inArray(datasetSnapshots.id, snapshotIds))
     .groupBy(datasetSnapshots.id);
   return new Map(rows.map(({ id, ...summary }) => [id, summary]));
+}
+
+export async function snapshotForRun(runId: string, owner: AttemptOwner) {
+  const db = await database();
+  const stored = await readTrainingRun(runId, db);
+  if (!stored)
+    throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
+  const run = await requireOwnedRunningRun(runId, stored, owner, db);
+  const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
+  if (!snapshot) throw new Error(`Missing snapshot ${run.datasetSnapshotId}`);
+  return snapshot;
 }

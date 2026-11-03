@@ -1,26 +1,22 @@
 import { MAX_IMAGE_BYTES } from "../../../domain/images/canonical";
 import { imageDigestSchema } from "../../../domain/images/schema";
 import {
-  ImageSourceError,
+  ImageSourceInvalidError,
   storeCanonicalImage,
   storeImage,
 } from "../../images/public";
+import { agentUploadFailure, agentUploadRefusal } from "./agent-upload";
 import { exactLengthBody, uploadFailure } from "./upload-body";
 
 async function storing(
   store: () => Promise<{ digest: string }>,
+  refuse: (error: unknown) => Response,
 ): Promise<Response> {
   try {
     const stored = await store();
     return Response.json({ digest: stored.digest });
   } catch (error) {
-    if (error instanceof ImageSourceError) {
-      return uploadFailure(error.message, 400);
-    }
-    console.error(
-      `Store image failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return uploadFailure("Could not store image", 500);
+    return refuse(error);
   }
 }
 
@@ -30,9 +26,16 @@ async function storing(
  * belongs to the experiment observation that submits it, not to the image.
  */
 export async function handleImageUpload(request: Request): Promise<Response> {
-  const body = await exactLengthBody(request, MAX_IMAGE_BYTES);
+  const body = await exactLengthBody(
+    request,
+    MAX_IMAGE_BYTES,
+    agentUploadRefusal,
+  );
   if (body instanceof Response) return body;
-  return storing(() => storeImage(body));
+  return storing(
+    () => storeImage(body),
+    (error) => agentUploadFailure(error, "Store image"),
+  );
 }
 
 /**
@@ -48,5 +51,13 @@ export async function handleCanonicalImageUpload(
   if (!parsed.success) return uploadFailure("Not an image digest", 400);
   const body = await exactLengthBody(request, MAX_IMAGE_BYTES);
   if (body instanceof Response) return body;
-  return storing(() => storeCanonicalImage(parsed.data, body));
+  return storing(
+    () => storeCanonicalImage(parsed.data, body),
+    (error) => {
+      if (error instanceof ImageSourceInvalidError)
+        return uploadFailure(error.message, 400);
+      console.error("Store image failed", error);
+      return uploadFailure("Could not store image", 500);
+    },
+  );
 }

@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { REVIEW_SOURCES } from "../../domain/annotation/schema";
-import type { DatasetImageView } from "../../domain/datasets/image";
+import type { DatasetImageDetail } from "../../domain/datasets/read-model";
 import { datasetImageRefSchema } from "../../domain/datasets/schema";
 import { ImageWorkbenchSkeleton } from "../../features/annotation/ImageWorkbench";
 import { DatasetImageWorkbench } from "../../features/datasets/DatasetImageWorkbench";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/$digest")({
   },
   staticData: {
     crumbs: ({ loaderData }) => {
-      const { dataset, model, review } = loaderData as DatasetImageView;
+      const { dataset, model, review } = loaderData as DatasetImageDetail;
       return [...datasetCrumbs(model, dataset), { label: review.filename }];
     },
   },

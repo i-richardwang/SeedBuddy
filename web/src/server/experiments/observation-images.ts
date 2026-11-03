@@ -1,3 +1,4 @@
+/** Assigns and removes photographs in observation cells. */
 import { randomUUID } from "node:crypto";
 
 import { and, eq, inArray } from "drizzle-orm";
@@ -7,10 +8,10 @@ import {
   unitIsAvailableAt,
 } from "../../domain/experiments/culture-events";
 import {
-  ExperimentObservationImageAlreadyUsedError,
+  ExperimentObservationImageConflictError,
   ExperimentObservationImageNotFoundError,
-  ImagesNotStoredError,
-  ObservationImageRejectedError,
+  ImageStorageConflictError,
+  ObservationImageConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import type {
@@ -29,7 +30,7 @@ import {
   experimentUnits,
   images,
 } from "../infra/db/schema";
-import { readExperimentObservationImage } from "./observation-image";
+import { experimentObservationImageDetail } from "./observation-image";
 import { createObservation } from "./observations";
 import {
   atObservationImage,
@@ -70,7 +71,7 @@ export async function assignObservationImages(
   } = value;
   const unitIds = assignments.map((assignment) => assignment.unit);
   if (new Set(unitIds).size !== unitIds.length) {
-    throw new ObservationImageRejectedError(
+    throw new ObservationImageConflictError(
       "Two images cannot be assigned to the same unit",
     );
   }
@@ -78,7 +79,7 @@ export async function assignObservationImages(
     ...new Set(assignments.map((assignment) => assignment.digest)),
   ].sort();
   if (digests.length !== assignments.length) {
-    throw new ObservationImageRejectedError("The same image is assigned twice");
+    throw new ObservationImageConflictError("The same image is assigned twice");
   }
 
   return inTransaction(executor, async (tx) => {
@@ -98,7 +99,7 @@ export async function assignObservationImages(
       .map((unitId) => byId.get(unitId)!)
       .filter((unit) => !unitIsAvailableAt(unit.events, observation, ordinals));
     if (unavailable.length > 0) {
-      throw new ObservationImageRejectedError(
+      throw new ObservationImageConflictError(
         `Images cannot be assigned to units removed before this observation: ${unavailable.map((unit) => unit.code).join(", ")}`,
       );
     }
@@ -109,7 +110,7 @@ export async function assignObservationImages(
       .from(images)
       .where(inArray(images.id, digests));
     if (stored.length !== digests.length) {
-      throw new ImagesNotStoredError(
+      throw new ImageStorageConflictError(
         "Some images are no longer stored; upload them again",
       );
     }
@@ -176,7 +177,7 @@ export async function assignObservationImages(
         ),
       );
     if (used.length > 0) {
-      throw new ExperimentObservationImageAlreadyUsedError(
+      throw new ExperimentObservationImageConflictError(
         used.map((row) => ({
           digest: row.digest,
           filename: row.filename,
@@ -239,7 +240,7 @@ export async function retryObservationImageAnalysis(
   executor?: Executor,
 ): Promise<void> {
   await inTransaction(executor, async (tx) => {
-    const image = await readExperimentObservationImage(ref, tx);
+    const image = await experimentObservationImageDetail(ref, tx);
     if (!image) {
       throw new ExperimentObservationImageNotFoundError(
         `Unknown observation image: ${ref.observationImage}`,

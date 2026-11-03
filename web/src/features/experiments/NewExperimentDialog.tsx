@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { today } from "../../domain/experiments/schema";
-import { startExperiment } from "../../functions/experiments";
+import { createExperiment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -65,7 +65,7 @@ function NewExperimentSession({
           const form = new FormData(event.currentTarget);
           void action.run(
             () =>
-              startExperiment({
+              createExperiment({
                 data: {
                   ...readExperimentFields(form),
                   inoculatedOn,

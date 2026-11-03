@@ -225,7 +225,7 @@ describe("MCP API keys", () => {
         scopes: [server],
         expiresInDays: null,
       });
-      await banUser(admin.headers, { user: user.id });
+      await banUser(admin.user, { user: user.id });
       const response = await serve(
         modernRequest(endpoint(), "tools/list", undefined, key.secret),
       );

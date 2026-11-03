@@ -1,5 +1,5 @@
-import type { ExperimentObservationImage } from "../../domain/experiments/contracts";
-import { assignImagesToObservation } from "../../functions/experiments";
+import type { ExperimentObservationImageDetail } from "../../domain/experiments/read-model";
+import { updateObservationImages } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -10,7 +10,7 @@ import { useUploads } from "../upload/useUploads";
 const FORM_ID = "replace-image";
 
 interface ReplaceObservationImageDialogProps {
-  image: ExperimentObservationImage;
+  image: ExperimentObservationImageDetail;
   open: boolean;
   onClose: () => void;
 }
@@ -68,7 +68,7 @@ function ReplaceObservationImageSession({
           if (!replacement) return;
           void action.run(
             () =>
-              assignImagesToObservation({
+              updateObservationImages({
                 data: {
                   experiment: image.ref.experiment,
                   observation: image.observation.id,

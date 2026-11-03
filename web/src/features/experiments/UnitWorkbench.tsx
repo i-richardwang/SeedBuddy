@@ -9,15 +9,15 @@ import {
   cellReading,
   imageReview,
 } from "../../domain/experiments/cell-reading";
-import type {
-  ImageReview,
-  UnitSeries,
-  UnitStep,
-} from "../../domain/experiments/contracts";
 import {
   latestCultureEvent,
   observationOrdinals,
 } from "../../domain/experiments/culture-events";
+import type {
+  ReviewState,
+  UnitDetail,
+  UnitStep,
+} from "../../domain/experiments/read-model";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { retryImageAnalysis } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
@@ -88,7 +88,7 @@ export function UnitWorkbench({
   compare,
   onCompareChange,
 }: {
-  series: UnitSeries;
+  series: UnitDetail;
   datasets: NamedDataset[];
   show?: ReviewSource;
   onShowChange: (source: ReviewSource | undefined) => void;
@@ -433,7 +433,7 @@ function framedPictures(
   loaderData: unknown,
   compare: string | undefined,
 ): string[] {
-  const series = loaderData as UnitSeries | undefined;
+  const series = loaderData as UnitDetail | undefined;
   if (!series) return [];
   return series.observations.flatMap(({ observation, image }) =>
     image &&
@@ -443,7 +443,7 @@ function framedPictures(
   );
 }
 
-function ReviewDot({ review }: { review: ImageReview }) {
+function ReviewDot({ review }: { review: ReviewState }) {
   return (
     <StatusDot
       tone={imageReviewTone(review)}

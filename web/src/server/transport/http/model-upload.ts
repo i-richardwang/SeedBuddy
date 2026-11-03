@@ -1,8 +1,8 @@
-import { DomainError } from "../../../domain/errors";
 import { MAX_MODEL_WEIGHTS_BYTES } from "../../../domain/models/transfer";
 import { uploadModelWeights } from "../../models/public";
 import { refuseWithoutAgentKey } from "./agent";
-import { exactLengthBody, uploadFailure } from "./upload-body";
+import { agentUploadFailure, agentUploadRefusal } from "./agent-upload";
+import { exactLengthBody } from "./upload-body";
 
 export async function serveModelWeightsUpload(
   uploadId: string,
@@ -11,17 +11,15 @@ export async function serveModelWeightsUpload(
   const refusal = await refuseWithoutAgentKey(request);
   if (refusal) return refusal;
   try {
-    const bytes = await exactLengthBody(request, MAX_MODEL_WEIGHTS_BYTES);
+    const bytes = await exactLengthBody(
+      request,
+      MAX_MODEL_WEIGHTS_BYTES,
+      agentUploadRefusal,
+    );
     if (bytes instanceof Response) return bytes;
     await uploadModelWeights(uploadId, bytes);
     return Response.json({ uploadId });
   } catch (error) {
-    if (error instanceof DomainError)
-      return uploadFailure(
-        error.message,
-        error.category === "not_found" ? 404 : 400,
-      );
-    console.error("Model upload failed", error);
-    return uploadFailure("Could not upload weights", 500);
+    return agentUploadFailure(error, "Upload model weights");
   }
 }

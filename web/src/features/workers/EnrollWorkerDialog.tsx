@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { RESOURCE_ID_PATTERN } from "../../domain/identifiers/schema";
-import { addWorker } from "../../functions/workers";
+import { createWorker } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { CopyableCode } from "../../ui/CopyableCode";
 import { FormDialog } from "../../ui/FormDialog";
@@ -92,7 +92,7 @@ function EnrollWorkerForm({
         const form = new FormData(event.currentTarget);
         void run(
           () =>
-            addWorker({
+            createWorker({
               data: { workerId: String(form.get("workerId") ?? "") },
             }),
           m.worker_enroll_failed(),

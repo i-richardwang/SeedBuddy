@@ -13,7 +13,7 @@ import {
   type CanonicalImage,
   canonicalImageSize,
   canonicalize,
-  ImageSourceError,
+  ImageSourceInvalidError,
 } from "./ingest";
 import { imageBlobKey } from "./keys";
 import { lockImage } from "./lock";
@@ -28,9 +28,10 @@ interface StoredImage {
 }
 
 function assertStorable(bytes: Uint8Array): void {
-  if (bytes.byteLength === 0) throw new ImageSourceError("The image is empty");
+  if (bytes.byteLength === 0)
+    throw new ImageSourceInvalidError("The image is empty");
   if (bytes.byteLength > MAX_IMAGE_BYTES) {
-    throw new ImageSourceError("The image exceeds 64 MiB");
+    throw new ImageSourceInvalidError("The image exceeds 64 MiB");
   }
 }
 
@@ -90,7 +91,7 @@ export async function storeCanonicalImage(
 ): Promise<StoredImage> {
   assertStorable(bytes);
   if (contentDigest(bytes) !== digest) {
-    throw new ImageSourceError(`The bytes do not hash to ${digest}`);
+    throw new ImageSourceInvalidError(`The bytes do not hash to ${digest}`);
   }
   const { width, height } = await canonicalImageSize(bytes);
   return store({ digest, bytes, width, height });

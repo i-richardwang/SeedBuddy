@@ -1,4 +1,4 @@
-import { clearUnclear, markUnclear } from "../../functions/images";
+import { createUnclearMark, removeUnclearMark } from "../../functions/images";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Alert } from "../../ui/kit/Alert";
@@ -22,8 +22,8 @@ export function UnclearSection({
   const save = async (on: boolean) => {
     const data = { digest };
     await run(async () => {
-      if (on) await markUnclear({ data });
-      else await clearUnclear({ data });
+      if (on) await createUnclearMark({ data });
+      else await removeUnclearMark({ data });
     }, m.unclear_not_saved());
   };
 

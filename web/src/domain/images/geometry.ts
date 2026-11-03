@@ -1,3 +1,10 @@
+import { z } from "zod";
+export const imageRectangleSchema = z.strictObject({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
 export interface ImageFrame {
   digest: string;
   width: number;
@@ -8,12 +15,7 @@ export interface ImageRegionLayout {
   halo: number;
   displayScale: number;
 }
-export interface ImageRectangle {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export type ImageRectangle = z.infer<typeof imageRectangleSchema>;
 export interface ImageRegion {
   id: string;
   core: ImageRectangle;

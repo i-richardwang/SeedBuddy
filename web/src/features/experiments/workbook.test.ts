@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type {
   ObservationImageCell,
   Unit,
-} from "../../domain/experiments/contracts";
+} from "../../domain/experiments/read-model";
 import type {
   Experiment,
   ExperimentObservation,

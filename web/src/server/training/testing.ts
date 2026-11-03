@@ -1,14 +1,7 @@
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import type {
-  WorkerHeartbeat,
-  WorkerIdentity,
-} from "../../domain/workers/schema";
-import {
-  recordTestHeartbeat,
-  reviewedDataset as reviewed,
-  traditionalVersion,
-  ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
+import { reviewedDataset as reviewed } from "../testing/datasets";
+import { traditionalVersion } from "../testing/models";
+import { recordTestHeartbeat, trainingHeartbeat } from "../testing/workers";
 
 export const CONTENTS = ["first-image", "second-image"];
 
@@ -30,22 +23,9 @@ export function owner(
   return { workerId, sessionId, attempt };
 }
 
-export function heartbeat(
-  identity: WorkerIdentity,
-  startedAt: Date,
-): WorkerHeartbeat {
-  return {
-    workerId: identity.workerId,
-    sessionId: identity.sessionId,
-    startedAt: startedAt.toISOString(),
-    runtimes: [ULTRALYTICS_RUNTIME],
-    memoryBytes: 24 * 1024 ** 3,
-  };
-}
-
 export async function trainer(workerId: string) {
   const identity = owner(workerId);
-  await recordTestHeartbeat(heartbeat(identity, new Date()));
+  await recordTestHeartbeat(trainingHeartbeat(identity, new Date()));
   return identity;
 }
 

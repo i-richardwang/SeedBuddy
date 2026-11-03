@@ -2,12 +2,12 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import type { Tally } from "../../domain/models/classes";
-import {
-  type ComparedImage,
-  type ComparedReading,
-  compareVersions,
-  type VersionComparisonDetail,
-} from "../../domain/models/comparison";
+import { compareVersions } from "../../domain/models/comparison";
+import type {
+  ComparedImage,
+  ComparedReading,
+  VersionComparisonDetail,
+} from "../../domain/models/read-model";
 import { type Executor, inSnapshot } from "../infra/db/client";
 import {
   datasetImages,
@@ -127,7 +127,7 @@ function heldOutImages(
  * asked for. The current version, and a version that held nothing out,
  * have no comparison.
  */
-export function versionComparisons(
+export function findVersionComparisons(
   modelId: string,
   { version, executor }: { version?: string; executor?: Executor } = {},
 ): Promise<Map<string, VersionComparisonDetail>> {
@@ -161,16 +161,4 @@ export function versionComparisons(
       ]),
     );
   });
-}
-
-/** One candidate's comparison, image by image, or null when it has none. */
-export async function versionComparison(
-  modelId: string,
-  versionId: string,
-): Promise<VersionComparisonDetail | null> {
-  return (
-    (await versionComparisons(modelId, { version: versionId })).get(
-      versionId,
-    ) ?? null
-  );
 }

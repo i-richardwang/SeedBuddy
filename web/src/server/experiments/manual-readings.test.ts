@@ -7,17 +7,17 @@ import {
   unitReading,
 } from "../../domain/experiments/cell-reading";
 import {
-  ManualReadingRejectedError,
-  ObservationModelHasCountsError,
+  ManualReadingConflictError,
+  ObservationConflictError,
+  ObservationModelCountsConflictError,
   ObservationNotFoundError,
-  ObservationRejectedError,
+  UnitConflictError,
   UnitNotFoundError,
-  UnitRejectedError,
 } from "../../domain/experiments/errors";
 import { createModel } from "../models/registry";
-import { imageDigest } from "../testing/fixtures";
+import { imageDigest } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
-import { recordCultureEvent } from "./culture-events";
+import { recordCultureEvents } from "./culture-events";
 import { deleteUnit } from "./design";
 import { recordManualReadings } from "./manual-readings";
 import {
@@ -25,13 +25,13 @@ import {
   deleteObservation,
   updateObservation,
 } from "./observations";
-import { readExperimentGrid, readUnit } from "./queries";
+import { experimentGridDetail, unitDetail } from "./queries";
 import {
   assignImages,
+  countedImageResult,
   createExperiment,
   INOCULATED,
   reading,
-  resultFor,
   trainedVersion,
   unitsOf,
   worker,
@@ -62,7 +62,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
   const a1 = await imageDigest("m-a1");
   await seedDetectionResult(
     { versionId: version.id, digest: a1 },
-    resultFor(version, a1, 3),
+    countedImageResult(version, a1, 3),
     worker,
   );
 
@@ -83,7 +83,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
     ].sort(),
   );
 
-  const grid = (await readExperimentGrid(experiment.id))!;
+  const grid = (await experimentGridDetail(experiment.id))!;
   expect(
     grid.observations.map((item) => [item.observedOn, item.hasRecords]),
   ).toEqual([
@@ -115,7 +115,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
       },
     ],
   });
-  const recounted = (await readExperimentGrid(experiment.id))!;
+  const recounted = (await experimentGridDetail(experiment.id))!;
   expect(
     unitReading(
       observationCells(recounted.images, recounted.manualReadings),
@@ -126,7 +126,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
   expect(recounted.images).toHaveLength(1);
 
   // The unit's page carries the count on a day it has no photograph of.
-  const series = (await readUnit(
+  const series = (await unitDetail(
     { experiment: experiment.id, unit: units.get("A-2")! },
     day14.id,
   ))!;
@@ -147,7 +147,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
       { unit: units.get("A-2")!, tally: null },
     ],
   });
-  const corrected = (await readExperimentGrid(experiment.id))!;
+  const corrected = (await experimentGridDetail(experiment.id))!;
   expect(
     corrected.manualReadings
       .filter((item) => item.observation === day14.id)
@@ -175,7 +175,7 @@ test("a count answers the day's question in the model's classes", async () => {
       observation: day0.id,
       readings: [{ unit, tally: { ungerminated: 4, shoots: 1 } }],
     }),
-  ).rejects.toThrow(ManualReadingRejectedError);
+  ).rejects.toThrow(ManualReadingConflictError);
   // Every class the day counts must be given: a class left out is not zero.
   await expect(
     recordManualReadings({
@@ -183,7 +183,7 @@ test("a count answers the day's question in the model's classes", async () => {
       observation: day0.id,
       readings: [{ unit, tally: { germinated: 4 } }],
     }),
-  ).rejects.toThrow(ManualReadingRejectedError);
+  ).rejects.toThrow(ManualReadingConflictError);
   await expect(
     recordManualReadings({
       experiment: experiment.id,
@@ -200,7 +200,9 @@ test("a count answers the day's question in the model's classes", async () => {
       readings: [{ unit, tally: { ungerminated: 4, germinated: 0 } }],
     }),
   ).rejects.toThrow(ObservationNotFoundError);
-  expect((await readExperimentGrid(experiment.id))!.manualReadings).toEqual([]);
+  expect((await experimentGridDetail(experiment.id))!.manualReadings).toEqual(
+    [],
+  );
 });
 
 test("a count is a record: it keeps its observation and unit, and holds a unit on the bench", async () => {
@@ -232,24 +234,24 @@ test("a count is a record: it keeps its observation and unit, and holds a unit o
 
   await expect(
     deleteObservation({ experiment: experiment.id, observation: day14.id }),
-  ).rejects.toThrow(ObservationRejectedError);
+  ).rejects.toThrow(ObservationConflictError);
   await expect(deleteUnit({ experiment: experiment.id, unit })).rejects.toThrow(
-    UnitRejectedError,
+    UnitConflictError,
   );
   // A dish counted on day 14 was still on the bench then.
   await expect(
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit,
+      units: [unit],
       type: "discarded",
       observation: day7.id,
     }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitConflictError);
 
   // A dish that left the bench cannot be counted afterwards.
-  await recordCultureEvent({
+  await recordCultureEvents({
     experiment: experiment.id,
-    unit: units.get("A-2")!,
+    units: [units.get("A-2")!],
     type: "discarded",
     observation: day7.id,
   });
@@ -264,7 +266,7 @@ test("a count is a record: it keeps its observation and unit, and holds a unit o
         },
       ],
     }),
-  ).rejects.toThrow(ManualReadingRejectedError);
+  ).rejects.toThrow(ManualReadingConflictError);
 
   // Withdrawing the count frees the observation and the unit again.
   await recordManualReadings({
@@ -311,9 +313,9 @@ test("a new model cannot reinterpret existing manual counts", async () => {
     countedClasses: other.classes,
   };
   await expect(updateObservation(update)).rejects.toThrow(
-    ObservationModelHasCountsError,
+    ObservationModelCountsConflictError,
   );
-  const grid = (await readExperimentGrid(experiment.id))!;
+  const grid = (await experimentGridDetail(experiment.id))!;
   expect(grid.observations[0]!.modelId).toBe(version.modelId);
   expect(grid.manualReadings[0]!.tally).toEqual({
     ungerminated: 4,

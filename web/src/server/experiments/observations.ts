@@ -8,9 +8,9 @@ import {
   observationOrdinals,
 } from "../../domain/experiments/culture-events";
 import {
-  ObservationModelHasCountsError,
+  ObservationConflictError,
+  ObservationModelCountsConflictError,
   ObservationNotFoundError,
-  ObservationRejectedError,
 } from "../../domain/experiments/errors";
 import type {
   Experiment,
@@ -39,7 +39,7 @@ function rejectBeforeInoculation(
   observedOn: string,
 ): void {
   if (observedOn < experiment.inoculatedOn) {
-    throw new ObservationRejectedError(
+    throw new ObservationConflictError(
       `An observation cannot precede inoculation on ${experiment.inoculatedOn}`,
     );
   }
@@ -61,7 +61,7 @@ async function rejectSameDay(
       ),
     );
   if (rows.some((row) => row.id !== exceptObservationId)) {
-    throw new ObservationRejectedError(
+    throw new ObservationConflictError(
       `The experiment already has an observation on ${observedOn}`,
     );
   }
@@ -135,7 +135,7 @@ export async function updateObservation(
         (reading) => reading.observation === observationId,
       )
     ) {
-      throw new ObservationModelHasCountsError(
+      throw new ObservationModelCountsConflictError(
         "Withdraw the observation's manual counts before changing its model",
       );
     }
@@ -190,7 +190,7 @@ export async function deleteObservation(
       observationId,
     );
     if (observation.hasRecords) {
-      throw new ObservationRejectedError(
+      throw new ObservationConflictError(
         "An observation with images, counts or culture events cannot be deleted",
       );
     }

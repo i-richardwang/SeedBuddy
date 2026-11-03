@@ -4,11 +4,11 @@ import {
   annotationInstanceSchema,
   annotationRefSchema,
   annotationSchema,
-  boundingBoxSchema,
   REVIEW_SOURCES,
 } from "../annotation/schema";
-import { sha256Schema } from "../identifiers/schema";
 import { imageCoverageSchema } from "../images/coverage";
+import { imageRectangleSchema } from "../images/geometry";
+import { imageDigestSchema } from "../images/schema";
 import { annotationConfigSchema } from "../models/annotation";
 import { timestampSchema } from "../time";
 
@@ -33,7 +33,7 @@ const annotationInputSchema = z.union([
  * boxes the run began from. Null redraws the whole image.
  */
 const annotationScopeSchema = z
-  .array(boundingBoxSchema)
+  .array(imageRectangleSchema)
   .min(1)
   .max(64)
   .nullable();
@@ -58,7 +58,7 @@ const uncertainIdsSchema = z.array(z.string().min(1));
 
 export const annotationDefinitionSchema = z.strictObject({
   image: z.strictObject({
-    digest: sha256Schema,
+    digest: imageDigestSchema,
     width: z.number().int().positive(),
     height: z.number().int().positive(),
   }),

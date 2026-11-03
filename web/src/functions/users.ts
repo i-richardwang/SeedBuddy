@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 
 import {
   userCreateSchema,
@@ -7,45 +6,55 @@ import {
   userRefSchema,
   userRoleUpdateSchema,
 } from "../domain/auth/schema";
-import {
-  banUser,
-  createUser,
-  deleteUser,
-  listUsers,
-  revokeUserSessions,
-  setUserPassword,
-  setUserRole,
-  unbanUser,
-} from "../server/auth/public";
+import * as authService from "../server/auth/public";
+import { requireAdministrator } from "./access";
 
-export const getUsers = createServerFn({ method: "GET" }).handler(() =>
-  listUsers(getRequestHeaders()),
-);
+export const getUsers = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdministrator();
+  return authService.listUsers();
+});
 
-export const addUser = createServerFn({ method: "POST" })
+export const createUser = createServerFn({ method: "POST" })
   .validator(userCreateSchema)
-  .handler(({ data }) => createUser(getRequestHeaders(), data));
+  .handler(async ({ data }) => {
+    await requireAdministrator();
+    return authService.createUser(data);
+  });
 
-export const changeUserRole = createServerFn({ method: "POST" })
+export const updateUserRole = createServerFn({ method: "POST" })
   .validator(userRoleUpdateSchema)
-  .handler(({ data }) => setUserRole(getRequestHeaders(), data));
+  .handler(async ({ data }) =>
+    authService.setUserRole(await requireAdministrator(), data),
+  );
 
-export const resetUserPassword = createServerFn({ method: "POST" })
+export const updateUserPassword = createServerFn({ method: "POST" })
   .validator(userPasswordUpdateSchema)
-  .handler(({ data }) => setUserPassword(getRequestHeaders(), data));
+  .handler(async ({ data }) =>
+    authService.setUserPassword(await requireAdministrator(), data),
+  );
 
-export const suspendUser = createServerFn({ method: "POST" })
+export const updateUserSuspension = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) => banUser(getRequestHeaders(), data));
+  .handler(async ({ data }) =>
+    authService.banUser(await requireAdministrator(), data),
+  );
 
-export const reinstateUser = createServerFn({ method: "POST" })
+export const updateUserReinstatement = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) => unbanUser(getRequestHeaders(), data));
+  .handler(async ({ data }) => {
+    await requireAdministrator();
+    return authService.unbanUser(data);
+  });
 
-export const signOutUserEverywhere = createServerFn({ method: "POST" })
+export const removeUserSessions = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) => revokeUserSessions(getRequestHeaders(), data));
+  .handler(async ({ data }) => {
+    await requireAdministrator();
+    return authService.revokeUserSessions(data);
+  });
 
 export const removeUser = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) => deleteUser(getRequestHeaders(), data));
+  .handler(async ({ data }) =>
+    authService.deleteUser(await requireAdministrator(), data),
+  );

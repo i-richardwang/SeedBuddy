@@ -1,20 +1,21 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, eq, lt, ne, sql } from "drizzle-orm";
 
-import type { Unit } from "../../domain/experiments/contracts";
 import {
-  ExperimentHasRecordsError,
+  ExperimentNameTakenError,
   ExperimentNotFoundError,
-  ExperimentRejectedError,
-  ObservationRejectedError,
+  ExperimentRecordsConflictError,
+  ObservationConflictError,
+  TreatmentConflictError,
   TreatmentNameTakenError,
   TreatmentNotFoundError,
-  TreatmentRejectedError,
+  UnitConflictError,
+  UnitNameTakenError,
   UnitNotFoundError,
-  UnitRejectedError,
 } from "../../domain/experiments/errors";
 import { replicateCodes, sameName } from "../../domain/experiments/naming";
+import type { Unit } from "../../domain/experiments/read-model";
 import type {
   Experiment,
   ExperimentRef,
@@ -33,9 +34,6 @@ import type {
 import { type Executor, inTransaction } from "../infra/db/client";
 import { refusingUnique } from "../infra/db/errors";
 import {
-  experimentCultureEvents,
-  experimentManualReadings,
-  experimentObservationImages,
   experimentObservations,
   experiments,
   experimentTreatments,
@@ -44,6 +42,7 @@ import {
 import {
   atTreatment,
   atUnit,
+  hasRecords,
   listTreatments,
   listUnits,
   lockExperiment,
@@ -81,7 +80,9 @@ async function refuseTakenName<T>(
   return refusingUnique(
     "experiments_name",
     () =>
-      new ExperimentRejectedError(`An experiment named ${name} already exists`),
+      new ExperimentNameTakenError(
+        `An experiment named ${name} already exists`,
+      ),
     write,
   );
 }
@@ -105,7 +106,7 @@ export async function updateExperiment(
         )
         .limit(1);
       if (early) {
-        throw new ObservationRejectedError(
+        throw new ObservationConflictError(
           `An observation cannot precede inoculation on ${page.inoculatedOn}`,
         );
       }
@@ -132,7 +133,7 @@ export async function deleteExperiment(
   await inTransaction(executor, async (tx) => {
     await lockExperiment(experiment, tx);
     if (await hasRecords(experiment, null, tx)) {
-      throw new ExperimentHasRecordsError(
+      throw new ExperimentRecordsConflictError(
         "An experiment with images, counts or culture events cannot be deleted",
       );
     }
@@ -144,73 +145,6 @@ export async function deleteExperiment(
       throw new ExperimentNotFoundError(`Unknown experiment: ${experiment}`);
     }
   });
-}
-
-type RecordScope = { treatment: string } | { unit: string } | null;
-
-/**
- * Whether images, counts or culture events were recorded: on the whole experiment,
- * on one treatment's units, or on one unit.
- */
-async function hasRecords(
-  experimentId: string,
-  scope: RecordScope,
-  tx: Executor,
-): Promise<boolean> {
-  const inScope = (
-    unitId:
-      | typeof experimentObservationImages.unitId
-      | typeof experimentManualReadings.unitId
-      | typeof experimentCultureEvents.unitId,
-  ) => {
-    if (scope === null) return undefined;
-    if ("unit" in scope) return eq(unitId, scope.unit);
-    return inArray(
-      unitId,
-      tx
-        .select({ id: experimentUnits.id })
-        .from(experimentUnits)
-        .where(
-          and(
-            eq(experimentUnits.experimentId, experimentId),
-            eq(experimentUnits.treatmentId, scope.treatment),
-          ),
-        ),
-    );
-  };
-  const [image] = await tx
-    .select({ id: experimentObservationImages.id })
-    .from(experimentObservationImages)
-    .where(
-      and(
-        eq(experimentObservationImages.experimentId, experimentId),
-        inScope(experimentObservationImages.unitId),
-      ),
-    )
-    .limit(1);
-  if (image) return true;
-  const [manual] = await tx
-    .select({ unitId: experimentManualReadings.unitId })
-    .from(experimentManualReadings)
-    .where(
-      and(
-        eq(experimentManualReadings.experimentId, experimentId),
-        inScope(experimentManualReadings.unitId),
-      ),
-    )
-    .limit(1);
-  if (manual) return true;
-  const [event] = await tx
-    .select({ id: experimentCultureEvents.id })
-    .from(experimentCultureEvents)
-    .where(
-      and(
-        eq(experimentCultureEvents.experimentId, experimentId),
-        inScope(experimentCultureEvents.unitId),
-      ),
-    )
-    .limit(1);
-  return event !== undefined;
 }
 
 async function insertTreatment(
@@ -342,12 +276,12 @@ export async function deleteTreatment(
       )
       .limit(1);
     if (!other) {
-      throw new TreatmentRejectedError(
+      throw new TreatmentConflictError(
         "The last treatment of an experiment cannot be deleted",
       );
     }
     if (await hasRecords(experimentId, { treatment: treatmentId }, tx)) {
-      throw new TreatmentRejectedError(
+      throw new TreatmentConflictError(
         "A treatment whose units have images, counts or culture events cannot be deleted",
       );
     }
@@ -384,10 +318,10 @@ export async function updateUnit(
       (item) => sameName(item.code, code) && item.id !== unitId,
     );
     if (clash) {
-      throw new UnitRejectedError(`The experiment already has ${code}`);
+      throw new UnitNameTakenError(`The experiment already has ${code}`);
     }
     if (unit.treatment !== treatment && isLastReplicate(units, unit)) {
-      throw new UnitRejectedError(
+      throw new UnitConflictError(
         "The last replicate of a treatment cannot be moved",
       );
     }
@@ -438,12 +372,12 @@ export async function deleteUnit(
     const units = await listUnits(experimentId, tx);
     const unit = requireUnit(units, unitId);
     if (isLastReplicate(units, unit)) {
-      throw new UnitRejectedError(
+      throw new UnitConflictError(
         "The last replicate of a treatment cannot be deleted",
       );
     }
     if (await hasRecords(experimentId, { unit: unitId }, tx)) {
-      throw new UnitRejectedError(
+      throw new UnitConflictError(
         "A unit with images, counts or culture events cannot be deleted",
       );
     }

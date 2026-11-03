@@ -1,3 +1,4 @@
+/** Composes experiment grids, unit series, and overview listings. */
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
@@ -5,24 +6,21 @@ import {
   imageReview,
   observationCells,
 } from "../../domain/experiments/cell-reading";
-import type {
-  ExperimentGrid,
-  ExperimentOverview,
-  ObservationImageCell,
-  UnitSeries,
-} from "../../domain/experiments/contracts";
 import { unitOrder } from "../../domain/experiments/naming";
+import type {
+  ExperimentGridDetail,
+  ExperimentOverview,
+  ExperimentSheetDetail,
+  ObservationImageCell,
+  UnitDetail,
+  UnitRowDetail,
+} from "../../domain/experiments/read-model";
 import type {
   Experiment,
   ImageAnalysisState,
   UnitRef,
 } from "../../domain/experiments/schema";
-import {
-  type ExperimentSheet,
-  experimentSheet,
-  type UnitRow,
-  unitRow,
-} from "../../domain/experiments/sheet";
+import { experimentSheet, unitRow } from "../../domain/experiments/sheet";
 import { markedUnclear } from "../images/public";
 import { currentVersion } from "../inference/public";
 import { type Executor, snapshot } from "../infra/db/client";
@@ -39,7 +37,7 @@ import {
 import { documentTally, readingsSubquery } from "../readings/public";
 import {
   atImageObservation,
-  readExperimentObservationImage,
+  experimentObservationImageDetail,
 } from "./observation-image";
 import {
   listManualReadings,
@@ -134,7 +132,7 @@ async function listObservationImageCells(
 async function readGrid(
   experiment: Experiment,
   db: Executor,
-): Promise<ExperimentGrid> {
+): Promise<ExperimentGridDetail> {
   const [treatments, units, observations, images, manualReadings] =
     await Promise.all([
       listTreatments(experiment.id, db),
@@ -153,9 +151,9 @@ async function readGrid(
   };
 }
 
-export function readExperimentGrid(
+export function experimentGridDetail(
   experimentId: string,
-): Promise<ExperimentGrid | null> {
+): Promise<ExperimentGridDetail | null> {
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(experimentId, db);
     return experiment ? readGrid(experiment, db) : null;
@@ -163,9 +161,9 @@ export function readExperimentGrid(
 }
 
 /** The experiment as an agent reads it: every cell resolved to its reading. */
-export function readExperimentSheet(
+export function experimentSheetDetail(
   experimentId: string,
-): Promise<ExperimentSheet | null> {
+): Promise<ExperimentSheetDetail | null> {
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(experimentId, db);
     return experiment ? experimentSheet(await readGrid(experiment, db)) : null;
@@ -173,7 +171,7 @@ export function readExperimentSheet(
 }
 
 /** One unit's row of the sheet, or nothing when experiment or unit is unknown. */
-export function readUnitRow(ref: UnitRef): Promise<UnitRow | null> {
+export function unitRowDetail(ref: UnitRef): Promise<UnitRowDetail | null> {
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(ref.experiment, db);
     return experiment
@@ -182,10 +180,10 @@ export function readUnitRow(ref: UnitRef): Promise<UnitRow | null> {
   });
 }
 
-export function readUnit(
+export function unitDetail(
   ref: UnitRef,
   observationId?: string,
-): Promise<UnitSeries | null> {
+): Promise<UnitDetail | null> {
   return snapshot((db) => readUnitSeries(ref, observationId, db));
 }
 
@@ -193,7 +191,7 @@ async function readUnitSeries(
   ref: UnitRef,
   observationId: string | undefined,
   db: Executor,
-): Promise<UnitSeries | null> {
+): Promise<UnitDetail | null> {
   const experiment = await readExperimentRecord(ref.experiment, db);
   if (!experiment) return null;
   const { treatments, units, observations, images, manualReadings } =
@@ -222,7 +220,7 @@ async function readUnitSeries(
       : series.find((item) => item.observation.id === observationId);
   if (observationId !== undefined && !viewing) return null;
   const shown = viewing?.image
-    ? await readExperimentObservationImage(
+    ? await experimentObservationImageDetail(
         {
           experiment: ref.experiment,
           observationImage: viewing.image.id,
@@ -264,12 +262,12 @@ async function readImageSizes(
   return new Map(rows.map(({ digest, ...size }) => [digest, size]));
 }
 
-export function listExperiments(): Promise<ExperimentOverview[]> {
-  return snapshot(listExperimentOverviews);
+export function listExperimentOverviews(): Promise<ExperimentOverview[]> {
+  return snapshot(queryExperimentOverviews);
 }
 
 /** Every experiment's id and name, newest first, for navigation. */
-export function listExperimentNames(): Promise<{ id: string; name: string }[]> {
+export function findExperimentNames(): Promise<{ id: string; name: string }[]> {
   return snapshot((db) =>
     db
       .select({ id: experiments.id, name: experiments.name })
@@ -300,7 +298,7 @@ function countOf(
   );
 }
 
-async function listExperimentOverviews(
+async function queryExperimentOverviews(
   db: Executor,
 ): Promise<ExperimentOverview[]> {
   const rows = await db

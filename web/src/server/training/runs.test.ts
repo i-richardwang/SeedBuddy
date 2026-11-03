@@ -1,20 +1,18 @@
 import { expect, test } from "bun:test";
 
 import { TRAINING_ARTIFACT_PART_BYTES } from "../../domain/training/artifact";
-import { TrainingRunConflictError } from "../../domain/training/errors";
+import { TrainingRunNotFoundError } from "../../domain/training/errors";
 import { imageBlobKey } from "../images/keys";
 import { markImageUnclear } from "../images/public";
 import { requireBlob } from "../infra/blobs/store";
 import { contentDigest } from "../infra/digest";
 import { openModelWeights } from "../models/publication";
 import { readModelVersion } from "../models/registry";
-import {
-  imageDigest,
-  recordTestHeartbeat,
-  reviewedDataset as reviewed,
-  traditionalVersion,
-} from "../testing/fixtures";
+import { reviewedDataset as reviewed } from "../testing/datasets";
+import { imageDigest } from "../testing/images";
 import { trainingBundle } from "../testing/model-bundle";
+import { traditionalVersion } from "../testing/models";
+import { recordTestHeartbeat } from "../testing/workers";
 import { removeWorker } from "../workers/public";
 import {
   readTrainingArtifactParts,
@@ -25,6 +23,7 @@ import { collectTrainingArtifactParts } from "./collection";
 import { controlTrainingRun } from "./control";
 import { listTrainingEpochs } from "./epochs";
 import { artifactPartKey } from "./keys";
+import { readTrainingRun } from "./ownership";
 import { publishTrainingArtifact as publishTrainingBundle } from "./publication";
 import {
   activeTrainingRun,
@@ -32,7 +31,6 @@ import {
   createTrainingRun,
   enterTrainingPhase,
   failTrainingRun,
-  readTrainingRun,
   recordTrainingEpoch,
   renewTrainingLease,
 } from "./runs";
@@ -75,10 +73,10 @@ async function publishTrainingArtifact(
   return publishTrainingBundle(runId, owner, bundle);
 }
 
+import { trainingHeartbeat } from "../testing/workers";
 import {
   CONTENTS,
   epochReport,
-  heartbeat,
   owner,
   publication,
   recipe,
@@ -407,11 +405,14 @@ test("a restarted worker reclaims its run as a new fenced attempt", async () => 
     attempt: 2,
   };
   const started = new Date();
-  await recordTestHeartbeat(heartbeat(oldSession, started), started);
+  await recordTestHeartbeat(trainingHeartbeat(oldSession, started), started);
   expect((await claimTrainingRun(oldSession, started))?.attempt).toBe(1);
 
   const restarted = new Date(started.getTime() + 1_000);
-  await recordTestHeartbeat(heartbeat(newSession, restarted), restarted);
+  await recordTestHeartbeat(
+    trainingHeartbeat(newSession, restarted),
+    restarted,
+  );
   await expect(
     renewTrainingLease(run.id, oldSession, restarted),
   ).rejects.toThrow(/not owned/);
@@ -422,7 +423,7 @@ test("a restarted worker reclaims its run as a new fenced attempt", async () => 
     state: { status: "running", phase: "preparing" },
   });
   await expect(
-    recordTestHeartbeat(heartbeat(oldSession, started), restarted),
+    recordTestHeartbeat(trainingHeartbeat(oldSession, started), restarted),
   ).rejects.toThrow(/newer active session/);
   await failTrainingRun(run.id, newSession, "stopped");
 });
@@ -626,18 +627,18 @@ test("pausing and model publication serialize to one consistent outcome", async 
   expect(await activeTrainingRun(run.modelId)).toBeNull();
 });
 
-test("owned writes refuse a missing run as an ownership conflict", async () => {
+test("owned writes refuse a missing run as not found", async () => {
   const worker = await trainer("missing-run-worker");
   await expect(
     enterTrainingPhase("missing-run", worker, "training"),
-  ).rejects.toThrow(TrainingRunConflictError);
+  ).rejects.toThrow(TrainingRunNotFoundError);
   await expect(
     recordTrainingEpoch("missing-run", worker, epochReport(1)),
-  ).rejects.toThrow(TrainingRunConflictError);
+  ).rejects.toThrow(TrainingRunNotFoundError);
   await expect(
     failTrainingRun("missing-run", worker, "failed"),
-  ).rejects.toThrow(TrainingRunConflictError);
+  ).rejects.toThrow(TrainingRunNotFoundError);
   await expect(renewTrainingLease("missing-run", worker)).rejects.toThrow(
-    TrainingRunConflictError,
+    TrainingRunNotFoundError,
   );
 });

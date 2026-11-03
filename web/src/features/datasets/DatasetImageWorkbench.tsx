@@ -3,9 +3,9 @@ import { useEffect, useEffectEvent } from "react";
 
 import type { ReviewSource } from "../../domain/annotation/schema";
 import type {
+  DatasetImageDetail,
   DatasetImageStep,
-  DatasetImageView,
-} from "../../domain/datasets/image";
+} from "../../domain/datasets/read-model";
 import { m } from "../../paraglide/messages";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { useStep } from "../../ui/hooks/useStep";
@@ -20,7 +20,7 @@ import { splitLabel } from "./labels";
 
 /** The picture a dataset image's page frames. */
 const shownPictures = (loaderData: unknown) => {
-  const view = loaderData as DatasetImageView | undefined;
+  const view = loaderData as DatasetImageDetail | undefined;
   return view ? [view.review.ref.digest] : [];
 };
 
@@ -29,7 +29,7 @@ export function DatasetImageWorkbench({
   show,
   onShowChange,
 }: {
-  view: DatasetImageView;
+  view: DatasetImageDetail;
   show: ReviewSource | undefined;
   onShowChange: (show: ReviewSource | undefined) => void;
 }) {

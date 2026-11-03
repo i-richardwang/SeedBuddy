@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import { UnknownClassError } from "../models/errors";
+import { ClassInvalidError } from "../models/errors";
 import {
   cellReading,
+  cellReadingFromImage,
   countChange,
-  imageReading,
   observationCells,
   resolveCountedClasses,
   unitReading,
 } from "./cell-reading";
-import type { ObservationImageCell } from "./contracts";
+import type { ObservationImageCell } from "./read-model";
 import type { ExperimentObservation, ManualReading } from "./schema";
 
 function cell(
@@ -214,16 +214,16 @@ describe("what a day's photograph reads", () => {
       detectionTally: { ungerminated: 4, germinated: 9 },
       proposalTally: { ungerminated: 3, germinated: 11 },
     });
-    expect(imageReading(image, day7)).toEqual({
+    expect(cellReadingFromImage(image, day7)).toEqual({
       count: 11,
       source: "proposal",
     });
   });
 
   test("nothing without a photograph or a reading of it", () => {
-    expect(imageReading(null, observation(1))).toBeNull();
+    expect(cellReadingFromImage(null, observation(1))).toBeNull();
     const unread = cell("dish", "observation-1");
-    expect(imageReading(unread, observation(1))).toBeNull();
+    expect(cellReadingFromImage(unread, observation(1))).toBeNull();
   });
 });
 
@@ -315,7 +315,7 @@ describe("which classes a day counts", () => {
 
   test("never a class its model does not recognize", () => {
     expect(() => resolveCountedClasses(SEED_CLASSES, ["shoot"])).toThrow(
-      UnknownClassError,
+      ClassInvalidError,
     );
   });
 });

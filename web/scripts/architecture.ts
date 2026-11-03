@@ -192,7 +192,7 @@ function processEntry(file: string): boolean {
 }
 
 /** Parse actual syntax, including type imports, re-exports and dynamic imports. */
-export function importSpecifiers(source: string): string[] {
+function importSpecifiers(source: string): string[] {
   const result: string[] = [];
   const tree = parse(source, {
     sourceType: "module",

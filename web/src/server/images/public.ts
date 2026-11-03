@@ -5,7 +5,7 @@ export {
 } from "./analysis-maintenance";
 export { collectImages } from "./collection";
 export { assertDocumentImage } from "./documents";
-export { ImageSourceError } from "./ingest";
+export { ImageSourceInvalidError } from "./ingest";
 export { imageBlobKey } from "./keys";
 export { lockImage } from "./lock";
 export { openImagePreview } from "./preview";

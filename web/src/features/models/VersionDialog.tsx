@@ -4,14 +4,16 @@ import { useState } from "react";
 import { identifierLabel } from "../../domain/identifiers/schema";
 import { classCount, type Tally } from "../../domain/models/classes";
 import {
-  type ComparedImage,
-  type ComparedReading,
-  type CountAccuracy,
   countError,
   isCounted,
   isReading,
-  type VersionComparisonDetail,
 } from "../../domain/models/comparison";
+import type {
+  ComparedImage,
+  ComparedReading,
+  CountAccuracy,
+  VersionComparisonDetail,
+} from "../../domain/models/read-model";
 import type { Model, ModelVersion } from "../../domain/models/schema";
 import { chooseCurrentVersion } from "../../functions/models";
 import { m } from "../../paraglide/messages";

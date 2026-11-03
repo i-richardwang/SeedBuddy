@@ -22,3 +22,17 @@ test("service APIs count aliases and types, and retain namespace consumers", () 
   );
   expect(unusedPublicExports(sources)).toEqual([]);
 });
+
+test("tests and server testing helpers cannot sustain a public service export", () => {
+  const sources = new Map([
+    ["src/server/models/public.ts", 'export { seed } from "./registry";'],
+    ["src/server/models/registry.test.ts", 'import { seed } from "./public";'],
+    [
+      "src/server/testing/models.ts",
+      'import { seed } from "../models/public";',
+    ],
+  ]);
+  expect(unusedPublicExports(sources)).toEqual([
+    "src/server/models/public.ts: unused public export seed",
+  ]);
+});

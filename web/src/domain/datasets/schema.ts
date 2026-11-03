@@ -131,12 +131,3 @@ export type DatasetContents = z.infer<typeof datasetContentsSchema>;
 export const datasetListRequestSchema = z.strictObject({
   modelId: resourceIdSchema.optional(),
 });
-
-/** A dataset with its size; only reviewed images are used for training. */
-export const datasetOverviewSchema = z.strictObject({
-  dataset: datasetSchema,
-  imageCount: z.number().int().nonnegative(),
-  reviewedCount: z.number().int().nonnegative(),
-});
-
-export type DatasetOverview = z.infer<typeof datasetOverviewSchema>;

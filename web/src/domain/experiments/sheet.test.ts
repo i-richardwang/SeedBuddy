@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ExperimentGrid, ObservationImageCell } from "./contracts";
+import type { CultureEvent } from "./culture-events";
+import type { ExperimentGridDetail, ObservationImageCell } from "./read-model";
 import type {
-  CultureEvent,
   Experiment,
   ExperimentObservation,
   ManualReading,
@@ -82,7 +82,9 @@ function event(type: CultureEvent["type"], on: ExperimentObservation) {
   };
 }
 
-function grid(overrides: Partial<ExperimentGrid> = {}): ExperimentGrid {
+function grid(
+  overrides: Partial<ExperimentGridDetail> = {},
+): ExperimentGridDetail {
   return {
     experiment,
     treatments: [

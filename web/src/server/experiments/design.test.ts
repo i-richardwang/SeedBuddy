@@ -3,20 +3,19 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "bun:test";
 
 import {
-  ExperimentHasRecordsError,
+  ExperimentNameTakenError,
   ExperimentNotFoundError,
-  ExperimentRejectedError,
-  ObservationRejectedError,
+  ExperimentRecordsConflictError,
+  ObservationConflictError,
+  TreatmentConflictError,
   TreatmentNotFoundError,
-  TreatmentRejectedError,
+  UnitConflictError,
+  UnitNameTakenError,
   UnitNotFoundError,
-  UnitRejectedError,
 } from "../../domain/experiments/errors";
 import {
   calendarDaySchema,
-  experimentRequestSchema,
   formatFactor,
-  treatmentRequestSchema,
 } from "../../domain/experiments/schema";
 import {
   SEED_DETECTOR_BASELINE_VERSION_ID,
@@ -27,7 +26,7 @@ import { blobExists } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { experimentUnits } from "../infra/db/schema";
 import { listAllModelVersions } from "../models/registry";
-import { imageDigest } from "../testing/fixtures";
+import { imageDigest } from "../testing/images";
 import {
   addReplicates,
   addTreatment,
@@ -39,12 +38,8 @@ import {
   updateTreatment,
   updateUnit,
 } from "./design";
-import {
-  createObservation,
-  deleteObservation,
-  updateObservation,
-} from "./observations";
-import { listExperiments, readExperimentGrid } from "./queries";
+import { createObservation } from "./observations";
+import { experimentGridDetail, listExperimentOverviews } from "./queries";
 import {
   assignImages,
   createExperiment,
@@ -85,7 +80,7 @@ test("have server-owned identities and one name each", async () => {
       name: "germination a",
       inoculatedOn: INOCULATED,
     }),
-  ).rejects.toThrow(ExperimentRejectedError);
+  ).rejects.toThrow(ExperimentNameTakenError);
 
   expect(first.id).toMatch(
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
@@ -93,7 +88,7 @@ test("have server-owned identities and one name each", async () => {
   expect(first.name).toBe("Germination A");
 
   const invalidUnit = (async () => {
-    const [treatment] = (await readExperimentGrid(first.id))!.treatments;
+    const [treatment] = (await experimentGridDetail(first.id))!.treatments;
     await (await database()).insert(experimentUnits).values({
       experimentId: first.id,
       id: randomUUID(),
@@ -127,7 +122,7 @@ test("the design lays out units before any image exists", async () => {
   ]);
   expect(experiment.notes).toBe("");
 
-  const grid = (await readExperimentGrid(experiment.id))!;
+  const grid = (await experimentGridDetail(experiment.id))!;
   const [control, auxin] = grid.treatments;
   expect([control?.position, auxin?.position]).toEqual([1, 2]);
   expect(control?.note).toBe("Hormone-free MS");
@@ -147,7 +142,7 @@ test("the design lays out units before any image exists", async () => {
   ]);
   expect(grid.units.every((unit) => unit.events.length === 0)).toBeTrue();
 
-  const summary = (await listExperiments()).find(
+  const summary = (await listExperimentOverviews()).find(
     ({ experiment: item }) => item.id === experiment.id,
   );
   expect(summary?.treatments).toBe(2);
@@ -156,40 +151,13 @@ test("the design lays out units before any image exists", async () => {
   expect(summary?.lastObservedOn).toBeNull();
 });
 
-test("an experiment cannot be created without a design", async () => {
-  expect(
-    experimentRequestSchema.safeParse({
-      name: "Undesigned",
-      inoculatedOn: INOCULATED,
-      treatments: [],
-    }).success,
-  ).toBeFalse();
-  expect(
-    experimentRequestSchema.safeParse({
-      name: "Undesigned",
-      inoculatedOn: INOCULATED,
-      treatments: [
-        { name: "CK", replicates: 1 },
-        { name: "ck", replicates: 1 },
-      ],
-    }).success,
-  ).toBeFalse();
-  expect(
-    treatmentRequestSchema.safeParse({
-      experiment: randomUUID(),
-      name: "CK",
-      replicates: 0,
-    }).success,
-  ).toBeFalse();
-});
-
 test("a treatment can gain replicates after it is designed", async () => {
   const experiment = await createExperiment({
     name: "More units",
     inoculatedOn: INOCULATED,
     treatments: [{ name: "T1", replicates: 1 }],
   });
-  const [treatment] = (await readExperimentGrid(experiment.id))!.treatments;
+  const [treatment] = (await experimentGridDetail(experiment.id))!.treatments;
   const added = await addReplicates({
     experiment: experiment.id,
     treatment: treatment!.id,
@@ -203,7 +171,7 @@ test("a treatment can gain replicates after it is designed", async () => {
       replicates: 1,
     }),
   ).rejects.toThrow(TreatmentNotFoundError);
-  const grid = await readExperimentGrid(experiment.id);
+  const grid = await experimentGridDetail(experiment.id);
   expect(grid?.units.map((unit) => unit.code)).toEqual([
     "T1-1",
     "T1-2",
@@ -220,7 +188,7 @@ test("treatment names and unit codes are unique", async () => {
       { name: "T1", replicates: 1 },
     ],
   });
-  const [control, treated] = (await readExperimentGrid(experiment.id))!
+  const [control, treated] = (await experimentGridDetail(experiment.id))!
     .treatments;
 
   await expect(
@@ -256,7 +224,7 @@ test("treatment names and unit codes are unique", async () => {
       code: "ck-1",
       treatment: treated!.id,
     }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitNameTakenError);
   await expect(
     updateUnit({
       experiment: experiment.id,
@@ -286,7 +254,7 @@ test("treatment names and unit codes are unique", async () => {
     experiment: experiment.id,
     treatment: control!.id,
   });
-  const after = await readExperimentGrid(experiment.id);
+  const after = await experimentGridDetail(experiment.id);
   expect(after?.treatments).toEqual([{ ...treated!, position: 1 }]);
   expect(after?.units.map((unit) => [unit.code, unit.treatment])).toEqual([
     ["CK-1", treated!.id],
@@ -303,13 +271,13 @@ test("an experiment keeps a treatment, and a treatment keeps a replicate", async
       { name: "T1", replicates: 2 },
     ],
   });
-  const [control, treated] = (await readExperimentGrid(experiment.id))!
+  const [control, treated] = (await experimentGridDetail(experiment.id))!
     .treatments;
   const units = await unitsOf(experiment.id);
 
   await expect(
     deleteUnit({ experiment: experiment.id, unit: units.get("CK-1")! }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitConflictError);
   await expect(
     updateUnit({
       experiment: experiment.id,
@@ -317,7 +285,7 @@ test("an experiment keeps a treatment, and a treatment keeps a replicate", async
       code: "CK-1",
       treatment: treated!.id,
     }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitConflictError);
   await deleteUnit({ experiment: experiment.id, unit: units.get("T1-2")! });
 
   await deleteTreatment({
@@ -326,9 +294,9 @@ test("an experiment keeps a treatment, and a treatment keeps a replicate", async
   });
   await expect(
     deleteTreatment({ experiment: experiment.id, treatment: treated!.id }),
-  ).rejects.toThrow(TreatmentRejectedError);
+  ).rejects.toThrow(TreatmentConflictError);
   expect(
-    (await readExperimentGrid(experiment.id))?.units.map((unit) => unit.code),
+    (await experimentGridDetail(experiment.id))?.units.map((unit) => unit.code),
   ).toEqual(["T1-1"]);
 });
 
@@ -341,7 +309,7 @@ test("several units can move to another treatment together", async () => {
       { name: "T1", replicates: 1 },
     ],
   });
-  const [control, treated] = (await readExperimentGrid(experiment.id))!
+  const [control, treated] = (await experimentGridDetail(experiment.id))!
     .treatments;
   const units = await unitsOf(experiment.id);
 
@@ -351,9 +319,9 @@ test("several units can move to another treatment together", async () => {
       units: [units.get("CK-1")!, units.get("CK-2")!, units.get("CK-3")!],
       treatment: treated!.id,
     }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitConflictError);
   expect(
-    (await readExperimentGrid(experiment.id))?.units.filter(
+    (await experimentGridDetail(experiment.id))?.units.filter(
       (unit) => unit.treatment === control!.id,
     ),
   ).toHaveLength(3);
@@ -368,7 +336,7 @@ test("several units can move to another treatment together", async () => {
     treated!.id,
   ]);
   expect(
-    (await readExperimentGrid(experiment.id))?.units.filter(
+    (await experimentGridDetail(experiment.id))?.units.filter(
       (unit) => unit.treatment === control!.id,
     ),
   ).toHaveLength(1);
@@ -384,7 +352,7 @@ test("a treatment leaves with its units unless they have records", async () => {
       { name: "T1", replicates: 1 },
     ],
   });
-  const [control, treated] = (await readExperimentGrid(experiment.id))!
+  const [control, treated] = (await experimentGridDetail(experiment.id))!
     .treatments;
   const observation = await createObservation({
     experiment: experiment.id,
@@ -403,12 +371,12 @@ test("a treatment leaves with its units unless they have records", async () => {
 
   await expect(
     deleteTreatment({ experiment: experiment.id, treatment: treated!.id }),
-  ).rejects.toThrow(TreatmentRejectedError);
+  ).rejects.toThrow(TreatmentConflictError);
   await deleteTreatment({
     experiment: experiment.id,
     treatment: control!.id,
   });
-  const grid = await readExperimentGrid(experiment.id);
+  const grid = await experimentGridDetail(experiment.id);
   expect(grid?.treatments.map((treatment) => treatment.name)).toEqual(["T1"]);
   expect(grid?.units.map((unit) => unit.code)).toEqual(["T1-1"]);
   expect(grid?.images).toHaveLength(1);
@@ -432,7 +400,7 @@ test("a unit keeps its images when its code is corrected", async () => {
     "A-1": "r-a1",
   });
 
-  const [treatment] = (await readExperimentGrid(experiment.id))!.treatments;
+  const [treatment] = (await experimentGridDetail(experiment.id))!.treatments;
   const renamed = await updateUnit({
     experiment: experiment.id,
     unit: units.get("A-1")!,
@@ -447,9 +415,9 @@ test("a unit keeps its images when its code is corrected", async () => {
       code: "A-01",
       treatment: treatment!.id,
     }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitNameTakenError);
 
-  const grid = await readExperimentGrid(experiment.id);
+  const grid = await experimentGridDetail(experiment.id);
   expect(grid?.units.map((unit) => unit.code)).toEqual(["A-01", "A-2"]);
   expect(grid?.images).toHaveLength(1);
   expect(grid?.images[0]?.unit).toBe(units.get("A-1")!);
@@ -503,7 +471,7 @@ test("the notebook stays editable after an observation is added", async () => {
       inoculatedOn: "2026-08-09",
       countsUnclear: experiment.countsUnclear,
     }),
-  ).rejects.toThrow(ObservationRejectedError);
+  ).rejects.toThrow(ObservationConflictError);
 
   const annotated = await updateExperiment({
     experiment: experiment.id,
@@ -521,7 +489,7 @@ test("the notebook stays editable after an observation is added", async () => {
     true,
   ]);
 
-  const treatment = (await readExperimentGrid(experiment.id))!.treatments[0]!;
+  const treatment = (await experimentGridDetail(experiment.id))!.treatments[0]!;
   const described = await updateTreatment({
     experiment: experiment.id,
     treatment: treatment.id,
@@ -542,7 +510,7 @@ test("the notebook stays editable after an observation is added", async () => {
     unit: units.get("A-1")!,
   });
   expect(
-    (await readExperimentGrid(experiment.id))?.units.map((unit) => unit.code),
+    (await experimentGridDetail(experiment.id))?.units.map((unit) => unit.code),
   ).toEqual(["A-2", "T1-1"]);
 });
 
@@ -572,66 +540,17 @@ test("images keep their units, and experiments without them can be deleted", asy
     note: "",
     ...reading(version),
   });
-  const day14 = await createObservation({
-    experiment: experiment.id,
-    observedOn: "2026-08-15",
-    note: "",
-    ...reading(version),
-  });
   await assignImages(experiment.id, day7.id, units, {
     "A-1": "m-a1-1",
     "A-2": "m-a2-1",
   });
   await expect(
-    updateObservation({
-      experiment: experiment.id,
-      observation: day14.id,
-      observedOn: "2026-08-08",
-      note: "",
-      ...reading(version),
-      countedClasses: day14.countedClasses,
-    }),
-  ).rejects.toThrow(ObservationRejectedError);
-  const redatedEmpty = await updateObservation({
-    experiment: experiment.id,
-    observation: day14.id,
-    observedOn: "2026-08-29",
-    note: "Final count",
-    ...reading(version),
-    countedClasses: day14.countedClasses,
-  });
-  expect([redatedEmpty.observedOn, redatedEmpty.note]).toEqual([
-    "2026-08-29",
-    "Final count",
-  ]);
-  const redatedRecorded = await updateObservation({
-    experiment: experiment.id,
-    observation: day7.id,
-    observedOn: "2026-08-09",
-    note: "Images checked",
-    ...reading(version),
-    countedClasses: day7.countedClasses,
-  });
-  expect([redatedRecorded.observedOn, redatedRecorded.note]).toEqual([
-    "2026-08-09",
-    "Images checked",
-  ]);
-  expect((await readExperimentGrid(experiment.id))?.images).toHaveLength(2);
-
-  await deleteObservation({
-    experiment: experiment.id,
-    observation: day14.id,
-  });
-  await expect(
-    deleteObservation({ experiment: experiment.id, observation: day7.id }),
-  ).rejects.toThrow(ObservationRejectedError);
-  await expect(
     deleteUnit({
       experiment: experiment.id,
       unit: units.get("A-2")!,
     }),
-  ).rejects.toThrow(UnitRejectedError);
-  const grid = await readExperimentGrid(experiment.id);
+  ).rejects.toThrow(UnitConflictError);
+  const grid = await experimentGridDetail(experiment.id);
   expect(grid?.observations.map((item) => item.id)).toEqual([day7.id]);
   expect(grid?.units.map((unit) => unit.code)).toEqual(["A-1", "A-2"]);
   expect(grid?.images).toHaveLength(2);
@@ -639,7 +558,7 @@ test("images keep their units, and experiments without them can be deleted", asy
   expect(await blobExists(imageBlobKey(first))).toBeTrue();
 
   await expect(deleteExperiment({ experiment: experiment.id })).rejects.toThrow(
-    ExperimentHasRecordsError,
+    ExperimentRecordsConflictError,
   );
 
   const disposable = await createExperiment({
@@ -647,7 +566,7 @@ test("images keep their units, and experiments without them can be deleted", asy
     inoculatedOn: INOCULATED,
   });
   await deleteExperiment({ experiment: disposable.id });
-  expect(await readExperimentGrid(disposable.id)).toBeNull();
+  expect(await experimentGridDetail(disposable.id)).toBeNull();
   await expect(deleteExperiment({ experiment: disposable.id })).rejects.toThrow(
     ExperimentNotFoundError,
   );

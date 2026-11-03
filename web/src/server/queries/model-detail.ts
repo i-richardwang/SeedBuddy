@@ -1,29 +1,16 @@
-import type { DatasetOverview } from "../../domain/datasets/schema";
 import type {
+  ModelDetail,
   VersionComparison,
   VersionComparisonDetail,
-} from "../../domain/models/comparison";
-import type { ModelCatalogueEntry } from "../../domain/models/contracts";
-import type { ModelVersion } from "../../domain/models/schema";
-import type {
-  TrainingRunOverview,
   VersionOverview,
-} from "../../domain/training/read-model";
+} from "../../domain/models/read-model";
+import type { ModelVersion } from "../../domain/models/schema";
 import { listDatasetOverviews } from "../datasets/public";
 import { listAllModelVersions, readCurrentVersionId } from "../models/public";
 import { datasetSnapshotOverviews } from "../training/public";
-import { modelCatalogue } from "./model-catalogue";
-import { listTrainingRunOverviews } from "./training-runs";
-import { versionComparisons } from "./version-comparison";
-
-/** A model with what has been built for it. */
-interface ModelDetail extends ModelCatalogueEntry {
-  versions: VersionOverview[];
-  /** The training sets of the model. */
-  datasets: DatasetOverview[];
-  /** The newest runs across those sets. */
-  runs: TrainingRunOverview[];
-}
+import { findVersionComparisons } from "./find-version-comparisons";
+import { listModelOverviews } from "./list-model-overviews";
+import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
 /**
  * Everything one model's page shows: its versions with how many images
@@ -33,7 +20,7 @@ interface ModelDetail extends ModelCatalogueEntry {
 export async function modelDetail(
   modelId: string,
 ): Promise<ModelDetail | null> {
-  const entry = (await modelCatalogue()).find(
+  const entry = (await listModelOverviews()).find(
     (item) => item.model.id === modelId,
   );
   if (!entry) return null;
@@ -53,7 +40,7 @@ async function listVersionOverviews(
   );
   const [currentVersionId, comparisons, snapshots] = await Promise.all([
     readCurrentVersionId(modelId),
-    versionComparisons(modelId),
+    findVersionComparisons(modelId),
     datasetSnapshotOverviews(
       versions.flatMap((version) =>
         version.source.kind === "training_run"

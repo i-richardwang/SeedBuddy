@@ -4,6 +4,8 @@ import type { NamedDataset } from "../domain/datasets/schema";
 import {
   cultureEventRefSchema,
   cultureEventsRequestSchema,
+} from "../domain/experiments/culture-events";
+import {
   experimentRefSchema,
   experimentRequestSchema,
   experimentUpdateSchema,
@@ -23,31 +25,7 @@ import {
   unitUpdateSchema,
 } from "../domain/experiments/schema";
 import { listDatasets, listDatasetsForModel } from "../server/datasets/public";
-import {
-  addReplicates,
-  addTreatment,
-  assignObservationImages,
-  createExperiment,
-  deleteCultureEvent,
-  deleteExperiment,
-  deleteObservation,
-  deleteTreatment,
-  deleteUnit,
-  listExperimentNames,
-  listExperiments,
-  moveUnits,
-  readExperimentGrid,
-  readUnit,
-  recordCultureEvents,
-  recordManualReadings,
-  recordObservation,
-  retryObservationImageAnalysis,
-  unassignObservationImage,
-  updateExperiment,
-  updateObservation,
-  updateTreatment,
-  updateUnit,
-} from "../server/experiments/public";
+import * as experimentsService from "../server/experiments/public";
 import { listModels } from "../server/models/public";
 
 async function datasetsTraining(modelId: string): Promise<NamedDataset[]> {
@@ -58,11 +36,11 @@ async function datasetsTraining(modelId: string): Promise<NamedDataset[]> {
 }
 
 export const getExperiments = createServerFn({ method: "GET" }).handler(() =>
-  listExperiments(),
+  experimentsService.listExperimentOverviews(),
 );
 
 export const getExperimentNames = createServerFn({ method: "GET" }).handler(
-  () => listExperimentNames(),
+  () => experimentsService.findExperimentNames(),
 );
 
 /**
@@ -72,7 +50,7 @@ export const getExperimentNames = createServerFn({ method: "GET" }).handler(
 export const getExperimentGrid = createServerFn({ method: "GET" })
   .validator(experimentRefSchema)
   .handler(async ({ data }) => {
-    const grid = await readExperimentGrid(data.experiment);
+    const grid = await experimentsService.experimentGridDetail(data.experiment);
     if (!grid) return null;
     const [models, datasets] = await Promise.all([
       listModels(),
@@ -81,38 +59,38 @@ export const getExperimentGrid = createServerFn({ method: "GET" })
     return { ...grid, models, datasets };
   });
 
-export const startExperiment = createServerFn({ method: "POST" })
+export const createExperiment = createServerFn({ method: "POST" })
   .validator(experimentRequestSchema)
-  .handler(({ data }) => createExperiment(data));
+  .handler(({ data }) => experimentsService.createExperiment(data));
 
-export const editExperiment = createServerFn({ method: "POST" })
+export const updateExperiment = createServerFn({ method: "POST" })
   .validator(experimentUpdateSchema)
-  .handler(({ data }) => updateExperiment(data));
+  .handler(({ data }) => experimentsService.updateExperiment(data));
 
 export const removeExperiment = createServerFn({ method: "POST" })
   .validator(experimentRefSchema)
-  .handler(({ data }) => deleteExperiment(data));
+  .handler(({ data }) => experimentsService.deleteExperiment(data));
 
 export const createTreatment = createServerFn({ method: "POST" })
   .validator(treatmentRequestSchema)
-  .handler(({ data }) => addTreatment(data));
+  .handler(({ data }) => experimentsService.addTreatment(data));
 
-export const editTreatment = createServerFn({ method: "POST" })
+export const updateTreatment = createServerFn({ method: "POST" })
   .validator(treatmentUpdateSchema)
-  .handler(({ data }) => updateTreatment(data));
+  .handler(({ data }) => experimentsService.updateTreatment(data));
 
 export const removeTreatment = createServerFn({ method: "POST" })
   .validator(treatmentRefSchema)
-  .handler(({ data }) => deleteTreatment(data));
+  .handler(({ data }) => experimentsService.deleteTreatment(data));
 
 export const createReplicates = createServerFn({ method: "POST" })
   .validator(replicateRequestSchema)
-  .handler(({ data }) => addReplicates(data));
+  .handler(({ data }) => experimentsService.addReplicates(data));
 
 export const getUnit = createServerFn({ method: "GET" })
   .validator(unitRequestSchema)
   .handler(async ({ data: { observation, ...ref } }) => {
-    const series = await readUnit(ref, observation);
+    const series = await experimentsService.unitDetail(ref, observation);
     if (!series) return null;
     const datasets = series.shown
       ? await datasetsTraining(series.shown.model.id)
@@ -120,52 +98,52 @@ export const getUnit = createServerFn({ method: "GET" })
     return { ...series, datasets };
   });
 
-export const editUnit = createServerFn({ method: "POST" })
+export const updateUnit = createServerFn({ method: "POST" })
   .validator(unitUpdateSchema)
-  .handler(({ data }) => updateUnit(data));
+  .handler(({ data }) => experimentsService.updateUnit(data));
 
-export const editUnitsTreatment = createServerFn({ method: "POST" })
+export const updateUnitsTreatment = createServerFn({ method: "POST" })
   .validator(unitsTreatmentUpdateSchema)
-  .handler(({ data }) => moveUnits(data));
+  .handler(({ data }) => experimentsService.moveUnits(data));
 
 export const removeUnit = createServerFn({ method: "POST" })
   .validator(unitRefSchema)
-  .handler(({ data }) => deleteUnit(data));
+  .handler(({ data }) => experimentsService.deleteUnit(data));
 
 export const createCultureEvents = createServerFn({ method: "POST" })
   .validator(cultureEventsRequestSchema)
-  .handler(({ data }) => recordCultureEvents(data));
+  .handler(({ data }) => experimentsService.recordCultureEvents(data));
 
 export const removeCultureEvent = createServerFn({ method: "POST" })
   .validator(cultureEventRefSchema)
-  .handler(({ data }) => deleteCultureEvent(data));
+  .handler(({ data }) => experimentsService.deleteCultureEvent(data));
 
 export const createObservation = createServerFn({ method: "POST" })
   .validator(observationRecordSchema)
-  .handler(({ data }) => recordObservation(data));
+  .handler(({ data }) => experimentsService.recordObservation(data));
 
-export const editObservation = createServerFn({ method: "POST" })
+export const updateObservation = createServerFn({ method: "POST" })
   .validator(observationUpdateSchema)
-  .handler(({ data }) => updateObservation(data));
+  .handler(({ data }) => experimentsService.updateObservation(data));
 
 export const removeObservation = createServerFn({ method: "POST" })
   .validator(observationRefSchema)
-  .handler(({ data }) => deleteObservation(data));
+  .handler(({ data }) => experimentsService.deleteObservation(data));
 
-export const enterManualReadings = createServerFn({ method: "POST" })
+export const updateManualReadings = createServerFn({ method: "POST" })
   .validator(manualReadingsRequestSchema)
-  .handler(({ data }) => recordManualReadings(data));
+  .handler(({ data }) => experimentsService.recordManualReadings(data));
 
-export const assignImagesToObservation = createServerFn({ method: "POST" })
+export const updateObservationImages = createServerFn({ method: "POST" })
   .validator(observationImageAssignmentSchema)
-  .handler(({ data }) => assignObservationImages(data));
+  .handler(({ data }) => experimentsService.assignObservationImages(data));
 
 export const removeObservationImage = createServerFn({ method: "POST" })
   .validator(observationImageRefSchema)
-  .handler(({ data }) => unassignObservationImage(data));
+  .handler(({ data }) => experimentsService.unassignObservationImage(data));
 
 export const retryImageAnalysis = createServerFn({ method: "POST" })
   .validator(observationImageRefSchema)
   .handler(async ({ data }) => {
-    await retryObservationImageAnalysis(data);
+    await experimentsService.retryObservationImageAnalysis(data);
   });

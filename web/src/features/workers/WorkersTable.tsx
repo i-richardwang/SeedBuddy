@@ -3,8 +3,9 @@ import { Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { WorkerPresence } from "../../domain/workers/presence";
+import type { WorkerOverview } from "../../domain/workers/read-model";
 import type { WorkerActivity } from "../../domain/workers/schema";
-import { deleteWorker, type getWorkers } from "../../functions/workers";
+import { removeWorker } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
@@ -28,8 +29,6 @@ const PRESENCE: Record<
   stale: { label: m.worker_presence_stale, tone: "warning" },
   offline: { label: m.worker_presence_offline, tone: "neutral" },
 };
-
-type WorkerOverview = Awaited<ReturnType<typeof getWorkers>>["workers"][number];
 
 export function WorkersTable({
   workers,
@@ -121,7 +120,7 @@ function WorkerMenu({ workerId }: { workerId: string }) {
               content: m.worker_remove_description(),
               confirmLabel: m.worker_remove(),
               onConfirm: async () => {
-                await deleteWorker({ data: { workerId } });
+                await removeWorker({ data: { workerId } });
               },
               onSuccess: () => {
                 toast.success(m.worker_removed({ name: workerId }));

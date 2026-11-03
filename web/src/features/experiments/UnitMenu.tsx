@@ -14,9 +14,9 @@ import { useState } from "react";
 
 import type { NamedDataset } from "../../domain/datasets/schema";
 import type {
-  ExperimentObservationImage,
+  ExperimentObservationImageDetail,
   Unit,
-} from "../../domain/experiments/contracts";
+} from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
   Treatment,
@@ -26,7 +26,7 @@ import {
   removeObservationImage,
   removeUnit,
 } from "../../functions/experiments";
-import { clearUnclear, markUnclear } from "../../functions/images";
+import { createUnclearMark, removeUnclearMark } from "../../functions/images";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
@@ -65,7 +65,7 @@ export function UnitMenu({
   unit: Unit;
   treatments: Treatment[];
   canRemove: boolean;
-  image: ExperimentObservationImage | null;
+  image: ExperimentObservationImageDetail | null;
   /** The datasets the photograph could join. */
   datasets: NamedDataset[];
 }) {
@@ -102,8 +102,8 @@ export function UnitMenu({
       disabled: unclearAction.busy,
       onClick: () =>
         void unclearAction.run(async () => {
-          if (unclear) await clearUnclear({ data: ref });
-          else await markUnclear({ data: ref });
+          if (unclear) await removeUnclearMark({ data: ref });
+          else await createUnclearMark({ data: ref });
         }, m.unclear_not_saved()),
     });
   }

@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import {
   DetectionConflictError,
-  InvalidDetectionOutcomeError,
+  DetectionOutcomeInvalidError,
   ProducerMismatchError,
 } from "../../domain/inference/errors";
 import type { Worker } from "../../domain/workers/schema";
@@ -14,18 +14,18 @@ import { listImageRecords } from "../datasets/records";
 import { retryObservationImageAnalysis } from "../experiments/observation-images";
 import { database } from "../infra/db/client";
 import { inferenceOutcomes, inferenceTasks } from "../infra/db/schema";
+import { observeTextsIntoDataset } from "../testing/datasets";
 import {
   listObservationImageRefs,
   observeImages,
-  observeTextsIntoDataset,
-  resultFor,
-  testHeartbeat,
-  traditionalVersion,
-} from "../testing/fixtures";
+} from "../testing/experiments";
+import { resultFor } from "../testing/images";
 import {
   seedDetectionResult,
   seedInferenceTaskFailure,
 } from "../testing/inference";
+import { traditionalVersion } from "../testing/models";
+import { testHeartbeat } from "../testing/workers";
 
 const worker: Worker = {
   ...testHeartbeat("worker"),
@@ -152,7 +152,7 @@ describe("detections", () => {
         },
         worker,
       ),
-    ).rejects.toBeInstanceOf(InvalidDetectionOutcomeError);
+    ).rejects.toBeInstanceOf(DetectionOutcomeInvalidError);
     await expect(
       seedDetectionResult(
         target,

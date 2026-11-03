@@ -26,17 +26,13 @@ import {
   type AnnotationContent,
   type AnnotationDefinition,
 } from "../../../domain/annotation-runs/schema";
-import type {
-  Region,
-  RegionProposal,
-} from "../../../domain/annotation-runs/tasks";
+import type { RegionProposal } from "../../../domain/annotation-runs/tasks";
 import { USER_ROLES } from "../../../domain/auth/schema";
 import type { DetectionResult } from "../../../domain/detection/schema";
-import {
-  CULTURE_EVENT_TYPES,
-  type TreatmentFactor,
-} from "../../../domain/experiments/schema";
+import { CULTURE_EVENT_TYPES } from "../../../domain/experiments/culture-events";
+import type { TreatmentFactor } from "../../../domain/experiments/schema";
 import type { DishAnalysis } from "../../../domain/images/coverage";
+import type { ImageRegion } from "../../../domain/images/geometry";
 import type { RuntimeDescriptor } from "../../../domain/inference/schema";
 import type { InferenceFailure } from "../../../domain/inference/tasks";
 import type { ModelBundle } from "../../../domain/models/bundle";
@@ -1378,7 +1374,7 @@ export const annotationTasks = pgTable(
       .notNull()
       .references(() => annotationRuns.id, { onDelete: "cascade" }),
     taskId: text("task_id").notNull(),
-    region: jsonb("region").$type<Region>().notNull(),
+    region: jsonb("region").$type<ImageRegion>().notNull(),
     response: jsonb("response").$type<RegionProposal>(),
     acceptedProposalId: text("accepted_proposal_id"),
   },

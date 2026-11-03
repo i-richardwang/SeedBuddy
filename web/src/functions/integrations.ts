@@ -10,6 +10,7 @@ import {
   MCP_SERVERS,
   mcpClientRefSchema,
 } from "../domain/auth/integrations";
+import type { IntegrationsDetail } from "../domain/auth/read-model";
 import {
   auth,
   disconnectMcpClient,
@@ -22,7 +23,7 @@ import { deploymentEndpoint } from "../server/infra/deployment";
 import { requireAccount } from "./access";
 
 export const getIntegrations = createServerFn({ method: "GET" }).handler(
-  async () => {
+  async (): Promise<IntegrationsDetail> => {
     const user = (await requireAccount()).id;
     const [apiKeys, mcpClients] = await Promise.all([
       listApiKeys(user),
@@ -36,7 +37,7 @@ export const getIntegrations = createServerFn({ method: "GET" }).handler(
   },
 );
 
-export const addApiKey = createServerFn({ method: "POST" })
+export const createApiKey = createServerFn({ method: "POST" })
   .validator(apiKeyCreateSchema)
   .handler(async ({ data }) => issueApiKey((await requireAccount()).id, data));
 

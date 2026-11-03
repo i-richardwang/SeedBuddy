@@ -4,7 +4,6 @@ import { sourceInstances } from "../../domain/annotation/readings";
 import {
   type AnnotationRef,
   annotationSchema,
-  type BoundingBox,
   type ReviewSource,
 } from "../../domain/annotation/schema";
 import {
@@ -17,6 +16,7 @@ import {
   type StartAnnotationRun,
 } from "../../domain/annotation-runs/schema";
 import { regions } from "../../domain/annotation-runs/tasks";
+import type { ImageRectangle } from "../../domain/images/geometry";
 import { assertInstanceClasses } from "../../domain/models/classes";
 import { lockImage, resolveDishCoverage } from "../images/public";
 import { database, type Executor, transaction } from "../infra/db/client";
@@ -143,7 +143,7 @@ async function freezeDefinition(request: StartAnnotationRun, tx: Executor) {
       throw new AnnotationRunConflictError(
         "Redrawing part of the image needs the boxes to keep; pass input",
       );
-    const inside = (b: BoundingBox) =>
+    const inside = (b: ImageRectangle) =>
       b.x >= 0 &&
       b.y >= 0 &&
       b.x + b.width <= image.width &&

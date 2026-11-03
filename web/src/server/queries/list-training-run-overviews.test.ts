@@ -13,7 +13,7 @@ import {
   reviewedDataset,
   trainer,
 } from "../training/testing";
-import { listTrainingRunOverviews } from "./training-runs";
+import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
 test("training overviews list the dataset's runs and bound the requested page", async () => {
   const dataset = await reviewedDataset("overview-runs");

@@ -9,16 +9,12 @@ import type { ModelVersion } from "../../domain/models/schema";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import type { Worker } from "../../domain/workers/schema";
 import { registerModel, setCurrentVersion } from "../models/registry";
-import {
-  FIXTURE_EDGE,
-  registerTrainedVersion,
-  storeTexts,
-  testHeartbeat,
-  ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
+import { FIXTURE_EDGE, storeTexts } from "../testing/images";
+import { registerTrainedVersion } from "../testing/models";
+import { trainingHeartbeat, ULTRALYTICS_RUNTIME } from "../testing/workers";
 import { createExperiment as createExperimentRecord } from "./design";
 import { assignObservationImages } from "./observation-images";
-import { readExperimentGrid } from "./queries";
+import { experimentGridDetail } from "./queries";
 
 export const INOCULATED = "2026-08-01";
 
@@ -35,18 +31,23 @@ export async function createExperiment(
 }
 
 export const worker: Worker = {
-  ...testHeartbeat("ultralytics-worker"),
-  runtimes: [ULTRALYTICS_RUNTIME],
+  ...trainingHeartbeat(
+    { workerId: "ultralytics-worker", sessionId: "session-ultralytics-worker" },
+    new Date("2026-08-27T00:00:00.000Z"),
+  ),
   lastSeenAt: "2026-08-27T00:00:00.000Z",
 };
 
-export async function trainedVersion(modelId: string): Promise<ModelVersion> {
+export async function trainedVersion(
+  modelId: string,
+  classes: string[] = SEED_DETECTOR.classes,
+): Promise<ModelVersion> {
   await registerModel({
     schemaVersion: 1,
     id: modelId,
     name: `${modelId} detector`,
     task: "object_detection",
-    classes: SEED_DETECTOR.classes,
+    classes,
     annotation: DEFAULT_MODEL_ANNOTATION,
   });
   const version = await registerTrainedVersion(modelId);
@@ -58,7 +59,7 @@ export function reading(version: ModelVersion) {
   return { modelId: version.modelId };
 }
 
-export function resultFor(
+export function countedImageResult(
   version: ModelVersion,
   digest: string,
   seeds: number,
@@ -80,23 +81,10 @@ export function resultFor(
   };
 }
 
-export function failureFor(version: ModelVersion, digest: string) {
-  return {
-    schemaVersion: 1 as const,
-    image: { digest },
-    producer: {
-      modelVersionId: version.id,
-      artifactDigest: version.artifact.digest,
-      runtime: ULTRALYTICS_RUNTIME,
-    },
-    error: "no unit found",
-  };
-}
-
 export async function unitsOf(
   experiment: string,
 ): Promise<Map<string, string>> {
-  const grid = await readExperimentGrid(experiment);
+  const grid = await experimentGridDetail(experiment);
   return new Map(grid!.units.map((unit) => [unit.code, unit.id]));
 }
 
@@ -117,14 +105,4 @@ export async function assignImages(
       filename: `${code}.jpg`,
     })),
   });
-}
-
-export async function imagesByUnit(
-  experiment: string,
-): Promise<Map<string, string>> {
-  const grid = await readExperimentGrid(experiment);
-  const codes = new Map(grid!.units.map((unit) => [unit.id, unit.code]));
-  return new Map(
-    grid!.images.map((image) => [codes.get(image.unit)!, image.id]),
-  );
 }

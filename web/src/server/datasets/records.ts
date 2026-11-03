@@ -2,14 +2,11 @@ import { and, eq, isNotNull, sql } from "drizzle-orm";
 
 import type { AnnotationDocument } from "../../domain/annotation/schema";
 import type {
-  DatasetContents,
-  DatasetImageRef,
+  DatasetImageOverview,
   DatasetOverview,
-} from "../../domain/datasets/schema";
-import type {
-  DetectionQuality,
-  DetectionResult,
-} from "../../domain/detection/schema";
+} from "../../domain/datasets/read-model";
+import type { DatasetContents } from "../../domain/datasets/schema";
+import type { DetectionResult } from "../../domain/detection/schema";
 import { markedUnclear } from "../images/public";
 import { shownDetectingVersion } from "../inference/public";
 import { database, type Executor } from "../infra/db/client";
@@ -24,19 +21,6 @@ import {
   readDataset,
   toDatasetImage,
 } from "./memberships";
-
-export interface ImageOverview extends DatasetImageRef {
-  filename: string;
-  /** Boxes of the newest detection, or null until a version has run. */
-  detectionCount: number | null;
-  /** Boxes of the newest AI proposal, or null until an agent has drawn one. */
-  proposalCount: number | null;
-  /** Boxes of the stored review, or null until someone has reviewed the image. */
-  reviewCount: number | null;
-  quality: DetectionQuality | null;
-  /** Whether a person marked the photograph unclear; it trains all the same. */
-  unclear: boolean;
-}
 
 /**
  * A dataset image with the documents that decide its state, loaded in one
@@ -59,7 +43,7 @@ export interface ReviewedRecord extends ImageRecord {
   annotation: AnnotationDocument;
 }
 
-export function summarize(record: ImageRecord): ImageOverview {
+export function summarize(record: ImageRecord): DatasetImageOverview {
   const { image, detection, annotation } = record;
   return {
     dataset: image.dataset,

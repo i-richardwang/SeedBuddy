@@ -1,13 +1,13 @@
 /** Public page queries; other files are module internals. */
 
 export { datasetDetail } from "./dataset-detail";
-export { readDatasetImage } from "./dataset-image";
-export { findImages } from "./find-image";
-export { modelCatalogue } from "./model-catalogue";
+export { datasetImageDetail } from "./dataset-image-detail";
+export { findImages } from "./find-images";
+export { listModelOverviews } from "./list-model-overviews";
+export { listPendingAnnotationOverviews } from "./list-pending-annotation-overviews";
+export { listTrainingRunOverviews } from "./list-training-run-overviews";
+export { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
+export { listWorkerOverviews } from "./list-worker-overviews";
 export { modelDetail } from "./model-detail";
-export { listPendingAnnotations } from "./pending-annotations";
-export { trainingRunDetail } from "./training-run";
-export { listTrainingRunOverviews } from "./training-runs";
-export { trainingWorkerOptions } from "./training-workers";
-export { versionComparison } from "./version-comparison";
-export { listWorkerPresence } from "./workers";
+export { trainingRunDetail } from "./training-run-detail";
+export { versionComparisonDetail } from "./version-comparison-detail";

@@ -1,5 +1,5 @@
 import type { UserAccount } from "../../domain/auth/schema";
-import { changeUserRole } from "../../functions/users";
+import { updateUserRole } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Flexbox } from "../../ui/kit/Flex";
@@ -73,7 +73,7 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
           onChange={(role) => {
             if (role === account.role) return;
             void run(
-              () => changeUserRole({ data: { user: account.id, role } }),
+              () => updateUserRole({ data: { user: account.id, role } }),
               m.user_role_not_changed(),
             );
           }}

@@ -3,11 +3,11 @@ import { useState } from "react";
 
 import type { UserAccount } from "../../domain/auth/schema";
 import {
-  reinstateUser,
   removeUser,
-  resetUserPassword,
-  signOutUserEverywhere,
-  suspendUser,
+  removeUserSessions,
+  updateUserPassword,
+  updateUserReinstatement,
+  updateUserSuspension,
 } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
@@ -53,7 +53,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
             label: m.user_menu_sign_out_everywhere(),
             onClick: () =>
               act(
-                () => signOutUserEverywhere({ data: { user: account.id } }),
+                () => removeUserSessions({ data: { user: account.id } }),
                 m.user_sessions_not_revoked(),
                 m.user_signed_out_everywhere({ name: account.name }),
               ),
@@ -65,7 +65,8 @@ export function UserMenu({ account }: { account: UserAccount }) {
                 label: m.user_menu_reinstate(),
                 onClick: () =>
                   act(
-                    () => reinstateUser({ data: { user: account.id } }),
+                    () =>
+                      updateUserReinstatement({ data: { user: account.id } }),
                     m.user_not_reinstated(),
                   ),
               }
@@ -79,7 +80,9 @@ export function UserMenu({ account }: { account: UserAccount }) {
                     content: m.user_suspend_body(),
                     confirmLabel: m.user_suspend_confirm(),
                     onConfirm: async () => {
-                      await suspendUser({ data: { user: account.id } });
+                      await updateUserSuspension({
+                        data: { user: account.id },
+                      });
                     },
                     onSuccess: () => {
                       toast.success(m.user_suspended({ name: account.name }));
@@ -159,7 +162,7 @@ function ResetPasswordForm({
         const form = new FormData(event.currentTarget);
         void run(
           () =>
-            resetUserPassword({
+            updateUserPassword({
               data: {
                 user: account.id,
                 password: String(form.get("password") ?? ""),

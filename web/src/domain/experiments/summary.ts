@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 import { unitExclusions } from "./analysis";
 import {
   cellKey,
@@ -7,14 +5,14 @@ import {
   observationCells,
   unitDays,
 } from "./cell-reading";
-import type { ExperimentGrid } from "./contracts";
 import { observationOrdinals } from "./culture-events";
-import {
-  type ExperimentObservation,
-  observationIdSchema,
-  treatmentIdSchema,
-  unitIdSchema,
-} from "./schema";
+import type {
+  ExperimentGridDetail,
+  ExperimentSummary,
+  Statistic,
+  TreatmentDaySummary,
+} from "./read-model";
+import type { ExperimentObservation } from "./schema";
 
 /**
  * The summary is the experiment by treatment: on each observation, how many
@@ -29,51 +27,6 @@ import {
  * the day reads for the model the first observation read for, and the unit
  * counted something that first day; the first observation itself has none.
  */
-
-/** How the numbers of a treatment's units fall: how many, their mean, and their spread. */
-const statisticSchema = z.strictObject({
-  n: z.number().int().min(1),
-  mean: z.number(),
-  /** The sample standard deviation, or null for a single unit, which has no spread. */
-  sd: z.number().nullable(),
-  /** The standard error of the mean, sd over the root of n; null with sd. */
-  se: z.number().nullable(),
-});
-
-export type Statistic = z.infer<typeof statisticSchema>;
-
-/** One unit's numbers on a day, as the summary takes them. */
-const summaryUnitSchema = z.strictObject({
-  unit: unitIdSchema,
-  count: z.number().int().min(0),
-  rate: z.number().nullable(),
-});
-
-export type SummaryUnit = z.infer<typeof summaryUnitSchema>;
-
-/**
- * One treatment on one observation. `units` are the treatment's units in the
- * analysis that day with a number; `count` and `rate` summarise them, and
- * are null where no unit has that number.
- */
-const treatmentDaySummarySchema = z.strictObject({
-  treatment: treatmentIdSchema,
-  observation: observationIdSchema,
-  units: z.array(summaryUnitSchema),
-  count: statisticSchema.nullable(),
-  rate: statisticSchema.nullable(),
-});
-
-export type TreatmentDaySummary = z.infer<typeof treatmentDaySummarySchema>;
-
-export const experimentSummarySchema = z.strictObject({
-  /** The observation rates are taken against: the first, or null before any. */
-  baseline: observationIdSchema.nullable(),
-  /** A summary for every treatment on every observation, treatments in the design's order. */
-  cells: z.array(treatmentDaySummarySchema),
-});
-
-export type ExperimentSummary = z.infer<typeof experimentSummarySchema>;
 
 /** A treatment's summary on an observation, or none for a pair the summary does not hold. */
 export function summaryCell(
@@ -117,7 +70,7 @@ export function statistic(values: readonly number[]): Statistic | null {
 }
 
 /** The observation rates are taken against: the first one made. */
-export function baselineObservation(
+function baselineObservation(
   observations: readonly ExperimentObservation[],
 ): ExperimentObservation | null {
   return observations.reduce<ExperimentObservation | null>(
@@ -135,13 +88,15 @@ function summaryKey(treatment: string, observation: string): string {
 }
 
 /** The experiment summarised by treatment on every observation, from the cells the analysis reads. */
-export function experimentSummary(grid: ExperimentGrid): ExperimentSummary {
+export function experimentSummary(
+  grid: ExperimentGridDetail,
+): ExperimentSummary {
   const cells = observationCells(grid.images, grid.manualReadings);
   const ordinals = observationOrdinals(grid.observations);
   const baseline = baselineObservation(grid.observations);
 
   // Every unit's numbers on every day, before they are gathered by treatment.
-  const numbers = new Map<string, SummaryUnit[]>();
+  const numbers = new Map<string, TreatmentDaySummary["units"]>();
   for (const unit of grid.units) {
     const days = unitDays(cells, unit.id, grid.observations);
     const exclusion = unitExclusions(

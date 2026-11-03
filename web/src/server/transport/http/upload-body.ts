@@ -7,13 +7,14 @@ export function uploadFailure(message: string, status: number): Response {
 export async function exactLengthBody(
   request: Request,
   maxBytes: number,
+  refuse: (message: string, status: number) => Response = uploadFailure,
 ): Promise<Uint8Array | Response> {
   const length = Number(request.headers.get("content-length"));
   if (!Number.isSafeInteger(length) || length <= 0)
-    return uploadFailure("Content-Length is required", 411);
+    return refuse("Content-Length is required", 411);
   if (length > maxBytes)
-    return uploadFailure(`Body exceeds ${maxBytes / (1024 * 1024)} MiB`, 413);
-  if (!request.body) return uploadFailure("Body is required", 400);
+    return refuse(`Body exceeds ${maxBytes / (1024 * 1024)} MiB`, 413);
+  if (!request.body) return refuse("Body is required", 400);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -24,15 +25,14 @@ export async function exactLengthBody(
       size += value.byteLength;
       if (size > length) {
         await reader.cancel();
-        return uploadFailure("Body exceeds Content-Length", 413);
+        return refuse("Body exceeds Content-Length", 413);
       }
       chunks.push(value);
     }
   } finally {
     reader.releaseLock();
   }
-  if (size !== length)
-    return uploadFailure("Body differs from Content-Length", 400);
+  if (size !== length) return refuse("Body differs from Content-Length", 400);
   const bytes = new Uint8Array(size);
   let offset = 0;
   for (const chunk of chunks) {

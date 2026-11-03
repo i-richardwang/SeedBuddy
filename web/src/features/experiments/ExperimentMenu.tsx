@@ -2,7 +2,10 @@ import { Download, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { Experiment } from "../../domain/experiments/schema";
-import { editExperiment, removeExperiment } from "../../functions/experiments";
+import {
+  removeExperiment,
+  updateExperiment,
+} from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
@@ -133,7 +136,7 @@ function EditExperimentForm({
         const fields = readExperimentFields(new FormData(event.currentTarget));
         void action.run(
           () =>
-            editExperiment({
+            updateExperiment({
               data: {
                 experiment: experiment.id,
                 ...fields,

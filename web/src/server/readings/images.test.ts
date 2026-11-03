@@ -4,17 +4,16 @@ import { instancesFromDetection } from "../../domain/annotation/detection";
 import { storeAnnotation } from "../annotations/documents";
 import { database } from "../infra/db/client";
 import { setCurrentVersion } from "../models/public";
+import { observeImages } from "../testing/experiments";
+import { resultFor } from "../testing/images";
+import { seedDetectionResult } from "../testing/inference";
+import { registerTrainedVersion, traditionalVersion } from "../testing/models";
 import {
-  observeImages,
   recordTestHeartbeat,
-  registerTrainedVersion,
-  resultFor,
   TEST_RUNTIME,
   testHeartbeat,
-  traditionalVersion,
   ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
-import { seedDetectionResult } from "../testing/inference";
+} from "../testing/workers";
 import { readReview } from "./images";
 
 test("a review shows the current version's detection and the stored annotation", async () => {

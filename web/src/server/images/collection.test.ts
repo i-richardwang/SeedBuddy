@@ -1,12 +1,23 @@
 import { describe, expect, test } from "bun:test";
 
+import { createObservation } from "../experiments/observations";
+import {
+  assignImages,
+  createExperiment,
+  INOCULATED,
+  reading,
+  trainedVersion,
+  unitsOf,
+} from "../experiments/testing";
 import { blobExists, listBlobs, putImmutableBlob } from "../infra/blobs/store";
-import { imageBytes, observeImages } from "../testing/fixtures";
+import { observeImages } from "../testing/experiments";
+import { imageBytes, imageDigest, storeTexts } from "../testing/images";
 import { collectImages } from "./collection";
 import { canonicalize } from "./ingest";
 import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
 import { readImageRegion } from "./regions";
 import { storeImage } from "./store";
+import { markImageUnclear } from "./unclear";
 
 describe("collection", () => {
   /** A moment past the period an unclaimed image is kept for. */
@@ -61,4 +72,38 @@ describe("collection", () => {
     expect(await blobExists(imageBlobKey(orphan.digest))).toBe(false);
     expect(await blobExists(evidence.key)).toBe(false);
   });
+});
+
+test("an unclear mark keeps no image alive", async () => {
+  const [loose] = await storeTexts(["unclear-loose"]);
+  await markImageUnclear({ digest: loose! });
+  const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  expect(await collectImages(later)).toContain(loose!);
+});
+
+test("an experiment observation image is a garbage-collection root", async () => {
+  const version = await trainedVersion("exp-gc");
+  const experiment = await createExperiment({
+    name: "GC",
+    inoculatedOn: INOCULATED,
+    treatments: [{ name: "E", replicates: 1 }],
+  });
+  const units = await unitsOf(experiment.id);
+  const observation = await createObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-08",
+    note: "",
+    ...reading(version),
+  });
+  await assignImages(experiment.id, observation.id, units, {
+    "E-1": "gc-e1",
+  });
+  const kept = await imageDigest("gc-e1");
+  const [loose] = await storeTexts(["gc-loose"]);
+  const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  const collected = await collectImages(later);
+
+  expect(collected).toContain(loose!);
+  expect(collected).not.toContain(kept);
+  expect(await blobExists(imageBlobKey(kept))).toBeTrue();
 });

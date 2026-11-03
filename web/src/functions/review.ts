@@ -10,7 +10,7 @@ import {
   storeAnnotation,
 } from "../server/annotations/public";
 
-export const saveAnnotation = createServerFn({ method: "POST" })
+export const updateAnnotation = createServerFn({ method: "POST" })
   .validator(
     z.strictObject({
       ref: annotationRefSchema,

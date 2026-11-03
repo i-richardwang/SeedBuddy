@@ -2,11 +2,10 @@ import { createMiddleware } from "@tanstack/react-start";
 import type { ZodType } from "zod";
 
 import { DomainError } from "../../../domain/errors";
-import { InvalidDetectionOutcomeError } from "../../../domain/inference/errors";
 import { artifactUploadSchema } from "../../../domain/training/artifact";
 import {
   type AttemptOwner,
-  attemptOwnerSchema,
+  attemptClaimSchema,
 } from "../../../domain/workers/schema";
 import { bearerToken } from "../../auth/public";
 import { authenticateWorker } from "../../workers/public";
@@ -76,7 +75,6 @@ export function parseWorkerValue<T>(
 
 function statusOf(error: unknown): number | null {
   if (error instanceof WorkerRequestError) return error.status;
-  if (error instanceof InvalidDetectionOutcomeError) return 400;
   if (error instanceof DomainError)
     return error.category === "not_found"
       ? 404
@@ -113,7 +111,7 @@ export function parseAttemptOwner(
         sessionId: query.get("sessionId"),
         attempt: Number(query.get("attempt")),
       },
-      attemptOwnerSchema,
+      attemptClaimSchema,
       "Attempt owner",
     ),
   };

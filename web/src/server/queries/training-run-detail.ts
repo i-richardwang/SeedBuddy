@@ -18,7 +18,7 @@ import {
   readTrainingRun,
   trainingLeaseHeld,
 } from "../training/public";
-import { trainingWorkerOptions } from "./training-workers";
+import { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
 
 /**
  * One run with its whole epoch history and its attempts, whether it has
@@ -53,7 +53,7 @@ export async function trainingRunDetail(
     blockedBy: await blockingRun(run),
     epochs: await listTrainingEpochs(runId),
     attempts: await listTrainingAttempts(runId),
-    workers: await trainingWorkerOptions(),
+    workers: await listTrainingWorkerOverviews(),
     version,
     current:
       version !== null && (await readCurrentVersionId(model.id)) === version.id,

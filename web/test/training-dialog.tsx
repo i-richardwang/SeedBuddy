@@ -10,7 +10,7 @@ mock.module("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate: async () => {} }),
 }));
 mock.module("../src/functions/training", () => ({
-  startTrainingRun: async (value: unknown) => {
+  createTrainingRun: async (value: unknown) => {
     submissions.push(value);
   },
 }));

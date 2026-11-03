@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { boundingBoxSchema } from "../annotation/schema";
+import { imageRectangleSchema } from "../images/geometry";
 import { imageDigestSchema } from "../images/schema";
 import { detectionProducerSchema } from "../inference/schema";
 import { classNameSchema } from "../models/classes";
@@ -15,7 +15,7 @@ const detectionQualitySchema = z.strictObject({
 const detectionInstanceSchema = z.strictObject({
   id: z.string().min(1),
   class: classNameSchema,
-  bbox: boundingBoxSchema,
+  bbox: imageRectangleSchema,
   score: z.number().finite().min(0).max(1),
 });
 

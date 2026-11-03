@@ -4,11 +4,12 @@ import { addExperimentObservationImagesToNewDataset } from "../datasets/membersh
 import { createObservation } from "../experiments/observations";
 import {
   assignObservationImages,
-  readExperimentGrid,
+  experimentGridDetail,
 } from "../experiments/public";
 import { createModel } from "../models/public";
-import { observeImagesForModel, storeTexts } from "../testing/fixtures";
-import { findImages } from "./find-image";
+import { observeImagesForModel } from "../testing/experiments";
+import { storeTexts } from "../testing/images";
+import { findImages } from "./find-images";
 
 test("a person's filename or page link finds the image, once per model, with every place it is seen", async () => {
   const model = await createModel({
@@ -17,12 +18,12 @@ test("a person's filename or page link finds the image, once per model, with eve
     classes: ["seed"],
   });
   const observed = await observeImagesForModel(
-    "find-image",
+    "find-images",
     ["find-image-a", "find-image-b"],
     model.id,
   );
   const { experiment } = observed;
-  const grid = (await readExperimentGrid(experiment.id))!;
+  const grid = (await experimentGridDetail(experiment.id))!;
   const unit = grid.units.find((item) => item.code === "Test-1")!.id;
   const later = await createObservation({
     experiment: experiment.id,
@@ -48,7 +49,7 @@ test("a person's filename or page link finds the image, once per model, with eve
       ref: ref(first!),
       filename: "find-image-a.jpg",
       places: [
-        { experiment: "find-image", unit: "Test-1", observedOn: "2026-08-08" },
+        { experiment: "find-images", unit: "Test-1", observedOn: "2026-08-08" },
         { dataset: "find-image-set" },
       ],
     },
@@ -67,5 +68,5 @@ test("a person's filename or page link finds the image, once per model, with eve
       places: [{ dataset: "find-image-set" }],
     },
   ]);
-  expect(await findImages("find-image")).toEqual([]);
+  expect(await findImages("find-images")).toEqual([]);
 });

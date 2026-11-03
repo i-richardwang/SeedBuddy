@@ -10,10 +10,7 @@ import {
 } from "../domain/training/recipes";
 import { trainingControlSchema } from "../domain/training/schema";
 import { trainingRunDetail } from "../server/queries/public";
-import {
-  controlTrainingRun,
-  createTrainingRun,
-} from "../server/training/public";
+import * as trainingService from "../server/training/public";
 
 export const getTrainingRun = createServerFn({ method: "GET" })
   .validator(datasetRefSchema.extend({ runId: resourceIdSchema }))
@@ -23,7 +20,7 @@ export const getTrainingRun = createServerFn({ method: "GET" })
  * Freezes the reviewed annotations into a snapshot and queues one training run
  * of the recipe with the chosen parameters.
  */
-export const startTrainingRun = createServerFn({ method: "POST" })
+export const createTrainingRun = createServerFn({ method: "POST" })
   .validator(
     datasetRefSchema.extend({
       presetId: trainingPresetIdSchema,
@@ -32,14 +29,14 @@ export const startTrainingRun = createServerFn({ method: "POST" })
     }),
   )
   .handler(({ data }) =>
-    createTrainingRun(
+    trainingService.createTrainingRun(
       data.dataset,
       resolveTrainingRecipe(data.presetId, data.overrides),
       data.targetWorkerId,
     ),
   );
 
-export const controlTraining = createServerFn({ method: "POST" })
+export const updateTrainingRun = createServerFn({ method: "POST" })
   .validator(
     datasetRefSchema.extend({
       runId: resourceIdSchema,
@@ -48,5 +45,10 @@ export const controlTraining = createServerFn({ method: "POST" })
     }),
   )
   .handler(({ data }) =>
-    controlTrainingRun(data.dataset, data.runId, data.attempt, data.control),
+    trainingService.controlTrainingRun(
+      data.dataset,
+      data.runId,
+      data.attempt,
+      data.control,
+    ),
   );

@@ -12,7 +12,6 @@ export {
 } from "./memberships";
 export {
   countReviewed,
-  type ImageOverview,
   type ImageRecord,
   listDatasetOverviews,
   listImageRecords,

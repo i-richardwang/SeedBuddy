@@ -1,20 +1,20 @@
 import { expect, test } from "bun:test";
 
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
+import { reviewedDataset } from "../testing/datasets";
+import { traditionalVersion } from "../testing/models";
 import {
   recordTestHeartbeat,
-  reviewedDataset,
   testHeartbeat,
-  traditionalVersion,
   ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
+} from "../testing/workers";
 import { controlTrainingRun } from "../training/control";
 import {
   claimTrainingRun,
   createTrainingRun,
   renewTrainingLease,
 } from "../training/runs";
-import { trainingRunDetail } from "./training-run";
+import { trainingRunDetail } from "./training-run-detail";
 
 test("a run's detail judges whether it has stalled as of its reading", async () => {
   const { dataset } = await reviewedDataset(

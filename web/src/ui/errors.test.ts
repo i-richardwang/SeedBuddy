@@ -21,7 +21,7 @@ test("known refusals have their specific message", () => {
   expect(
     errorMessage({
       kind: "business_failure",
-      code: "model_id_taken",
+      code: "model_name_taken",
       category: "conflict",
       details: {},
     }),
@@ -31,7 +31,7 @@ test("known refusals have their specific message", () => {
 test("an image refusal names each photograph and where the experiment holds it", () => {
   const message = errorMessage({
     kind: "business_failure",
-    code: "experiment_observation_image_already_used",
+    code: "experiment_observation_image_conflict",
     category: "conflict",
     details: {
       images: [

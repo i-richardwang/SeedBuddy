@@ -16,4 +16,4 @@ RUN bun install --frozen-lockfile --production --network-concurrency=4
 COPY --from=build /app/web/dist ./dist
 COPY web/drizzle ./drizzle
 EXPOSE 3000
-CMD ["bun", "dist/server.js"]
+CMD ["bun", "run", "start"]

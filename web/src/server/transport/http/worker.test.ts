@@ -3,11 +3,11 @@ import { expect, spyOn, test } from "bun:test";
 import {
   DetectionConflictError,
   DetectionImageNotFoundError,
-  InvalidDetectionOutcomeError,
+  DetectionOutcomeInvalidError,
   ProducerMismatchError,
 } from "../../../domain/inference/errors";
 import {
-  TrainingArtifactValidationError,
+  TrainingArtifactInvalidError,
   TrainingRunConflictError,
   TrainingRunNotFoundError,
 } from "../../../domain/training/errors";
@@ -18,7 +18,7 @@ test("worker HTTP errors answer with the status the protocol acts on", () => {
   const status = (error: Error) =>
     workerErrorResponse(error, "Operation failed").status;
   expect(status(new WorkerRequestError("invalid request"))).toBe(400);
-  expect(status(new InvalidDetectionOutcomeError("bad outcome"))).toBe(400);
+  expect(status(new DetectionOutcomeInvalidError("bad outcome"))).toBe(422);
   expect(status(new TrainingRunNotFoundError("unknown run"))).toBe(404);
   expect(status(new DetectionImageNotFoundError("unknown image"))).toBe(404);
   expect(status(new WorkerSessionConflictError("replaced"))).toBe(409);
@@ -27,7 +27,7 @@ test("worker HTTP errors answer with the status the protocol acts on", () => {
     status(new DetectionConflictError({ versionId: "v", digest: "d" })),
   ).toBe(409);
   expect(status(new ProducerMismatchError("other runtime"))).toBe(422);
-  expect(status(new TrainingArtifactValidationError("invalid"))).toBe(422);
+  expect(status(new TrainingArtifactInvalidError("invalid"))).toBe(422);
 });
 
 test("worker HTTP errors hide unexpected server failures", async () => {

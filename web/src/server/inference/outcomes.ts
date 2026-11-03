@@ -4,7 +4,7 @@ import type { DetectionResult } from "../../domain/detection/schema";
 import {
   DetectionConflictError,
   DetectionImageNotFoundError,
-  InvalidDetectionOutcomeError,
+  DetectionOutcomeInvalidError,
   ProducerMismatchError,
 } from "../../domain/inference/errors";
 import { sameRuntimeDescriptor } from "../../domain/inference/schema";
@@ -102,7 +102,7 @@ export async function storeInferenceOutcome(
   try {
     assertDocumentImage("Outcome", outcome.image, image);
   } catch (error) {
-    throw new InvalidDetectionOutcomeError(
+    throw new DetectionOutcomeInvalidError(
       error instanceof Error ? error.message : String(error),
     );
   }
@@ -110,7 +110,7 @@ export async function storeInferenceOutcome(
   try {
     assertInstanceClasses(model.classes, outcome.instances, "Outcome");
   } catch (error) {
-    throw new InvalidDetectionOutcomeError(
+    throw new DetectionOutcomeInvalidError(
       error instanceof Error ? error.message : String(error),
     );
   }

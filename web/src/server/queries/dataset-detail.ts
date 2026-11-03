@@ -1,41 +1,17 @@
-import type { Dataset } from "../../domain/datasets/schema";
-import type { Model } from "../../domain/models/schema";
-import type {
-  DatasetTrainingReadiness,
-  TrainingRunOverview,
-} from "../../domain/training/read-model";
+import type { DatasetDetail } from "../../domain/datasets/read-model";
 import {
   DEFAULT_TRAINING_PRESET_ID,
   TRAINING_PRESETS,
-  type TrainingPreset,
-  type TrainingPresetId,
 } from "../../domain/training/recipes";
 import {
   countReviewed,
-  type ImageOverview,
   listImageRecords,
   readDataset,
   summarize,
 } from "../datasets/public";
 import { readModel } from "../models/public";
-import { datasetTrainingReadiness } from "./training-readiness";
-import { listTrainingRunOverviews } from "./training-runs";
-
-/**
- * What a training set's page shows: its model and images, how many are
- * reviewed and so train, the state of training with the recipe a new run
- * starts from, and the set's runs.
- */
-interface DatasetDetail {
-  dataset: Dataset;
-  model: Model;
-  images: ImageOverview[];
-  reviewedCount: number;
-  training: DatasetTrainingReadiness;
-  trainingPresets: readonly TrainingPreset[];
-  defaultTrainingPresetId: TrainingPresetId;
-  runs: TrainingRunOverview[];
-}
+import { datasetTrainingReadiness } from "./dataset-training-readiness";
+import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
 export async function datasetDetail(
   datasetId: string,

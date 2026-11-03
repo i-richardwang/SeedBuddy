@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { modelSchema } from "./schema";
-
 const count = z.number().int().min(0);
 
 /**
@@ -26,10 +24,3 @@ export type ModelRecordKind = keyof ModelRecords;
 export const MODEL_RECORD_KINDS = Object.keys(
   modelRecordsSchema.shape,
 ) as ModelRecordKind[];
-
-const modelCatalogueEntrySchema = z.strictObject({
-  model: modelSchema,
-  records: modelRecordsSchema,
-});
-
-export type ModelCatalogueEntry = z.infer<typeof modelCatalogueEntrySchema>;

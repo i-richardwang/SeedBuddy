@@ -24,12 +24,11 @@ export const workerSessionSchema = z.strictObject({
 });
 
 /** The execution attempt owned by a worker process session. */
-export const attemptOwnerSchema = workerSessionSchema.extend({
+export const attemptClaimSchema = workerSessionSchema.extend({
   attempt: z.number().int().positive(),
 });
-export type AttemptOwner = WorkerIdentity & {
-  attempt: number;
-};
+type AttemptClaim = z.infer<typeof attemptClaimSchema>;
+export type AttemptOwner = WorkerIdentity & AttemptClaim;
 
 /** What a worker process reports about itself on every heartbeat. */
 export const workerReportSchema = workerSessionSchema.extend({
@@ -55,7 +54,7 @@ export interface WorkerIdentity {
   workerId: string;
   sessionId: string;
 }
-export type WorkerReport = z.infer<typeof workerReportSchema>;
+type WorkerReport = z.infer<typeof workerReportSchema>;
 export type WorkerHeartbeat = WorkerReport & { workerId: string };
 export type Worker = z.infer<typeof workerSchema>;
 

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { prepareDatabase } from "./bootstrap";
-import { database } from "./infra/db/client";
-import type { Connection } from "./infra/db/connection";
+import { database } from "../infra/db/client";
+import type { Connection } from "../infra/db/connection";
+import { prepareDatabase } from "./preparation";
 
 describe("preparing a connection", () => {
   test("serves the database once it is migrated", async () => {

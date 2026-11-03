@@ -3,15 +3,14 @@ import { expect, test } from "bun:test";
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { readAnnotation, storeAnnotation } from "../annotations/documents";
+import { observeTextsIntoDataset } from "../testing/datasets";
+import { imageDigest, resultFor } from "../testing/images";
+import { seedDetectionResult } from "../testing/inference";
 import {
-  imageDigest,
-  observeTextsIntoDataset,
   recordTestHeartbeat,
-  resultFor,
   testHeartbeat,
   ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
-import { seedDetectionResult } from "../testing/inference";
+} from "../testing/workers";
 import {
   claimTrainingRun,
   createTrainingRun,

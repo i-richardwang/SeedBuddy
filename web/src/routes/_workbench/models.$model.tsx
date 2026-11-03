@@ -8,6 +8,7 @@ import { ChartLine, Images, Network, Upload } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
+import type { ModelDetail } from "../../domain/models/read-model";
 import { DatasetsGrid } from "../../features/datasets/DatasetsGrid";
 import { ImportDatasetDialog } from "../../features/datasets/ImportDatasetDialog";
 import { ModelMenu } from "../../features/models/ModelMenu";
@@ -31,8 +32,6 @@ import {
   PageSection,
   PageSectionSkeleton,
 } from "../../ui/Page";
-
-type ModelDetail = NonNullable<Awaited<ReturnType<typeof getModelDetail>>>;
 
 /** `version` names the version whose comparison with the current one is open. */
 const modelSearchSchema = z.object({

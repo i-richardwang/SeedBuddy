@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { inferenceTargetSchema } from "../domain/inference/assignments";
 import { inferenceFailureSchema } from "../domain/inference/tasks";
-import { attemptOwnerSchema } from "../domain/workers/schema";
+import { attemptClaimSchema } from "../domain/workers/schema";
 import { failInferenceAttempt } from "../server/inference/public";
 import {
   parseWorkerSessionJson,
@@ -24,7 +24,7 @@ export const Route = createFileRoute(
           );
           const { failure, ...owner } = await parseWorkerSessionJson(
             request,
-            attemptOwnerSchema.extend({
+            attemptClaimSchema.extend({
               failure: inferenceFailureSchema,
             }),
             context.workerId,

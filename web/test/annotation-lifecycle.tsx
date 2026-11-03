@@ -52,7 +52,7 @@ let saves = 0;
 let saveStatus: "saved" | "conflict" = "saved";
 let releaseSave: (() => void) | undefined;
 mock.module("../src/functions/review", () => ({
-  saveAnnotation: (request: typeof saved) => {
+  updateAnnotation: (request: typeof saved) => {
     saves++;
     saved = request;
     return new Promise((resolve) => {
@@ -61,8 +61,8 @@ mock.module("../src/functions/review", () => ({
   },
 }));
 mock.module("../src/functions/images", () => ({
-  markUnclear: async () => {},
-  clearUnclear: async () => {},
+  createUnclearMark: async () => {},
+  removeUnclearMark: async () => {},
 }));
 const { ImageWorkbench } =
   await import("../src/features/annotation/ImageWorkbench");

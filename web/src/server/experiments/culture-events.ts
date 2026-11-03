@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type {
+  CultureEvent,
+  CultureEventRef,
+  CultureEventRequest,
+  CultureEventsRequest,
+} from "../../domain/experiments/culture-events";
 import {
   cultureEventIsTerminal,
   type ObservationOrdinals,
@@ -13,16 +18,11 @@ import {
 import {
   CultureEventNotFoundError,
   ObservationNotFoundError,
+  UnitConflictError,
   UnitNotFoundError,
-  UnitRejectedError,
 } from "../../domain/experiments/errors";
-import type {
-  CultureEvent,
-  CultureEventRef,
-  CultureEventRequest,
-  CultureEventsRequest,
-  ExperimentObservation,
-} from "../../domain/experiments/schema";
+import type { Unit } from "../../domain/experiments/read-model";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { type Executor, inTransaction } from "../infra/db/client";
 import {
   experimentCultureEvents,
@@ -31,7 +31,7 @@ import {
 } from "../infra/db/schema";
 import { listObservations, listUnits, lockExperiment } from "./records";
 
-export async function recordCultureEvent(
+async function recordCultureEvent(
   value: CultureEventRequest,
   executor?: Executor,
 ): Promise<CultureEvent> {
@@ -59,7 +59,7 @@ export async function recordCultureEvent(
         (event) => event.observation === observationId && event.type === type,
       )
     ) {
-      throw new UnitRejectedError(
+      throw new UnitConflictError(
         `${type} is already recorded for ${unit.code} at this observation`,
       );
     }
@@ -67,12 +67,12 @@ export async function recordCultureEvent(
       cultureEventIsTerminal(event.type),
     );
     if (cultureEventIsTerminal(type) && hasTerminalEvent) {
-      throw new UnitRejectedError(`${unit.code} has already left the bench`);
+      throw new UnitConflictError(`${unit.code} has already left the bench`);
     }
 
     const ordinals = observationOrdinals(observations);
     if (!unitIsAvailableAt(unit.events, observation, ordinals)) {
-      throw new UnitRejectedError(
+      throw new UnitConflictError(
         `Unit ${unit.code} was already removed before this observation`,
       );
     }
@@ -191,7 +191,7 @@ export async function assertUnitRecordsEndAt(
         observationOrdinal(ordinals, event.observation) > observation.ordinal,
     );
   if (hasLaterRecord) {
-    throw new UnitRejectedError(
+    throw new UnitConflictError(
       `Unit ${unit.code} has records after this observation and cannot be removed here`,
     );
   }

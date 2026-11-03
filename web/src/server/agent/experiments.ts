@@ -1,17 +1,21 @@
 import { z } from "zod";
 
 import {
-  experimentOverviewSchema,
-  unitSchema,
-} from "../../domain/experiments/contracts";
+  cultureEventRefSchema,
+  cultureEventSchema,
+  cultureEventsRequestSchema,
+} from "../../domain/experiments/culture-events";
 import {
   ExperimentNotFoundError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import {
-  cultureEventRefSchema,
-  cultureEventSchema,
-  cultureEventsRequestSchema,
+  experimentOverviewSchema,
+  experimentSheetSchema,
+  unitRowSchema,
+  unitSchema,
+} from "../../domain/experiments/read-model";
+import {
   experimentObservationSchema,
   experimentRefSchema,
   experimentRequestSchema,
@@ -34,10 +38,6 @@ import {
   unitsTreatmentUpdateSchema,
   unitUpdateSchema,
 } from "../../domain/experiments/schema";
-import {
-  experimentSheetSchema,
-  unitRowSchema,
-} from "../../domain/experiments/sheet";
 import { imageRefSchema } from "../../domain/images/schema";
 import {
   unclearClearedSchema,
@@ -53,15 +53,15 @@ import {
   deleteObservation,
   deleteTreatment,
   deleteUnit,
-  listExperiments,
+  experimentSheetDetail,
+  listExperimentOverviews,
   moveUnits,
-  readExperimentSheet,
-  readUnitRow,
   recordCultureEvents,
   recordManualReadings,
   recordObservation,
   retryObservationImageAnalysis,
   unassignObservationImage,
+  unitRowDetail,
   updateExperiment,
   updateObservation,
   updateTreatment,
@@ -84,7 +84,7 @@ export const experimentOperations = [
       "List every experiment with the size of its design and how far its observations have come",
     input: z.strictObject({}),
     output: z.array(experimentOverviewSchema),
-    handler: () => listExperiments(),
+    handler: () => listExperimentOverviews(),
   }),
   query({
     name: "get-experiment",
@@ -93,7 +93,7 @@ export const experimentOperations = [
     input: experimentRefSchema,
     output: experimentSheetSchema,
     handler: async ({ experiment }) => {
-      const sheet = await readExperimentSheet(experiment);
+      const sheet = await experimentSheetDetail(experiment);
       if (!sheet) {
         throw new ExperimentNotFoundError(`Unknown experiment: ${experiment}`);
       }
@@ -107,7 +107,7 @@ export const experimentOperations = [
     input: unitRefSchema,
     output: unitRowSchema,
     handler: async (ref) => {
-      const row = await readUnitRow(ref);
+      const row = await unitRowDetail(ref);
       if (!row) {
         throw new UnitNotFoundError(
           `Unknown unit: ${ref.unit} in experiment ${ref.experiment}`,

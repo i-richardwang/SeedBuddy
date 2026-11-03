@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
 import { pairInOrder, suggestUnit } from "../../domain/experiments/naming";
 import {
   type PhotoConflict,
   type PlacedPhoto,
   photoConflicts,
 } from "../../domain/experiments/photos";
+import type { Unit } from "../../domain/experiments/read-model";
 import type { UnitPhoto } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";

@@ -2,17 +2,39 @@ import { randomUUID } from "node:crypto";
 
 import { expect, test } from "bun:test";
 
-import { recordCultureEvent } from "../../experiments/culture-events";
+import { recordCultureEvents } from "../../experiments/culture-events";
 import { createExperiment } from "../../experiments/design";
 import { createObservation } from "../../experiments/observations";
 import { listTreatments, listUnits } from "../../experiments/records";
+import { trainedVersion } from "../../experiments/testing";
+import { storeTexts } from "../../testing/images";
 import {
   baselineVersion,
   registerTrainedVersion,
   traditionalVersion,
-} from "../../testing/fixtures";
+} from "../../testing/models";
+import { ULTRALYTICS_RUNTIME } from "../../testing/workers";
 import { database } from "./client";
-import { isUniqueViolation } from "./errors";
+import { refusingUnique } from "./errors";
+import { inferenceOutcomes } from "./schema";
+
+async function violatesUnique(
+  error: unknown,
+  constraint: string,
+): Promise<boolean> {
+  const refusal = new Error(constraint);
+  try {
+    await refusingUnique(
+      constraint,
+      () => refusal,
+      () => Promise.reject(error),
+    );
+  } catch (caught) {
+    return caught === refusal;
+  }
+  return false;
+}
+
 import {
   experimentCultureEvents,
   experiments,
@@ -47,9 +69,9 @@ test("the database rejects a second terminal event", async () => {
     note: "",
     modelId: version.modelId,
   });
-  await recordCultureEvent({
+  await recordCultureEvents({
     experiment: experiment.id,
-    unit: unit!.id,
+    units: [unit!.id],
     type: "discarded",
     observation: day7.id,
   });
@@ -133,7 +155,7 @@ test("the database compares experiment, treatment and unit names without case", 
   };
 
   expect(
-    isUniqueViolation(
+    await violatesUnique(
       await rejection(() =>
         db
           .insert(experiments)
@@ -154,7 +176,7 @@ test("the database compares experiment, treatment and unit names without case", 
   ).toBeTrue();
 
   expect(
-    isUniqueViolation(
+    await violatesUnique(
       await rejection(() =>
         db
           .insert(experimentTreatments)
@@ -173,7 +195,7 @@ test("the database compares experiment, treatment and unit names without case", 
   ).toBeTrue();
 
   expect(
-    isUniqueViolation(
+    await violatesUnique(
       await rejection(() =>
         db
           .insert(experimentUnits)
@@ -188,4 +210,32 @@ test("the database compares experiment, treatment and unit names without case", 
       "experiment_units_code",
     ),
   ).toBeTrue();
+});
+
+test("the database refuses execution failures in the detection results", async () => {
+  const version = await trainedVersion("exp-failure-fk");
+  const [digest] = await storeTexts(["failure-fk"]);
+  const failure = {
+    schemaVersion: 1 as const,
+    image: { digest },
+    producer: {
+      modelVersionId: version.id,
+      artifactDigest: version.artifact.digest,
+      runtime: ULTRALYTICS_RUNTIME,
+    },
+    error: "no unit found",
+  };
+
+  const invalidFailure = (async () => {
+    await (await database()).insert(inferenceOutcomes).values({
+      imageId: digest!,
+      modelVersionId: version.id,
+      document: {
+        ...failure,
+        producer: failure.producer,
+      } as never,
+      recordedAt: new Date(),
+    });
+  })();
+  await expect(invalidFailure).rejects.toThrow();
 });

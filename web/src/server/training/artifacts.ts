@@ -4,7 +4,7 @@ import {
   artifactUploadSchema,
   TRAINING_ARTIFACT_PART_BYTES,
 } from "../../domain/training/artifact";
-import { TrainingArtifactValidationError } from "../../domain/training/errors";
+import { TrainingArtifactInvalidError } from "../../domain/training/errors";
 import type { AttemptOwner } from "../../domain/workers/schema";
 import {
   ImmutableBlobConflictError,
@@ -14,7 +14,7 @@ import {
 import { database } from "../infra/db/client";
 import { contentDigest } from "../infra/digest";
 import { artifactPartKey } from "./keys";
-import { readTrainingRun, requireOwnedRunningRun } from "./runs";
+import { readTrainingRun, requireOwnedRunningRun } from "./ownership";
 
 export async function saveTrainingArtifactPart(
   runId: string,
@@ -25,7 +25,7 @@ export async function saveTrainingArtifactPart(
   bytes: Uint8Array,
 ) {
   if (!artifactUploadSchema.safeParse(upload).success)
-    throw new TrainingArtifactValidationError("Invalid artifact upload");
+    throw new TrainingArtifactInvalidError("Invalid artifact upload");
   const db = await database();
   await requireOwnedRunningRun(
     runId,
@@ -39,7 +39,7 @@ export async function saveTrainingArtifactPart(
     bytes.byteLength !== expected ||
     contentDigest(bytes) !== digest
   )
-    throw new TrainingArtifactValidationError(
+    throw new TrainingArtifactInvalidError(
       "Artifact part size or digest does not match",
     );
   try {
@@ -49,7 +49,7 @@ export async function saveTrainingArtifactPart(
     );
   } catch (error) {
     if (error instanceof ImmutableBlobConflictError)
-      throw new TrainingArtifactValidationError(
+      throw new TrainingArtifactInvalidError(
         "Artifact part already has different contents",
       );
     throw error;
@@ -72,12 +72,12 @@ export async function readTrainingArtifactParts(
       artifactPartKey(runId, owner.attempt, upload, part),
     );
     if (!chunk || chunk.byteLength !== artifactPartSize(upload, part))
-      throw new TrainingArtifactValidationError(
+      throw new TrainingArtifactInvalidError(
         `Artifact part ${part} is missing or incomplete`,
       );
     bytes.set(chunk, part * TRAINING_ARTIFACT_PART_BYTES);
   }
   if (contentDigest(bytes) !== upload.digest)
-    throw new TrainingArtifactValidationError("Artifact digest does not match");
+    throw new TrainingArtifactInvalidError("Artifact digest does not match");
   return bytes;
 }

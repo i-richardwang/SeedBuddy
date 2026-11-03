@@ -7,9 +7,7 @@
   "scripts": {
     "dev": "bun x vite dev",
     "build": "bun scripts/build.ts",
-    "i18n:compile": "bun scripts/compile-messages.ts",
     "start": "bun dist/server.js",
-    "test": "bun test",
     "db:generate": "drizzle-kit generate",
     "contracts:generate": "bun scripts/generate-contracts.ts",
     "contracts:check": "bun scripts/generate-contracts.ts --check",

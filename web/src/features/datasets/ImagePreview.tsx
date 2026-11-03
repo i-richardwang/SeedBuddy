@@ -1,18 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { PenLine } from "lucide-react";
 
+import type { DatasetImageOverview } from "../../domain/datasets/read-model";
 import { m } from "../../paraglide/messages";
 import { Button } from "../../ui/kit/Button";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { PreviewMedia } from "../../ui/kit/PreviewLayout";
 import { Status } from "../../ui/kit/Status";
 import { previewSrc } from "../../ui/viewport/picture";
-import {
-  BoxCount,
-  type DatasetImageOverview,
-  hasQualityNotes,
-  ImageQuality,
-} from "./ImageFacts";
+import { BoxCount, hasQualityNotes, ImageQuality } from "./ImageFacts";
 import {
   DATASET_IMAGE_STATE_TONE,
   type DatasetImageState,

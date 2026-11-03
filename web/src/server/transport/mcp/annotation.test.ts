@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
 import { createModel } from "../../models/public";
 import { authorizeMcpClient, signInAs } from "../../testing/auth";
-import { observeImagesForModel } from "../../testing/fixtures";
+import { observeImagesForModel } from "../../testing/experiments";
 import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
 import { annotationResourceMetadata } from "./access";
 import { serveAnnotationMcp } from "./annotation";

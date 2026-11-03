@@ -11,7 +11,7 @@ import {
   TEST_RUNTIME,
   testHeartbeat,
   ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
+} from "../testing/workers";
 import { currentWorkerSession, listOnlineTrainers } from "./sessions";
 
 function later(from: Date, seconds: number): Date {
