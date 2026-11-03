@@ -17,6 +17,14 @@ import { storeAnnotation } from "../annotations/documents";
 import { database } from "../infra/db/client";
 import { experimentObservations } from "../infra/db/schema";
 import { readModel } from "../models/public";
+import {
+  assignImages,
+  createExperiment,
+  INOCULATED,
+  reading,
+  trainedVersion,
+  unitsOf,
+} from "../testing/experiments";
 import { imageDigest } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
 import { baselineVersion } from "../testing/models";
@@ -30,16 +38,7 @@ import {
   updateObservation,
 } from "./observations";
 import { experimentGridDetail, listExperimentOverviews } from "./queries";
-import {
-  assignImages,
-  countedImageResult,
-  createExperiment,
-  INOCULATED,
-  reading,
-  trainedVersion,
-  unitsOf,
-  worker,
-} from "./testing";
+import { countedImageResult, worker } from "./testing";
 
 test("an observation reads for a model the registry holds", async () => {
   const version = await trainedVersion("exp-reading");

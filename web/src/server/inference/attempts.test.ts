@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
+import type { z } from "zod";
 
 import type { DetectionResult } from "../../domain/detection/schema";
-import type { InferenceAssignment } from "../../domain/inference/assignments";
+import type { inferenceAssignmentSchema } from "../../domain/inference/assignments";
 import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { Worker } from "../../domain/workers/schema";
 import { database } from "../infra/db/client";
@@ -381,3 +382,5 @@ test("renewal racing reclamation cannot both succeed and lose its lease", async 
     expect(task?.status).toBe("queued");
   }
 });
+
+type InferenceAssignment = z.infer<typeof inferenceAssignmentSchema>;

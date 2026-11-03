@@ -34,7 +34,7 @@ export const unitSchema = z.strictObject({
 
 export type Unit = z.infer<typeof unitSchema>;
 
-export const observationImageCellSchema = z.strictObject({
+const observationImageCellSchema = z.strictObject({
   id: observationImageIdSchema,
   unit: unitIdSchema,
   observation: observationIdSchema,
@@ -120,7 +120,7 @@ export type ExperimentObservationImageDetail = z.infer<
   typeof experimentObservationImageSchema
 >;
 
-const unitSeriesSchema = z.strictObject({
+const unitDetailSchema = z.strictObject({
   experiment: experimentSchema,
   unit: unitSchema,
   treatments: z.array(treatmentSchema),
@@ -131,7 +131,7 @@ const unitSeriesSchema = z.strictObject({
   shown: experimentObservationImageSchema.nullable(),
 });
 
-export type UnitDetail = z.infer<typeof unitSeriesSchema>;
+export type UnitDetail = z.infer<typeof unitDetailSchema>;
 
 /** An experiment as the overview lists it: its design's size and how far its observations have come. */
 export const experimentOverviewSchema = z.strictObject({
@@ -256,7 +256,7 @@ export const experimentSheetSchema = z.strictObject({
 export type ExperimentSheetDetail = z.infer<typeof experimentSheetSchema>;
 
 /** One unit's row of the sheet, with the treatment it belongs to. */
-export const unitRowSchema = z.strictObject({
+export const unitRowOverviewSchema = z.strictObject({
   experiment: experimentSchema,
   treatment: treatmentSchema,
   unit: unitSchema,
@@ -264,4 +264,4 @@ export const unitRowSchema = z.strictObject({
   cells: z.array(sheetCellSchema),
 });
 
-export type UnitRowDetail = z.infer<typeof unitRowSchema>;
+export type UnitRowOverview = z.infer<typeof unitRowOverviewSchema>;

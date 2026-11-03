@@ -88,6 +88,8 @@ export function reachBlobStore(): Promise<void> {
   return blobs().reach();
 }
 
+export class BlobStoreResponseError extends Error {}
+
 export class ImmutableBlobConflictError extends Error {}
 
 function bytes(contents: Uint8Array | string): Uint8Array {
@@ -199,9 +201,12 @@ export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
 
   async function get(key: string) {
     try {
-      return await client.send(
+      const object = await client.send(
         new GetObjectCommand({ Bucket: bucket, Key: assertKey(key) }),
       );
+      if (!object.Body)
+        throw new BlobStoreResponseError(`Blob ${key} has no body`);
+      return { ...object, Body: object.Body };
     } catch (error) {
       if (absent(error)) return null;
       throw error;
@@ -212,15 +217,17 @@ export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
     async read(key) {
       const object = await get(key);
       if (!object) return null;
-      return object.Body!.transformToByteArray();
+      return object.Body.transformToByteArray();
     },
     async open(key) {
       const object = await get(key);
       if (!object) return null;
-      return {
-        stream: object.Body!.transformToWebStream(),
-        size: object.ContentLength!,
-      };
+      const size = object.ContentLength;
+      if (size === undefined || !Number.isSafeInteger(size) || size < 0)
+        throw new BlobStoreResponseError(
+          `Blob ${key} has no valid content length`,
+        );
+      return { stream: object.Body.transformToWebStream(), size };
     },
     async putImmutable(key, contents) {
       const validKey = assertKey(key);
@@ -250,7 +257,7 @@ export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
       const existing = await get(validKey);
       if (!existing)
         throw new Error(`Blob ${validKey} disappeared after upload`);
-      const stored = await existing.Body!.transformToByteArray();
+      const stored = await existing.Body.transformToByteArray();
       if (!sameBytes(stored, content)) throw conflict(validKey);
     },
     async exists(key) {
@@ -271,7 +278,11 @@ export function createS3BlobStore(options: S3BlobStoreOptions): BlobStore {
         { Bucket: bucket, Prefix: prefix },
       );
       for await (const page of pages) {
-        for (const object of page.Contents ?? []) keys.push(object.Key!);
+        for (const object of page.Contents ?? []) {
+          if (!object.Key)
+            throw new BlobStoreResponseError("Listed blob has no key");
+          keys.push(object.Key);
+        }
       }
       return keys.sort();
     },

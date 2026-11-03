@@ -1,16 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
+import { AnnotationConflictError } from "../../domain/annotation/errors";
 import type { AnnotationInstance } from "../../domain/annotation/schema";
 import { observeImages } from "../testing/experiments";
 import { imageDigest, resultFor } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
 import { testHeartbeat } from "../testing/workers";
-import {
-  AnnotationConflictError,
-  readAnnotation,
-  storeAnnotation,
-} from "./documents";
+import { readAnnotation, storeAnnotation } from "./documents";
 
 /** Uploads one image, detects it, and returns the boxes a review begins from. */
 async function detected(name: string, worker: string) {

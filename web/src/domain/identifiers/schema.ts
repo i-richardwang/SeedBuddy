@@ -7,7 +7,8 @@ export const resourceIdSchema = z
   .string()
   .regex(new RegExp(`^${RESOURCE_ID_PATTERN}$`));
 
-export const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
+const SHA256 = /^[a-f0-9]{64}$/;
+export const sha256Schema = z.string().regex(SHA256);
 
 /**
  * A generated identifier, a kind's prefix and a UUID or a digest, read by
@@ -18,6 +19,6 @@ export const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 const GENERATED_ID = /^[a-z]+-([0-9a-f-]{32,})$/;
 
 export function identifierLabel(id: string): string {
-  const generated = /^[a-f0-9]{64}$/.test(id) ? id : GENERATED_ID.exec(id)?.[1];
+  const generated = SHA256.test(id) ? id : GENERATED_ID.exec(id)?.[1];
   return generated ? generated.replaceAll("-", "").slice(0, 8) : id;
 }

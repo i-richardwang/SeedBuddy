@@ -32,7 +32,6 @@ export const inferenceTargetSchema = z.strictObject({
 });
 
 type InferenceModelManifest = z.infer<typeof inferenceModelManifestSchema>;
-export type InferenceAssignment = z.infer<typeof inferenceAssignmentSchema>;
 
 export function inferenceModelManifest(
   version: Pick<ModelVersion, "id" | "artifact">,

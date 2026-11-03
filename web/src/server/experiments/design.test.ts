@@ -26,6 +26,14 @@ import { blobExists } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { experimentUnits } from "../infra/db/schema";
 import { listAllModelVersions } from "../models/registry";
+import {
+  assignImages,
+  createExperiment,
+  INOCULATED,
+  reading,
+  trainedVersion,
+  unitsOf,
+} from "../testing/experiments";
 import { imageDigest } from "../testing/images";
 import {
   addReplicates,
@@ -40,14 +48,6 @@ import {
 } from "./design";
 import { createObservation } from "./observations";
 import { experimentGridDetail, listExperimentOverviews } from "./queries";
-import {
-  assignImages,
-  createExperiment,
-  INOCULATED,
-  reading,
-  trainedVersion,
-  unitsOf,
-} from "./testing";
 
 test("start on a fresh deployment with the builtin seed germination model", async () => {
   expect(calendarDaySchema.safeParse("2026-02-29").success).toBeFalse();

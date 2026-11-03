@@ -10,12 +10,12 @@ import type {
   AnnotationDocument,
   AnnotationRef,
 } from "../../domain/annotation/schema";
-import { AnnotationRunNotFoundError } from "../../domain/annotation-runs/errors";
 import type {
   AnnotationProgress,
   AnnotationProposal,
 } from "../../domain/annotation-runs/schema";
 import type { DetectionResult } from "../../domain/detection/schema";
+import { ImageNotFoundError } from "../../domain/images/errors";
 import { shownDetectingVersion } from "../inference/public";
 import { database, type Executor } from "../infra/db/client";
 import {
@@ -28,13 +28,14 @@ import {
 /** Callers choose the detection version; reviews and proposals belong to the model. */
 export function readingsSubquery(
   db: Executor,
-  { modelId, version }: { modelId: SQLWrapper | string; version: SQLWrapper },
+  { modelId, version }: { modelId: SQLWrapper | string; version?: SQLWrapper },
 ) {
+  const readingImages = alias(images, "reading_images");
   const proposal = alias(annotationRuns, "proposal_runs");
   const active = alias(annotationRuns, "active_runs");
   return db
     .select({
-      imageId: images.id,
+      imageId: readingImages.id,
       detection: sql<DetectionResult | null>`${inferenceOutcomes.document}`.as(
         "reading_detection",
       ),
@@ -50,29 +51,32 @@ export function readingsSubquery(
           "reading_progress",
         ),
     })
-    .from(images)
+    .from(readingImages)
     .leftJoin(
       annotations,
-      and(eq(annotations.imageId, images.id), eq(annotations.modelId, modelId)),
+      and(
+        eq(annotations.imageId, readingImages.id),
+        eq(annotations.modelId, modelId),
+      ),
     )
     .leftJoin(
       inferenceOutcomes,
       and(
-        eq(inferenceOutcomes.imageId, images.id),
-        eq(inferenceOutcomes.modelVersionId, version),
+        eq(inferenceOutcomes.imageId, readingImages.id),
+        version ? eq(inferenceOutcomes.modelVersionId, version) : sql`false`,
       ),
     )
     .leftJoin(
       proposal,
       eq(
         proposal.id,
-        sql`(select r.id from annotation_runs r where r.image_id = ${images.id} and r.model_id = ${modelId} and r.status = 'succeeded' order by r.created_at desc, r.id desc limit 1)`,
+        sql`(select r.id from annotation_runs r where r.image_id = ${readingImages.id} and r.model_id = ${modelId} and r.status = 'succeeded' order by r.created_at desc, r.id desc limit 1)`,
       ),
     )
     .leftJoin(
       active,
       and(
-        eq(active.imageId, images.id),
+        eq(active.imageId, readingImages.id),
         eq(active.modelId, modelId),
         eq(active.status, "running"),
       ),
@@ -83,7 +87,7 @@ export function readingsSubquery(
 /** The readings as an agent consults them before redrawing part of the image. */
 export async function readAnnotationReading(ref: AnnotationRef) {
   const readings = await readReadings(ref, await database());
-  if (!readings) throw new AnnotationRunNotFoundError("Image not found");
+  if (!readings) throw new ImageNotFoundError("Image not found");
   return annotationReading(readings);
 }
 

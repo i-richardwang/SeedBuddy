@@ -9,18 +9,18 @@ import {
 } from "../../domain/experiments/errors";
 import { database } from "../infra/db/client";
 import { experimentCultureEvents } from "../infra/db/schema";
-import { storeTexts } from "../testing/images";
-import { deleteCultureEvent, recordCultureEvents } from "./culture-events";
-import { assignObservationImages } from "./observation-images";
-import { createObservation } from "./observations";
-import { experimentGridDetail } from "./queries";
 import {
   createExperiment,
   INOCULATED,
   reading,
   trainedVersion,
   unitsOf,
-} from "./testing";
+} from "../testing/experiments";
+import { storeTexts } from "../testing/images";
+import { deleteCultureEvent, recordCultureEvents } from "./culture-events";
+import { assignObservationImages } from "./observation-images";
+import { createObservation } from "./observations";
+import { experimentGridDetail } from "./queries";
 
 test("at most one terminal event", async () => {
   const version = await trainedVersion("exp-terminal-events");

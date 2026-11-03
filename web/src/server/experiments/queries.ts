@@ -13,7 +13,7 @@ import type {
   ExperimentSheetDetail,
   ObservationImageCell,
   UnitDetail,
-  UnitRowDetail,
+  UnitRowOverview,
 } from "../../domain/experiments/read-model";
 import type {
   Experiment,
@@ -171,7 +171,7 @@ export function experimentSheetDetail(
 }
 
 /** One unit's row of the sheet, or nothing when experiment or unit is unknown. */
-export function unitRowDetail(ref: UnitRef): Promise<UnitRowDetail | null> {
+export function unitRowOverview(ref: UnitRef): Promise<UnitRowOverview | null> {
   return snapshot(async (db) => {
     const experiment = await readExperimentRecord(ref.experiment, db);
     return experiment

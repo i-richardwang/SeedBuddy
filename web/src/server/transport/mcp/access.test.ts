@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { issueApiKey, revokeApiKey } from "../../auth/api-keys";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
-import { banUser } from "../../auth/users";
+import { setUserStatus } from "../../auth/users";
 import { authorizeMcpClient, signInAs } from "../../testing/auth";
 import { createDpopKey } from "../../testing/dpop";
 import { modernRequest, requestEras } from "../../testing/mcp";
@@ -225,7 +225,7 @@ describe("MCP API keys", () => {
         scopes: [server],
         expiresInDays: null,
       });
-      await banUser(admin.user, { user: user.id });
+      await setUserStatus(admin.user, { suspended: true, user: user.id });
       const response = await serve(
         modernRequest(endpoint(), "tools/list", undefined, key.secret),
       );

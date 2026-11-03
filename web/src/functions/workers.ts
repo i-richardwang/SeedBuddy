@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { workerRefSchema } from "../domain/workers/schema";
 import { listWorkerOverviews } from "../server/queries/public";
-import * as workersService from "../server/workers/public";
+import {
+  enrollWorker,
+  removeWorker as removeWorkerService,
+} from "../server/workers/public";
 import { requireAdministrator } from "./access";
 
 export const getWorkers = createServerFn({ method: "GET" }).handler(
@@ -14,12 +17,12 @@ export const createWorker = createServerFn({ method: "POST" })
   .validator(workerRefSchema)
   .handler(async ({ data }) => {
     await requireAdministrator();
-    return workersService.enrollWorker(data.workerId);
+    return enrollWorker(data.workerId);
   });
 
 export const removeWorker = createServerFn({ method: "POST" })
   .validator(workerRefSchema)
   .handler(async ({ data }) => {
     await requireAdministrator();
-    await workersService.removeWorker(data.workerId);
+    await removeWorkerService(data.workerId);
   });

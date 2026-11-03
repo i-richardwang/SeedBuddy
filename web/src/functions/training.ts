@@ -10,7 +10,10 @@ import {
 } from "../domain/training/recipes";
 import { trainingControlSchema } from "../domain/training/schema";
 import { trainingRunDetail } from "../server/queries/public";
-import * as trainingService from "../server/training/public";
+import {
+  controlTrainingRun,
+  createTrainingRun as createTrainingRunService,
+} from "../server/training/public";
 
 export const getTrainingRun = createServerFn({ method: "GET" })
   .validator(datasetRefSchema.extend({ runId: resourceIdSchema }))
@@ -29,7 +32,7 @@ export const createTrainingRun = createServerFn({ method: "POST" })
     }),
   )
   .handler(({ data }) =>
-    trainingService.createTrainingRun(
+    createTrainingRunService(
       data.dataset,
       resolveTrainingRecipe(data.presetId, data.overrides),
       data.targetWorkerId,
@@ -45,10 +48,5 @@ export const updateTrainingRun = createServerFn({ method: "POST" })
     }),
   )
   .handler(({ data }) =>
-    trainingService.controlTrainingRun(
-      data.dataset,
-      data.runId,
-      data.attempt,
-      data.control,
-    ),
+    controlTrainingRun(data.dataset, data.runId, data.attempt, data.control),
   );

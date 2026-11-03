@@ -1,10 +1,7 @@
 import { MAX_IMAGE_BYTES } from "../../../domain/images/canonical";
+import { ImageSourceInvalidError } from "../../../domain/images/errors";
 import { imageDigestSchema } from "../../../domain/images/schema";
-import {
-  ImageSourceInvalidError,
-  storeCanonicalImage,
-  storeImage,
-} from "../../images/public";
+import { storeCanonicalImage, storeImage } from "../../images/public";
 import { agentUploadFailure, agentUploadRefusal } from "./agent-upload";
 import { exactLengthBody, uploadFailure } from "./upload-body";
 

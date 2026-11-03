@@ -73,19 +73,19 @@ async function publishTrainingArtifact(
   return publishTrainingBundle(runId, owner, bundle);
 }
 
-import { trainingHeartbeat } from "../testing/workers";
 import {
   CONTENTS,
   epochReport,
   owner,
   publication,
   recipe,
-  reviewedDataset,
   trainer,
-} from "./testing";
+  trainingDataset,
+} from "../testing/training";
+import { trainingHeartbeat } from "../testing/workers";
 
 test("a model has at most one active training run", async () => {
-  const dataset = await reviewedDataset("exclusive-run");
+  const dataset = await trainingDataset("exclusive-run");
   const run = await createTrainingRun(dataset.id, recipe);
   expect((await activeTrainingRun(run.modelId))?.id).toBe(run.id);
   await expect(createTrainingRun(dataset.id, recipe)).rejects.toThrow(
@@ -105,7 +105,7 @@ test("a model has at most one active training run", async () => {
 });
 
 test("concurrent claims lease a run to exactly one worker", async () => {
-  const dataset = await reviewedDataset("contended-run");
+  const dataset = await trainingDataset("contended-run");
   const run = await createTrainingRun(dataset.id, recipe);
   const workers = ["contender-1", "contender-2", "contender-3"];
   const owners = await Promise.all(workers.map(trainer));
@@ -129,7 +129,7 @@ test("concurrent claims lease a run to exactly one worker", async () => {
 });
 
 test("a training run owns an immutable self-contained snapshot", async () => {
-  const dataset = await reviewedDataset("snapshot-contract");
+  const dataset = await trainingDataset("snapshot-contract");
   const run = await createTrainingRun(dataset.id, recipe);
   await trainer("snapshot-trainer");
   const claimed = await claimTrainingRun(owner("snapshot-trainer"));
@@ -179,7 +179,7 @@ test("a snapshot takes an unclear photograph like any other", async () => {
 });
 
 test("publication registers one immutable version per training run", async () => {
-  const dataset = await reviewedDataset("publish-contract");
+  const dataset = await trainingDataset("publish-contract");
   const run = await createTrainingRun(dataset.id, recipe);
   await trainer("publisher");
   expect((await claimTrainingRun(owner("publisher")))?.id).toBe(run.id);
@@ -246,7 +246,7 @@ test("publication registers one immutable version per training run", async () =>
 });
 
 test("epochs carry the run's progress and a reclaimed attempt draws its own curve", async () => {
-  const dataset = await reviewedDataset("epoch-history");
+  const dataset = await trainingDataset("epoch-history");
   const run = await createTrainingRun(dataset.id, recipe);
   await trainer("epoch-trainer");
   await trainer("epoch-successor");
@@ -374,7 +374,7 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
 });
 
 test("an expired attempt cannot report after the same worker reclaims its run", async () => {
-  const dataset = await reviewedDataset("missing-lease");
+  const dataset = await trainingDataset("missing-lease");
   const run = await createTrainingRun(dataset.id, recipe);
   await trainer("slow-trainer");
   await trainer("fast-trainer");
@@ -397,7 +397,7 @@ test("an expired attempt cannot report after the same worker reclaims its run", 
 });
 
 test("a restarted worker reclaims its run as a new fenced attempt", async () => {
-  const dataset = await reviewedDataset("restarted-worker");
+  const dataset = await trainingDataset("restarted-worker");
   const run = await createTrainingRun(dataset.id, recipe);
   const oldSession = owner("restarting-trainer", "session-old");
   const newSession = {
@@ -429,7 +429,7 @@ test("a restarted worker reclaims its run as a new fenced attempt", async () => 
 });
 
 test("a removed worker requires explicit restart before its run can move", async () => {
-  const dataset = await reviewedDataset("removed-worker");
+  const dataset = await trainingDataset("removed-worker");
   const run = await createTrainingRun(dataset.id, recipe);
   await trainer("removed-trainer");
   await trainer("remaining-trainer");
@@ -459,7 +459,7 @@ test("a removed worker requires explicit restart before its run can move", async
 });
 
 test("pause releases the model and fences the previous attempt even on the same worker session", async () => {
-  const dataset = await reviewedDataset("controlled-training");
+  const dataset = await trainingDataset("controlled-training");
   const a = await trainer("controlled-a");
   const b = await trainer("controlled-b");
   const run = await createTrainingRun(dataset.id, recipe, a.workerId);
@@ -472,7 +472,7 @@ test("pause releases the model and fences the previous attempt even on the same 
   expect((await readTrainingRun(run.id))?.lastProgressAt).toBe(
     before?.lastProgressAt,
   );
-  const otherDataset = await reviewedDataset("other-controlled-training");
+  const otherDataset = await trainingDataset("other-controlled-training");
   await expect(
     controlTrainingRun(otherDataset.id, run.id, 1, { action: "pause" }),
   ).rejects.toThrow(/not found/);
@@ -514,7 +514,7 @@ test("pause releases the model and fences the previous attempt even on the same 
 });
 
 test("local progress pins resume to its worker, while explicit restart can move", async () => {
-  const dataset = await reviewedDataset("local-training");
+  const dataset = await trainingDataset("local-training");
   const a = await trainer("local-a");
   const b = await trainer("local-b");
   const run = await createTrainingRun(dataset.id, recipe);
@@ -556,7 +556,7 @@ test("local progress pins resume to its worker, while explicit restart can move"
 });
 
 test("final artifact parts verify size and integrity before assembly and expire with the attempt", async () => {
-  const dataset = await reviewedDataset("artifact-parts");
+  const dataset = await trainingDataset("artifact-parts");
   const a = await trainer("artifact-parts-a");
   const run = await createTrainingRun(dataset.id, recipe, a.workerId);
   await claimTrainingRun(a);
@@ -592,7 +592,7 @@ test("final artifact parts verify size and integrity before assembly and expire 
 });
 
 test("an expired lease cannot be renewed or publish before another worker claims it", async () => {
-  const dataset = await reviewedDataset("expired-authority");
+  const dataset = await trainingDataset("expired-authority");
   const a = await trainer("expired-authority-worker");
   const run = await createTrainingRun(dataset.id, recipe);
   await claimTrainingRun(a, new Date(Date.now() - 6 * 60_000));
@@ -604,7 +604,7 @@ test("an expired lease cannot be renewed or publish before another worker claims
 });
 
 test("pausing and model publication serialize to one consistent outcome", async () => {
-  const dataset = await reviewedDataset("pause-publication");
+  const dataset = await trainingDataset("pause-publication");
   const a = await trainer("pause-publication-worker");
   const run = await createTrainingRun(dataset.id, recipe);
   await claimTrainingRun(a);

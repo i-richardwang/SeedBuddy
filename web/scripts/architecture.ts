@@ -164,7 +164,7 @@ function serverModule(file: string): string | null {
     : null;
 }
 
-function testCode(file: string): boolean {
+export function testCode(file: string): boolean {
   return (
     /\.test\.[cm]?[jt]sx?$/.test(file) ||
     file.startsWith("test/") ||

@@ -1,10 +1,10 @@
 import sharp from "sharp";
 
-import { ValidationError } from "../../domain/errors";
 import {
   MAX_SOURCE_IMAGE_PIXELS,
   SOURCE_IMAGE_FORMATS,
 } from "../../domain/images/canonical";
+import { ImageSourceInvalidError } from "../../domain/images/errors";
 import { contentDigest } from "../infra/digest";
 import { processImage } from "./processing";
 
@@ -36,9 +36,6 @@ const MAX_EDGE_PIXELS = 16384;
 const SOURCE_FORMAT_SET = new Set<string>(SOURCE_IMAGE_FORMATS);
 
 /** A source that cannot enter the canonical image boundary. */
-export class ImageSourceInvalidError extends ValidationError {
-  readonly code = "image_source_invalid";
-}
 
 /**
  * The pixel size of bytes that are already a canonical image, as another

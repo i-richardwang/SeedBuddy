@@ -1,7 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import type { ZodType } from "zod";
 
-import { DomainError } from "../../../domain/errors";
+import { failureCategory } from "../../../domain/errors";
 import { artifactUploadSchema } from "../../../domain/training/artifact";
 import {
   type AttemptOwner,
@@ -75,12 +75,9 @@ export function parseWorkerValue<T>(
 
 function statusOf(error: unknown): number | null {
   if (error instanceof WorkerRequestError) return error.status;
-  if (error instanceof DomainError)
-    return error.category === "not_found"
-      ? 404
-      : error.category === "conflict"
-        ? 409
-        : 422;
+  const category = failureCategory(error);
+  if (category !== null)
+    return { not_found: 404, conflict: 409, invalid_request: 422 }[category];
   return null;
 }
 

@@ -4,14 +4,13 @@ import { UserAccountConflictError } from "../../domain/auth/errors";
 import { sessionHeaders, signInAs, TEST_PASSWORD } from "../testing/auth";
 import { readSession } from "../transport/http/session";
 import {
-  banUser,
   createUser,
   deleteUser,
   listUsers,
   revokeUserSessions,
   setUserPassword,
   setUserRole,
-  unbanUser,
+  setUserStatus,
 } from "./users";
 
 let sequence = 0;
@@ -84,7 +83,8 @@ describe("account directory", () => {
   test("suspension ends sessions and refuses sign-in until reinstated", async () => {
     const admin = await signInAs("admin");
     const target = await signInAs("member");
-    const suspended = await banUser(admin.user, {
+    const suspended = await setUserStatus(admin.user, {
+      suspended: true,
       user: target.user.id,
     });
     expect(suspended.banned).toBe(true);
@@ -93,10 +93,11 @@ describe("account directory", () => {
       sessionHeaders(target.user.email, TEST_PASSWORD),
     ).rejects.toThrow();
     await expect(
-      banUser(admin.user, { user: admin.user.id }),
+      setUserStatus(admin.user, { suspended: true, user: admin.user.id }),
     ).rejects.toBeInstanceOf(UserAccountConflictError);
 
-    const reinstated = await unbanUser({
+    const reinstated = await setUserStatus(admin.user, {
+      suspended: false,
       user: target.user.id,
     });
     expect(reinstated.banned).toBe(false);

@@ -8,7 +8,12 @@ import {
   datasetUpdateSchema,
   newDatasetImageAdditionSchema,
 } from "../domain/datasets/schema";
-import * as datasetsService from "../server/datasets/public";
+import {
+  addExperimentObservationImages,
+  addExperimentObservationImagesToNewDataset,
+  removeDatasetImages,
+  updateDataset as updateDatasetService,
+} from "../server/datasets/public";
 import { datasetDetail, datasetImageDetail } from "../server/queries/public";
 
 export const getDatasetDetail = createServerFn({ method: "GET" })
@@ -21,19 +26,17 @@ export const getDatasetImage = createServerFn({ method: "GET" })
 
 export const createDatasetMemberships = createServerFn({ method: "POST" })
   .validator(datasetImageAdditionSchema)
-  .handler(({ data }) => datasetsService.addExperimentObservationImages(data));
+  .handler(({ data }) => addExperimentObservationImages(data));
 
 /** Founds a dataset for the images' model and adds them, in one step. */
 export const createDatasetFromImages = createServerFn({ method: "POST" })
   .validator(newDatasetImageAdditionSchema)
-  .handler(({ data }) =>
-    datasetsService.addExperimentObservationImagesToNewDataset(data),
-  );
+  .handler(({ data }) => addExperimentObservationImagesToNewDataset(data));
 
 export const updateDataset = createServerFn({ method: "POST" })
   .validator(datasetUpdateSchema)
-  .handler(({ data }) => datasetsService.updateDataset(data));
+  .handler(({ data }) => updateDatasetService(data));
 
 export const removeFromDataset = createServerFn({ method: "POST" })
   .validator(datasetImageRemovalSchema)
-  .handler(({ data }) => datasetsService.removeDatasetImages(data));
+  .handler(({ data }) => removeDatasetImages(data));

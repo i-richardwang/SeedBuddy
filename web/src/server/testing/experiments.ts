@@ -6,17 +6,27 @@ import type {
   ExperimentObservation,
   ObservationImageRef,
 } from "../../domain/experiments/schema";
+import {
+  type ExperimentRequestInput,
+  experimentRequestSchema,
+} from "../../domain/experiments/schema";
+import { SEED_DETECTOR } from "../../domain/models/builtins";
 import type { ModelVersion } from "../../domain/models/schema";
-import { createExperiment } from "../experiments/design";
+import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import { createExperiment as createExperimentRecord } from "../experiments/design";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
 import { experimentGridDetail } from "../experiments/queries";
 import { listUnits } from "../experiments/records";
 import { database } from "../infra/db/client";
 import { experimentObservationImages } from "../infra/db/schema";
-import { readModel } from "../models/registry";
+import {
+  readModel,
+  registerModel,
+  setCurrentVersion,
+} from "../models/registry";
 import { storeTexts } from "./images";
-import { baselineVersion } from "./models";
+import { baselineVersion, registerTrainedVersion } from "./models";
 
 interface ObservedExperiment {
   experiment: Experiment;
@@ -43,7 +53,7 @@ export async function observeImagesForModel(
 ): Promise<ObservedExperiment> {
   const model = await readModel(modelId);
   if (!model) throw new Error(`Unknown model: ${modelId}`);
-  const experiment = await createExperiment({
+  const experiment = await createExperimentRecord({
     name: experimentName,
     plantMaterial: "",
     explantType: "",
@@ -131,4 +141,65 @@ export async function listObservationImageRefs(experimentId: string) {
       { experiment: experimentId, observationImage: image.id },
     ]),
   );
+}
+
+export const INOCULATED = "2026-08-01";
+
+export async function createExperiment(
+  value: Omit<ExperimentRequestInput, "treatments"> &
+    Partial<Pick<ExperimentRequestInput, "treatments">>,
+): Promise<Experiment> {
+  return createExperimentRecord(
+    experimentRequestSchema.parse({
+      treatments: [{ name: "A", replicates: 1 }],
+      ...value,
+    }),
+  );
+}
+
+export async function trainedVersion(
+  modelId: string,
+  classes: string[] = SEED_DETECTOR.classes,
+): Promise<ModelVersion> {
+  await registerModel({
+    schemaVersion: 1,
+    id: modelId,
+    name: `${modelId} detector`,
+    task: "object_detection",
+    classes,
+    annotation: DEFAULT_MODEL_ANNOTATION,
+  });
+  const version = await registerTrainedVersion(modelId);
+  await setCurrentVersion({ model: modelId, version: version.id });
+  return version;
+}
+
+export function reading(version: ModelVersion) {
+  return { modelId: version.modelId };
+}
+
+export async function unitsOf(
+  experiment: string,
+): Promise<Map<string, string>> {
+  const grid = await experimentGridDetail(experiment);
+  return new Map(grid!.units.map((unit) => [unit.code, unit.id]));
+}
+
+export async function assignImages(
+  experiment: string,
+  observation: string,
+  units: Map<string, string>,
+  contents: Record<string, string>,
+) {
+  const entries = Object.entries(contents);
+  const digests = await storeTexts(entries.map(([, content]) => content));
+  return assignObservationImages({
+    experiment,
+    observation,
+    images: entries.map(([code], index) => ({
+      unit: units.get(code)!,
+      digest: digests[index]!,
+      filename: `${code}.jpg`,
+    })),
+  });
 }

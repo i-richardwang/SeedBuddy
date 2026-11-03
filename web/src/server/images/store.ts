@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { MAX_IMAGE_BYTES } from "../../domain/images/canonical";
 import type { DishAnalysis } from "../../domain/images/coverage";
+import { ImageSourceInvalidError } from "../../domain/images/errors";
 import { createSingleFlight } from "../../lib/async/work";
 import { putImmutableBlob } from "../infra/blobs/store";
 import { database, type Executor, transaction } from "../infra/db/client";
@@ -13,7 +14,6 @@ import {
   type CanonicalImage,
   canonicalImageSize,
   canonicalize,
-  ImageSourceInvalidError,
 } from "./ingest";
 import { imageBlobKey } from "./keys";
 import { lockImage } from "./lock";

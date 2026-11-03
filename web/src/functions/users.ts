@@ -5,56 +5,54 @@ import {
   userPasswordUpdateSchema,
   userRefSchema,
   userRoleUpdateSchema,
+  userStatusUpdateSchema,
 } from "../domain/auth/schema";
-import * as authService from "../server/auth/public";
+import {
+  createUser as createUserService,
+  deleteUser,
+  listUsers,
+  revokeUserSessions,
+  setUserPassword,
+  setUserRole,
+  setUserStatus,
+} from "../server/auth/public";
 import { requireAdministrator } from "./access";
 
 export const getUsers = createServerFn({ method: "GET" }).handler(async () => {
   await requireAdministrator();
-  return authService.listUsers();
+  return listUsers();
 });
 
 export const createUser = createServerFn({ method: "POST" })
   .validator(userCreateSchema)
   .handler(async ({ data }) => {
     await requireAdministrator();
-    return authService.createUser(data);
+    return createUserService(data);
   });
 
 export const updateUserRole = createServerFn({ method: "POST" })
   .validator(userRoleUpdateSchema)
-  .handler(async ({ data }) =>
-    authService.setUserRole(await requireAdministrator(), data),
-  );
+  .handler(async ({ data }) => setUserRole(await requireAdministrator(), data));
 
 export const updateUserPassword = createServerFn({ method: "POST" })
   .validator(userPasswordUpdateSchema)
   .handler(async ({ data }) =>
-    authService.setUserPassword(await requireAdministrator(), data),
+    setUserPassword(await requireAdministrator(), data),
   );
 
-export const updateUserSuspension = createServerFn({ method: "POST" })
-  .validator(userRefSchema)
+export const updateUserStatus = createServerFn({ method: "POST" })
+  .validator(userStatusUpdateSchema)
   .handler(async ({ data }) =>
-    authService.banUser(await requireAdministrator(), data),
+    setUserStatus(await requireAdministrator(), data),
   );
-
-export const updateUserReinstatement = createServerFn({ method: "POST" })
-  .validator(userRefSchema)
-  .handler(async ({ data }) => {
-    await requireAdministrator();
-    return authService.unbanUser(data);
-  });
 
 export const removeUserSessions = createServerFn({ method: "POST" })
   .validator(userRefSchema)
   .handler(async ({ data }) => {
     await requireAdministrator();
-    return authService.revokeUserSessions(data);
+    return revokeUserSessions(data);
   });
 
 export const removeUser = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(async ({ data }) =>
-    authService.deleteUser(await requireAdministrator(), data),
-  );
+  .handler(async ({ data }) => deleteUser(await requireAdministrator(), data));

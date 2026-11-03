@@ -1,12 +1,12 @@
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import { reviewedDataset as reviewed } from "../testing/datasets";
-import { traditionalVersion } from "../testing/models";
-import { recordTestHeartbeat, trainingHeartbeat } from "../testing/workers";
+import { reviewedDataset as reviewed } from "./datasets";
+import { traditionalVersion } from "./models";
+import { recordTestHeartbeat, trainingHeartbeat } from "./workers";
 
 export const CONTENTS = ["first-image", "second-image"];
 
 /** Publishing trains new versions, so these runs keep a model of their own. */
-export async function reviewedDataset(name: string) {
+export async function trainingDataset(name: string) {
   const { dataset } = await reviewed(
     name,
     CONTENTS,

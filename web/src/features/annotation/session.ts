@@ -12,6 +12,7 @@ import type {
   AnnotationInstance,
   ReviewSource,
 } from "../../domain/annotation/schema";
+import { businessFailureSchema } from "../../domain/errors";
 import type { Model } from "../../domain/models/schema";
 import { updateAnnotation } from "../../functions/review";
 import { canonicalJson } from "../../lib/json/canonical";
@@ -273,6 +274,11 @@ export function useImageSession({
             base: draft.base,
             instances: draft.instances,
           },
+        }).catch((error: unknown) => {
+          const failure = businessFailureSchema.safeParse(error);
+          if (failure.success && failure.data.code === "annotation_conflict")
+            return { status: "conflict" } as const;
+          throw error;
         }),
       m.annotation_save_failed(),
       {
