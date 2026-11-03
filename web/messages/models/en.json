@@ -124,24 +124,10 @@
     }
   ],
   "versions_comparison_error": "{current} → {candidate}",
-  "versions_comparison_images": [
-    {
-      "declarations": [
-        "input count",
-        "local formattedCount = count: number",
-        "local countPlural = count: plural"
-      ],
-      "match": {
-        "countPlural=one": "{formattedCount} image",
-        "countPlural=other": "{formattedCount} images"
-      },
-      "selectors": ["countPlural"]
-    }
-  ],
   "versions_current": "Current",
   "versions_empty": "No versions yet",
   "versions_empty_description": "A version appears here when a training run succeeds.",
-  "versions_trained_images": [
+  "versions_image_count": [
     {
       "declarations": [
         "input count",

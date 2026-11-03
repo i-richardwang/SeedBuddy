@@ -60,7 +60,7 @@ function AddPhotosSession({
       okText={
         photos.uploads.storing
           ? m.observation_photos_uploading()
-          : m.observation_photos_assign_count({ count: photos.ready.length })
+          : m.observation_photos_match_count({ count: photos.ready.length })
       }
       formId={FORM_ID}
       busy={action.busy}

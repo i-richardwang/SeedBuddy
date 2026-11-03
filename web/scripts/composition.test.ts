@@ -33,7 +33,7 @@ test("type comes from Text", () => {
   );
   expect(check("src/ui/kit/Text.tsx", 'const c = "text-xs";')).toBe("");
   expect(
-    check("src/features/annotation/BoxLayer.tsx", 'const c = "text-sm";'),
+    check("src/features/annotation/box-layers.tsx", 'const c = "text-sm";'),
   ).toBe("");
 });
 

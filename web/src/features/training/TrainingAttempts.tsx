@@ -55,7 +55,7 @@ export function TrainingAttempts({
               disabled={blockedBy !== null}
               onClick={control.resume}
             >
-              {m.training_retry()}
+              {m.retry_action()}
             </Button>
           }
         />

@@ -108,14 +108,6 @@
   "observation_not_deleted": "Observation not deleted",
   "observation_not_recorded": "Observation not recorded",
   "observation_not_saved": "Observation not saved",
-  "observation_photos_assign_count": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "Match {formattedCount}"
-      }
-    }
-  ],
   "observation_photos_conflicting": [
     {
       "declarations": [
@@ -132,6 +124,14 @@
   ],
   "observation_photos_fill_in_order": "Match in order",
   "observation_photos_heading": "Photos for {observation}",
+  "observation_photos_match_count": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "Match {formattedCount}"
+      }
+    }
+  ],
   "observation_photos_not_matched": "Photos not matched",
   "observation_photos_placed": "Already {unit}, {day}",
   "observation_photos_remaining": [
@@ -149,8 +149,8 @@
     }
   ],
   "observation_photos_repeated": "Same as {file}",
-  "observation_photos_unassigned": "Unmatched",
   "observation_photos_unit_label": "Unit shown by {file}",
+  "observation_photos_unmatched": "Unmatched",
   "observation_photos_uploading": "Uploading…",
   "observation_record": "Record observation",
   "observation_record_count": [

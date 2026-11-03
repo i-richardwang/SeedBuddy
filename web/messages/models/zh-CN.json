@@ -121,23 +121,10 @@
     }
   ],
   "versions_comparison_error": "{current} → {candidate}",
-  "versions_comparison_images": [
-    {
-      "declarations": [
-        "input count",
-        "local formattedCount = count: number",
-        "local countPlural = count: plural"
-      ],
-      "match": {
-        "countPlural=other": "{formattedCount} 张"
-      },
-      "selectors": ["countPlural"]
-    }
-  ],
   "versions_current": "当前版本",
   "versions_empty": "还没有版本",
   "versions_empty_description": "训练成功后，新版本会出现在这里。",
-  "versions_trained_images": [
+  "versions_image_count": [
     {
       "declarations": [
         "input count",

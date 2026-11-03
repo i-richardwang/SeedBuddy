@@ -4,6 +4,7 @@ import { useState } from "react";
 import { z } from "zod";
 
 import type { DatasetDetail } from "../../domain/datasets/read-model";
+import { MIN_SNAPSHOT_IMAGES } from "../../domain/training/schema";
 import { DatasetImagesTable } from "../../features/datasets/DatasetImagesTable";
 import { DatasetMenu } from "../../features/datasets/DatasetMenu";
 import { ImagePreview } from "../../features/datasets/ImagePreview";
@@ -164,11 +165,33 @@ function DatasetPage() {
               title={m.run_empty_title()}
               description={m.dataset_runs_empty_description()}
               action={
-                <TrainButton
-                  reviewed={reviewedCount}
-                  training={training}
-                  onClick={() => setStarting(true)}
-                />
+                reviewedCount >= MIN_SNAPSHOT_IMAGES ? (
+                  <TrainButton
+                    reviewed={reviewedCount}
+                    training={training}
+                    onClick={() => setStarting(true)}
+                  />
+                ) : images.some((image) => image.reviewCount === null) ? (
+                  <Button
+                    render={
+                      <Link
+                        to="/datasets/$dataset/$digest"
+                        params={{
+                          dataset,
+                          digest: images.find(
+                            (image) => image.reviewCount === null,
+                          )!.digest,
+                        }}
+                      />
+                    }
+                  >
+                    {m.dataset_preview_open()}
+                  </Button>
+                ) : (
+                  <Button render={<Link to="/experiments" />}>
+                    {m.dataset_open_experiments()}
+                  </Button>
+                )
               }
             />
           }

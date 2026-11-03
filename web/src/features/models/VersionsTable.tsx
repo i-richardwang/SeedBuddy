@@ -117,7 +117,7 @@ export function VersionsTable({
             </TableCell>
             <TableCell cellLabel={m.version_column_trained_on()} numeric>
               {training ? (
-                m.versions_trained_images({ count: training.images })
+                m.versions_image_count({ count: training.images })
               ) : (
                 <Absent />
               )}
@@ -210,7 +210,7 @@ function CountError({ comparison }: { comparison: VersionComparison | null }) {
             })}
       </Text>
       <Text as="span" type="tertiary">
-        {m.versions_comparison_images({
+        {m.versions_image_count({
           count: comparison.scored,
         })}
       </Text>

@@ -42,7 +42,7 @@ export function ResumeTrainingDialog({
           ? m.training_retry_title({ run })
           : m.training_resume_title({ run })
       }
-      okText={retry ? m.training_retry() : m.training_resume()}
+      okText={retry ? m.retry_action() : m.training_resume()}
       formId={FORM_ID}
       busy={action.busy}
     >

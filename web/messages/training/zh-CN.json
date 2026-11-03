@@ -138,7 +138,6 @@
   "training_resume_from_start": "从头开始",
   "training_resume_no_progress": "还没有保存的进度，将从头开始训练。",
   "training_resume_title": "继续训练 {run}",
-  "training_retry": "重试",
   "training_retry_title": "重试训练 {run}",
   "training_run_page_title": "{dataset} 的训练 {run}",
   "training_runs": "训练任务",

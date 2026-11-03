@@ -252,7 +252,7 @@ function UnitChoice({
       variant="filled"
       allowClear
       disabled={disabled}
-      placeholder={m.observation_photos_unassigned()}
+      placeholder={m.observation_photos_unmatched()}
       options={units.map((unit) => ({
         label: unit.code,
         value: unit.id,

@@ -138,7 +138,6 @@
   "training_resume_from_start": "From the beginning",
   "training_resume_no_progress": "No progress has been saved yet, so training starts from the beginning.",
   "training_resume_title": "Continue {run}",
-  "training_retry": "Retry",
   "training_retry_title": "Retry {run}",
   "training_run_page_title": "{run} of {dataset}",
   "training_runs": "Training runs",

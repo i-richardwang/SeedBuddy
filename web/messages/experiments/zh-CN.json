@@ -102,14 +102,6 @@
   "observation_not_deleted": "观察未删除",
   "observation_not_recorded": "观察未记录",
   "observation_not_saved": "观测日未保存",
-  "observation_photos_assign_count": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "对应 {formattedCount} 张"
-      }
-    }
-  ],
   "observation_photos_conflicting": [
     {
       "declarations": ["input count", "local formattedCount = count: number"],
@@ -120,6 +112,14 @@
   ],
   "observation_photos_fill_in_order": "按顺序对应",
   "observation_photos_heading": "{observation}的照片",
+  "observation_photos_match_count": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "对应 {formattedCount} 张"
+      }
+    }
+  ],
   "observation_photos_not_matched": "照片未对应",
   "observation_photos_placed": "已用作 {unit} · {day}",
   "observation_photos_remaining": [
@@ -131,8 +131,8 @@
     }
   ],
   "observation_photos_repeated": "与 {file} 相同",
-  "observation_photos_unassigned": "未对应",
   "observation_photos_unit_label": "{file} 对应的试验单元",
+  "observation_photos_unmatched": "未对应",
   "observation_photos_uploading": "上传中…",
   "observation_record": "记录观测日",
   "observation_record_count": [
