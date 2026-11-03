@@ -71,7 +71,7 @@ def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
     with pytest.raises(ValueError, match="digest or size"):
         read_bundle(target)
     document["inference"]["mode"] = "tiled"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="inference.mode.*whole_image"):
         validate_bundle(document, weights)
 
 

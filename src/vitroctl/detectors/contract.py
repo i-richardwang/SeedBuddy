@@ -4,7 +4,7 @@ import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from vitroctl.contracts.annotation import BoundingBox
 
@@ -118,10 +118,46 @@ class DetectionResult:
                 )
             identifiers.add(instance.instance_id)
             if (
-                instance.bbox.x + instance.bbox.width > self.width
+                instance.bbox.x < 0
+                or instance.bbox.y < 0
+                or instance.bbox.x + instance.bbox.width > self.width
                 or instance.bbox.y + instance.bbox.height > self.height
             ):
                 raise ValueError("Detection bounding box exceeds image bounds")
+
+    def require_image(self, digest: str, width: int, height: int) -> None:
+        if self.digest != digest:
+            raise ValueError("Detection describes another image")
+        if (self.width, self.height) != (width, height):
+            raise ValueError("Detection dimensions differ from the source image")
+
+    @classmethod
+    def from_document(
+        cls, payload: dict[str, Any], context: str = "detection"
+    ) -> DetectionResult:
+        """Build a result from a schema-validated document; its constructor checks bounds and IDs."""
+        image = payload["image"]
+        producer = _producer(payload["producer"])
+
+        quality = payload["quality"]
+        warnings = quality["warnings"]
+
+        return cls(
+            digest=image["digest"],
+            width=image["width"],
+            height=image["height"],
+            producer=producer,
+            instances=tuple(_instance(raw) for raw in payload["instances"]),
+            quality=DetectionQuality(
+                status=quality["status"],
+                warnings=tuple(warnings),
+            ),
+            diagnostics=(
+                _diagnostics(payload["diagnostics"])
+                if "diagnostics" in payload
+                else DetectionDiagnostics()
+            ),
+        )
 
     def to_dict(self) -> dict[str, object]:
         document: dict[str, object] = {
@@ -163,3 +199,45 @@ def adapter_fingerprint(seed: bytes, adapter_file: Path) -> str:
         digest.update(b"\0")
         digest.update((adapter_file.parent / name).read_bytes())
     return digest.hexdigest()
+
+
+def _runtime(descriptor: dict[str, Any]) -> RuntimeDescriptor:
+    return RuntimeDescriptor(
+        adapter=descriptor["adapter"],
+        fingerprint=descriptor["fingerprint"],
+    )
+
+
+def _producer(producer: dict[str, Any]) -> DetectionProducer:
+    return DetectionProducer(
+        model_version_id=producer["modelVersionId"],
+        artifact_digest=producer["artifactDigest"],
+        runtime=_runtime(producer["runtime"]),
+    )
+
+
+def _diagnostics(diagnostics: dict[str, Any]) -> DetectionDiagnostics:
+    dish = None
+    if "dish" in diagnostics:
+        raw_dish = diagnostics["dish"]
+        dish = DishGeometry(
+            center_x=raw_dish["centerX"],
+            center_y=raw_dish["centerY"],
+            radius=raw_dish["radius"],
+        )
+    return DetectionDiagnostics(dish=dish, metrics=dict(diagnostics.get("metrics", {})))
+
+
+def _instance(instance: dict[str, Any]) -> DetectionInstance:
+    raw_bbox = instance["bbox"]
+    return DetectionInstance(
+        instance_id=instance["id"],
+        class_name=instance["class"],
+        bbox=BoundingBox(
+            x=raw_bbox["x"],
+            y=raw_bbox["y"],
+            width=raw_bbox["width"],
+            height=raw_bbox["height"],
+        ),
+        score=instance["score"],
+    )

@@ -30,8 +30,8 @@ from vitroctl.worker.session import (
 from vitroctl.worker.training import (
     TrainingClaim,
     TrainingClient,
+    TrainingSnapshot,
     materialize_snapshot,
-    parse_training_snapshot,
 )
 
 
@@ -215,7 +215,7 @@ def test_a_run_fetches_only_the_images_this_machine_does_not_hold(
         pixels = encoded_image(variant=variant)
         images[write_blob(tmp_path / "unused", pixels)] = pixels
     held, torn, missing = images
-    snapshot = parse_training_snapshot(
+    snapshot = TrainingSnapshot.from_document(
         _snapshot(
             [
                 _snapshot_image(held, "train", []),
@@ -244,7 +244,7 @@ def test_a_run_fetches_only_the_images_this_machine_does_not_hold(
             return images[digest]
 
     cache = ImageCache(cache_root)
-    claim = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
     dataset = materialize_snapshot(
         Client(),  # type: ignore[arg-type]
         claim,
@@ -279,7 +279,7 @@ def test_a_run_fetches_only_the_images_this_machine_does_not_hold(
 
 
 def test_snapshot_parser_validates_every_image_entry() -> None:
-    snapshot = parse_training_snapshot(
+    snapshot = TrainingSnapshot.from_document(
         _snapshot(
             [
                 _snapshot_image("1" * 64, "val", []),
@@ -296,11 +296,11 @@ def test_snapshot_parser_validates_every_image_entry() -> None:
         _snapshot_image("2" * 64, "train", []),
     ]
     with pytest.raises(ValueError, match=r"snapshot.schemaVersion.*shared contract"):
-        parse_training_snapshot({**_snapshot(valid_images), "schemaVersion": 99})
+        TrainingSnapshot.from_document({**_snapshot(valid_images), "schemaVersion": 99})
     with pytest.raises(
         ValueError, match=r"snapshot.images\[0\].split.*shared contract"
     ):
-        parse_training_snapshot(
+        TrainingSnapshot.from_document(
             _snapshot(
                 [
                     _snapshot_image("1" * 64, "test", []),
@@ -309,7 +309,7 @@ def test_snapshot_parser_validates_every_image_entry() -> None:
             )
         )
     with pytest.raises(ValueError, match=r"images\[0\].annotation describes another"):
-        parse_training_snapshot(
+        TrainingSnapshot.from_document(
             _snapshot(
                 [
                     {**_snapshot_image("1" * 64, "val", []), "digest": "2" * 64},
@@ -332,7 +332,7 @@ def test_training_client_rejects_snapshot_image_corruption() -> None:
     )
     try:
         with pytest.raises(ValueError, match="digest verification"):
-            client.download_image(TrainingClaim.parse(_run()), "a" * 64)
+            client.download_image(TrainingClaim.from_document(_run()), "a" * 64)
     finally:
         client.worker.close()
 
@@ -350,7 +350,7 @@ def test_training_client_surfaces_lease_loss() -> None:
     )
     try:
         with pytest.raises(LeaseLostError, match="lease expired"):
-            client.renew_lease(TrainingClaim.parse(_run()))
+            client.renew_lease(TrainingClaim.from_document(_run()))
     finally:
         client.worker.close()
 
@@ -376,7 +376,7 @@ def test_claim_response_requires_a_run_object() -> None:
 def test_training_claim_parses_the_complete_claim_contract() -> None:
     fixture = Path(__file__).parent / "fixtures" / "contracts" / "training-claim.json"
     response = json.loads(fixture.read_text(encoding="utf-8"))
-    claim = TrainingClaim.parse(response["run"])
+    claim = TrainingClaim.from_document(response["run"])
 
     assert claim.run_id == "train-one"
     assert claim.model_id == "seed-detector"
@@ -388,11 +388,11 @@ def test_training_claim_parses_the_complete_claim_contract() -> None:
 
 def test_training_claim_rejects_partial_or_foreign_claim_state() -> None:
     with pytest.raises(ValueError, match="training run.*shared contract"):
-        TrainingClaim.parse({"schemaVersion": 1, "id": "train-one"})
+        TrainingClaim.from_document({"schemaVersion": 1, "id": "train-one"})
     malformed = _run()
     malformed["state"] = {"status": "running"}
     with pytest.raises(ValueError, match="training run.state.*shared contract"):
-        TrainingClaim.parse(malformed)
+        TrainingClaim.from_document(malformed)
 
 
 def test_snapshot_materialization_honors_shutdown_before_network_access(
@@ -405,7 +405,7 @@ def test_snapshot_materialization_honors_shutdown_before_network_access(
     with pytest.raises(YoloTrainingInterruptedError, match="interrupted"):
         materialize_snapshot(
             UnexpectedClient(),  # type: ignore[arg-type]
-            TrainingClaim.parse(_run()),
+            TrainingClaim.from_document(_run()),
             tmp_path / "dataset",
             images=ImageCache(tmp_path / "images"),
             cancelled=lambda: True,
@@ -434,7 +434,7 @@ def test_lease_refresh_failure_cancels_training_and_surfaces_lease_loss(
         pytest.raises(LeaseLostError, match="refresh failed"),
         keep_lease(
             client,  # type: ignore[arg-type]
-            lambda: client.renew_lease(TrainingClaim.parse(_run())),
+            lambda: client.renew_lease(TrainingClaim.from_document(_run())),
             cancelled=lambda: False,
         ) as cancelled,
     ):
@@ -559,7 +559,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", materialize)
     monkeypatch.setattr(training_worker, "run_training_process", train)
-    claim = TrainingClaim.parse(_run(parameters=_parameters(epochs=2)))
+    claim = TrainingClaim.from_document(_run(parameters=_parameters(epochs=2)))
 
     with (
         pytest.raises(RuntimeError, match="delivery unavailable")
@@ -625,7 +625,7 @@ def test_interrupted_training_claim_cleans_its_attempt_directory(
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", materialize)
     monkeypatch.setattr(training_worker, "run_training_process", interrupted)
-    claim = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
 
     for _ in range(2):
         with pytest.raises(YoloTrainingInterruptedError):
@@ -663,7 +663,7 @@ def test_training_claim_reports_an_unexpected_adapter_failure(
         raise KeyError("unexpected Ultralytics field")
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", broken_materialization)
-    claim = TrainingClaim.parse(_run("train-broken"))
+    claim = TrainingClaim.from_document(_run("train-broken"))
 
     with pytest.raises(KeyError, match="unexpected Ultralytics field"):
         training_worker.serve_training_claim(
@@ -695,7 +695,7 @@ def test_training_requests_keep_the_identity_of_their_claim() -> None:
         transport=httpx.MockTransport(respond),
     )
     client = TrainingClient(worker)
-    first = TrainingClaim.parse(_run())
+    first = TrainingClaim.from_document(_run())
     try:
         client.renew_lease(replace(first, attempt=2))
         client.renew_lease(first)
@@ -715,7 +715,7 @@ def test_local_checkpoint_resume_validates_identity_and_requires_original_worker
     from vitroctl.training.documents import TrainingCheckpoint
     from vitroctl.worker.local_training import prepare_local_training
 
-    claim = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
     root = tmp_path / "train-one-1"
     root.mkdir()
     prepare_local_training(claim, root)
@@ -794,7 +794,7 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
     )
     try:
         TrainingClient(worker).publish_artifact(
-            TrainingClaim.parse(_run()), weights, bundle
+            TrainingClaim.from_document(_run()), weights, bundle
         )
     finally:
         worker.close()
@@ -813,7 +813,7 @@ def test_retry_delivers_retained_bundle_without_training_again(
     from vitroctl.training.documents import TrainingCheckpoint
     from vitroctl.worker.local_training import prepare_local_training
 
-    claim = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
     source = tmp_path / "training-runs/train-one-1"
     source.mkdir(parents=True)
     prepare_local_training(claim, source)
@@ -922,7 +922,7 @@ def test_epoch_reports_no_weight_bytes_and_interruption_retains_local_state(
         with pytest.raises(YoloTrainingInterruptedError):
             training_worker.serve_training_claim(
                 TrainingClient(worker),
-                TrainingClaim.parse(_run()),
+                TrainingClaim.from_document(_run()),
                 tmp_path,
                 "cpu",
                 images,
@@ -944,7 +944,7 @@ def test_local_recovery_copy_is_atomic_and_retryable(
     from vitroctl.training.documents import TrainingCheckpoint
     from vitroctl.worker import local_training
 
-    claim = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
     source = tmp_path / "train-one-1"
     source.mkdir()
     local_training.prepare_local_training(claim, source)
@@ -971,3 +971,26 @@ def test_local_recovery_copy_is_atomic_and_retryable(
 
     local_training.prepare_local_training(resumed, destination)
     assert (destination / "bundle/weights.pt").read_bytes() == b"complete weights"
+
+
+def test_training_claim_follows_shared_attempt_and_worker_id_bounds() -> None:
+    document = _run()
+    document["attempt"] = 0
+    document["state"] = {
+        "status": "running",
+        "workerId": "w" * 128,
+        "sessionId": "trainer-session",
+        "leaseExpiresAt": "2026-08-27T00:05:00.000Z",
+        "phase": "preparing",
+        "progress": 0.0,
+    }
+    claim = TrainingClaim.from_document(document)
+    assert claim.attempt == 0
+    assert claim.worker_id == "w" * 128
+    document["attempt"] = -1
+    with pytest.raises(ValueError, match="training run.attempt.*shared contract"):
+        TrainingClaim.from_document(document)
+    document["attempt"] = 0
+    document["state"] = {**document["state"], "workerId": "w" * 129}
+    with pytest.raises(ValueError, match="training run.state.*shared contract"):
+        TrainingClaim.from_document(document)

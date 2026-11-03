@@ -15,6 +15,7 @@ from typing import Any
 import httpx
 
 from vitroctl.detectors.contract import DetectionProducer
+from vitroctl.io.image_io import read_image
 from vitroctl.worker.images import ImageCache
 from vitroctl.worker.inference_protocol import Assignment, InferenceClient
 from vitroctl.worker.model_store import ModelStore
@@ -46,7 +47,10 @@ def _execute(
                 producer = DetectionProducer(
                     assignment.version_id, detector.artifact_digest, detector.runtime
                 )
-                result = detector.predict(image.result(), assignment.image, producer)
+                image_path = image.result()
+                height, width = read_image(image_path).shape[:2]
+                result = detector.predict(image_path, assignment.image, producer)
+                result.require_image(assignment.image, width, height)
                 connection.send(("result", result.to_dict()))
             except Exception as error:  # noqa: BLE001 - errors cross the process boundary
                 code = (

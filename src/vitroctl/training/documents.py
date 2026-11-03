@@ -44,7 +44,7 @@ class TrainingClaim:
     checkpoint: TrainingCheckpoint | None
 
     @classmethod
-    def parse(cls, value: Any, context: str = "training run") -> TrainingClaim:
+    def from_document(cls, value: Any, context: str = "training run") -> TrainingClaim:
         validate_wire_contract("training-run", value, context)
         run = value
         state_context = f"{context}.state"
@@ -101,6 +101,33 @@ class TrainingSnapshot:
     classes: tuple[str, ...]
     images: tuple[SnapshotImage, ...]
 
+    @classmethod
+    def from_document(cls, value: Any, context: str = "snapshot") -> TrainingSnapshot:
+        validate_wire_contract("training-snapshot", value, context)
+        document = value
+        images = tuple(
+            _snapshot_image(raw, f"{context}.images[{index}]")
+            for index, raw in enumerate(document["images"])
+        )
+        digests = [image.digest for image in images]
+        if len(set(digests)) != len(digests):
+            raise ValueError(f"{context} lists an image digest more than once")
+        classes = tuple(document["classes"])
+        known = set(classes)
+        for image in images:
+            for instance in image.annotation.instances:
+                if instance.class_name not in known:
+                    raise ValueError(
+                        f"{context} annotation uses unknown class {instance.class_name}"
+                    )
+        return cls(
+            id=document["id"],
+            dataset_id=document["datasetId"],
+            model_id=document["modelId"],
+            classes=classes,
+            images=images,
+        )
+
 
 def _snapshot_image(value: Any, context: str) -> SnapshotImage:
     entry = value
@@ -123,33 +150,4 @@ def _snapshot_image(value: Any, context: str) -> SnapshotImage:
         height=height,
         split=entry["split"],
         annotation=annotation,
-    )
-
-
-def parse_training_snapshot(value: Any, context: str = "snapshot") -> TrainingSnapshot:
-    validate_wire_contract("training-snapshot", value, context)
-    document = value
-    images = tuple(
-        _snapshot_image(raw, f"{context}.images[{index}]")
-        for index, raw in enumerate(document["images"])
-    )
-    digests = [image.digest for image in images]
-    if len(set(digests)) != len(digests):
-        raise ValueError(f"{context} lists an image digest more than once")
-    classes = tuple(document["classes"])
-    if len(set(classes)) != len(classes):
-        raise ValueError(f"{context}.classes must be unique")
-    known = set(classes)
-    for image in images:
-        for instance in image.annotation.instances:
-            if instance.class_name not in known:
-                raise ValueError(
-                    f"{context} annotation uses unknown class {instance.class_name}"
-                )
-    return TrainingSnapshot(
-        id=document["id"],
-        dataset_id=document["datasetId"],
-        model_id=document["modelId"],
-        classes=classes,
-        images=images,
     )

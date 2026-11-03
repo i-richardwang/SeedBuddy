@@ -18,16 +18,11 @@ class TrainingRecipe:
     runtime_version: str
 
     @classmethod
-    def from_document(cls, value: dict[str, Any]) -> TrainingRecipe:
-        """Read the recipe fields from a schema-validated document."""
+    def from_document(cls, value: Any, context: str = "recipe") -> TrainingRecipe:
+        validate_wire_contract("training-recipe", value, context)
         return cls(
             base_model_reference=value["baseModel"]["reference"],
             base_model_digest=value["baseModel"]["digest"],
             parameters=value["parameters"],
             runtime_version=value["runtime"]["version"],
         )
-
-
-def parse_training_recipe(value: Any, context: str = "recipe") -> TrainingRecipe:
-    validate_wire_contract("training-recipe", value, context)
-    return TrainingRecipe.from_document(value)

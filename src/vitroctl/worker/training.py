@@ -24,7 +24,6 @@ from vitroctl.training.documents import (
     TrainingClaim,
     TrainingPhase,
     TrainingSnapshot,
-    parse_training_snapshot,
 )
 from vitroctl.worker.images import ImageCache, wait_for
 from vitroctl.worker.local_training import prepare_local_training
@@ -62,7 +61,7 @@ class TrainingClient:
         document = response.json()
         if document["run"] is None:
             return None
-        claim = TrainingClaim.parse(document["run"])
+        claim = TrainingClaim.from_document(document["run"])
         self._require_own_session(claim)
         return claim
 
@@ -73,7 +72,7 @@ class TrainingClient:
             params=self._identity(claim),
         )
         self.worker.require_current_session(response)
-        return parse_training_snapshot(response.json())
+        return TrainingSnapshot.from_document(response.json())
 
     def enter_phase(self, claim: TrainingClaim, phase: TrainingPhase) -> None:
         response = self.worker.request(

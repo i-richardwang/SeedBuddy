@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from vitroctl.contracts.validation import validate_wire_contract
+from vitroctl.detectors.contract import DetectionResult
 from vitroctl.io.image_io import verify_digest
 from vitroctl.worker.model_store import ModelManifest
 from vitroctl.worker.session import WorkerClient
@@ -27,10 +28,10 @@ class Assignment:
     server_time: str
 
     @classmethod
-    def parse(cls, value: Any, context: str = "assignment") -> Assignment:
+    def from_document(cls, value: Any, context: str = "assignment") -> Assignment:
         validate_wire_contract("inference-assignment", value, context)
         result = cls(
-            ModelManifest.parse(value["manifest"], f"{context}.manifest"),
+            ModelManifest.from_document(value["manifest"], f"{context}.manifest"),
             value["image"],
             value["attempt"],
             value["leaseExpiresAt"],
@@ -67,7 +68,7 @@ class InferenceClient:
         )
         response.raise_for_status()
         assignment = response.json()["assignment"]
-        return None if assignment is None else Assignment.parse(assignment)
+        return None if assignment is None else Assignment.from_document(assignment)
 
     def weights(self, version_id: str) -> bytes:
         response = self.worker.request(
@@ -107,6 +108,10 @@ class InferenceClient:
     def put_result(
         self, assignment: Assignment, document: dict[str, object], deadline: float
     ) -> None:
+        validate_wire_contract("detection-result", document, "detection")
+        result = DetectionResult.from_document(document)
+        if result.digest != assignment.image:
+            raise ValueError("Detection describes another image")
         response = self.worker.request(
             "PUT",
             f"api/worker/inference/results/{assignment.version_id}/{assignment.image}",

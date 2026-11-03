@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from conftest import PARAMETERS
 
 from vitroctl.training.recipe import (
-    parse_training_recipe,
+    TrainingRecipe,
 )
 
 
@@ -19,7 +20,7 @@ def _recipe() -> dict[str, object]:
 
 
 def test_training_recipe_parser_returns_the_complete_identity() -> None:
-    recipe = parse_training_recipe(_recipe())
+    recipe = TrainingRecipe.from_document(_recipe())
 
     assert recipe.base_model_reference == "yolo26n.pt"
     assert recipe.base_model_digest == "a" * 64
@@ -31,20 +32,20 @@ def test_training_recipe_requires_the_ultralytics_runtime() -> None:
     recipe = _recipe()
     recipe["runtime"] = {"framework": "other", "version": "1.0"}
 
-    with pytest.raises(ValueError):
-        parse_training_recipe(recipe)
+    with pytest.raises(ValueError, match="recipe.runtime.framework.*ultralytics"):
+        TrainingRecipe.from_document(recipe)
 
 
 @pytest.mark.parametrize(
-    "recipe",
-    sorted(
-        path.name
-        for path in (Path(__file__).parents[1] / "configs/yolo26").glob("*.recipe.json")
-    ),
-    indirect=True,
+    "path",
+    sorted((Path(__file__).parents[1] / "configs/yolo26").glob("*.recipe.json")),
 )
-def test_project_recipes_parse_with_the_generated_schema(recipe) -> None:
-    parsed = parse_training_recipe(recipe)
+def test_project_recipe_files_obey_the_workbench_manifest_contract(path: Path) -> None:
+    document = json.loads(path.read_text())
+    assert set(document) == {"schemaVersion", "recipe"}
+    assert type(document["schemaVersion"]) is int and document["schemaVersion"] == 1
+    recipe = document["recipe"]
+    parsed = TrainingRecipe.from_document(recipe, str(path))
     assert parsed.base_model_reference == recipe["baseModel"]["reference"]
     assert parsed.base_model_digest == recipe["baseModel"]["digest"]
     assert parsed.parameters == recipe["parameters"]

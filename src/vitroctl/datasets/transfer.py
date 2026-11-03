@@ -29,7 +29,6 @@ from vitroctl.datasets.manifest import (
     encode_dataset_manifest,
     load_dataset_manifest,
     manifest_path,
-    parse_dataset_manifest,
     verified_blob,
 )
 from vitroctl.io.files import atomic_file
@@ -155,7 +154,7 @@ def _fetch_manifest(client: httpx.Client, dataset: str) -> DatasetManifest:
         f"Manifest exceeds {MAX_DATASET_MANIFEST_BYTES} bytes",
     )
     try:
-        manifest = parse_dataset_manifest(json.loads(contents), "manifest")
+        manifest = DatasetManifest.from_document(json.loads(contents), "manifest")
     except (TypeError, ValueError) as error:
         raise DatasetTransferError(str(error)) from error
     if manifest.dataset != dataset:

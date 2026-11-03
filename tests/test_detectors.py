@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from vitroctl.contracts.annotation import BoundingBox
+from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import (
     DetectionInstance,
     DetectionProducer,
@@ -13,7 +14,6 @@ from vitroctl.detectors.contract import (
     DetectionResult,
     RuntimeDescriptor,
 )
-from vitroctl.detectors.documents import parse_detection_result
 from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
 from vitroctl.detectors.traditional.detector import TraditionalDetector
 from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
@@ -50,14 +50,15 @@ def test_shared_detection_contract() -> None:
     ).to_dict()
     fixture = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     assert document == fixture
-    assert parse_detection_result(fixture).to_dict() == fixture
+    validate_wire_contract("detection-result", fixture, "detection")
+    assert DetectionResult.from_document(fixture).to_dict() == fixture
 
 
 def test_parser_rejects_unknown_contract_fields() -> None:
     document = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     document["unexpected"] = True
     with pytest.raises(ValueError, match="detection.*shared contract"):
-        parse_detection_result(document)
+        validate_wire_contract("detection-result", document, "detection")
 
 
 def test_traditional_detector_adapts_detections_to_boxes(monkeypatch) -> None:
@@ -115,31 +116,46 @@ def test_traditional_artifact_identity_covers_model_and_configuration() -> None:
 
 
 @pytest.mark.parametrize(
-    "change",
+    ("change", "reason"),
     [
-        {"quality": {"status": "unknown", "warnings": []}},
-        {"quality": {"status": "ok", "warnings": ["Not A Code"]}},
-        {
-            "instances": [
-                DetectionInstance(
-                    "seed", "seed", BoundingBox(0, 0, 1, 1), math.inf
-                ).to_dict()
-            ]
-        },
-        {
-            "instances": [
-                DetectionInstance(
-                    "seed", "seed", BoundingBox(0, 0, 1, 1), 1.1
-                ).to_dict()
-            ]
-        },
-        {"image": {"digest": "images/set/example.jpg", "width": 100, "height": 80}},
+        (
+            {"quality": {"status": "unknown", "warnings": []}},
+            "quality.status.*shared contract",
+        ),
+        (
+            {"quality": {"status": "ok", "warnings": ["Not A Code"]}},
+            r"quality.warnings\[0\].*shared contract",
+        ),
+        (
+            {
+                "instances": [
+                    DetectionInstance(
+                        "seed", "seed", BoundingBox(0, 0, 1, 1), math.inf
+                    ).to_dict()
+                ]
+            },
+            r"instances\[0\].score must be finite",
+        ),
+        (
+            {
+                "instances": [
+                    DetectionInstance(
+                        "seed", "seed", BoundingBox(0, 0, 1, 1), 1.1
+                    ).to_dict()
+                ]
+            },
+            r"instances\[0\].score.*shared contract",
+        ),
+        (
+            {"image": {"digest": "images/set/example.jpg", "width": 100, "height": 80}},
+            "image.digest.*shared contract",
+        ),
     ],
 )
-def test_contract_rejects_values_the_web_cannot_accept(change) -> None:
+def test_contract_rejects_values_the_web_cannot_accept(change, reason) -> None:
     document = json.loads(CONTRACT_FIXTURE.read_text())
-    with pytest.raises(ValueError):
-        parse_detection_result({**document, **change})
+    with pytest.raises(ValueError, match=reason):
+        validate_wire_contract("detection-result", {**document, **change}, "detection")
 
 
 def test_result_rejects_duplicate_ids_and_out_of_bounds_boxes() -> None:
@@ -174,4 +190,21 @@ def test_execution_failure_is_not_a_detection_document() -> None:
         "error": "transport failed",
     }
     with pytest.raises(ValueError, match="shared contract"):
-        parse_detection_result(failure)
+        validate_wire_contract("detection-result", failure, "detection")
+
+
+@pytest.mark.parametrize(
+    ("digest", "width", "height", "reason"),
+    [
+        ("d" * 64, 100, 80, "describes another image"),
+        ("c" * 64, 101, 80, "dimensions differ"),
+        ("c" * 64, 100, 81, "dimensions differ"),
+    ],
+)
+def test_detection_must_describe_the_source_image(digest, width, height, reason):
+    fixture = json.loads(CONTRACT_FIXTURE.read_text())
+    validate_wire_contract("detection-result", fixture, "detection")
+    result = DetectionResult.from_document(fixture)
+    with pytest.raises(ValueError, match=reason):
+        result.require_image(digest, width, height)
+    result.require_image("c" * 64, 100, 80)

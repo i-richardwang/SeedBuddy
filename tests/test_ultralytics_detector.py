@@ -203,7 +203,7 @@ def test_inference_worker_downloads_a_published_yolo_artifact(
     source = Source()
     store = ModelStore(source, tmp_path / "worker", "cpu")
 
-    manifest = ModelManifest.parse(
+    manifest = ModelManifest.from_document(
         {
             "schemaVersion": 1,
             "modelVersionId": "set.yolo-v1",

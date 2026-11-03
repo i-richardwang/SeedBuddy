@@ -44,7 +44,9 @@ class ModelManifest:
     artifact: dict[str, Any]
 
     @classmethod
-    def parse(cls, value: Any, context: str = "model manifest") -> ModelManifest:
+    def from_document(
+        cls, value: Any, context: str = "model manifest"
+    ) -> ModelManifest:
         validate_wire_contract("inference-model-manifest", value, context)
         return cls(
             model_version_id=value["modelVersionId"],

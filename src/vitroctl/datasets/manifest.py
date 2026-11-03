@@ -15,7 +15,6 @@ from typing import Any
 from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import DetectionResult
-from vitroctl.detectors.documents import detection_from_document
 from vitroctl.io.files import file_digest
 
 MANIFEST_SCHEMA_VERSION = 1
@@ -58,6 +57,47 @@ class DatasetManifest:
     classes: tuple[str, ...]
     images: tuple[ManifestImage, ...]
 
+    @classmethod
+    def from_document(cls, value: Any, context: str = "manifest") -> DatasetManifest:
+        validate_wire_contract("dataset-manifest", value, context)
+        document = value
+        dataset = document["dataset"]
+        model = document["model"]
+        model_id = model["id"]
+        classes = tuple(model["classes"])
+        images = tuple(
+            _image(raw, f"{context}.images[{index}]")
+            for index, raw in enumerate(document["images"])
+        )
+        digests = [image.digest for image in images]
+        if len(set(digests)) != len(digests):
+            raise ValueError(f"{context} lists an image digest more than once")
+        known_classes = set(classes)
+        for index, image in enumerate(images):
+            for field, payload in (
+                ("detection", image.detection),
+                ("annotation", image.annotation),
+            ):
+                if payload is None:
+                    continue
+                document_context = f"{context}.images[{index}].{field}"
+                if payload.digest != image.digest:
+                    raise ValueError(f"{document_context} describes another image")
+                if payload.width != image.width or payload.height != image.height:
+                    raise ValueError(
+                        f"{document_context} dimensions differ from the image"
+                    )
+                unknown = sorted(
+                    {instance.class_name for instance in payload.instances}
+                    - known_classes
+                )
+                if unknown:
+                    raise ValueError(
+                        f"{document_context} uses unknown class"
+                        f"{'es' if len(unknown) > 1 else ''}: {', '.join(unknown)}"
+                    )
+        return cls(dataset=dataset, model_id=model_id, classes=classes, images=images)
+
     def to_dict(self) -> dict[str, object]:
         return {
             "schemaVersion": MANIFEST_SCHEMA_VERSION,
@@ -96,7 +136,9 @@ def _image(value: Any, context: str) -> ManifestImage:
     entry = value
     detection = None
     if entry["detection"] is not None:
-        detection = detection_from_document(entry["detection"])
+        detection = DetectionResult.from_document(
+            entry["detection"], f"{context}.detection"
+        )
     annotation = (
         None
         if entry["annotation"] is None
@@ -117,48 +159,6 @@ def _image(value: Any, context: str) -> ManifestImage:
     )
 
 
-def parse_dataset_manifest(value: Any, context: str = "manifest") -> DatasetManifest:
-    validate_wire_contract("dataset-manifest", value, context)
-    document = value
-    dataset = document["dataset"]
-    model = document["model"]
-    model_id = model["id"]
-    classes = tuple(model["classes"])
-    if len(set(classes)) != len(classes):
-        raise ValueError(f"{context}.model.classes must be unique")
-    images = tuple(
-        _image(raw, f"{context}.images[{index}]")
-        for index, raw in enumerate(document["images"])
-    )
-    digests = [image.digest for image in images]
-    if len(set(digests)) != len(digests):
-        raise ValueError(f"{context} lists an image digest more than once")
-    known_classes = set(classes)
-    for index, image in enumerate(images):
-        for field, payload in (
-            ("detection", image.detection),
-            ("annotation", image.annotation),
-        ):
-            if payload is None:
-                continue
-            document_context = f"{context}.images[{index}].{field}"
-            if payload.digest != image.digest:
-                raise ValueError(f"{document_context} describes another image")
-            if payload.width != image.width or payload.height != image.height:
-                raise ValueError(f"{document_context} dimensions differ from the image")
-            unknown = sorted(
-                {instance.class_name for instance in payload.instances} - known_classes
-            )
-            if unknown:
-                raise ValueError(
-                    f"{document_context} uses unknown class"
-                    f"{'es' if len(unknown) > 1 else ''}: {', '.join(unknown)}"
-                )
-    return DatasetManifest(
-        dataset=dataset, model_id=model_id, classes=classes, images=images
-    )
-
-
 def encode_dataset_manifest(manifest: DatasetManifest) -> bytes:
     """Encode the canonical manifest representation used in transit."""
     encoded = (
@@ -171,6 +171,6 @@ def encode_dataset_manifest(manifest: DatasetManifest) -> bytes:
 
 def load_dataset_manifest(path: str | Path) -> DatasetManifest:
     source = Path(path)
-    return parse_dataset_manifest(
+    return DatasetManifest.from_document(
         json.loads(source.read_text(encoding="utf-8")), str(source)
     )
