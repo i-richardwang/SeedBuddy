@@ -76,3 +76,24 @@ def test_pipeline_fingerprint_covers_algorithm_module_dependencies() -> None:
                         root.joinpath(*module.split(".")).with_suffix(".py")
                     )
     assert (root / "vitroctl/image_geometry/dish-recipe.json").resolve() in covered
+
+
+@pytest.mark.parametrize("dependency", ["files.py", "http.py"])
+def test_transport_helpers_do_not_change_pipeline_fingerprint(monkeypatch, dependency):
+    source = Path(__file__).resolve().parents[1] / "src/vitroctl/io" / dependency
+    read_bytes = Path.read_bytes
+    pipeline_fingerprint.cache_clear()
+    before = pipeline_fingerprint()
+
+    def changed_source(path):
+        content = read_bytes(path)
+        return (
+            content + b"\nchanged transport\n" if path.resolve() == source else content
+        )
+
+    monkeypatch.setattr(Path, "read_bytes", changed_source)
+    pipeline_fingerprint.cache_clear()
+    try:
+        assert pipeline_fingerprint() == before
+    finally:
+        pipeline_fingerprint.cache_clear()

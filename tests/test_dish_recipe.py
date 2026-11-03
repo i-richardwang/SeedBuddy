@@ -1,5 +1,11 @@
 from importlib.resources import files
 
+import numpy as np
+import pytest
+from vitroflow.photos import dish
+
+from vitroctl.image_geometry.recipe import thumbnail_geometry
+
 
 def test_packages_share_the_dish_recipe() -> None:
     assert (
@@ -8,16 +14,11 @@ def test_packages_share_the_dish_recipe() -> None:
     )
 
 
-import numpy as np
-import pytest
-from vitroflow.photos import dish
-
-from vitroctl.image_geometry.recipe import thumbnail_geometry
-
-
 @pytest.mark.parametrize(
     "width,height",
     [
+        (2400, 1201),
+        (1201, 2400),
         (1200, 601),
         (601, 1200),
         (1600, 801),
