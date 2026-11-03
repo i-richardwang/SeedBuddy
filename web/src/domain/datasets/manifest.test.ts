@@ -60,7 +60,6 @@ test("manifest encoding is canonical and bounded", () => {
   );
 });
 
-
 test("manifest requires an explicit unclear flag", () => {
   const dataset = contractFixture() as { images: [{ unclear?: boolean }] };
   delete dataset.images[0].unclear;

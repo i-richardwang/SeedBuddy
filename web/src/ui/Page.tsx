@@ -16,9 +16,8 @@ const COLUMN = "flex w-full flex-col gap-6 max-mobile:gap-4";
  * `actions`, then the page's figure and sections. A page about one thing sets
  * its `icon` and, where it has them, `status` and `meta`. A page below
  * another names the way back up in the shell's top bar, from the route's
- * crumbs. A page that previews
- * its rows beside itself passes `preview`, null while nothing is open, and
- * fills the card edge to edge.
+ * crumbs. A page that previews its rows beside itself passes `preview`, null
+ * while nothing is open, and fills the card edge to edge.
  */
 export function Page({
   title,
