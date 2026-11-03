@@ -24,7 +24,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4.0"
-      - run: uv sync --locked
+      - run: uv sync --all-extras --group dev --locked
       - run: bun install --frozen-lockfile
         working-directory: web
       - run: make check
