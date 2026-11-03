@@ -12,9 +12,9 @@ export async function collectTrainingArtifactParts(): Promise<string[]> {
   for (const key of await listBlobs("training-artifact-parts/")) {
     const reference = parseArtifactPartKey(key);
     if (!reference) continue;
-    await transaction(async (tx) => {
-      const at = await operationTime(tx);
-      const [run] = await tx
+    await transaction(async (db) => {
+      const at = await operationTime(db);
+      const [run] = await db
         .select({
           attempt: trainingRuns.attempt,
           held: leaseIsHeld(trainingRuns, at),

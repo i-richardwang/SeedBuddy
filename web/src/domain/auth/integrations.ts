@@ -50,13 +50,13 @@ export type IssuedApiKey = z.infer<typeof issuedApiKeySchema>;
 
 export const MAX_API_KEY_DAYS = 365;
 
-export const apiKeyCreateSchema = z.strictObject({
+export const apiKeyRequestSchema = z.strictObject({
   name: apiKeyNameSchema,
   scopes: z.array(apiScopeSchema).min(1),
   /** Days until the key expires; null keeps it until it is revoked. */
   expiresInDays: z.number().int().min(1).max(MAX_API_KEY_DAYS).nullable(),
 });
-export type ApiKeyCreate = z.infer<typeof apiKeyCreateSchema>;
+export type ApiKeyCreate = z.infer<typeof apiKeyRequestSchema>;
 
 export const apiKeyRefSchema = z.strictObject({ key: z.string() });
 

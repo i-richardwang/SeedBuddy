@@ -71,13 +71,16 @@ export function experimentSheet(
 ): ExperimentSheetDetail {
   const cells = observationCells(grid.images, grid.manualReadings);
   const ordinals = observationOrdinals(grid.observations);
+  const parsed = grid.units.flatMap((unit) =>
+    unitCells(grid, unit, cells, ordinals),
+  );
   return {
     experiment: grid.experiment,
     treatments: grid.treatments,
     units: grid.units,
     observations: grid.observations,
-    cells: grid.units.flatMap((unit) => unitCells(grid, unit, cells, ordinals)),
-    summary: experimentSummary(grid),
+    cells: parsed,
+    summary: experimentSummary(grid, parsed),
   };
 }
 
@@ -97,4 +100,9 @@ export function unitRow(
     observations: grid.observations,
     cells: unitCells(grid, unit, cells, observationOrdinals(grid.observations)),
   };
+}
+
+/** Resolve a grid to the summary its sheet carries. */
+export function gridSummary(grid: ExperimentGridDetail) {
+  return experimentSheet(grid).summary;
 }

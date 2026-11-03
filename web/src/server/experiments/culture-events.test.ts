@@ -3,21 +3,21 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "bun:test";
 
 import {
-  ObservationImageAssignmentConflictError,
+  ObservationImageConflictError,
   UnitConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import { database } from "../infra/db/client";
 import { experimentCultureEvents } from "../infra/db/schema";
-import { experimentGridDetail } from "../queries/experiment-details";
+import { experimentGridDetail } from "../queries/experiment-grid-detail";
 import {
   createExperiment,
   INOCULATED,
   reading,
-  trainedVersion,
   unitsOf,
 } from "../testing/experiments";
 import { storeTexts } from "../testing/images";
+import { trainedVersion } from "../testing/models";
 import { deleteCultureEvent, recordCultureEvents } from "./culture-events";
 import { assignObservationImages } from "./observation-images";
 import { createObservation } from "./observations";
@@ -129,7 +129,7 @@ test("culture events take effect until they are removed", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ObservationImageAssignmentConflictError);
+  ).rejects.toThrow(ObservationImageConflictError);
   await deleteCultureEvent({
     experiment: experiment.id,
     event: terminalEvent!.id,

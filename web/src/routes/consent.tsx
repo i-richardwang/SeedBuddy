@@ -5,7 +5,7 @@ import {
   ConsentDecision,
   ConsentDecisionSkeleton,
 } from "../features/account/ConsentDecision";
-import { describeOAuthClient } from "../functions/integrations";
+import { getOAuthClient } from "../functions/integrations";
 import { m } from "../paraglide/messages";
 import { AuthPage } from "../ui/AuthPage";
 import { documentTitle } from "../ui/documentTitle";
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/consent")({
     clientId: search.client_id,
     resources: [search.resource ?? []].flat(),
   }),
-  loader: ({ deps }) => describeOAuthClient({ data: deps }),
+  loader: ({ deps }) => getOAuthClient({ data: deps }),
   head: ({ loaderData }) => ({
     meta: [
       {

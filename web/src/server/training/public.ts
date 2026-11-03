@@ -20,5 +20,6 @@ export { readTrainingRun, requireTrainingRun } from "./runs-access";
 export {
   datasetSnapshotOverviews,
   readDatasetSnapshot,
+  requireSnapshot,
   snapshotForRun,
 } from "./snapshots";

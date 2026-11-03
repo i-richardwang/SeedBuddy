@@ -43,7 +43,11 @@ export async function serveTrainingArtifactPart(
     if (bytes instanceof Response) return bytes;
     if (bytes.byteLength !== size)
       throw new WorkerRequestError("Artifact part length does not match");
-    await saveTrainingArtifactPart(runId, owner, upload, part, digest, bytes);
+    await saveTrainingArtifactPart(
+      runId,
+      { upload, part, digest, bytes },
+      owner,
+    );
     return new Response(null, { status: 204 });
   } catch (error) {
     return workerErrorResponse(error, "Training artifact part upload failed");
@@ -70,7 +74,7 @@ export async function serveTrainingArtifact(
       throw new WorkerRequestError("Request body must be valid JSON");
     }
     const bundle = parseWorkerValue(value, modelBundleSchema, "Request body");
-    return Response.json(await completeTrainingRun(runId, owner, bundle));
+    return Response.json(await completeTrainingRun(runId, bundle, owner));
   } catch (error) {
     return workerErrorResponse(error, "Training artifact publication failed");
   }

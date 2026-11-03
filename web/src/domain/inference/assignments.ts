@@ -44,3 +44,5 @@ export function inferenceModelManifest(
     artifact: version.artifact,
   });
 }
+
+export type InferenceTarget = z.infer<typeof inferenceTargetSchema>;

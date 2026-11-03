@@ -20,10 +20,10 @@ test("training overviews list the dataset's runs and bound the requested page", 
   const owner = await trainer("listing-trainer");
   const first = await createTrainingRun(dataset.id, recipe, owner.workerId);
   expect((await claimTrainingRun(owner))?.id).toBe(first.id);
-  await failTrainingRun(first.id, owner, "stopped");
+  await failTrainingRun(first.id, "stopped", owner);
   const next = await createTrainingRun(dataset.id, recipe, owner.workerId);
   expect((await claimTrainingRun(owner))?.id).toBe(next.id);
-  await failTrainingRun(next.id, owner, "stopped");
+  await failTrainingRun(next.id, "stopped", owner);
   expect(
     (await listTrainingRunOverviews({ datasetId: dataset.id }))
       .map(({ run }) => run.id)
@@ -35,16 +35,17 @@ test("training overviews count epochs and select metrics only from the current a
   const dataset = await trainingDataset("overview-epochs");
   const owner = await trainer("listing-epoch-trainer");
   const run = await createTrainingRun(dataset.id, recipe, owner.workerId);
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const start = new Date();
   expect((await claimTrainingRun(owner, start))?.id).toBe(run.id);
-  await enterTrainingPhase(run.id, owner, "training", start);
-  await recordTrainingEpoch(run.id, owner, epochReport(1), start);
-  await recordTrainingEpoch(run.id, owner, epochReport(2), start);
+  await enterTrainingPhase(run.id, "training", owner, start);
+  await recordTrainingEpoch(run.id, epochReport(1), owner, start);
+  await recordTrainingEpoch(run.id, epochReport(2), owner, start);
   const expired = new Date(start.getTime() + 10 * 60 * 1000);
   const nextOwner = { ...owner, attempt: 2 };
   expect((await claimTrainingRun(nextOwner, expired))?.id).toBe(run.id);
-  await enterTrainingPhase(run.id, nextOwner, "training", expired);
-  await recordTrainingEpoch(run.id, nextOwner, epochReport(1), expired);
+  await enterTrainingPhase(run.id, "training", nextOwner, expired);
+  await recordTrainingEpoch(run.id, epochReport(1), nextOwner, expired);
   expect(
     await listTrainingRunOverviews({ datasetId: dataset.id }),
   ).toMatchObject([
@@ -55,5 +56,5 @@ test("training overviews count epochs and select metrics only from the current a
       best: { map50: 0.3, map50To95: 0.1 },
     },
   ]);
-  await failTrainingRun(run.id, nextOwner, "stopped");
+  await failTrainingRun(run.id, "stopped", nextOwner);
 });

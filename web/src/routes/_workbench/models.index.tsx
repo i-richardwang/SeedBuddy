@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { ModelsGrid } from "../../features/models/ModelsGrid";
 import { NewModelDialog } from "../../features/models/NewModelDialog";
-import { getModelCatalogue } from "../../functions/models";
+import { getModels } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
@@ -14,7 +14,7 @@ import { CardGridSkeleton } from "../../ui/kit/SummaryCard";
 import { Page, PageColumnSkeleton } from "../../ui/Page";
 
 export const Route = createFileRoute("/_workbench/models/")({
-  loader: () => getModelCatalogue(),
+  loader: () => getModels(),
   staticData: { crumbs: () => [{ label: m.models_label() }] },
   head: () => ({
     meta: [{ title: documentTitle(m.models_label()) }],

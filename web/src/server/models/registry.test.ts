@@ -28,8 +28,8 @@ import {
   createModel,
   deleteModel,
   installBuiltinModels,
-  listAllModelVersions,
   listModels,
+  listModelVersions,
   readCurrentVersionId,
   readModelVersion,
   registerModel,
@@ -116,7 +116,7 @@ test("every registered version is listed newest first", async () => {
     version("2026-08-28T00:00:00.000Z", "v2"),
   );
 
-  const listed = (await listAllModelVersions()).map(({ id }) => id);
+  const listed = (await listModelVersions(model.id)).map(({ id }) => id);
   expect(listed).toContain(older.id);
   expect(listed.indexOf(newer.id)).toBeLessThan(listed.indexOf(older.id));
 });
@@ -138,11 +138,7 @@ test("a task exists as soon as it is named, before anything can answer it", asyn
   expect((await listModels()).map(({ id }) => id)).toContain(
     "germination-detector",
   );
-  expect(
-    (await listAllModelVersions()).filter(
-      ({ modelId }) => modelId === "germination-detector",
-    ),
-  ).toEqual([]);
+  expect(await listModelVersions("germination-detector")).toEqual([]);
 
   await expect(
     createModel({
@@ -207,7 +203,9 @@ const contendedTest = testDatabaseUrl ? test : test.skip;
 async function waitForLockContention(url: string): Promise<void> {
   const observer = postgres(url, { max: 1, onnotice: () => {} });
   try {
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     const deadline = Date.now() + 5_000;
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     while (Date.now() < deadline) {
       const [waiting] = await observer<{ sessions: number }[]>`
         select count(*)::int as sessions from pg_stat_activity
@@ -242,8 +240,8 @@ contendedTest(
     const committed = new Promise<void>((resolve) => {
       commit = resolve;
     });
-    const recording = other.db.transaction(async (tx) => {
-      await tx.insert(modelVersions).values({
+    const recording = other.db.transaction(async (db) => {
+      await db.insert(modelVersions).values({
         id: "contended-detector-v1",
         modelId: model.id,
         createdAt: new Date("2026-09-11T00:00:00.000Z"),

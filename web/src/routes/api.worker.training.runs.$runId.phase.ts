@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/phase")({
             context.workerId,
           );
           return Response.json(
-            await enterTrainingPhase(params.runId, owner, phase),
+            await enterTrainingPhase(params.runId, phase, owner),
           );
         } catch (error) {
           return workerErrorResponse(error, "Training phase transition failed");

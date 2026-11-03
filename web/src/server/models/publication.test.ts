@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
-import type { ModelBundle } from "../../domain/models/bundle";
+import {
+  type ModelBundle,
+  modelBundleSchema,
+} from "../../domain/models/bundle";
 import { ModelUploadNotFoundError } from "../../domain/models/errors";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { blobExists } from "../infra/blobs/store";
@@ -104,12 +107,12 @@ test("bundle validation rejects mismatched classes and unsupported inference pip
   const b = bundle();
   b.classes = ["other"];
   await expect(prepareModelUpload(m.id, b)).rejects.toThrow(/classes/);
-  await expect(
-    prepareModelUpload(m.id, {
+  expect(
+    modelBundleSchema.safeParse({
       ...bundle(),
       inference: { ...bundle().inference, mode: "tiled" },
-    } as unknown as ModelBundle),
-  ).rejects.toThrow();
+    }).success,
+  ).toBeFalse();
 });
 
 test("only expired unregistered reservations are collected; renewal and committed versions remain rooted", async () => {

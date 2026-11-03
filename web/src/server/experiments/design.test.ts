@@ -25,20 +25,18 @@ import { imageBlobKey } from "../images/keys";
 import { blobExists } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { experimentUnits } from "../infra/db/schema";
-import { listAllModelVersions } from "../models/registry";
-import {
-  experimentGridDetail,
-  listExperimentOverviews,
-} from "../queries/experiment-details";
+import { listModelVersions } from "../models/registry";
+import { experimentGridDetail } from "../queries/experiment-grid-detail";
+import { listExperimentOverviews } from "../queries/list-experiment-overviews";
 import {
   assignImages,
   createExperiment,
   INOCULATED,
   reading,
-  trainedVersion,
   unitsOf,
 } from "../testing/experiments";
 import { imageDigest } from "../testing/images";
+import { trainedVersion } from "../testing/models";
 import {
   addReplicates,
   addTreatment,
@@ -55,7 +53,7 @@ import { createObservation } from "./observations";
 test("start on a fresh deployment with the builtin seed germination model", async () => {
   expect(calendarDaySchema.safeParse("2026-02-29").success).toBeFalse();
   expect(calendarDaySchema.safeParse("2024-02-29").success).toBeTrue();
-  const offered = await listAllModelVersions();
+  const offered = await listModelVersions("seed-detector");
   expect(offered.map((version) => version.id)).toContain(
     SEED_DETECTOR_BASELINE_VERSION_ID,
   );

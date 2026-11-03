@@ -3,7 +3,6 @@ import sharp from "sharp";
 
 import { DatasetImportInvalidError } from "../../domain/datasets/errors";
 import { ImageSourceInvalidError } from "../../domain/images/errors";
-import { readAnnotation } from "../annotations/documents";
 import { imageBlobKey } from "../images/keys";
 import { storeCanonicalImage } from "../images/store";
 import {
@@ -15,6 +14,7 @@ import { requireBlob } from "../infra/blobs/store";
 import { contentDigest } from "../infra/digest";
 import { observeTextsIntoDataset, reviewedDataset } from "../testing/datasets";
 import { imageBytes, imageDigest, storeTexts } from "../testing/images";
+import { readAnnotation } from "../testing/records";
 import { handleCanonicalImageUpload } from "../transport/http/image-upload";
 import { readDatasetByName } from "./datasets";
 import { listImageRecords } from "./records";

@@ -7,6 +7,7 @@ import {
   type ModelRecords,
 } from "../../domain/models/contracts";
 import type { Executor } from "../infra/db/client";
+import { single } from "../infra/db/client";
 import {
   annotations,
   datasets,
@@ -49,10 +50,13 @@ export async function modelRecords(
   model: string,
   db: Executor,
 ): Promise<ModelRecords> {
-  const [row] = await db
-    .select(modelRecordCounts(model, db))
-    .from(sql`(select 1) as model_counts`);
-  return toModelRecords(row!);
+  const row = single(
+    await db
+      .select(modelRecordCounts(model, db))
+      .from(sql`(select 1) as model_counts`),
+    "model_counts",
+  );
+  return toModelRecords(row);
 }
 
 export function toModelRecords(

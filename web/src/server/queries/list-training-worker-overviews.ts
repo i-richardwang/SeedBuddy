@@ -6,9 +6,9 @@ import { listEnrolledWorkers, listWorkers } from "../workers/public";
 
 export async function listTrainingWorkerOverviews(
   suppliedAt?: Date,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<TrainingWorkerOverview[]> {
-  const db = executor ?? (await database());
+  db ??= await database();
   const at = await operationTime(db, suppliedAt);
   const [enrolled, sessions] = await Promise.all([
     listEnrolledWorkers(db),

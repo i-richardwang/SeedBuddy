@@ -46,7 +46,7 @@ export const modelOperations = [
     destructive: false,
     input: modelRequestSchema,
     output: modelSchema,
-    handler: (input, executor) => createModel(input, executor),
+    handler: (input, db) => createModel(input, db),
   }),
   command({
     transaction: "operation",
@@ -56,7 +56,7 @@ export const modelOperations = [
     destructive: true,
     input: modelAnnotationRequestSchema,
     output: modelSchema,
-    handler: (input, executor) => setModelAnnotation(input, executor),
+    handler: (input, db) => setModelAnnotation(input, db),
   }),
   command({
     transaction: "operation",
@@ -65,7 +65,7 @@ export const modelOperations = [
     destructive: true,
     input: modelRefSchema,
     output: z.null(),
-    handler: (input, executor) => deleteModel(input, executor),
+    handler: (input, db) => deleteModel(input, db),
   }),
   query({
     name: "list-model-versions",

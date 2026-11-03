@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { canonicalJson } from "../../lib/json/canonical";
 import { resourceIdSchema, sha256Schema } from "../identifiers/schema";
 import type { RuntimeDescriptor } from "../inference/schema";
 import { timestampSchema } from "../time";
@@ -148,20 +149,14 @@ export type ModelVersion = z.infer<typeof modelVersionSchema>;
 export type ModelArtifact = z.infer<typeof modelArtifactSchema>;
 
 export function sameModel(left: Model, right: Model): boolean {
-  return (
-    JSON.stringify(modelSchema.parse(left)) ===
-    JSON.stringify(modelSchema.parse(right))
-  );
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 export function sameModelVersion(
   left: ModelVersion,
   right: ModelVersion,
 ): boolean {
-  return (
-    JSON.stringify(modelVersionSchema.parse(left)) ===
-    JSON.stringify(modelVersionSchema.parse(right))
-  );
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 export function supportsRuntime(

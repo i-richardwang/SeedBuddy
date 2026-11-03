@@ -1,13 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import type { CultureEvent } from "./culture-events";
-import type { ExperimentGridDetail, ObservationImageCell } from "./read-model";
-import type {
-  Experiment,
-  ExperimentObservation,
-  ManualReading,
-} from "./schema";
+import type { ExperimentGridDetail } from "./read-model";
+import type { Experiment } from "./schema";
 import { experimentSheet, unitRow } from "./sheet";
+import { cell, counted, event, grid, observation, photograph } from "./testing";
 
 const experiment: Experiment = {
   id: "experiment",
@@ -21,71 +17,13 @@ const experiment: Experiment = {
   createdAt: "2026-08-01T00:00:00.000Z",
 };
 
-function observation(
-  ordinal: number,
-  counted: string[],
-): ExperimentObservation {
-  return {
-    id: `day-${ordinal}`,
-    ordinal,
-    observedOn: `2026-09-0${ordinal}`,
-    note: "",
-    modelId: "seed-detector",
-    countedClasses: counted,
-    hasRecords: true,
-  };
-}
-
 const day1 = observation(1, ["ungerminated", "germinated"]);
 const day2 = observation(2, ["germinated"]);
 
-function photograph(
-  unit: string,
-  day: ExperimentObservation,
-  overrides: Partial<ObservationImageCell> = {},
-): ObservationImageCell {
-  return {
-    id: `${unit}-${day.id}`,
-    unit,
-    observation: day.id,
-    digest: "a".repeat(64),
-    filename: `${unit}.jpg`,
-    state: "analyzed",
-    detectionTally: { ungerminated: 6, germinated: 4 },
-    proposalTally: null,
-    annotationTally: null,
-    error: null,
-    unclear: false,
-    ...overrides,
-  };
-}
-
-function counted(
-  unit: string,
-  day: ExperimentObservation,
-  tally: ManualReading["tally"],
-): ManualReading {
-  return {
-    unit,
-    observation: day.id,
-    tally,
-    recordedAt: "2026-09-08T00:00:00.000Z",
-  };
-}
-
-function event(type: CultureEvent["type"], on: ExperimentObservation) {
-  return {
-    id: `${type}-${on.id}`,
-    type,
-    observation: on.id,
-    recordedAt: "2026-09-01T00:00:00.000Z",
-  };
-}
-
-function grid(
+function scenario(
   overrides: Partial<ExperimentGridDetail> = {},
 ): ExperimentGridDetail {
-  return {
+  return grid({
     experiment,
     treatments: [
       { id: "control", name: "Control", factor: null, note: "", position: 1 },
@@ -99,24 +37,12 @@ function grid(
     images: [],
     manualReadings: [],
     ...overrides,
-  };
-}
-
-function cell(
-  sheet: ReturnType<typeof experimentSheet>,
-  unit: string,
-  day: ExperimentObservation,
-) {
-  const found = sheet.cells.find(
-    (item) => item.unit === unit && item.observation === day.id,
-  );
-  if (!found) throw new Error(`No cell for ${unit} on ${day.id}`);
-  return found;
+  });
 }
 
 describe("the sheet an agent reads", () => {
   test("has a cell for every unit on every observation, in the grid's order", () => {
-    const sheet = experimentSheet(grid());
+    const sheet = experimentSheet(scenario());
     expect(
       sheet.cells.map(({ unit, observation }) => `${unit}/${observation}`),
     ).toEqual(["c1/day-1", "c1/day-2", "t1/day-1", "t1/day-2"]);
@@ -132,10 +58,15 @@ describe("the sheet an agent reads", () => {
 
   test("resolves a cell to the reading the analysis uses, over the evidence it came from", () => {
     const sheet = experimentSheet(
-      grid({
+      scenario({
         images: [
-          photograph("c1", day1),
-          photograph("c1", day2, { annotationTally: { germinated: 5 } }),
+          photograph("c1", day1, {
+            detectionTally: { ungerminated: 6, germinated: 4 },
+          }),
+          photograph("c1", day2, {
+            detectionTally: { ungerminated: 6, germinated: 4 },
+            ...{ annotationTally: { germinated: 5 } },
+          }),
         ],
       }),
     );
@@ -156,8 +87,12 @@ describe("the sheet an agent reads", () => {
 
   test("a count entered by hand outranks the photograph and stays beside it", () => {
     const sheet = experimentSheet(
-      grid({
-        images: [photograph("t1", day2)],
+      scenario({
+        images: [
+          photograph("t1", day2, {
+            detectionTally: { ungerminated: 6, germinated: 4 },
+          }),
+        ],
         manualReadings: [counted("t1", day2, { germinated: 7 })],
       }),
     );
@@ -171,7 +106,7 @@ describe("the sheet an agent reads", () => {
 
   test("a count that leaves a counted class unanswered reads nothing by itself", () => {
     const sheet = experimentSheet(
-      grid({ manualReadings: [counted("t1", day1, { germinated: 7 })] }),
+      scenario({ manualReadings: [counted("t1", day1, { germinated: 7 })] }),
     );
     expect(cell(sheet, "t1", day1)).toMatchObject({
       reading: null,
@@ -182,7 +117,7 @@ describe("the sheet an agent reads", () => {
   test("says why a day is out of the analysis, with or without a reading", () => {
     const contaminated = event("contaminated", day1);
     const sheet = experimentSheet(
-      grid({
+      scenario({
         units: [
           { id: "c1", code: "Control-1", treatment: "control", events: [] },
           {
@@ -193,8 +128,13 @@ describe("the sheet an agent reads", () => {
           },
         ],
         images: [
-          photograph("t1", day1),
-          photograph("c1", day1, { unclear: true }),
+          photograph("t1", day1, {
+            detectionTally: { ungerminated: 6, germinated: 4 },
+          }),
+          photograph("c1", day1, {
+            detectionTally: { ungerminated: 6, germinated: 4 },
+            ...{ unclear: true },
+          }),
         ],
       }),
     );
@@ -213,9 +153,14 @@ describe("the sheet an agent reads", () => {
 
   test("where unclear photographs count, the number is used as it stands", () => {
     const sheet = experimentSheet(
-      grid({
+      scenario({
         experiment: { ...experiment, countsUnclear: true },
-        images: [photograph("c1", day1, { unclear: true })],
+        images: [
+          photograph("c1", day1, {
+            detectionTally: { ungerminated: 6, germinated: 4 },
+            ...{ unclear: true },
+          }),
+        ],
       }),
     );
     expect(cell(sheet, "c1", day1)).toMatchObject({
@@ -227,8 +172,15 @@ describe("the sheet an agent reads", () => {
 
 describe("a unit's row of the sheet", () => {
   test("carries the unit, its treatment, and its cells alone", () => {
-    const source = grid({
-      images: [photograph("t1", day1), photograph("c1", day1)],
+    const source = scenario({
+      images: [
+        photograph("t1", day1, {
+          detectionTally: { ungerminated: 6, germinated: 4 },
+        }),
+        photograph("c1", day1, {
+          detectionTally: { ungerminated: 6, germinated: 4 },
+        }),
+      ],
     });
     const row = unitRow(source, "t1");
     expect(row).toMatchObject({
@@ -244,6 +196,6 @@ describe("a unit's row of the sheet", () => {
   });
 
   test("is nothing for a unit the experiment does not have", () => {
-    expect(unitRow(grid(), "stranger")).toBeNull();
+    expect(unitRow(scenario(), "stranger")).toBeNull();
   });
 });

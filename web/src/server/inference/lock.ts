@@ -10,9 +10,9 @@ import type { Executor } from "../infra/db/client";
 export async function lockDetection(
   digest: string,
   versionId: string,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
-  await tx.execute(
+  await db.execute(
     sql`select pg_advisory_xact_lock(hashtext(${`${digest}:${versionId}`}))`,
   );
 }

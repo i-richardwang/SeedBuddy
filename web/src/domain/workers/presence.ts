@@ -18,7 +18,7 @@ function secondsSince(
 
 export function workerPresence(
   lastSeenAt: z.infer<typeof timestampSchema>,
-  at: Date = new Date(),
+  at: Date,
 ): WorkerPresence {
   const age = secondsSince(lastSeenAt, at);
   if (age <= WORKER_ONLINE_SECONDS) return "online";

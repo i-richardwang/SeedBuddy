@@ -1,7 +1,7 @@
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 
 import { readBlob } from "../infra/blobs/store";
-import { database, transaction } from "../infra/db/client";
+import { database, operationTime, transaction } from "../infra/db/client";
 import { images } from "../infra/db/schema";
 import { analyzeImage } from "./analysis";
 import { DISH_RECIPE_ID } from "./dish-recipe";
@@ -24,8 +24,8 @@ function needsAnalysis() {
 
 /** Claim one image in a short transaction; decoding never holds database locks. */
 async function claimImage(attemptedBefore: Date) {
-  return transaction(async (tx) => {
-    const [image] = await tx
+  return transaction(async (db) => {
+    const [image] = await db
       .select({ id: images.id, width: images.width, height: images.height })
       .from(images)
       .where(
@@ -44,8 +44,8 @@ async function claimImage(attemptedBefore: Date) {
       .limit(1)
       .for("update", { skipLocked: true });
     if (!image) return null;
-    const attemptedAt = new Date();
-    await tx
+    const attemptedAt = await operationTime(db);
+    await db
       .update(images)
       .set({ dishAnalysisAttemptedAt: attemptedAt })
       .where(eq(images.id, image.id));
@@ -57,14 +57,16 @@ async function claimImage(attemptedBefore: Date) {
 export function createImageAnalysisRefresher(analyze = analyzeImage) {
   return async ({
     limit = 100,
-    attemptedBefore = new Date(Date.now() - IMAGE_ANALYSIS_RETRY_MS),
+    attemptedBefore,
     signal,
   }: RefreshOptions = {}) => {
     if (!Number.isInteger(limit) || limit < 1 || limit > 1000)
       throw new Error("Analysis limit must be 1–1000");
+    const at = await operationTime(await database());
+    attemptedBefore ??= new Date(at.getTime() - IMAGE_ANALYSIS_RETRY_MS);
     if (
       !Number.isFinite(attemptedBefore.getTime()) ||
-      attemptedBefore.getTime() > Date.now() - IMAGE_ANALYSIS_RETRY_MS
+      attemptedBefore.getTime() > at.getTime() - IMAGE_ANALYSIS_RETRY_MS
     )
       throw new Error("Analysis cutoff must respect the retry interval");
     const result = { examined: 0, completed: 0, failed: 0, skipped: 0 };

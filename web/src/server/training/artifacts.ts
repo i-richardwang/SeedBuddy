@@ -1,7 +1,6 @@
 import {
   type ArtifactUpload,
   artifactPartSize,
-  artifactUploadSchema,
   TRAINING_ARTIFACT_PART_BYTES,
 } from "../../domain/training/artifact";
 import { TrainingArtifactInvalidError } from "../../domain/training/errors";
@@ -18,24 +17,24 @@ import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
 
 export async function saveTrainingArtifactPart(
   runId: string,
+  {
+    upload,
+    part,
+    digest,
+    bytes,
+  }: {
+    upload: ArtifactUpload;
+    part: number;
+    digest: string;
+    bytes: Uint8Array;
+  },
   owner: AttemptOwner,
-  upload: ArtifactUpload,
-  part: number,
-  digest: string,
-  bytes: Uint8Array,
 ) {
-  if (!artifactUploadSchema.safeParse(upload).success)
-    throw new TrainingArtifactInvalidError("Invalid artifact upload");
   const db = await database();
   await requireOwnedRunningRun(await requireTrainingRun(runId, db), owner, db);
-  const expected = artifactPartSize(upload, part);
-  if (
-    !expected ||
-    bytes.byteLength !== expected ||
-    contentDigest(bytes) !== digest
-  )
+  if (contentDigest(bytes) !== digest)
     throw new TrainingArtifactInvalidError(
-      "Artifact part size or digest does not match",
+      "Artifact part digest does not match",
     );
   try {
     await putImmutableBlob(
@@ -54,8 +53,8 @@ export async function saveTrainingArtifactPart(
 /** Assemble verified final weights; no model is published before every part is present. */
 export async function readTrainingArtifactParts(
   runId: string,
-  owner: AttemptOwner,
   upload: ArtifactUpload,
+  owner: AttemptOwner,
 ) {
   const bytes = new Uint8Array(upload.bytes);
   for (

@@ -5,9 +5,9 @@ import type { Executor } from "../infra/db/client";
 /** Discover missing work independently of worker capabilities or availability. */
 export async function materializeInferenceDemand(
   at: Date,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
-  await tx.execute(sql`
+  await db.execute(sql`
     with demand as (
       select distinct i.image_id, m.current_version_id as model_version_id
       from experiment_observation_images i

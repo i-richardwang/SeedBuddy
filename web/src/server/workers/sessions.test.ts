@@ -6,6 +6,7 @@ import {
   WORKER_STALE_SECONDS,
   workerPresence,
 } from "../../domain/workers/presence";
+import { database } from "../infra/db/client";
 import {
   recordTestHeartbeat,
   TEST_RUNTIME,
@@ -42,7 +43,7 @@ test("a worker trains only with the ultralytics runtime", async () => {
     },
     seen,
   );
-  const trainers = (await listOnlineTrainers(seen)).map(
+  const trainers = (await listOnlineTrainers(seen, await database())).map(
     (worker) => worker.workerId,
   );
   expect(trainers).toContain("trainer");
@@ -63,8 +64,10 @@ test("an older session cannot replace a newer process with the same worker id", 
   await expect(recordTestHeartbeat(heartbeat)).rejects.toBeInstanceOf(
     WorkerSessionConflictError,
   );
-  await expect(currentWorkerSession(heartbeat)).rejects.toBeInstanceOf(
-    WorkerSessionConflictError,
+  await expect(
+    currentWorkerSession(heartbeat, await database()),
+  ).rejects.toBeInstanceOf(WorkerSessionConflictError);
+  expect((await currentWorkerSession(newer, await database())).sessionId).toBe(
+    "newer-session",
   );
-  expect((await currentWorkerSession(newer)).sessionId).toBe("newer-session");
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { imageRectangleSchema } from "../images/geometry";
-import { imageDigestSchema } from "../images/schema";
+import { imageFrameSchema } from "../images/schema";
 import { detectionProducerSchema } from "../inference/schema";
 import { classNameSchema } from "../models/classes";
 
@@ -38,11 +38,7 @@ const diagnosticsSchema = z.strictObject({
 export const detectionResultSchema = z
   .strictObject({
     schemaVersion: z.literal(1),
-    image: z.strictObject({
-      digest: imageDigestSchema,
-      width: z.number().int().positive(),
-      height: z.number().int().positive(),
-    }),
+    image: imageFrameSchema,
     producer: detectionProducerSchema,
     instances: z.array(detectionInstanceSchema),
     quality: detectionQualitySchema,

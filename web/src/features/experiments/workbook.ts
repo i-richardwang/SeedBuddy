@@ -25,8 +25,8 @@ import {
   formatFactor,
   type Treatment,
 } from "../../domain/experiments/schema";
+import { gridSummary } from "../../domain/experiments/sheet";
 import {
-  experimentSummary,
   type SummaryMeasure,
   summaryCell,
   summaryMeasure,
@@ -167,7 +167,7 @@ export function summarySheet(
   exportedOn: CalendarDay,
 ): WorkbookSheet {
   const { experiment, treatments, observations } = source;
-  const summary = experimentSummary(source);
+  const summary = gridSummary(source);
   const baseline = observations.find(
     (observation) => observation.id === summary.baseline,
   );

@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import {
-  userCreateSchema,
   userPasswordUpdateSchema,
   userRefSchema,
+  userRequestSchema,
   userRoleUpdateSchema,
   userStatusUpdateSchema,
 } from "../domain/auth/schema";
@@ -24,7 +24,7 @@ export const getUsers = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export const createUser = createServerFn({ method: "POST" })
-  .validator(userCreateSchema)
+  .validator(userRequestSchema)
   .handler(async ({ data }) => {
     await requireAdministrator();
     return createUserService(data);

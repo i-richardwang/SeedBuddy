@@ -4,6 +4,7 @@ import {
   type UserRole,
   userAccountSchema,
 } from "../../domain/auth/schema";
+import { issueApiKey } from "../auth/api-keys";
 import { auth } from "../auth/service";
 import { deploymentEndpoint } from "../infra/deployment";
 import type { DpopKey } from "./dpop";
@@ -62,11 +63,7 @@ export function apiKeyHeaders(secret: string): Headers {
 }
 
 function base64Url(bytes: Uint8Array): string {
-  return Buffer.from(bytes)
-    .toString("base64")
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/, "");
+  return Buffer.from(bytes).toString("base64url");
 }
 
 interface McpAuthorization {
@@ -200,7 +197,6 @@ async function registerMcpClient(
 
 export async function agentHeaders(): Promise<Headers> {
   const { user } = await signInAs("member");
-  const { issueApiKey } = await import("../auth/api-keys");
   return apiKeyHeaders(
     (
       await issueApiKey(user.id, {

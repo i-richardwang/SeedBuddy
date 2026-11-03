@@ -147,12 +147,12 @@ function projectProposal(
   };
 }
 
-export const annotationTaskInput = z.strictObject({
+export const annotationTaskSchema = z.strictObject({
   taskId: z.string().min(1),
 });
-export const annotationPreviewInput = annotationTaskInput.extend(
+export const annotationPreviewSchema = annotationTaskSchema.extend(
   regionProposalSchema.shape,
 );
-export const annotationSubmitInput = annotationTaskInput.extend({
+export const annotationSubmitSchema = annotationTaskSchema.extend({
   proposalId: sha256Schema,
 });

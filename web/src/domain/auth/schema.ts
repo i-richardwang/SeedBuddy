@@ -37,7 +37,7 @@ export type UserAccount = z.infer<typeof userAccountSchema>;
 
 export const userRefSchema = z.strictObject({ user: z.string() });
 
-export const userCreateSchema = z.strictObject({
+export const userRequestSchema = z.strictObject({
   name: userNameSchema,
   email: userEmailSchema,
   password: passwordSchema,

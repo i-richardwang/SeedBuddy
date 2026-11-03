@@ -3,6 +3,8 @@ import { posix as path } from "node:path";
 import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
 
+import { PROCESS_ENTRIES } from "./process-entries";
+
 /** Allowed server dependencies. Public entry points are the only cross-module API. */
 const dependencies: Record<string, readonly string[]> = {
   images: ["infra"],
@@ -189,13 +191,7 @@ function adapter(file: string): boolean {
 }
 
 function processEntry(file: string): boolean {
-  return (
-    file === "src/server.ts" ||
-    file === "server.ts" ||
-    file === "scripts/maintenance.ts" ||
-    file === "scripts/analyze-images.ts" ||
-    file === "scripts/collect-blobs.ts"
-  );
+  return PROCESS_ENTRIES.some((entry) => entry.path === file);
 }
 
 /** Parse actual syntax, including type imports, re-exports and dynamic imports. */

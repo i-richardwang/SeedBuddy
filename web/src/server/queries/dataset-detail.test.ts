@@ -2,10 +2,11 @@ import { expect, test } from "bun:test";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import { readAnnotation, storeAnnotation } from "../annotations/documents";
+import { storeAnnotation } from "../annotations/documents";
 import { observeTextsIntoDataset } from "../testing/datasets";
 import { imageDigest, resultFor } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
+import { readAnnotation } from "../testing/records";
 import {
   recordTestHeartbeat,
   testHeartbeat,
@@ -20,6 +21,7 @@ import { datasetDetail } from "./dataset-detail";
 import { modelDetail } from "./model-detail";
 
 /** This test's clock; workers heartbeating at wall-clock time are offline here. */
+/** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
 const HEARTBEAT_AT = new Date(Date.now() + 24 * 60 * 60 * 1000);
 const OVERVIEW_AT = new Date(HEARTBEAT_AT.getTime() + 10_000);
 
@@ -69,7 +71,7 @@ test("the overview derives review progress and training readiness", async () => 
     workerMemoryBytes: null,
   });
 
-  const run = await createTrainingRun(dataset.id, YOLO26N_WHOLE_RECIPE);
+  const run = await createTrainingRun(dataset.id, YOLO26N_WHOLE_RECIPE, null);
   overview = await datasetDetail(dataset.id, at);
   expect(overview?.training.active?.id).toBe(run.id);
   expect(overview?.training.reviewedSinceLastRun).toBe(0);
@@ -82,7 +84,7 @@ test("the overview derives review progress and training readiness", async () => 
     HEARTBEAT_AT,
   );
   expect((await claimTrainingRun(owner))?.id).toBe(run.id);
-  await failTrainingRun(run.id, { ...owner, attempt: 1 }, "stopped");
+  await failTrainingRun(run.id, "stopped", { ...owner, attempt: 1 });
   overview = await datasetDetail(dataset.id, at);
   expect(overview?.training.active).toBeNull();
   expect(overview?.training.workerMemoryBytes).toBe(24 * 1024 ** 3);

@@ -22,16 +22,16 @@ async function toolNames(response: Response): Promise<string[]> {
 }
 
 const ANNOTATION_TOOLS = [
-  "annotation_cancel",
-  "annotation_context",
-  "annotation_find",
-  "annotation_next",
-  "annotation_pending",
-  "annotation_preview",
-  "annotation_read",
-  "annotation_start",
-  "annotation_submit",
-  "annotation_view",
+  "annotation-cancel",
+  "annotation-context",
+  "annotation-find",
+  "annotation-next",
+  "annotation-pending",
+  "annotation-preview",
+  "annotation-read",
+  "annotation-start",
+  "annotation-submit",
+  "annotation-view",
 ];
 
 describe("annotation MCP authorization", () => {
@@ -57,29 +57,29 @@ describe("annotation MCP authorization", () => {
     const { tools } = (await rpcMessage(response)).result;
     const tool = (name: string) =>
       tools.find((item: { name: string }) => item.name === name);
-    expect(tool("annotation_cancel").annotations).toMatchObject({
+    expect(tool("annotation-cancel").annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,
     });
-    expect(tool("annotation_submit").annotations).toMatchObject({
+    expect(tool("annotation-submit").annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
     });
-    expect(tool("annotation_pending").annotations.readOnlyHint).toBe(true);
-    expect(tool("annotation_read").annotations.readOnlyHint).toBe(true);
-    expect(tool("annotation_next").annotations.readOnlyHint).toBe(true);
-    expect(tool("annotation_context").annotations.readOnlyHint).toBe(true);
-    expect(tool("annotation_view").annotations.readOnlyHint).toBe(true);
+    expect(tool("annotation-pending").annotations.readOnlyHint).toBe(true);
+    expect(tool("annotation-read").annotations.readOnlyHint).toBe(true);
+    expect(tool("annotation-next").annotations.readOnlyHint).toBe(true);
+    expect(tool("annotation-context").annotations.readOnlyHint).toBe(true);
+    expect(tool("annotation-view").annotations.readOnlyHint).toBe(true);
     const invalid = await annotation(accessToken, "tools/call", {
-      name: "annotation_submit",
+      name: "annotation-submit",
       arguments: {},
     });
     const invalidResult = (await rpcMessage(invalid)).result;
     expect(invalidResult.isError).toBe(true);
     expect(invalidResult.content[0].text).toContain("Input validation error");
     const missing = await annotation(accessToken, "tools/call", {
-      name: "annotation_view",
+      name: "annotation-view",
       arguments: { taskId: "missing-task" },
     });
     const missingResult = (await rpcMessage(missing)).result;
@@ -219,14 +219,14 @@ describe("annotation MCP authorization", () => {
     };
     const pending = async () =>
       JSON.parse(
-        (await call("annotation_pending", { modelId: model.id })).content[0]
+        (await call("annotation-pending", { modelId: model.id })).content[0]
           .text,
       );
     expect(await pending()).toMatchObject({
       total: 1,
       images: [{ ref, progress: null }],
     });
-    const refused = await call("annotation_start", {
+    const refused = await call("annotation-start", {
       ref,
       input: [
         {
@@ -247,36 +247,36 @@ describe("annotation MCP authorization", () => {
         },
       ],
     });
-    const started = await call("annotation_start", { ref });
+    const started = await call("annotation-start", { ref });
     expect(started.isError).toBeUndefined();
     expect((await pending()).images[0].progress).toEqual({
       completed: 0,
       total: 1,
     });
-    const next = await call("annotation_next", { ref });
+    const next = await call("annotation-next", { ref });
     const { taskId } = JSON.parse(next.content[0].text);
-    const context = await call("annotation_context", { taskId });
+    const context = await call("annotation-context", { taskId });
     expect(
       context.content.filter((item: { type: string }) => item.type === "image"),
     ).toHaveLength(1);
-    const viewed = await call("annotation_view", { taskId });
+    const viewed = await call("annotation-view", { taskId });
     expect(JSON.parse(viewed.content[0].text).contextId).toBe(
       JSON.parse(context.content[0].text).contextId,
     );
     expect(
       viewed.content.filter((item: { type: string }) => item.type === "image"),
     ).toHaveLength(1);
-    const preview = await call("annotation_preview", {
+    const preview = await call("annotation-preview", {
       taskId,
       instances: [],
     });
     expect(preview.isError).toBeUndefined();
     const { proposalId } = JSON.parse(preview.content[0].text);
-    const submit = await call("annotation_submit", { taskId, proposalId });
+    const submit = await call("annotation-submit", { taskId, proposalId });
     expect(JSON.parse(submit.content[0].text).status).toBe("succeeded");
     expect(await pending()).toEqual({ total: 0, images: [] });
     const read = JSON.parse(
-      (await call("annotation_read", { ref })).content[0].text,
+      (await call("annotation-read", { ref })).content[0].text,
     );
     expect(read.reading).toBe("proposal");
     expect(read.review).toBeNull();
@@ -285,12 +285,12 @@ describe("annotation MCP authorization", () => {
       input: "proposal",
       scope: [{ x: 0, y: 0, width: 8, height: 8 }],
     };
-    const redraw = await call("annotation_start", partial);
+    const redraw = await call("annotation-start", partial);
     expect(redraw.isError).toBeUndefined();
     expect(JSON.parse(redraw.content[0].text).progress.total).toBe(1);
-    expect((await call("annotation_start", partial)).isError).toBe(true);
-    expect((await call("annotation_cancel", { ref })).isError).toBeUndefined();
-    expect((await call("annotation_next", { ref })).isError).toBe(true);
+    expect((await call("annotation-start", partial)).isError).toBe(true);
+    expect((await call("annotation-cancel", { ref })).isError).toBeUndefined();
+    expect((await call("annotation-next", { ref })).isError).toBe(true);
 
     for (const method of ["GET", "DELETE"]) {
       const response = await serveAnnotationMcp(

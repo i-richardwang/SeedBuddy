@@ -14,21 +14,20 @@ import {
   UnitConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
+import { ClassInvalidError } from "../../domain/models/errors";
 import { createModel } from "../models/registry";
-import {
-  experimentGridDetail,
-  unitDetail,
-} from "../queries/experiment-details";
+import { experimentGridDetail } from "../queries/experiment-grid-detail";
+import { unitDetail } from "../queries/unit-detail";
 import {
   assignImages,
   createExperiment,
   INOCULATED,
   reading,
-  trainedVersion,
   unitsOf,
 } from "../testing/experiments";
 import { countedImageResult, imageDigest } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
+import { trainedVersion } from "../testing/models";
 import { ultralyticsWorker as worker } from "../testing/workers";
 import { recordCultureEvents } from "./culture-events";
 import { deleteUnit } from "./design";
@@ -177,7 +176,7 @@ test("a count answers the day's question in the model's classes", async () => {
       observation: day0.id,
       readings: [{ unit, tally: { ungerminated: 4, shoots: 1 } }],
     }),
-  ).rejects.toThrow(ManualReadingConflictError);
+  ).rejects.toThrow(ClassInvalidError);
   // Every class the day counts must be given: a class left out is not zero.
   await expect(
     recordManualReadings({

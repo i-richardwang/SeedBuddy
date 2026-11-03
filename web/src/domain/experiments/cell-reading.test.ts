@@ -9,60 +9,9 @@ import {
   resolveCountedClasses,
   unitReading,
 } from "./cell-reading";
-import type { ObservationImageCell } from "./read-model";
-import type { ExperimentObservation, ManualReading } from "./schema";
-
-function cell(
-  unit: string,
-  observation: string,
-  overrides: Partial<ObservationImageCell> = {},
-): ObservationImageCell {
-  return {
-    id: `${unit}-${observation}`,
-    unit,
-    observation,
-    digest: "a".repeat(64),
-    filename: "IMG_0001.JPG",
-    state: "analyzed",
-    detectionTally: null,
-    proposalTally: null,
-    annotationTally: null,
-    error: null,
-    unclear: false,
-    ...overrides,
-  };
-}
+import { photograph as cell, counted, observation } from "./testing";
 
 const SEED_CLASSES = ["ungerminated", "germinated"];
-
-function observation(
-  ordinal: number,
-  counted: string[] = SEED_CLASSES,
-  modelId = "seed-detector",
-): ExperimentObservation {
-  return {
-    id: `observation-${ordinal}`,
-    ordinal,
-    observedOn: "2026-09-01",
-    note: "",
-    modelId,
-    countedClasses: counted,
-    hasRecords: false,
-  };
-}
-
-function counted(
-  unit: string,
-  observation: string,
-  tally: ManualReading["tally"],
-): ManualReading {
-  return {
-    unit,
-    observation,
-    tally,
-    recordedAt: "2026-09-08T00:00:00.000Z",
-  };
-}
 
 /** What a reading looks like when nobody has reviewed the detection behind it. */
 const unreviewed = (count: number) => ({
@@ -171,7 +120,7 @@ describe("what a count entered by hand reads", () => {
       count: 18,
       source: "manual",
     });
-    expect(cells.get("dish:observation-1")?.image).not.toBeNull();
+    expect(cells.get("dish:day-1")?.image).not.toBeNull();
   });
 
   test("the classes the day counts, out of all the count names", () => {
@@ -222,7 +171,7 @@ describe("what a day's photograph reads", () => {
 
   test("nothing without a photograph or a reading of it", () => {
     expect(cellReadingFromImage(null, observation(1))).toBeNull();
-    const unread = cell("dish", "observation-1");
+    const unread = cell("dish", "day-1");
     expect(cellReadingFromImage(unread, observation(1))).toBeNull();
   });
 });

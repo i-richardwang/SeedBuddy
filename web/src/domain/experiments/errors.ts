@@ -47,7 +47,8 @@ export class TreatmentConflictError extends ConflictError {
 export class UnitConflictError extends ConflictError {
   readonly code = "unit_conflict";
 }
-export class ObservationImageAssignmentConflictError extends ConflictError {
+/** The requested image assignment conflicts with the observation or unit state. */
+export class ObservationImageConflictError extends ConflictError {
   readonly code = "observation_image_conflict";
 }
 export class ManualReadingConflictError extends ConflictError {
@@ -59,17 +60,16 @@ export const imageAlreadyUsedDetailsSchema = z.strictObject({
   images: z.array(placedPhotoSchema).min(1),
 });
 
-export class ExperimentImageAlreadyUsedError extends ConflictError {
+/** The same photograph already represents a unit in this experiment. */
+export class ExperimentObservationImageConflictError extends ConflictError {
   readonly code = "experiment_observation_image_conflict";
   override get details() {
     return imageAlreadyUsedDetailsSchema.parse({ images: this.images });
   }
   constructor(public readonly images: PlacedPhoto[]) {
-    const [first] = images;
+    const first = images[0]!;
     super(
-      first
-        ? `${first.filename} already represents unit ${first.unit} on ${first.observedOn}`
-        : "An image was already used in this experiment",
+      `${first.filename} already represents unit ${first.unit} on ${first.observedOn}`,
     );
   }
 }

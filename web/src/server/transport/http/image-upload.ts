@@ -24,15 +24,16 @@ async function storing(
  * belongs to the experiment observation that submits it, not to the image.
  */
 export async function handleImageUpload(request: Request): Promise<Response> {
-  const body = await exactLengthBody(
-    request,
-    MAX_IMAGE_BYTES,
-    agentUploadRefusal,
-  );
+  const body = await exactLengthBody(request, MAX_IMAGE_BYTES);
   if (body instanceof Response) return body;
   return storing(
     () => storeImage(body),
-    (error) => agentUploadFailure(error, "Store image"),
+    (error) => {
+      if (error instanceof ImageSourceInvalidError)
+        return uploadFailure(error.message, 400);
+      console.error("Store image failed", error);
+      return new Response("Could not store image", { status: 500 });
+    },
   );
 }
 
@@ -64,5 +65,16 @@ export async function handleCanonicalImageUpload(
 export async function serveAgentImageUpload(
   request: Request,
 ): Promise<Response> {
-  return (await refuseWithoutAgentKey(request)) ?? handleImageUpload(request);
+  const refusal = await refuseWithoutAgentKey(request);
+  if (refusal) return refusal;
+  const body = await exactLengthBody(
+    request,
+    MAX_IMAGE_BYTES,
+    agentUploadRefusal,
+  );
+  if (body instanceof Response) return body;
+  return storing(
+    () => storeImage(body),
+    (error) => agentUploadFailure(error, "Store image"),
+  );
 }

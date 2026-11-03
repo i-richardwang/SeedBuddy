@@ -28,9 +28,9 @@ export async function finishAttempt(
 
 export async function listTrainingAttempts(
   runId: string,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<TrainingAttempt[]> {
-  const rows = await (executor ?? (await database()))
+  const rows = await (db ?? (await database()))
     .select()
     .from(trainingAttempts)
     .where(eq(trainingAttempts.runId, runId))

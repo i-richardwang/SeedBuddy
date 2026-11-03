@@ -110,9 +110,9 @@ export async function readExperimentRecord(
 
 export async function lockExperiment(
   experimentId: string,
-  tx: Executor,
+  db: Executor,
 ): Promise<Experiment> {
-  const [locked] = await tx
+  const [locked] = await db
     .select()
     .from(experiments)
     .where(eq(experiments.id, experimentId))
@@ -280,7 +280,7 @@ type RecordScope = { treatment: string } | { unit: string } | null;
 export async function hasRecords(
   experimentId: string,
   scope: RecordScope,
-  tx: Executor,
+  db: Executor,
 ): Promise<boolean> {
   const inScope = (
     unitId:
@@ -292,7 +292,7 @@ export async function hasRecords(
     if ("unit" in scope) return eq(unitId, scope.unit);
     return inArray(
       unitId,
-      tx
+      db
         .select({ id: experimentUnits.id })
         .from(experimentUnits)
         .where(
@@ -303,7 +303,7 @@ export async function hasRecords(
         ),
     );
   };
-  const [image] = await tx
+  const [image] = await db
     .select({ id: experimentObservationImages.id })
     .from(experimentObservationImages)
     .where(
@@ -314,7 +314,7 @@ export async function hasRecords(
     )
     .limit(1);
   if (image) return true;
-  const [manual] = await tx
+  const [manual] = await db
     .select({ unitId: experimentManualReadings.unitId })
     .from(experimentManualReadings)
     .where(
@@ -325,7 +325,7 @@ export async function hasRecords(
     )
     .limit(1);
   if (manual) return true;
-  const [event] = await tx
+  const [event] = await db
     .select({ id: experimentCultureEvents.id })
     .from(experimentCultureEvents)
     .where(

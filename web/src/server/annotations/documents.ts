@@ -9,17 +9,22 @@ import {
 } from "../../domain/annotation/schema";
 import { assertInstanceClasses } from "../../domain/models/classes";
 import { canonicalJson } from "../../lib/json/canonical";
-import { lockImage } from "../images/public";
-import { database, type Executor, transaction } from "../infra/db/client";
-import { annotations, images } from "../infra/db/schema";
+import { lockImage, requireStoredImage } from "../images/public";
+import {
+  database,
+  type Executor,
+  operationTime,
+  transaction,
+} from "../infra/db/client";
+import { annotations } from "../infra/db/schema";
 import { requireModel } from "../models/public";
 
 /** The image's stored review for the model, if a person has made one. */
-export async function readAnnotation(
+async function readAnnotation(
   ref: AnnotationRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<AnnotationDocument | null> {
-  const db = executor ?? (await database());
+  db ??= await database();
   const [row] = await db
     .select({ document: annotations.document })
     .from(annotations)
@@ -43,26 +48,22 @@ export async function storeAnnotation(
   instances: AnnotationInstance[],
   base: AnnotationInstance[] | null,
 ): Promise<AnnotationDocument> {
-  return transaction(async (tx) => {
-    await lockImage(ref.digest, tx);
-    const current = await readAnnotation(ref, tx);
+  return transaction(async (db) => {
+    await lockImage(ref.digest, db);
+    const current = await readAnnotation(ref, db);
     if (canonicalJson(current?.instances ?? null) !== canonicalJson(base)) {
       throw new AnnotationConflictError();
     }
-    const [image] = await tx
-      .select({ width: images.width, height: images.height })
-      .from(images)
-      .where(eq(images.id, ref.digest));
-    if (!image) throw new Error(`Image ${ref.digest} is not stored`);
-    const model = await requireModel(ref.modelId, tx);
+    const image = await requireStoredImage(ref.digest, db);
+    const model = await requireModel(ref.modelId, db);
     const document = annotationSchema.parse({
       schemaVersion: 1,
-      image: { digest: ref.digest, ...image },
+      image: { digest: ref.digest, width: image.width, height: image.height },
       instances,
     });
     assertInstanceClasses(model.classes, document.instances, "Annotation");
-    const updatedAt = new Date();
-    await tx
+    const updatedAt = await operationTime(db);
+    await db
       .insert(annotations)
       .values({
         imageId: ref.digest,
@@ -83,10 +84,10 @@ export async function insertImportedAnnotations(
   modelId: string,
   documents: readonly AnnotationDocument[],
   at: Date,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
   if (!documents.length) return;
-  await tx.insert(annotations).values(
+  await db.insert(annotations).values(
     documents.map((document) => ({
       imageId: document.image.digest,
       modelId,

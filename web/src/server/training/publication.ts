@@ -1,8 +1,7 @@
-import { modelBundleSchema } from "../../domain/models/bundle";
+import type { ModelBundle } from "../../domain/models/bundle";
 import {
   TrainingArtifactInvalidError,
   TrainingRunConflictError,
-  TrainingRunNotFoundError,
 } from "../../domain/training/errors";
 import type { AttemptOwner } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
@@ -17,28 +16,20 @@ import {
 import { readTrainingArtifactParts } from "./artifacts";
 import { lockTrainingRun, transitionTrainingRun } from "./runs";
 import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
-import { readDatasetSnapshot } from "./snapshots";
 
 /** Training owns execution; the model registry owns its delivered artifact. */
 export async function completeTrainingRun(
   runId: string,
+  document: ModelBundle,
   owner: AttemptOwner,
-  bundle: unknown,
 ) {
-  const parsed = modelBundleSchema.safeParse(bundle);
-  if (!parsed.success)
-    throw new TrainingArtifactInvalidError(parsed.error.message);
-  const document = parsed.data;
   const db = await database();
   const current = await requireTrainingRun(runId, db);
   if (canonicalJson(document.training) !== canonicalJson(current.recipe))
     throw new TrainingArtifactInvalidError(
       "Training artifact identity does not match the run recipe",
     );
-  const snapshot = await readDatasetSnapshot(current.datasetSnapshotId, db);
-  if (!snapshot)
-    throw new TrainingRunNotFoundError("Training snapshot is missing");
-  if (document.provenance.dataset.snapshotId !== snapshot.id)
+  if (document.provenance.dataset.snapshotId !== current.datasetSnapshotId)
     throw new TrainingArtifactInvalidError(
       "Bundle does not describe this training snapshot",
     );
@@ -46,18 +37,18 @@ export async function completeTrainingRun(
   if (current.state.status !== "succeeded") {
     const weights = await readTrainingArtifactParts(
       runId,
-      owner,
       document.weights,
+      owner,
     );
     await uploadModelWeights(upload.uploadId, weights);
   }
-  return transaction(async (tx) => {
-    const locked = await lockTrainingRun(runId, tx);
-    const at = await operationTime(tx);
+  return transaction(async (db) => {
+    const locked = await lockTrainingRun(runId, db);
+    const at = await operationTime(db);
     if (locked.state.status === "succeeded") {
       if (locked.attempt !== owner.attempt)
         throw new TrainingRunConflictError("Training attempt was superseded");
-      const version = await readModelVersion(locked.state.modelVersionId, tx);
+      const version = await readModelVersion(locked.state.modelVersionId, db);
       if (
         !version ||
         version.id !==
@@ -68,23 +59,25 @@ export async function completeTrainingRun(
         );
       return locked;
     }
-    await requireOwnedRunningRun(locked, owner, tx, at);
+    await requireOwnedRunningRun(locked, owner, db, at);
     const version = await registerUploadedModel(
       upload.uploadId,
       {
-        kind: "training_run",
-        trainingRunId: runId,
-        trainingAttempt: owner.attempt,
-        datasetSnapshotId: snapshot.id,
+        source: {
+          kind: "training_run",
+          trainingRunId: runId,
+          trainingAttempt: owner.attempt,
+          datasetSnapshotId: current.datasetSnapshotId,
+        },
       },
       at,
-      tx,
+      db,
     );
     return transitionTrainingRun(
       runId,
       { status: "succeeded", modelVersionId: version.id },
       at,
-      tx,
+      db,
     );
   });
 }

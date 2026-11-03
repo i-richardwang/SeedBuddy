@@ -23,11 +23,11 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/epochs")(
                 context.workerId,
               );
             return Response.json(
-              await recordTrainingEpoch(
-                params.runId,
-                { workerId, sessionId, attempt },
-                report,
-              ),
+              await recordTrainingEpoch(params.runId, report, {
+                workerId,
+                sessionId,
+                attempt,
+              }),
             );
           } catch (error) {
             return workerErrorResponse(error, "Training epoch report failed");

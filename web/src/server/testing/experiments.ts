@@ -10,23 +10,17 @@ import {
   type ExperimentRequestInput,
   experimentRequestSchema,
 } from "../../domain/experiments/schema";
-import { SEED_DETECTOR } from "../../domain/models/builtins";
 import type { ModelVersion } from "../../domain/models/schema";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { createExperiment as createExperimentRecord } from "../experiments/design";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
 import { listUnits } from "../experiments/records";
 import { database } from "../infra/db/client";
 import { experimentObservationImages } from "../infra/db/schema";
-import {
-  readModel,
-  registerModel,
-  setCurrentVersion,
-} from "../models/registry";
-import { experimentGridDetail } from "../queries/experiment-details";
+import { readModel } from "../models/registry";
+import { experimentGridDetail } from "../queries/experiment-grid-detail";
 import { storeTexts } from "./images";
-import { baselineVersion, registerTrainedVersion } from "./models";
+import { baselineVersion } from "./models";
 
 interface ObservedExperiment {
   experiment: Experiment;
@@ -155,23 +149,6 @@ export async function createExperiment(
       ...value,
     }),
   );
-}
-
-export async function trainedVersion(
-  modelId: string,
-  classes: string[] = SEED_DETECTOR.classes,
-): Promise<ModelVersion> {
-  await registerModel({
-    schemaVersion: 1,
-    id: modelId,
-    name: `${modelId} detector`,
-    task: "object_detection",
-    classes,
-    annotation: DEFAULT_MODEL_ANNOTATION,
-  });
-  const version = await registerTrainedVersion(modelId);
-  await setCurrentVersion({ model: modelId, version: version.id });
-  return version;
 }
 
 export function reading(version: ModelVersion) {

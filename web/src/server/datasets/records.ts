@@ -9,7 +9,12 @@ import type { DatasetContents } from "../../domain/datasets/schema";
 import type { DetectionResult } from "../../domain/detection/schema";
 import { markedUnclear } from "../images/public";
 import { shownDetectingVersion } from "../inference/public";
-import { database, type Executor } from "../infra/db/client";
+import {
+  database,
+  type Executor,
+  inSnapshot,
+  snapshot,
+} from "../infra/db/client";
 import { datasetImages, datasets, images } from "../infra/db/schema";
 import { readingsSubquery } from "../readings/public";
 import {
@@ -102,9 +107,9 @@ function toRecord(
 
 export async function listImageRecords(
   datasetId: string,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<ImageRecord[]> {
-  const rows = await recordQuery(executor ?? (await database()))
+  const rows = await recordQuery(db ?? (await database()))
     .where(eq(datasetImages.datasetId, datasetId))
     .orderBy(...datasetMembershipOrder());
   return rows.map(toRecord);
@@ -137,38 +142,42 @@ export function countReviewedDatasetImages(records: ImageRecord[]): number {
 /** Every dataset, or those training one model, with its image and review counts. */
 export async function listDatasetOverviews(
   modelId?: string,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<DatasetOverview[]> {
-  const datasets = modelId
-    ? await listDatasetsForModel(modelId, executor)
-    : await listDatasets(executor);
-  return Promise.all(
-    datasets.map(async (dataset) => {
-      const records = await listImageRecords(dataset.id, executor);
-      return {
-        dataset,
-        imageCount: records.length,
-        reviewedCount: countReviewedDatasetImages(records),
-      };
-    }),
-  );
+  return inSnapshot(db, async (db) => {
+    const datasets = modelId
+      ? await listDatasetsForModel(modelId, db)
+      : await listDatasets(db);
+    return Promise.all(
+      datasets.map(async (dataset) => {
+        const records = await listImageRecords(dataset.id, db);
+        return {
+          dataset,
+          imageCount: records.length,
+          reviewedCount: countReviewedDatasetImages(records),
+        };
+      }),
+    );
+  });
 }
 
 /** One dataset's images, or null when no dataset has the id. */
 export async function readDatasetContents(
   datasetId: string,
 ): Promise<DatasetContents | null> {
-  const dataset = await readDataset(datasetId);
-  if (!dataset) return null;
-  const records = await listImageRecords(datasetId);
-  return {
-    dataset,
-    images: records.map(({ image, annotation, unclear }) => ({
-      digest: image.digest,
-      filename: image.filename,
-      reviewed: annotation !== null,
-      split: image.split,
-      unclear,
-    })),
-  };
+  return snapshot(async (db) => {
+    const dataset = await readDataset(datasetId, db);
+    if (!dataset) return null;
+    const records = await listImageRecords(datasetId, db);
+    return {
+      dataset,
+      images: records.map(({ image, annotation, unclear }) => ({
+        digest: image.digest,
+        filename: image.filename,
+        reviewed: annotation !== null,
+        split: image.split,
+        unclear,
+      })),
+    };
+  });
 }

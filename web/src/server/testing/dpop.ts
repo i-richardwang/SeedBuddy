@@ -22,6 +22,7 @@ export async function createDpopKey(): Promise<DpopKey> {
         jti: crypto.randomUUID(),
         htm: "POST",
         htu: url,
+        /** JWT proofs use the verifier’s live wall clock, not a database write clock. */
         iat: Math.floor(Date.now() / 1000),
         ...(token === undefined ? {} : { ath: await deriveDpopAth(token) }),
       };

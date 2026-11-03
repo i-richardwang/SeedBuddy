@@ -14,7 +14,12 @@ import type {
   ManualReadingsRequest,
 } from "../../domain/experiments/schema";
 import type { Tally } from "../../domain/models/classes";
-import { type Executor, inTransaction } from "../infra/db/client";
+import { ClassInvalidError } from "../../domain/models/errors";
+import {
+  type Executor,
+  inTransaction,
+  operationTime,
+} from "../infra/db/client";
 import { experimentManualReadings } from "../infra/db/schema";
 import { requireModel } from "../models/public";
 import {
@@ -41,7 +46,7 @@ function checkTally(
     (name) => !modelClasses.includes(name),
   );
   if (unknown.length > 0) {
-    throw new ManualReadingConflictError(
+    throw new ClassInvalidError(
       `The model does not recognize ${unknown.length === 1 ? "class" : "classes"} counted for ${unitCode}: ${unknown.join(", ")}`,
     );
   }
@@ -64,20 +69,20 @@ function checkTally(
  */
 export async function recordManualReadings(
   value: ManualReadingsRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<ManualReading[]> {
   const {
     experiment: experimentId,
     observation: observationId,
     readings: entries,
   } = value;
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const observations = await listObservations(experimentId, tx);
+  return inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const observations = await listObservations(experimentId, db);
     const observation = requireObservation(observations, observationId);
     const ordinals = observationOrdinals(observations);
-    const model = await requireModel(observation.modelId, tx);
-    const units = await listUnits(experimentId, tx);
+    const model = await requireModel(observation.modelId, db);
+    const units = await listUnits(experimentId, db);
     const byId = new Map(units.map((unit) => [unit.id, unit]));
     const unknown = entries.filter((entry) => !byId.has(entry.unit));
     if (unknown.length > 0) {
@@ -104,7 +109,7 @@ export async function recordManualReadings(
     }
 
     if (withdrawn.length > 0) {
-      await tx
+      await db
         .delete(experimentManualReadings)
         .where(
           and(
@@ -115,8 +120,8 @@ export async function recordManualReadings(
         );
     }
     if (counted.length > 0) {
-      const recordedAt = new Date();
-      await tx
+      const recordedAt = await operationTime(db);
+      await db
         .insert(experimentManualReadings)
         .values(
           counted.map(({ unit, tally }) => ({
@@ -136,7 +141,7 @@ export async function recordManualReadings(
           set: { tally: sql`excluded.tally`, recordedAt },
         });
     }
-    return (await listManualReadings(experimentId, tx)).filter(
+    return (await listManualReadings(experimentId, db)).filter(
       (reading) => reading.observation === observationId,
     );
   });

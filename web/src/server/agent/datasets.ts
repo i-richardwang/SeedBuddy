@@ -56,7 +56,7 @@ export const datasetOperations = [
     destructive: false,
     input: datasetRequestSchema,
     output: datasetSchema,
-    handler: (input, executor) => createDataset(input, executor),
+    handler: (input, db) => createDataset(input, db),
   }),
   command({
     transaction: "operation",
@@ -66,7 +66,7 @@ export const datasetOperations = [
     destructive: true,
     input: datasetUpdateSchema,
     output: datasetSchema,
-    handler: (input, executor) => updateDataset(input, executor),
+    handler: (input, db) => updateDataset(input, db),
   }),
   command({
     transaction: "operation",
@@ -76,8 +76,7 @@ export const datasetOperations = [
     destructive: false,
     input: datasetImageAdditionSchema,
     output: datasetImageAdditionResultSchema,
-    handler: (input, executor) =>
-      addExperimentObservationImages(input, executor),
+    handler: (input, db) => addExperimentObservationImages(input, db),
   }),
   command({
     transaction: "operation",
@@ -87,6 +86,6 @@ export const datasetOperations = [
     destructive: true,
     input: datasetImageRemovalSchema,
     output: datasetImageRemovalResultSchema,
-    handler: (input, executor) => removeDatasetImages(input, executor),
+    handler: (input, db) => removeDatasetImages(input, db),
   }),
 ];

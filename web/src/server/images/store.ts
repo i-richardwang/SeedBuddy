@@ -50,13 +50,14 @@ function assertStorable(bytes: Uint8Array): void {
 async function recordImage(
   image: CanonicalImage,
   analysis: DishAnalysis | null,
-  attemptedAt: Date | null,
-  tx: Executor,
+  attempted: boolean,
+  db: Executor,
 ): Promise<StoredImage> {
   const { digest, bytes, width, height } = image;
-  await lockImage(digest, tx);
-  const receivedAt = await operationTime(tx);
-  await tx
+  await lockImage(digest, db);
+  const receivedAt = await operationTime(db);
+  const attemptedAt = attempted ? receivedAt : null;
+  await db
     .insert(images)
     .values({
       id: digest,
@@ -118,9 +119,8 @@ function store(image: CanonicalImage): Promise<StoredImage> {
       .where(eq(images.id, image.digest));
     const current = existing?.analysis?.recipe === DISH_RECIPE_ID;
     const analysis = current ? existing.analysis : await analyzeImage(image);
-    const attemptedAt = current ? null : new Date();
-    const stored = await transaction((tx) =>
-      recordImage(image, analysis, attemptedAt, tx),
+    const stored = await transaction((db) =>
+      recordImage(image, analysis, !current, db),
     );
     await prepareImagePreview(image.digest);
     return stored;

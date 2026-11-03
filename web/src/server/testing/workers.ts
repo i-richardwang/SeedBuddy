@@ -4,7 +4,7 @@ import type {
   WorkerHeartbeat,
   WorkerIdentity,
 } from "../../domain/workers/schema";
-import { database } from "../infra/db/client";
+import { database, operationTime } from "../infra/db/client";
 import { workers } from "../infra/db/schema";
 import { recordWorkerHeartbeat } from "../workers/sessions";
 
@@ -37,14 +37,13 @@ export async function recordTestHeartbeat(
   heartbeat: WorkerHeartbeat,
   at?: Date,
 ): Promise<Worker> {
-  await (
-    await database()
-  )
+  const db = await database();
+  await db
     .insert(workers)
     .values({
       id: heartbeat.workerId,
       tokenHash: `test-${heartbeat.workerId}`,
-      enrolledAt: new Date(),
+      enrolledAt: await operationTime(db, at),
     })
     .onConflictDoNothing();
   return recordWorkerHeartbeat(heartbeat, at);

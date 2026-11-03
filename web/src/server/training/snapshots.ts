@@ -15,7 +15,12 @@ import {
   type ReviewedRecord,
   readDataset,
 } from "../datasets/public";
-import { database, type Executor } from "../infra/db/client";
+import {
+  database,
+  type Executor,
+  inSnapshot,
+  snapshot,
+} from "../infra/db/client";
 import {
   datasetImages,
   datasetSnapshotImages,
@@ -33,7 +38,7 @@ import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
 async function assignSplits(
   datasetId: string,
   reviewed: ReviewedRecord[],
-  tx: Executor,
+  db: Executor,
 ): Promise<Map<string, ImageSplit>> {
   const splits = new Map<string, ImageSplit>();
   const assignedNow: ReviewedRecord[] = [];
@@ -71,7 +76,7 @@ async function assignSplits(
       .filter((record) => splits.get(record.image.digest) === split)
       .map((record) => record.image.digest);
     if (digests.length === 0) continue;
-    await tx
+    await db
       .update(datasetImages)
       .set({ split })
       .where(
@@ -103,21 +108,22 @@ export async function readDatasetSnapshot(
   snapshotId: string,
   db?: Executor,
 ): Promise<DatasetSnapshot | null> {
-  const executor = db ?? (await database());
-  const [row] = await executor
-    .select()
-    .from(datasetSnapshots)
-    .where(eq(datasetSnapshots.id, snapshotId));
-  if (!row) return null;
-  const model = await requireModel(row.modelId, executor);
-  return datasetSnapshotSchema.parse({
-    schemaVersion: 1,
-    id: row.id,
-    datasetId: row.datasetId,
-    modelId: row.modelId,
-    classes: model.classes,
-    createdAt: row.createdAt.toISOString(),
-    images: await snapshotImages(snapshotId, executor),
+  return inSnapshot(db, async (db) => {
+    const [row] = await db
+      .select()
+      .from(datasetSnapshots)
+      .where(eq(datasetSnapshots.id, snapshotId));
+    if (!row) return null;
+    const model = await requireModel(row.modelId, db);
+    return datasetSnapshotSchema.parse({
+      schemaVersion: 1,
+      id: row.id,
+      datasetId: row.datasetId,
+      modelId: row.modelId,
+      classes: model.classes,
+      createdAt: row.createdAt.toISOString(),
+      images: await snapshotImages(snapshotId, db),
+    });
   });
 }
 
@@ -129,17 +135,17 @@ export async function readDatasetSnapshot(
 export async function createDatasetSnapshot(
   datasetId: string,
   at: Date,
-  tx: Executor,
+  db: Executor,
 ): Promise<DatasetSnapshot> {
-  const dataset = await readDataset(datasetId, tx);
+  const dataset = await readDataset(datasetId, db);
   if (!dataset) throw new DatasetNotFoundError(`Unknown dataset: ${datasetId}`);
-  const reviewed = await listReviewedRecords(datasetId, tx);
+  const reviewed = await listReviewedRecords(datasetId, db);
   if (reviewed.length < MIN_SNAPSHOT_IMAGES) {
     throw new TrainingRunConflictError(
       `Training requires at least ${MIN_SNAPSHOT_IMAGES} reviewed images`,
     );
   }
-  const splits = await assignSplits(datasetId, reviewed, tx);
+  const splits = await assignSplits(datasetId, reviewed, db);
   const members = reviewed
     .map(({ image, annotation }) => {
       const split = splits.get(image.digest);
@@ -148,15 +154,15 @@ export async function createDatasetSnapshot(
     })
     .sort((a, b) => a.digest.localeCompare(b.digest));
   const snapshotId = `snapshot-${documentDigest({ datasetId, modelId: dataset.modelId, members })}`;
-  const existing = await readDatasetSnapshot(snapshotId, tx);
+  const existing = await readDatasetSnapshot(snapshotId, db);
   if (existing) return existing;
-  await tx.insert(datasetSnapshots).values({
+  await db.insert(datasetSnapshots).values({
     id: snapshotId,
     datasetId,
     modelId: dataset.modelId,
     createdAt: at,
   });
-  await tx.insert(datasetSnapshotImages).values(
+  await db.insert(datasetSnapshotImages).values(
     members.map(({ digest, split, annotation }) => ({
       snapshotId,
       modelId: dataset.modelId,
@@ -165,18 +171,16 @@ export async function createDatasetSnapshot(
       annotation,
     })),
   );
-  const created = await readDatasetSnapshot(snapshotId, tx);
-  if (!created) throw new Error(`Snapshot ${snapshotId} was not created`);
-  return created;
+  return requireSnapshot(snapshotId, db);
 }
 
 /** The training set each snapshot was taken of, and how many reviewed images it froze. */
 export async function datasetSnapshotOverviews(
   snapshotIds: string[],
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Map<string, { datasetId: string; images: number }>> {
   if (snapshotIds.length === 0) return new Map();
-  const db = executor ?? (await database());
+  db ??= await database();
   const rows = await db
     .select({
       id: datasetSnapshots.id,
@@ -194,10 +198,19 @@ export async function datasetSnapshotOverviews(
 }
 
 export async function snapshotForRun(runId: string, owner: AttemptOwner) {
-  const db = await database();
-  const stored = await requireTrainingRun(runId, db);
-  const run = await requireOwnedRunningRun(stored, owner, db);
-  const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
-  if (!snapshot) throw new Error(`Missing snapshot ${run.datasetSnapshotId}`);
+  return snapshot(async (db) => {
+    const stored = await requireTrainingRun(runId, db);
+    const run = await requireOwnedRunningRun(stored, owner, db);
+    return requireSnapshot(run.datasetSnapshotId, db);
+  });
+}
+
+/** A run holds its snapshot through a foreign key. */
+export async function requireSnapshot(
+  snapshotId: string,
+  db: Executor,
+): Promise<DatasetSnapshot> {
+  const snapshot = await readDatasetSnapshot(snapshotId, db);
+  if (!snapshot) throw new Error(`Missing datasetSnapshots row: ${snapshotId}`);
   return snapshot;
 }

@@ -7,7 +7,7 @@ import {
   WorkerNotFoundError,
 } from "../../domain/workers/errors";
 import type { EnrolledWorker } from "../../domain/workers/schema";
-import { database, type Executor } from "../infra/db/client";
+import { database, type Executor, operationTime } from "../infra/db/client";
 import { refusingUnique } from "../infra/db/errors";
 import { workers } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
@@ -22,6 +22,7 @@ const TOKEN_PREFIX = "vfw_";
 export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
   const token = `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
   const db = await database();
+  const at = await operationTime(db);
   await refusingUnique(
     "workers_pkey",
     () =>
@@ -32,7 +33,7 @@ export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
       db.insert(workers).values({
         id: workerId,
         tokenHash: contentDigest(token),
-        enrolledAt: new Date(),
+        enrolledAt: at,
       }),
   );
   return { workerId, token };
@@ -68,10 +69,8 @@ export async function authenticateWorker(
 }
 
 /** The names of the enrolled workers, in the order they were enrolled. */
-export async function listEnrolledWorkers(
-  executor?: Executor,
-): Promise<string[]> {
-  const rows = await (executor ?? (await database()))
+export async function listEnrolledWorkers(db: Executor): Promise<string[]> {
+  const rows = await db
     .select({ id: workers.id })
     .from(workers)
     .orderBy(asc(workers.enrolledAt), asc(workers.id));
