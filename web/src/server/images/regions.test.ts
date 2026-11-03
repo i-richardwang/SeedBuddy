@@ -32,10 +32,12 @@ async function fixture() {
   return { image, store, tracked, reads, sourceReads: () => sourceReads };
 }
 
-test("prepared evidence preserves source-pipeline pixels at edges, halos and display scales", async () => {
-  const { image, tracked } = await fixture();
-  const { readRegion: read, readOverview } = createImageEvidence(tracked);
-  for (const displayScale of [1, 2, 4]) {
+// Pixel correctness, not an encoding-speed benchmark: allow CPU-only CI headroom.
+test.each([1, 2, 4])(
+  "prepared evidence preserves source-pipeline pixels at edges and halos at %ix scale",
+  async (displayScale) => {
+    const { image, tracked } = await fixture();
+    const { readRegion: read, readOverview } = createImageEvidence(tracked);
     const layout = { coreSize: 512, halo: 32, displayScale };
     const overview = imageOverview(image);
     const preparedOverview = await readOverview(image, layout);
@@ -43,6 +45,9 @@ test("prepared evidence preserves source-pipeline pixels at edges, halos and dis
       .resize(overview.width, overview.height)
       .raw()
       .toBuffer();
+    expect(await sharp(preparedOverview.bytes).raw().toBuffer()).toEqual(
+      expectedOverview,
+    );
     for (const { id, patch } of imageRegions(image, layout)) {
       const evidence = await read(image, layout, id);
       const expected = await sharp(image.bytes)
@@ -58,12 +63,10 @@ test("prepared evidence preserves source-pipeline pixels at edges, halos and dis
         .raw()
         .toBuffer();
       expect(await sharp(evidence.clean).raw().toBuffer()).toEqual(expected);
-      expect(await sharp(preparedOverview.bytes).raw().toBuffer()).toEqual(
-        expectedOverview,
-      );
     }
-  }
-});
+  },
+  15_000,
+);
 
 test("concurrent regions prepare the source once and a new reader reuses persisted assets", async () => {
   const { image, tracked, sourceReads } = await fixture();
