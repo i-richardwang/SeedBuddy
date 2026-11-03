@@ -11,7 +11,7 @@ const BUSINESS_ERROR_LABELS: ReadonlyMap<string, Label> = new Map<
   Label
 >([
   ["training_run_conflict", () => m.error_training_conflict()],
-  ["training_artifact_validation", () => m.error_training_artifact()],
+  ["training_artifact_invalid", () => m.error_training_artifact()],
   ["dataset_model_mismatch", () => m.error_dataset_model()],
   ["model_id_taken", () => m.error_model_id_taken()],
   ["model_in_use", () => m.error_model_in_use()],

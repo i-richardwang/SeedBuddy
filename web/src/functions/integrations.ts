@@ -21,17 +21,11 @@ import {
 
 import { deploymentEndpoint } from "../server/infra/deployment";
 
-import { readSession } from "../server/transport/http/session";
-
-async function actor() {
-  const user = await readSession(getRequestHeaders());
-  if (!user) throw new Response("Unauthorized", { status: 401 });
-  return user.id;
-}
+import { requireAccount } from "./access";
 
 export const getIntegrations = createServerFn({ method: "GET" }).handler(
   async () => {
-    const user = await actor();
+    const user = (await requireAccount()).id;
     const [apiKeys, mcpClients] = await Promise.all([
       listApiKeys(user),
       listMcpClients(user),
@@ -46,22 +40,28 @@ export const getIntegrations = createServerFn({ method: "GET" }).handler(
 
 export const addApiKey = createServerFn({ method: "POST" })
   .validator(apiKeyCreateSchema)
-  .handler(async ({ data }) => issueApiKey(await actor(), data));
+  .handler(async ({ data }) => issueApiKey((await requireAccount()).id, data));
 
 export const removeApiKey = createServerFn({ method: "POST" })
   .validator(apiKeyRefSchema)
-  .handler(async ({ data }) => revokeApiKey(await actor(), data.key));
+  .handler(async ({ data }) =>
+    revokeApiKey((await requireAccount()).id, data.key),
+  );
 
 export const removeMcpClient = createServerFn({ method: "POST" })
   .validator(mcpClientRefSchema)
-  .handler(async ({ data }) => disconnectMcpClient(await actor(), data.client));
+  .handler(async ({ data }) =>
+    disconnectMcpClient((await requireAccount()).id, data.client),
+  );
 
 /**
  * The client named by an authorization request and the MCP servers it asks
  * for, as the consent page shows them.
  */
 export const describeOAuthClient = createServerFn({ method: "GET" })
-  .validator(z.object({ clientId: z.string(), resources: z.array(z.string()) }))
+  .validator(
+    z.strictObject({ clientId: z.string(), resources: z.array(z.string()) }),
+  )
   .handler(async ({ data }) => {
     const { mcpResources } = deploymentEndpoint();
     const client = await (

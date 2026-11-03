@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { NamedDataset } from "../datasets/schema";
-import { resourceIdSchema } from "../identifiers/schema";
+import { timestampSchema, resourceIdSchema } from "../identifiers/schema";
 import { runtimeDescriptorSchema } from "../inference/schema";
 
 const runtimesSchema = z
@@ -22,10 +22,18 @@ export const workerSessionSchema = z.strictObject({
   sessionId: resourceIdSchema,
 });
 
+/** The execution attempt owned by a worker process session. */
+export const attemptOwnerSchema = workerSessionSchema.extend({
+  attempt: z.number().int().positive(),
+});
+export type AttemptOwner = z.infer<typeof attemptOwnerSchema> & {
+  workerId: string;
+};
+
 /** What a worker process reports about itself on every heartbeat. */
 export const workerReportSchema = workerSessionSchema
   .extend({
-    startedAt: z.string().datetime({ offset: true }),
+    startedAt: timestampSchema,
     runtimes: runtimesSchema,
     memoryBytes: z.number().int().positive(),
   })
@@ -34,7 +42,7 @@ export const workerReportSchema = workerSessionSchema
 export const workerSchema = workerReportSchema
   .extend({
     workerId: resourceIdSchema,
-    lastSeenAt: z.string().datetime({ offset: true }),
+    lastSeenAt: timestampSchema,
   })
   .strict();
 

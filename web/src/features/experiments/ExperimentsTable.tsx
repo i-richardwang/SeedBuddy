@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Search, SearchX } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-import type { ExperimentSummary } from "../../domain/experiments/contracts";
+import type { ExperimentOverview } from "../../domain/experiments/contracts";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { Day } from "../../ui/Day";
@@ -25,7 +25,7 @@ import { joinFacts } from "./labels";
 const PAGE_SIZE = 20;
 
 /** What an experiment is found by: its name and what it grows on what. */
-function searchable({ experiment }: ExperimentSummary): string {
+function searchable({ experiment }: ExperimentOverview): string {
   return [
     experiment.name,
     experiment.plantMaterial,
@@ -45,7 +45,7 @@ export function ExperimentsTable({
   experiments,
   empty,
 }: {
-  experiments: ExperimentSummary[];
+  experiments: ExperimentOverview[];
   empty: ReactNode;
 }) {
   const [query, setQuery] = useState("");

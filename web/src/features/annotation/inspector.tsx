@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import type { Review } from "../../domain/annotation/review";
-import { sourceInstances } from "../../domain/annotation/review";
+import type { Review } from "../../domain/annotation/readings";
+import { sourceInstances } from "../../domain/annotation/readings";
 import type { ReviewSource } from "../../domain/annotation/schema";
 import {
   classCount,

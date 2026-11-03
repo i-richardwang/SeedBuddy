@@ -15,7 +15,6 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
-/** Intersects a box with the image; returns null when nothing usable remains. */
 /** Two boxes cover exactly the same pixels. */
 export function sameBox(a: BoundingBox, b: BoundingBox): boolean {
   return (
@@ -23,6 +22,7 @@ export function sameBox(a: BoundingBox, b: BoundingBox): boolean {
   );
 }
 
+/** Intersects a box with the image; returns null when nothing usable remains. */
 export function clipToImage(
   box: BoundingBox,
   image: ImageSize,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { reviewSchema } from "../annotation/review";
+import { reviewSchema } from "../annotation/readings";
 import { inferenceTaskFailureSchema } from "../inference/tasks";
 import { imageDigestSchema } from "../images/schema";
 import { tallySchema } from "../models/classes";
@@ -48,7 +48,7 @@ export const observationImageCellSchema = z.strictObject({
 
 export type ObservationImageCell = z.infer<typeof observationImageCellSchema>;
 
-export const experimentGridSchema = z.strictObject({
+const experimentGridSchema = z.strictObject({
   experiment: experimentSchema,
   treatments: z.array(treatmentSchema),
   units: z.array(unitSchema),
@@ -117,7 +117,7 @@ export type ExperimentObservationImage = z.infer<
   typeof experimentObservationImageSchema
 >;
 
-export const unitSeriesSchema = z.strictObject({
+const unitSeriesSchema = z.strictObject({
   experiment: experimentSchema,
   unit: unitSchema,
   treatments: z.array(treatmentSchema),
@@ -131,7 +131,7 @@ export const unitSeriesSchema = z.strictObject({
 export type UnitSeries = z.infer<typeof unitSeriesSchema>;
 
 /** An experiment as the overview lists it: its design's size and how far its observations have come. */
-export const experimentSummarySchema = z.strictObject({
+export const experimentOverviewSchema = z.strictObject({
   experiment: experimentSchema,
   treatments: z.number().int().min(0),
   units: z.number().int().min(0),
@@ -139,4 +139,4 @@ export const experimentSummarySchema = z.strictObject({
   lastObservedOn: calendarDaySchema.nullable(),
 });
 
-export type ExperimentSummary = z.infer<typeof experimentSummarySchema>;
+export type ExperimentOverview = z.infer<typeof experimentOverviewSchema>;

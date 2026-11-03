@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { resourceIdSchema, sha256Schema } from "../identifiers/schema";
+import {
+  timestampSchema,
+  resourceIdSchema,
+  sha256Schema,
+} from "../identifiers/schema";
 import type { RuntimeDescriptor } from "../inference/schema";
 import {
   detectionValidationSchema,
@@ -102,7 +106,7 @@ const modelVersionIdentity = {
   schemaVersion: z.literal(1),
   id: resourceIdSchema,
   modelId: resourceIdSchema,
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: timestampSchema,
 };
 
 export const modelVersionSchema = z.union([

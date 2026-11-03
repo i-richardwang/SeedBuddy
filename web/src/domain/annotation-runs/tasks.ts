@@ -1,13 +1,14 @@
+import { sha256Schema } from "../identifiers/schema";
 import { imageRegions } from "../images/regions";
 import type { ImageRegion } from "../images/geometry";
 import { AnnotationRunConflictError } from "./errors";
-import { z } from "zod";
 import type { AnnotationContent, AnnotationDefinition } from "./schema";
 import {
   annotationSchema,
   type AnnotationInstance,
   type BoundingBox,
 } from "../annotation/schema";
+import { z } from "zod";
 
 const edge = z.number().min(0).max(1000);
 const box = z
@@ -154,5 +155,5 @@ export const annotationPreviewInput = annotationTaskInput.extend(
   regionProposalSchema.shape,
 );
 export const annotationSubmitInput = annotationTaskInput.extend({
-  proposalId: z.string().regex(/^[a-f0-9]{64}$/),
+  proposalId: sha256Schema,
 });

@@ -1,19 +1,20 @@
+import {
+  attemptOwnerSchema,
+  type AttemptOwner,
+} from "../../../domain/workers/schema";
 import { InvalidDetectionOutcomeError } from "../../../domain/inference/errors";
 import { artifactUploadSchema } from "../../../domain/training/artifact";
-import {
-  inferenceAttemptOwnerSchema,
-  type InferenceAttemptOwner,
-} from "../../../domain/inference/tasks";
 import { DomainError } from "../../../domain/errors";
-import {
-  trainingAttemptOwnerSchema,
-  type TrainingAttemptOwner,
-} from "../../../domain/training/schema";
 import { createMiddleware } from "@tanstack/react-start";
 import type { ZodType } from "zod";
 
 import { bearerToken } from "../../auth/public";
 import { authenticateWorker } from "../../workers/public";
+
+/** Worker protocol refusals are plain text under the actionable HTTP status. */
+function workerFailure(message: string, status: number): Response {
+  return new Response(message, { status });
+}
 
 /** A request a worker route refuses before touching any record. */
 export class WorkerRequestError extends Error {
@@ -33,7 +34,7 @@ export const requireEnrolledWorker = createMiddleware().server(
   async ({ request, next }) => {
     const token = bearerToken(request);
     const workerId = token ? await authenticateWorker(token) : null;
-    if (!workerId) return new Response("Unknown worker token", { status: 401 });
+    if (!workerId) return workerFailure("Unknown worker token", 401);
     return next({ context: { workerId } });
   },
 );
@@ -95,15 +96,16 @@ export function workerErrorResponse(
 ): Response {
   const message = error instanceof Error ? error.message : String(error);
   const status = statusOf(error);
-  if (status !== null) return new Response(message, { status });
+  if (status !== null) return workerFailure(message, status);
   console.error(`${operation}: ${message}`);
-  return new Response(operation, { status: 500 });
+  return workerFailure(operation, 500);
 }
 
-export function parseTrainingQuery(
+function parseAttemptQuery(
   request: Request,
   workerId: string,
-): TrainingAttemptOwner {
+  label: string,
+): AttemptOwner {
   const query = new URL(request.url).searchParams;
   return {
     workerId,
@@ -112,29 +114,21 @@ export function parseTrainingQuery(
         sessionId: query.get("sessionId"),
         attempt: Number(query.get("attempt")),
       },
-      trainingAttemptOwnerSchema,
-      "Training attempt",
+      attemptOwnerSchema,
+      label,
     ),
   };
 }
 
-export function parseInferenceQuery(
+export const parseTrainingQuery = (
   request: Request,
   workerId: string,
-): InferenceAttemptOwner {
-  const query = new URL(request.url).searchParams;
-  return {
-    workerId,
-    ...parseWorkerValue(
-      {
-        sessionId: query.get("sessionId"),
-        attempt: Number(query.get("attempt")),
-      },
-      inferenceAttemptOwnerSchema,
-      "Inference attempt",
-    ),
-  };
-}
+): AttemptOwner => parseAttemptQuery(request, workerId, "Training attempt");
+
+export const parseInferenceQuery = (
+  request: Request,
+  workerId: string,
+): AttemptOwner => parseAttemptQuery(request, workerId, "Inference attempt");
 
 /** Describes the complete file for both part acceptance and publication. */
 export function parseArtifactQuery(request: Request) {

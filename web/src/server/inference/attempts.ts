@@ -1,3 +1,4 @@
+import type { AttemptOwner } from "../../domain/workers/schema";
 import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 import { transaction, type Executor } from "../infra/db/client";
@@ -15,10 +16,7 @@ import {
   detectionResultSchema,
   type DetectionResult,
 } from "../../domain/detection/schema";
-import type {
-  InferenceAttemptOwner,
-  InferenceFailure,
-} from "../../domain/inference/tasks";
+import type { InferenceFailure } from "../../domain/inference/tasks";
 import type { Worker, WorkerIdentity } from "../../domain/workers/schema";
 import { readModel, toModelVersion } from "../models/public";
 import { lockWorkerSession, leaseIsHeld } from "../workers/public";
@@ -200,7 +198,7 @@ export async function claimInferenceAssignment(
 async function ownedAttempt(
   tx: Executor,
   target: DetectionTarget,
-  owner: InferenceAttemptOwner,
+  owner: AttemptOwner,
 ): Promise<Attempt> {
   const [attempt] = await tx
     .select()
@@ -233,7 +231,7 @@ function requireLive(task: Task, attempt: Attempt, at: Date): void {
 
 export async function renewInferenceClaim(
   target: DetectionTarget,
-  owner: InferenceAttemptOwner,
+  owner: AttemptOwner,
   suppliedAt?: Date,
 ) {
   return transaction(async (tx) => {
@@ -264,7 +262,7 @@ export async function renewInferenceClaim(
 export async function completeInferenceClaim(
   target: DetectionTarget,
   result: DetectionResult,
-  owner: InferenceAttemptOwner,
+  owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<void> {
   await transaction(async (tx) => {
@@ -293,7 +291,7 @@ export async function completeInferenceClaim(
 export async function failInferenceAttempt(
   target: DetectionTarget,
   failure: InferenceFailure,
-  owner: InferenceAttemptOwner,
+  owner: AttemptOwner,
   suppliedAt?: Date,
 ): Promise<void> {
   await transaction(async (tx) => {

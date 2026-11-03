@@ -7,7 +7,7 @@ export class DetectionConflictError extends ConflictError {
   }
 }
 export class InvalidDetectionOutcomeError extends ValidationError {
-  readonly code = "invalid_detection_outcome";
+  readonly code = "detection_outcome_invalid";
 }
 export class DetectionImageNotFoundError extends NotFoundError {
   readonly code = "detection_image_not_found";

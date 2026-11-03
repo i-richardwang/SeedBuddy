@@ -7,7 +7,7 @@ import {
   type AnnotationDraft,
   type DraftAction,
 } from "../../domain/annotation/draft";
-import { sourceInstances, type Review } from "../../domain/annotation/review";
+import { sourceInstances, type Review } from "../../domain/annotation/readings";
 import type {
   AnnotationInstance,
   ReviewSource,

@@ -1,4 +1,5 @@
-import type { TrainingAttemptOwner } from "../../domain/training/schema";
+import type { AttemptOwner } from "../../domain/workers/schema";
+
 import { TrainingArtifactValidationError } from "../../domain/training/errors";
 import {
   artifactUploadSchema,
@@ -18,7 +19,7 @@ import { artifactPartKey } from "./keys";
 
 export async function saveTrainingArtifactPart(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   upload: ArtifactUpload,
   part: number,
   digest: string,
@@ -59,7 +60,7 @@ export async function saveTrainingArtifactPart(
 /** Assemble verified final weights; no model is published before every part is present. */
 export async function readTrainingArtifactParts(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   upload: ArtifactUpload,
 ) {
   const bytes = new Uint8Array(upload.bytes);

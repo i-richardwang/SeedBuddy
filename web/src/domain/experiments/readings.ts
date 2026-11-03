@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { REVIEW_SOURCES, type ReviewSource } from "../annotation/schema";
 import { countClasses, sameClasses, type Tally } from "../models/classes";
 import { UnknownClassError } from "../models/errors";
@@ -13,10 +14,11 @@ export const READING_SOURCES = [...REVIEW_SOURCES, "manual"] as const;
 export type ReadingSource = (typeof READING_SOURCES)[number];
 
 /** What a unit read on a day: the individuals found, and who stood behind the number. */
-export interface Reading {
-  count: number;
-  source: ReadingSource;
-}
+export const readingSchema = z.strictObject({
+  count: z.number().int().min(0),
+  source: z.enum(READING_SOURCES),
+});
+export type Reading = z.infer<typeof readingSchema>;
 
 /**
  * The classes a day counts, in the order its model declares them: every class

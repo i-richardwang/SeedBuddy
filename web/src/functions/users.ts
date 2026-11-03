@@ -7,38 +7,45 @@ import {
   userRefSchema,
   userRoleUpdateSchema,
 } from "../domain/auth/schema";
-import * as directory from "../server/auth/public";
+import {
+  listUsers,
+  createUser,
+  setUserRole,
+  setUserPassword,
+  banUser,
+  unbanUser,
+  revokeUserSessions,
+  deleteUser,
+} from "../server/auth/public";
 
 export const getUsers = createServerFn({ method: "GET" }).handler(() =>
-  directory.listUsers(getRequestHeaders()),
+  listUsers(getRequestHeaders()),
 );
 
 export const addUser = createServerFn({ method: "POST" })
   .validator(userCreateSchema)
-  .handler(({ data }) => directory.createUser(getRequestHeaders(), data));
+  .handler(({ data }) => createUser(getRequestHeaders(), data));
 
 export const changeUserRole = createServerFn({ method: "POST" })
   .validator(userRoleUpdateSchema)
-  .handler(({ data }) => directory.setUserRole(getRequestHeaders(), data));
+  .handler(({ data }) => setUserRole(getRequestHeaders(), data));
 
 export const resetUserPassword = createServerFn({ method: "POST" })
   .validator(userPasswordUpdateSchema)
-  .handler(({ data }) => directory.setUserPassword(getRequestHeaders(), data));
+  .handler(({ data }) => setUserPassword(getRequestHeaders(), data));
 
 export const suspendUser = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) => directory.banUser(getRequestHeaders(), data));
+  .handler(({ data }) => banUser(getRequestHeaders(), data));
 
 export const reinstateUser = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) => directory.unbanUser(getRequestHeaders(), data));
+  .handler(({ data }) => unbanUser(getRequestHeaders(), data));
 
 export const signOutUserEverywhere = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) =>
-    directory.revokeUserSessions(getRequestHeaders(), data),
-  );
+  .handler(({ data }) => revokeUserSessions(getRequestHeaders(), data));
 
 export const removeUser = createServerFn({ method: "POST" })
   .validator(userRefSchema)
-  .handler(({ data }) => directory.deleteUser(getRequestHeaders(), data));
+  .handler(({ data }) => deleteUser(getRequestHeaders(), data));

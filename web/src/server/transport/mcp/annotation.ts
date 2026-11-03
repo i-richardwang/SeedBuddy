@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import packageJson from "../../../../package.json";
 import { readAnnotationReading } from "../../readings/public";
-import { DomainError } from "../../../domain/errors";
+import { classifyAgentFailure } from "../../agent/public";
 import { annotationRefSchema } from "../../../domain/annotation/schema";
 import { resourceIdSchema } from "../../../domain/identifiers/schema";
 import { startAnnotationRunSchema } from "../../../domain/annotation-runs/schema";
@@ -72,19 +72,10 @@ function registerAnnotationTools(server: McpServer) {
       },
       async (args) => {
         try {
-          return await call(inputSchema.parse(args));
+          return await call(args as z.infer<S>);
         } catch (error) {
-          const expected =
-            error instanceof DomainError || error instanceof z.ZodError;
-          if (!expected) console.error("Annotation tool failed", error);
-          return {
-            isError: true,
-            content: [
-              textContent(
-                expected ? error.message : "Annotation operation failed",
-              ),
-            ],
-          };
+          const { code, message } = classifyAgentFailure(error, name);
+          return { isError: true, content: [textContent({ code, message })] };
         }
       },
     );

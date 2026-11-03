@@ -1,3 +1,4 @@
+import { timestampSchema } from "../identifiers/schema";
 import { z } from "zod";
 
 /**
@@ -30,15 +31,15 @@ export const API_KEY_PREFIX = "vf_";
 const apiKeyNameSchema = z.string().trim().min(1).max(64);
 
 /** A key as its owner sees it after creation: the secret is not recoverable. */
-export const apiKeySchema = z.object({
+export const apiKeySchema = z.strictObject({
   id: z.string(),
   name: apiKeyNameSchema,
   /** The leading characters of the secret, for telling keys apart. */
   start: z.string(),
   scopes: z.array(apiScopeSchema),
-  createdAt: z.string().datetime(),
-  expiresAt: z.string().datetime().nullable(),
-  lastUsedAt: z.string().datetime().nullable(),
+  createdAt: timestampSchema,
+  expiresAt: timestampSchema.nullable(),
+  lastUsedAt: timestampSchema.nullable(),
 });
 export type ApiKey = z.infer<typeof apiKeySchema>;
 
@@ -48,7 +49,7 @@ export type IssuedApiKey = z.infer<typeof issuedApiKeySchema>;
 
 export const MAX_API_KEY_DAYS = 365;
 
-export const apiKeyCreateSchema = z.object({
+export const apiKeyCreateSchema = z.strictObject({
   name: apiKeyNameSchema,
   scopes: z.array(apiScopeSchema).min(1),
   /** Days until the key expires; null keeps it until it is revoked. */
@@ -56,7 +57,7 @@ export const apiKeyCreateSchema = z.object({
 });
 export type ApiKeyCreate = z.infer<typeof apiKeyCreateSchema>;
 
-export const apiKeyRefSchema = z.object({ key: z.string() });
+export const apiKeyRefSchema = z.strictObject({ key: z.string() });
 
 /** The permission statement a key holds for each scope it was issued with. */
 export function scopePermissions(
@@ -77,16 +78,16 @@ export function permissionScopes(permissions: unknown): ApiScope[] {
 }
 
 /** An MCP client the account has authorized. */
-export const mcpClientSchema = z.object({
+export const mcpClientSchema = z.strictObject({
   /** The consent record; withdrawing it disconnects the client. */
   id: z.string(),
   clientId: z.string(),
   name: z.string(),
   /** The servers the client holds a grant for. */
   servers: z.array(z.enum(MCP_SERVERS)),
-  grantedAt: z.string().datetime(),
-  lastGrantedAt: z.string().datetime(),
+  grantedAt: timestampSchema,
+  lastGrantedAt: timestampSchema,
 });
 export type McpClient = z.infer<typeof mcpClientSchema>;
 
-export const mcpClientRefSchema = z.object({ client: z.string() });
+export const mcpClientRefSchema = z.strictObject({ client: z.string() });

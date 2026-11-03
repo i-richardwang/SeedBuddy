@@ -6,7 +6,7 @@ import {
   boundingBoxSchema,
   REVIEW_SOURCES,
 } from "../annotation/schema";
-import { sha256Schema } from "../identifiers/schema";
+import { timestampSchema, sha256Schema } from "../identifiers/schema";
 import { annotationConfigSchema } from "../models/annotation";
 import { imageCoverageSchema } from "../images/coverage";
 
@@ -77,6 +77,6 @@ export const annotationContentSchema = z.strictObject({
 export type AnnotationContent = z.infer<typeof annotationContentSchema>;
 
 export const annotationProposalSchema = annotationContentSchema.extend({
-  createdAt: z.string(),
+  createdAt: timestampSchema,
 });
 export type AnnotationProposal = z.infer<typeof annotationProposalSchema>;

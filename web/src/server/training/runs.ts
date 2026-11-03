@@ -1,3 +1,4 @@
+import type { AttemptOwner } from "../../domain/workers/schema";
 import { inferenceAttempts } from "../infra/db/schema";
 import { randomUUID } from "node:crypto";
 import {
@@ -32,7 +33,6 @@ import {
   type TrainingPhase,
   type TrainingRecipe,
   type TrainingRun,
-  type TrainingAttemptOwner,
 } from "../../domain/training/schema";
 import type { TrainingRunSummary } from "../../domain/training/read-model";
 import { canTrain, type WorkerIdentity } from "../../domain/workers/schema";
@@ -243,7 +243,7 @@ export async function validateTrainingTarget(targetWorkerId: string | null) {
  */
 async function ownedTransition(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   state: TrainingRun["state"],
   db: Executor,
 ): Promise<TrainingRun> {
@@ -530,7 +530,7 @@ export async function claimTrainingRun(
 /** The run as its leaseholder sees it; any other caller gets a conflict. */
 export async function lockOwnedTrainingRun(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   db: Executor,
 ): Promise<RunningTrainingRun> {
   const [row] = await db
@@ -544,7 +544,7 @@ export async function lockOwnedTrainingRun(
 export async function requireOwnedRunningRun(
   runId: string,
   run: TrainingRun | null,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   db: Executor,
 ): Promise<RunningTrainingRun> {
   await currentWorkerSession(owner, db);
@@ -565,7 +565,7 @@ export async function requireOwnedRunningRun(
 /** Renew ownership without changing the run's phase or business progress. */
 export async function renewTrainingLease(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
   const db = await database();
@@ -595,7 +595,7 @@ export async function renewTrainingLease(
 /** Advance through the ordered execution phases; retries are idempotent. */
 export async function enterTrainingPhase(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   phase: TrainingPhase,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
@@ -636,7 +636,7 @@ export async function enterTrainingPhase(
  */
 export async function recordTrainingEpoch(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   report: TrainingEpochReport,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
@@ -767,7 +767,7 @@ export async function listTrainingEpochs(
 
 export async function failTrainingRun(
   runId: string,
-  owner: TrainingAttemptOwner,
+  owner: AttemptOwner,
   error: string,
 ): Promise<TrainingRun> {
   return transaction(async (tx) => {
@@ -780,10 +780,7 @@ export async function failTrainingRun(
   });
 }
 
-export async function snapshotForRun(
-  runId: string,
-  owner: TrainingAttemptOwner,
-) {
+export async function snapshotForRun(runId: string, owner: AttemptOwner) {
   const db = await database();
   const run = await requireOwnedRunningRun(
     runId,

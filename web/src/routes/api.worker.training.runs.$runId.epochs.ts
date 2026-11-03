@@ -1,3 +1,4 @@
+import { attemptOwnerSchema } from "../domain/workers/schema";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { recordTrainingEpoch } from "../server/training/public";
@@ -6,11 +7,8 @@ import {
   workerErrorResponse,
 } from "../server/transport/http/worker";
 import { trainingEpochReportSchema } from "../domain/training/schema";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
-const bodySchema = trainingAttemptOwnerSchema.extend(
-  trainingEpochReportSchema.shape,
-);
+const bodySchema = attemptOwnerSchema.extend(trainingEpochReportSchema.shape);
 
 export const Route = createFileRoute("/api/worker/training/runs/$runId/epochs")(
   {
