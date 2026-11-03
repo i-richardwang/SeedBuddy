@@ -30,3 +30,13 @@ class TrainingRecipe:
             parameters=value["parameters"],
             runtime_version=value["runtime"]["version"],
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "baseModel": {
+                "reference": self.base_model_reference,
+                "digest": self.base_model_digest,
+            },
+            "parameters": self.parameters,
+            "runtime": {"framework": "ultralytics", "version": self.runtime_version},
+        }

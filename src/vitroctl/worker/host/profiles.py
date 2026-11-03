@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from vitroctl.io.files import atomic_file
-from vitroctl.worker.connection import validate_worker_settings
+from vitroctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSettings
 
 PROFILE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 PROFILE_FIELDS = {"server_url", "token", "device", "poll_seconds"}
@@ -21,11 +21,15 @@ class WorkerProfile:
     server_url: str
     token: str
     device: str | None = None
-    poll_seconds: float = 5.0
+    poll_seconds: float = DEFAULT_POLL_SECONDS
 
-    def __post_init__(self) -> None:
-        validate_worker_settings(
-            self.server_url, self.token, self.poll_seconds, self.device
+    def settings(self, name: str) -> WorkerSettings:
+        return WorkerSettings(
+            self.server_url,
+            self.token,
+            profile_directory(name) / "work",
+            self.poll_seconds,
+            self.device,
         )
 
     @classmethod
@@ -85,7 +89,7 @@ def save_profile(name: str, profile: WorkerProfile) -> Path:
     directory = profile_directory(name)
     directory.mkdir(parents=True, exist_ok=True)
     directory.chmod(0o700)
-    path = directory / "config.toml"
+    path = profile_path(name)
     with atomic_file(path) as handle:
         os.fchmod(handle.fileno(), 0o600)
         handle.write(profile.to_toml().encode("utf-8"))

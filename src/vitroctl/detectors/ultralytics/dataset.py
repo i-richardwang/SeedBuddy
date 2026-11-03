@@ -7,12 +7,17 @@ import shutil
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, cast
 
-from vitroctl.contracts.annotation import AnnotationInstance
+from vitroctl.contracts.annotation import AnnotationDocument, AnnotationInstance
+from vitroctl.datasets.geometry import require_image_dimensions
 from vitroctl.datasets.manifest import ManifestImage, verified_blob
 from vitroctl.io.files import atomic_directory
 from vitroctl.io.image_io import CANONICAL_EXTENSION, read_image
+
+
+class DatasetSplitError(ValueError):
+    """An export cannot form training and validation splits."""
 
 
 class YoloManifestImage(TypedDict):
@@ -49,12 +54,7 @@ class DatasetImage:
 def _label_text(image: DatasetImage, class_indices: dict[str, int]) -> str:
     rows = []
     for instance in image.instances:
-        try:
-            class_index = class_indices[instance.class_name]
-        except KeyError as error:
-            raise ValueError(
-                f"Image {image.digest} uses unknown class {instance.class_name}"
-            ) from error
+        class_index = class_indices[instance.class_name]
         box = instance.bbox
         center_x, center_y = box.center
         rows.append(
@@ -79,8 +79,7 @@ def assign_splits(
 ) -> dict[str, str]:
     """Split per digest: recorded splits as they are, the rest seeded by digest.
 
-    Locally assigned images fill the validation quota the fraction implies for
-    the whole set, and the result always contains both a train and a val image.
+    Locally assigned images fill the validation quota for the whole set.
     """
     splits = {image.digest: image.split for image in images if image.split}
     unassigned = sorted(
@@ -95,8 +94,6 @@ def assign_splits(
         quota = min(quota, len(unassigned) - (1 - min(recorded_train, 1)))
         for index, image in enumerate(unassigned):
             splits[image.digest] = "val" if index < quota else "train"
-    if set(splits.values()) != {"train", "val"}:
-        raise ValueError("YOLO dataset requires both train and val images")
     return splits
 
 
@@ -116,17 +113,14 @@ def export_dataset_images(
     owns immutable sources may link them instead of copying; the dataset
     still outlives the sources, because a hard link is the file itself.
     """
-    if len(images) < 2:
-        raise ValueError("YOLO export requires at least two images")
-    digests = [image.digest for image in images]
-    if len(set(digests)) != len(digests):
-        raise ValueError("YOLO export requires unique image digests")
     classes = tuple(class_names)
     class_indices = {name: index for index, name in enumerate(classes)}
     if not 0.0 < validation_fraction < 1.0:
         raise ValueError("Validation fraction must be between zero and one")
 
     splits = assign_splits(images, validation_fraction, seed)
+    if set(splits.values()) != {"train", "val"}:
+        raise DatasetSplitError("YOLO dataset requires both train and val images")
     manifest_images: list[YoloManifestImage] = []
 
     with atomic_directory(output_dir) as working:
@@ -134,12 +128,9 @@ def export_dataset_images(
             split = splits[image.digest]
             source = image.file_path
             pixels = read_image(source)
-            height, width = pixels.shape[:2]
-            if (width, height) != (image.width, image.height):
-                raise ValueError(
-                    f"Image dimensions differ from annotation for {image.digest}: "
-                    f"{width}x{height} != {image.width}x{image.height}"
-                )
+            require_image_dimensions(
+                pixels.shape, image.width, image.height, image.digest
+            )
 
             image_destination = (
                 working / "images" / split / f"{image.digest}{CANONICAL_EXTENSION}"
@@ -192,14 +183,13 @@ def export_yolo_dataset(
     images = [
         DatasetImage(
             digest=image.digest,
-            width=image.annotation.width,
-            height=image.annotation.height,
-            instances=image.annotation.instances,
+            width=image.width,
+            height=image.height,
+            instances=cast(AnnotationDocument, image.annotation).instances,
             split=image.split,
             file_path=verified_blob(data_root, image.digest),
         )
         for image in annotated
-        if image.annotation is not None
     ]
     return export_dataset_images(
         images,

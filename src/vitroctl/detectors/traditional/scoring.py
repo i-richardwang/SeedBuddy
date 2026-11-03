@@ -13,13 +13,13 @@ from vitroctl.io.files import write_text_atomically
 
 def _number(value: object, field: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise TypeError(f"Candidate model {field} must be numeric")
+        raise ValueError(f"Candidate model {field} must be numeric")
     return float(value)
 
 
 def _number_array(value: object, field: str) -> tuple[float, ...]:
     if not isinstance(value, list):
-        raise TypeError(f"Candidate model {field} must be an array")
+        raise ValueError(f"Candidate model {field} must be an array")
     return tuple(_number(item, field) for item in value)
 
 
@@ -79,15 +79,7 @@ class CandidateModel:
         logits = normalized @ np.asarray(self.weights) + self.bias
         if self.calibration_centers:
             centers = np.asarray(self.calibration_centers)
-            squared_distance = np.maximum(
-                np.sum(np.square(normalized), axis=1)[:, None]
-                + np.sum(np.square(centers), axis=1)[None, :]
-                - 2.0 * normalized @ centers.T,
-                0.0,
-            )
-            similarity = np.exp(
-                -squared_distance / (2.0 * self.calibration_bandwidth**2)
-            )
+            similarity = radial_kernel(normalized, centers, self.calibration_bandwidth)
             logits += similarity @ np.asarray(self.calibration_weights)
         logits = np.clip(logits, -30.0, 30.0)
         return 1.0 / (1.0 + np.exp(-logits))
@@ -140,19 +132,21 @@ class CandidateModel:
         if set(data) != fields:
             raise ValueError("Candidate model fields do not match the schema")
         if not isinstance(data["name"], str):
-            raise TypeError("Candidate model name must be a string")
+            raise ValueError("Candidate model name must be a string")
         if not isinstance(data["fingerprint"], str):
-            raise TypeError("Candidate model fingerprint must be a string")
+            raise ValueError("Candidate model fingerprint must be a string")
         feature_names = data["feature_names"]
         if not isinstance(feature_names, list) or not all(
             isinstance(value, str) for value in feature_names
         ):
-            raise TypeError("Candidate model feature_names must be an array of strings")
+            raise ValueError(
+                "Candidate model feature_names must be an array of strings"
+            )
         calibration_centers = data["calibration_centers"]
         if not isinstance(calibration_centers, list) or any(
             not isinstance(center, list) for center in calibration_centers
         ):
-            raise TypeError("Candidate model calibration centers must be arrays")
+            raise ValueError("Candidate model calibration centers must be arrays")
         model = cls(
             name=data["name"],
             feature_names=tuple(feature_names),
@@ -182,7 +176,7 @@ _MODEL_PATH = Path(__file__).with_name("candidate_model.json")
 def load_candidate_model(path: str | Path) -> CandidateModel:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise TypeError("Candidate model must be a JSON object")
+        raise ValueError("Candidate model must be a JSON object")
     return CandidateModel.from_dict(payload)
 
 
@@ -191,3 +185,15 @@ def write_candidate_model(model: CandidateModel, path: str | Path) -> None:
 
 
 DEFAULT_MODEL = load_candidate_model(_MODEL_PATH)
+
+
+def radial_kernel(
+    samples: np.ndarray, centers: np.ndarray, bandwidth: float
+) -> np.ndarray:
+    squared_distance = np.maximum(
+        np.sum(np.square(samples), axis=1)[:, None]
+        + np.sum(np.square(centers), axis=1)[None, :]
+        - 2.0 * samples @ centers.T,
+        0.0,
+    )
+    return np.exp(-squared_distance / (2.0 * bandwidth**2))

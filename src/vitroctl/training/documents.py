@@ -41,10 +41,11 @@ class TrainingClaim:
     @classmethod
     def from_document(cls, value: Any, context: str = "training run") -> TrainingClaim:
         validate_wire_contract("training-run", value, context)
-        return cls.decode(value, context)
+        return cls.decode(value)
 
     @classmethod
-    def decode(cls, value: Any, context: str = "training run") -> TrainingClaim:
+    def decode(cls, value: Any) -> TrainingClaim:
+        context = "training run"
         state_context = f"{context}.state"
         state = value["state"]
         if state["status"] != "running":
@@ -79,14 +80,12 @@ class TrainingSnapshot:
     @classmethod
     def from_document(cls, value: Any, context: str = "snapshot") -> TrainingSnapshot:
         validate_wire_contract("training-snapshot", value, context)
-        return cls.decode(value, context)
+        return cls.decode(value)
 
     @classmethod
-    def decode(cls, value: Any, context: str = "snapshot") -> TrainingSnapshot:
-        images = tuple(
-            _snapshot_image(raw, f"{context}.images[{index}]")
-            for index, raw in enumerate(value["images"])
-        )
+    def decode(cls, value: Any) -> TrainingSnapshot:
+        context = "snapshot"
+        images = tuple(_snapshot_image(raw) for raw in value["images"])
         classes = tuple(value["classes"])
         validate_annotation_set(
             (
@@ -107,9 +106,9 @@ class TrainingSnapshot:
         )
 
 
-def _snapshot_image(value: Any, context: str) -> SnapshotImage:
+def _snapshot_image(value: Any) -> SnapshotImage:
     digest = value["digest"]
-    annotation = AnnotationDocument.decode(value["annotation"], f"{context}.annotation")
+    annotation = AnnotationDocument.decode(value["annotation"])
     return SnapshotImage(
         digest=digest,
         width=value["width"],

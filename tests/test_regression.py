@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from vitroctl.detectors.traditional.config import DEFAULT_PIPELINE_CONFIG
 from vitroctl.detectors.traditional.pipeline import count_seeds
+from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
 
 REFERENCE_MANIFEST = Path(__file__).parent / "fixtures" / "reference-images.json"
 
@@ -28,7 +30,9 @@ def test_reference_image_counts() -> None:
         digest = hashlib.sha256(image_path.read_bytes()).hexdigest()
         assert digest == case["sha256"], f"reference image changed: {case['file']}"
 
-        result = count_seeds(image_path)
+        result = count_seeds(
+            image_path, config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL
+        )
 
         assert result.count == case["expectedCount"], image_path.name
         assert result.quality.status == "ok", image_path.name

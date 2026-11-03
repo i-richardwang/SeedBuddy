@@ -20,19 +20,9 @@ from vitroctl.worker.host.profiles import (
     profile_directory,
 )
 from vitroctl.worker.service import run_worker
-from vitroctl.worker.session import WorkerSettings, available_runtimes
+from vitroctl.worker.session import available_runtimes, cuda_device_index
 
 LOGGER = logging.getLogger(__name__)
-
-
-def _settings(name: str, profile: WorkerProfile) -> WorkerSettings:
-    return WorkerSettings(
-        server_url=profile.server_url,
-        token=profile.token,
-        work_dir=profile_directory(name) / "work",
-        poll_seconds=profile.poll_seconds,
-        device=profile.device,
-    )
 
 
 def _check_device(device: str | None) -> None:
@@ -47,7 +37,7 @@ def _check_device(device: str | None) -> None:
     if device.startswith("cuda"):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available on this machine")
-        index = int(device.partition(":")[2] or "0")
+        index = cuda_device_index(device)
         if index >= torch.cuda.device_count():
             raise RuntimeError(f"CUDA device {index} is not available")
 
@@ -67,8 +57,8 @@ def _enrolled_worker(profile: WorkerProfile) -> str:
 
 
 def preflight_profile(name: str, profile: WorkerProfile) -> tuple[str, ...]:
-    directory = profile_directory(name)
-    work = directory / "work"
+    settings = profile.settings(name)
+    work = settings.work_dir
     work.mkdir(parents=True, exist_ok=True)
     if not os.access(work, os.W_OK):
         raise PermissionError(f"worker directory is not writable: {work}")
@@ -117,7 +107,7 @@ def run_profile(name: str) -> int:
             def ready() -> None:
                 _write_status(name, "running")
 
-            result = run_worker(_settings(name, profile), on_ready=ready)
+            result = run_worker(profile.settings(name), on_ready=ready)
         except WorkerNotEnrolledError as error:
             # Exiting cleanly keeps launchd from restarting a worker that can
             # only be refused again.

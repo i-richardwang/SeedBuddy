@@ -7,8 +7,6 @@ import logging
 import multiprocessing
 import os
 import queue
-import signal
-import threading
 from collections.abc import Callable
 from contextlib import suppress
 from multiprocessing.connection import Connection
@@ -20,6 +18,7 @@ from vitroctl.detectors.ultralytics.training import (
     YoloTrainingResult,
     train_yolo_detector,
 )
+from vitroctl.worker.process import read_events, terminate_process_group
 
 LOGGER = logging.getLogger(__name__)
 
@@ -69,25 +68,8 @@ def run_training_process(
         target=_train, args=(child, dataset, output, options), name="vitroflow-trainer"
     )
     process.start()
-    pid = process.pid
-    assert pid is not None
     child.close()
-    events: queue.Queue[tuple[str, Any]] = queue.Queue()
-
-    def receive() -> None:
-        try:
-            while True:
-                event = parent.recv()
-                events.put(event)
-                if event[0] in ("result", "error"):
-                    return
-        except (EOFError, OSError):
-            events.put(("disconnected", None))
-
-    # A readable pipe can contain an incomplete frame. Keep blocking IPC out
-    # of the supervisor so cancellation still terminates a stalled sender.
-    reader = threading.Thread(target=receive, name="training-events", daemon=True)
-    reader.start()
+    events, reader = read_events(parent, None)
     try:
         while True:
             if cancelled():
@@ -119,20 +101,5 @@ def run_training_process(
             parent.send(None)
     finally:
         parent.close()
-        process.join(timeout=0.2)
-        # The trainer may have exited while its data-loader children still exist.
-        # macOS may report EPERM for a group containing only exited descendants.
-        try:
-            os.killpg(pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            if process.is_alive():
-                process.terminate()
-        process.join(timeout=5)
-        try:
-            os.killpg(pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            if process.is_alive():
-                process.kill()
-        process.join(timeout=5)
-        process.close()
+        terminate_process_group(process)
         reader.join(timeout=2)

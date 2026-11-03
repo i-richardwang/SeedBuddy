@@ -7,13 +7,13 @@ import httpx
 import pytest
 from conftest import annotation_document, manifest_document, manifest_entry
 
-from vitroctl.datasets.annotations import load_annotations
 from vitroctl.datasets.manifest import (
     MAX_DATASET_MANIFEST_BYTES,
     BlobError,
     DatasetManifest,
     blob_path,
     encode_dataset_manifest,
+    load_dataset_manifest,
     verified_blob,
 )
 from vitroctl.datasets.transfer import (
@@ -23,7 +23,7 @@ from vitroctl.datasets.transfer import (
     pull_dataset,
     push_dataset,
 )
-from vitroctl.io.image_io import MAX_IMAGE_BYTES
+from vitroctl.io.files import MAX_IMAGE_BYTES
 
 IMAGE_A = b"image a"
 IMAGE_B = b"image b"
@@ -61,8 +61,6 @@ def _manifest() -> dict[str, Any]:
 def test_manifest_says_which_photographs_are_unclear() -> None:
     document = _manifest()
     document["images"][0]["unclear"] = True
-    # A manifest that does not say reads as clear, and says so when written.
-    del document["images"][1]["unclear"]
 
     manifest = DatasetManifest.from_document(document)
     marked, unsaid = manifest.images
@@ -165,7 +163,7 @@ def test_pull_materializes_blobs_and_the_manifest(tmp_path: Path) -> None:
         f"/api/transfer/images/{DIGEST_B}",
     ]
     assert sorted(child.name for child in root.iterdir()) == ["blobs", "datasets"]
-    annotated = load_annotations(manifest)
+    annotated = load_dataset_manifest(manifest).annotated
     assert [image.digest for image in annotated] == [DIGEST_A]
     assert annotated[0].split == "train"
     assert verified_blob(root, DIGEST_A) == blob_path(root, DIGEST_A)
@@ -438,15 +436,18 @@ def test_pull_bounds_streamed_blobs_and_preserves_cached_bytes(
     assert not (tmp_path / "datasets").exists()
 
 
-def test_push_validates_the_encoded_document_before_any_request(tmp_path, monkeypatch):
-    _data_root(tmp_path)
-    original = DatasetManifest.to_dict
-
-    def malformed(self):
-        return {**original(self), "schemaVersion": 99}
-
-    monkeypatch.setattr(DatasetManifest, "to_dict", malformed)
+def test_push_validates_the_document_before_any_request(tmp_path):
+    document = _manifest()
+    document["schemaVersion"] = 99
+    _data_root(tmp_path, document)
     handle, received = _receiver()
     with pytest.raises(DatasetTransferError, match="schemaVersion"):
         _push(tmp_path, handle)
     assert received == []
+
+
+def test_manifest_requires_an_explicit_unclear_flag():
+    document = _manifest()
+    document["images"][0].pop("unclear")
+    with pytest.raises(ValueError, match="unclear"):
+        DatasetManifest.from_document(document)

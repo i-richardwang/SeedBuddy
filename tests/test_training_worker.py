@@ -26,8 +26,10 @@ from vitroctl.detectors.ultralytics import (
 )
 from vitroctl.io.image_io import CANONICAL_EXTENSION
 from vitroctl.models.bundle import read_bundle
+from vitroctl.training.documents import TrainingClaim, TrainingSnapshot
 from vitroctl.worker import session as worker_session
 from vitroctl.worker import training as training_worker
+from vitroctl.worker.connection import WorkerConnection
 from vitroctl.worker.images import ImageCache
 from vitroctl.worker.session import (
     LeaseLostError,
@@ -36,9 +38,7 @@ from vitroctl.worker.session import (
     keep_lease,
 )
 from vitroctl.worker.training import (
-    TrainingClaim,
     TrainingClient,
-    TrainingSnapshot,
     materialize_snapshot,
 )
 
@@ -166,8 +166,9 @@ def test_training_client_uses_its_own_control_plane_contract(tmp_path: Path) -> 
 
     client = TrainingClient(
         WorkerClient(
-            "https://example.test",
-            "training-secret",
+            WorkerConnection(
+                server_url="https://example.test", token="training-secret"
+            ),
             session(24 * 1024**3),
             transport=httpx.MockTransport(server),
         )
@@ -326,11 +327,10 @@ def test_snapshot_parser_validates_every_image_entry() -> None:
         )
 
 
-def test_training_client_rejects_snapshot_image_corruption() -> None:
+def test_training_client_returns_image_bytes_for_cache_verification() -> None:
     client = TrainingClient(
         WorkerClient(
-            "https://example.test",
-            "secret",
+            WorkerConnection(server_url="https://example.test", token="secret"),
             session(8 * 1024**3),
             transport=httpx.MockTransport(
                 lambda _: httpx.Response(200, content=b"bad")
@@ -338,8 +338,10 @@ def test_training_client_rejects_snapshot_image_corruption() -> None:
         )
     )
     try:
-        with pytest.raises(ValueError, match="digest verification"):
+        assert (
             client.download_image(TrainingClaim.from_document(_run()), "a" * 64)
+            == b"bad"
+        )
     finally:
         client.worker.close()
 
@@ -347,8 +349,7 @@ def test_training_client_rejects_snapshot_image_corruption() -> None:
 def test_training_client_surfaces_lease_loss() -> None:
     client = TrainingClient(
         WorkerClient(
-            "https://example.test",
-            "secret",
+            WorkerConnection(server_url="https://example.test", token="secret"),
             session(8 * 1024**3),
             transport=httpx.MockTransport(
                 lambda _: httpx.Response(409, text="lease expired")
@@ -365,8 +366,7 @@ def test_training_client_surfaces_lease_loss() -> None:
 def test_claim_response_requires_a_run_object() -> None:
     client = TrainingClient(
         WorkerClient(
-            "https://example.test",
-            "secret",
+            WorkerConnection(server_url="https://example.test", token="secret"),
             session(8 * 1024**3),
             transport=httpx.MockTransport(
                 lambda _: httpx.Response(200, content=json.dumps({"run": []}))
@@ -468,13 +468,15 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
         def report_epoch(self, claim: TrainingClaim, report: EpochReport) -> None:
             posted.append((claim.run_id, report.to_dict()))
 
-        def publish_artifact(
-            self, claim: TrainingClaim, weights: Path, inference: Path
-        ) -> None:
+        def publish_artifact(self, claim: TrainingClaim, bundle: Path) -> None:
             if delivery_fails:
                 raise RuntimeError("delivery unavailable")
             artifacts.append(
-                (claim.run_id, weights.read_bytes(), json.loads(inference.read_text()))
+                (
+                    claim.run_id,
+                    (bundle / "weights.pt").read_bytes(),
+                    json.loads((bundle / "bundle.json").read_text()),
+                )
             )
 
         def report_failure(self, claim: TrainingClaim, error: str) -> None:
@@ -559,7 +561,6 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
             best_weights=output / "weights" / "best.pt",
             summary=summary,
             metrics={},
-            confidence=0.3,
         )
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", materialize)
@@ -690,8 +691,7 @@ def test_training_requests_keep_the_identity_of_their_claim() -> None:
         return httpx.Response(200, json={})
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         session(8 * 1024**3),
         transport=httpx.MockTransport(respond),
     )
@@ -700,9 +700,6 @@ def test_training_requests_keep_the_identity_of_their_claim() -> None:
     try:
         client.renew_lease(replace(first, attempt=2))
         client.renew_lease(first)
-        assert attempts == [2, 1]
-        with pytest.raises(ValueError, match="another worker session"):
-            client.renew_lease(replace(first, session_id="another-session"))
         assert attempts == [2, 1]
     finally:
         worker.close()
@@ -788,14 +785,13 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
         return httpx.Response(200, json={})
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         session(8 * 1024**3),
         transport=httpx.MockTransport(respond),
     )
     try:
         TrainingClient(worker).publish_artifact(
-            TrainingClaim.from_document(_run()), weights, bundle
+            TrainingClaim.from_document(_run()), tmp_path
         )
     finally:
         worker.close()
@@ -842,8 +838,7 @@ def test_retry_delivers_retained_bundle_without_training_again(
         return httpx.Response(200, json={})
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         session(8 * 1024**3),
         transport=httpx.MockTransport(respond),
     )
@@ -912,8 +907,7 @@ def test_epoch_reports_no_weight_bytes_and_interruption_retains_local_state(
 
     monkeypatch.setattr(training_worker, "run_training_process", train)
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         session(8 * 1024**3),
         transport=httpx.MockTransport(respond),
     )
@@ -1005,8 +999,7 @@ def test_epoch_report_rejects_invalid_metrics_before_send(precision):
         return httpx.Response(200)
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         session(8192),
         transport=httpx.MockTransport(respond),
     )
@@ -1045,15 +1038,14 @@ def test_publication_validates_the_document_read_from_disk(tmp_path, recipe):
         return httpx.Response(200)
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         session(8192),
         transport=httpx.MockTransport(respond),
     )
     try:
         with pytest.raises(ValueError, match="confidence"):
             TrainingClient(worker).publish_artifact(
-                TrainingClaim.from_document(_run()), weights, bundle
+                TrainingClaim.from_document(_run()), tmp_path
             )
     finally:
         worker.close()
@@ -1078,3 +1070,22 @@ def test_snapshot_rejects_inconsistent_annotation_sets(violation):
         reason = "unknown class"
     with pytest.raises(ValueError, match=reason):
         TrainingSnapshot.from_document(document)
+
+
+def test_claim_rejects_another_worker_session():
+    document = _run()
+    state = document["state"]
+    assert isinstance(state, dict)
+    state["sessionId"] = "another-session"
+    worker = WorkerClient(
+        WorkerConnection(server_url="https://example.test", token="secret"),
+        session(8192),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"run": document})
+        ),
+    )
+    try:
+        with pytest.raises(ValueError, match="another worker session"):
+            TrainingClient(worker).claim()
+    finally:
+        worker.close()

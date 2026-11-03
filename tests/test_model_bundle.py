@@ -16,7 +16,7 @@ from vitroctl.models.bundle import (
 from vitroctl.models.client import WorkbenchClient
 
 
-def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
+def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_inference_modes(
     tmp_path,
     recipe,
 ):
@@ -44,28 +44,30 @@ def test_import_only_prepares_uploads_and_registers_and_can_be_retried(
     operations = []
     uploaded = []
 
-    def post(url, **options):
-        operations.append(url.rsplit("/", 1)[-1])
-        assert options["headers"]["Authorization"] == "Bearer secret"
+    def handle(request):
+        assert request.headers["Authorization"] == "Bearer secret"
+        assert request.url.host == "workbench.example"
+        if request.method == "PUT":
+            assert request.url.path == "/api/agent/model-uploads/upload-123/weights"
+            uploaded.append(request.content)
+            return httpx.Response(200)
+        operations.append(request.url.path.rsplit("/", 1)[-1])
         result = (
             {"uploadId": "upload-123", "uploadPath": "https://untrusted.example/leak"}
             if operations[-1] == "prepare-model-upload"
             else {"id": "version-123"}
         )
-        return httpx.Response(
-            200, json={"result": result}, request=httpx.Request("POST", url)
+        return httpx.Response(200, json={"result": result})
+
+    from vitroctl.io.http import authorized_client
+    from vitroctl.models import client as client_module
+
+    def connected(server, token, **options):
+        return authorized_client(
+            server, token, transport=httpx.MockTransport(handle), **options
         )
 
-    def put(url, **options):
-        assert (
-            url
-            == "https://workbench.example/api/agent/model-uploads/upload-123/weights"
-        )
-        uploaded.append(options["content"].read())
-        return httpx.Response(200, request=httpx.Request("PUT", url))
-
-    monkeypatch.setattr(httpx, "post", post)
-    monkeypatch.setattr(httpx, "put", put)
+    monkeypatch.setattr(client_module, "authorized_client", connected)
     client = WorkbenchClient("https://workbench.example", "secret")
     assert client.import_bundle(document, weights, "seed") == {"id": "version-123"}
     assert client.import_bundle(document, weights, "seed") == {"id": "version-123"}
@@ -133,11 +135,11 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
     spec.write_text(json.dumps({"dataset": "local", "recipe": recipe}))
     manifest = SimpleNamespace(
         dataset="local",
+        annotated=(),
         classes=("seed",),
         to_dict=lambda: {"images": [], "classes": ["seed"]},
     )
     monkeypatch.setattr(training, "load_dataset_manifest", lambda _: manifest)
-    monkeypatch.setattr(training, "load_annotations", lambda _: [])
 
     def export(_annotations, _classes, _root, destination, **_options):
         destination.mkdir(parents=True)

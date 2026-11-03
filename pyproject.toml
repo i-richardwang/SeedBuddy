@@ -65,7 +65,6 @@ markers = [
 ]
 
 [tool.ruff.lint]
-# Imports stay sorted: a module reads the same whoever last touched it.
 extend-select = ["I"]
 
 [tool.pyright]
@@ -84,3 +83,7 @@ include = [
   "/pyproject.toml",
   "/src/vitroctl",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"src/vitroctl/detectors/traditional/config.py" = ["TRY004"]
+"src/vitroctl/detectors/traditional/scoring.py" = ["TRY004"]

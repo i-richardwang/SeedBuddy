@@ -5,10 +5,7 @@ from __future__ import annotations
 import multiprocessing
 import os
 import queue
-import signal
-import threading
 from collections.abc import Callable
-from contextlib import suppress
 from multiprocessing.connection import Connection
 from typing import Any
 
@@ -19,6 +16,7 @@ from vitroctl.io.image_io import read_image
 from vitroctl.worker.images import ImageCache
 from vitroctl.worker.inference_protocol import Assignment, InferenceClient
 from vitroctl.worker.model_store import ModelStore
+from vitroctl.worker.process import read_events, terminate_process_group
 from vitroctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
 
 
@@ -32,7 +30,7 @@ def _execute(
     connection: Connection, settings: WorkerSettings, session: WorkerSession
 ) -> None:
     os.setsid()
-    worker = WorkerClient(settings.server_url, settings.token, session)
+    worker = WorkerClient(settings.connection, session)
     client = InferenceClient(worker)
     models = ModelStore(client, settings.work_dir, settings.device)
     images = ImageCache(settings.work_dir / "images")
@@ -110,19 +108,7 @@ class InferenceProcess:
     ) -> dict[str, object]:
         check()
         connection = self._start()
-        replies: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
-
-        def exchange() -> None:
-            try:
-                connection.send((assignment, deadline))
-                replies.put(connection.recv())
-            except (EOFError, OSError) as error:
-                replies.put(("disconnected", str(error)))
-
-        # A readable pipe may contain only part of a frame. Receiving in the
-        # supervisor itself would let a hung sender bypass every deadline.
-        reader = threading.Thread(target=exchange, name="inference-reply", daemon=True)
-        reader.start()
+        replies, reader = read_events(connection, (assignment, deadline))
         try:
             while True:
                 check()
@@ -156,13 +142,4 @@ class InferenceProcess:
             connection.close()
         if process is None:
             return
-        # Always address the process group, including data-loader descendants.
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            with suppress(ProcessLookupError, PermissionError):
-                os.killpg(process.pid, sig)
-            if process.is_alive():
-                process.terminate() if sig == signal.SIGTERM else process.kill()
-            process.join(timeout=2)
-        if process.is_alive():
-            raise RuntimeError("Inference process could not be terminated")
-        process.close()
+        terminate_process_group(process)

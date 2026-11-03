@@ -8,7 +8,7 @@ import pytest
 
 from vitroctl.detectors.contract import RuntimeDescriptor
 from vitroctl.worker.inference_process import InferenceProcess
-from vitroctl.worker.session import WorkerSession, WorkerSettings
+from vitroctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSession, WorkerSettings
 
 
 def warm_child(connection, settings, session):
@@ -34,7 +34,11 @@ def crash_child(connection, settings, session):
 
 def process(tmp_path: Path, monkeypatch, target) -> InferenceProcess:
     settings = WorkerSettings(
-        server_url="https://example.test", token="secret", work_dir=tmp_path
+        server_url="https://example.test",
+        token="secret",
+        work_dir=tmp_path,
+        device=None,
+        poll_seconds=DEFAULT_POLL_SECONDS,
     )
     session = WorkerSession(
         "test",

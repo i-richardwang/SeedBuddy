@@ -80,7 +80,6 @@ def _local_maxima(
     level: int,
     reference_mask: np.ndarray,
     search_mask: np.ndarray,
-    config: ProposalConfig,
 ) -> list[_ScaleMaximum]:
     reference = response[reference_mask][::8]
     reference_level = float(np.percentile(reference, _REFERENCE_PERCENTILE))
@@ -196,7 +195,6 @@ def propose_seed_centers(
                 level,
                 reference_mask,
                 search_mask,
-                config,
             )
         )
     proposals = _merge_across_scales(maxima, len(scales))

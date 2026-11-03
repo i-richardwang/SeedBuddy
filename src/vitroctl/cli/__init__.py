@@ -5,13 +5,14 @@ import csv
 import json
 import sys
 from pathlib import Path
+from typing import cast
 
 import httpx
 
 from vitroctl.cli.connection import connection, connection_options
 from vitroctl.cli.models import add_model_commands
 from vitroctl.cli.training import add_training_commands
-from vitroctl.datasets.annotations import load_annotations
+from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.datasets.manifest import (
     DatasetManifest,
     load_dataset_manifest,
@@ -41,6 +42,11 @@ from vitroctl.detectors.traditional.training import (
     prepare_images,
     train_candidate_model,
 )
+from vitroctl.detectors.traditional.training.training import (
+    BANDWIDTHS,
+    REGULARIZATIONS,
+    THRESHOLDS,
+)
 from vitroctl.detectors.ultralytics import export_yolo_dataset
 from vitroctl.io.files import atomic_directory
 from vitroctl.worker.host.command import add_worker_commands
@@ -52,6 +58,10 @@ def _pipeline_config(path: str | None) -> PipelineConfig:
 
 def _candidate_model(path: str | None) -> CandidateModel:
     return load_candidate_model(path) if path else DEFAULT_MODEL
+
+
+def _model_identity(model: CandidateModel) -> dict[str, str]:
+    return {"name": model.name, "fingerprint": model.fingerprint}
 
 
 def _traditional_manifest(path: Path) -> DatasetManifest:
@@ -97,12 +107,11 @@ def _prepared_images(
 ) -> list[PreparedImage]:
     data_root = Path(args.data_root)
     source = manifest_path(data_root, args.dataset)
-    _traditional_manifest(source)
-    annotated = load_annotations(source)
+    annotated = _traditional_manifest(source).annotated
     if not annotated:
         raise ValueError("No annotations found")
     return prepare_images(
-        [image.annotation for image in annotated if image.annotation is not None],
+        [cast(AnnotationDocument, image.annotation) for image in annotated],
         data_root,
         config,
     )
@@ -113,7 +122,7 @@ def _evaluate_traditional(args: argparse.Namespace) -> int:
     images = _prepared_images(args, config)
     model = _candidate_model(args.model)
     report = {
-        "model": {"name": model.name, "fingerprint": model.fingerprint},
+        "model": _model_identity(model),
         "proposal": evaluate_proposals(images).to_dict(),
         "detection": evaluate_candidate_model(model, images, config).to_dict(),
     }
@@ -125,7 +134,9 @@ def _train_candidate_scoring(args: argparse.Namespace) -> int:
     config = _pipeline_config(args.config)
     images = _prepared_images(args, config)
     base_model = _candidate_model(args.base_model)
-    trained = train_candidate_model(images, base_model, config)
+    trained = train_candidate_model(
+        images, base_model, config, BANDWIDTHS, REGULARIZATIONS, THRESHOLDS
+    )
     output = Path(args.output)
     with atomic_directory(output) as working:
         model_path = working / "model.json"
@@ -139,14 +150,8 @@ def _train_candidate_scoring(args: argparse.Namespace) -> int:
         report_path.write_text(
             json.dumps(
                 {
-                    "base_model": {
-                        "name": base_model.name,
-                        "fingerprint": base_model.fingerprint,
-                    },
-                    "model": {
-                        "name": trained.model.name,
-                        "fingerprint": trained.model.fingerprint,
-                    },
+                    "base_model": _model_identity(base_model),
+                    "model": _model_identity(trained.model),
                     "config": trained.config.to_dict(),
                     "training_set": [
                         {
@@ -191,7 +196,7 @@ def _export_yolo(args: argparse.Namespace) -> int:
     data_root = Path(args.data_root)
     source = manifest_path(data_root, args.dataset)
     dataset = load_dataset_manifest(source)
-    annotated = load_annotations(source)
+    annotated = dataset.annotated
     manifest = export_yolo_dataset(
         annotated,
         dataset.classes,
@@ -292,7 +297,6 @@ def main(argv: list[str] | None = None) -> int:
         return args.handler(args)
     except (
         OSError,
-        TypeError,
         ValueError,
         RuntimeError,
         httpx.HTTPError,

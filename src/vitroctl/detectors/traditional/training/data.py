@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from vitroctl.contracts.annotation import AnnotationDocument, BoundingBox
+from vitroctl.datasets.geometry import require_image_dimensions
 from vitroctl.datasets.manifest import verified_blob
 from vitroctl.detectors.traditional.candidates import FEATURE_NAMES, CandidateEvidence
 from vitroctl.detectors.traditional.config import PipelineConfig
@@ -88,12 +89,9 @@ def _prepare_image(
 ) -> PreparedImage:
     boxes = tuple(instance.bbox for instance in annotation.instances)
     analysis = analyze_candidates(verified_blob(data_root, annotation.digest), config)
-    height, width = analysis.image.shape[:2]
-    if (width, height) != (annotation.width, annotation.height):
-        raise ValueError(
-            f"Image dimensions differ from annotation for {annotation.digest}: "
-            f"{width}x{height} != {annotation.width}x{annotation.height}"
-        )
+    require_image_dimensions(
+        analysis.image.shape, annotation.width, annotation.height, annotation.digest
+    )
     proposals = tuple(analysis.proposals)
     assignments = match_boxes(
         boxes,

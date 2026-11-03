@@ -46,12 +46,11 @@ class AnnotationDocument:
         cls, payload: dict[str, Any], context: str = "annotation"
     ) -> AnnotationDocument:
         validate_wire_contract("annotation", payload, context)
-        return cls.decode(payload, context)
+        return cls.decode(payload)
 
     @classmethod
-    def decode(
-        cls, payload: dict[str, Any], context: str = "annotation"
-    ) -> AnnotationDocument:
+    def decode(cls, payload: dict[str, Any]) -> AnnotationDocument:
+        context = "annotation"
         image = payload["image"]
         digest = image["digest"]
         image_width = image["width"]

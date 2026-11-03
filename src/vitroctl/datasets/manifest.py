@@ -32,8 +32,7 @@ class ManifestImage:
     split: str | None
     detection: DetectionResult | None
     annotation: AnnotationDocument | None
-    # A person found the photograph unclear; a manifest that does not say is clear.
-    unclear: bool = False
+    unclear: bool
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -61,18 +60,16 @@ class DatasetManifest:
     @classmethod
     def from_document(cls, value: Any, context: str = "manifest") -> DatasetManifest:
         validate_wire_contract("dataset-manifest", value, context)
-        return cls.decode(value, context)
+        return cls.decode(value)
 
     @classmethod
-    def decode(cls, value: Any, context: str = "manifest") -> DatasetManifest:
+    def decode(cls, value: Any) -> DatasetManifest:
+        context = "manifest"
         dataset = value["dataset"]
         model = value["model"]
         model_id = model["id"]
         classes = tuple(model["classes"])
-        images = tuple(
-            _image(raw, f"{context}.images[{index}]")
-            for index, raw in enumerate(value["images"])
-        )
+        images = tuple(_image(raw) for raw in value["images"])
         validate_annotation_set(
             (
                 ImageDocuments(
@@ -87,6 +84,10 @@ class DatasetManifest:
             context,
         )
         return cls(dataset=dataset, model_id=model_id, classes=classes, images=images)
+
+    @property
+    def annotated(self) -> tuple[ManifestImage, ...]:
+        return tuple(image for image in self.images if image.annotation is not None)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -122,14 +123,14 @@ def manifest_path(data_root: str | Path, dataset: str) -> Path:
     return Path(data_root) / "datasets" / f"{dataset}.json"
 
 
-def _image(value: Any, context: str) -> ManifestImage:
+def _image(value: Any) -> ManifestImage:
     detection = None
     if value["detection"] is not None:
         detection = DetectionResult.decode(value["detection"])
     annotation = (
         None
         if value["annotation"] is None
-        else AnnotationDocument.decode(value["annotation"], f"{context}.annotation")
+        else AnnotationDocument.decode(value["annotation"])
     )
     return ManifestImage(
         digest=value["digest"],
@@ -140,7 +141,7 @@ def _image(value: Any, context: str) -> ManifestImage:
         split=value["split"],
         detection=detection,
         annotation=annotation,
-        unclear=value.get("unclear", False),
+        unclear=value["unclear"],
     )
 
 

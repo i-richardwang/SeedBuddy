@@ -54,3 +54,18 @@ def file_digest(path: str | Path) -> str:
     with Path(path).open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256")
     return digest.hexdigest()
+
+
+#: Maximum encoded image size accepted by image transfers.
+MAX_IMAGE_BYTES = 64 * 1024 * 1024
+
+
+def content_digest(data: bytes) -> str:
+    """SHA-256 of bytes."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_digest(actual: str, expected: str) -> None:
+    """Require the computed SHA-256 to match the expected content identity."""
+    if actual != expected:
+        raise ValueError(f"Content failed digest verification against {expected}")

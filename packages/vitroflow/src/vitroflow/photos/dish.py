@@ -6,6 +6,7 @@ The dish recipe is byte-identical to the workbench recipe.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from importlib.resources import files
 
@@ -25,7 +26,11 @@ class DishCircle:
 def locate_dish(gray: np.ndarray) -> DishCircle | None:
     height, width = gray.shape
     scale = min(1.0, RECIPE["thumbnailLongEdge"] / max(width, height))
-    small = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    size = (
+        max(1, math.floor(width * scale + 0.5)),
+        max(1, math.floor(height * scale + 0.5)),
+    )
+    small = cv2.resize(gray, size, interpolation=cv2.INTER_AREA)
     small = cv2.GaussianBlur(small, (0, 0), RECIPE["sigma"])
     side = min(small.shape)
     circles = cv2.HoughCircles(

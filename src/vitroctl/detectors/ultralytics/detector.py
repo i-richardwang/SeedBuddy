@@ -49,7 +49,6 @@ class YoloInferenceSettings:
 
 def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
     """The runtime identity this process would sign YOLO predictions with."""
-    load_yolo()
     return RuntimeDescriptor(
         adapter="ultralytics",
         fingerprint=adapter_fingerprint(
@@ -60,12 +59,12 @@ def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
 
 @dataclass
 class UltralyticsDetector:
-    """Run a YOLO training artifact with classes validated by its document schema."""
+    """Run whole-image inference with the model document’s calibrated settings."""
 
     weights: Path
     settings: YoloInferenceSettings
     class_names: tuple[str, ...]
-    device: str | None = None
+    device: str | None
     _model: Any = field(default=None, init=False, repr=False)
     _runtime: type = field(init=False, repr=False)
     _artifact_digest: str = field(init=False, repr=False)
@@ -101,8 +100,6 @@ class UltralyticsDetector:
             names = getattr(model, "names", None)
             if isinstance(names, dict) and set(names) == set(range(len(names))):
                 artifact_classes = tuple(names[index] for index in range(len(names)))
-            elif isinstance(names, (list, tuple)):
-                artifact_classes = tuple(names)
             else:
                 raise RuntimeError("YOLO weights do not declare an ordered class list")
             if artifact_classes != self.class_names:

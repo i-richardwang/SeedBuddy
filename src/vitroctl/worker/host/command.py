@@ -24,6 +24,7 @@ from vitroctl.worker.host.profiles import (
     profile_exists,
     save_profile,
 )
+from vitroctl.worker.session import DEFAULT_POLL_SECONDS
 
 
 def _setup(args: argparse.Namespace) -> int:
@@ -111,7 +112,7 @@ def add_worker_commands(commands: SubparserCollection) -> None:
     setup.add_argument("profile")
     setup.add_argument("--server", required=True)
     setup.add_argument("--device")
-    setup.add_argument("--poll-seconds", type=float, default=5.0)
+    setup.add_argument("--poll-seconds", type=float, default=DEFAULT_POLL_SECONDS)
     setup.add_argument(
         "--force", action="store_true", help="Replace an existing profile"
     )

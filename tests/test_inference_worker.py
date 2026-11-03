@@ -12,6 +12,7 @@ from conftest import detection_document
 
 from vitroctl.detectors.contract import RuntimeDescriptor
 from vitroctl.worker import inference
+from vitroctl.worker.connection import WorkerConnection
 from vitroctl.worker.inference import InferenceRunner
 from vitroctl.worker.inference_process import InferenceExecutionError
 from vitroctl.worker.inference_protocol import Assignment, InferenceClient
@@ -71,8 +72,7 @@ class Workbench:
     def client(self) -> InferenceClient:
         return InferenceClient(
             WorkerClient(
-                "https://example.test",
-                "secret",
+                WorkerConnection(server_url="https://example.test", token="secret"),
                 SESSION,
                 transport=httpx.MockTransport(self),
             )
@@ -221,8 +221,7 @@ def test_result_transport_retries_keep_the_same_attempt_and_payload():
         return original(request)
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         SESSION,
         transport=httpx.MockTransport(transport),
     )
@@ -243,8 +242,7 @@ def test_inference_network_deadline_bounds_a_streaming_response():
                 yield b"x"
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         SESSION,
         transport=httpx.MockTransport(
             lambda request: httpx.Response(200, stream=SlowStream())
@@ -273,8 +271,7 @@ def test_bounded_http_decodes_compressed_responses_once():
     import gzip
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         SESSION,
         transport=httpx.MockTransport(
             lambda request: httpx.Response(

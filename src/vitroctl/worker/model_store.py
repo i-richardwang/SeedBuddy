@@ -26,8 +26,7 @@ from vitroctl.detectors.ultralytics.runtime import (
     release_accelerator,
     require_ultralytics_version,
 )
-from vitroctl.io.files import atomic_directory
-from vitroctl.io.image_io import verify_digest
+from vitroctl.io.files import atomic_directory, content_digest, verify_digest
 
 CACHE_VALIDATION_ERRORS = (OSError, TypeError, ValueError, RuntimeError)
 LOGGER = logging.getLogger(__name__)
@@ -130,13 +129,11 @@ class ModelStore:
             content = self._source.weights(version_id)
             if len(content) != artifact["weights"]["bytes"]:
                 raise ValueError("Downloaded YOLO weights have an unexpected size")
-            verify_digest(content, artifact["weights"]["digest"])
+            verify_digest(content_digest(content), artifact["weights"]["digest"])
             weights.write_bytes(content)
-            detector = self._verified_ultralytics_detector(
-                temporary, classes, expected_digest, settings
-            )
-        detector.weights = (destination / "weights" / "best.pt").resolve()
-        return detector
+        return self._verified_ultralytics_detector(
+            destination, classes, expected_digest, settings
+        )
 
     def _verified_ultralytics_detector(
         self,
@@ -154,7 +151,4 @@ class ModelStore:
 
     @staticmethod
     def _discard_cache_entry(path: Path) -> None:
-        if path.is_dir():
-            shutil.rmtree(path)
-        else:
-            path.unlink(missing_ok=True)
+        shutil.rmtree(path)

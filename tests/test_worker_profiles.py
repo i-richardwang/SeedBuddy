@@ -34,7 +34,7 @@ def test_profile_rejects_an_unknown_device() -> None:
             server_url="https://example.test",
             token="secret",
             device="gpu",
-        )
+        ).settings("test")
 
 
 def test_profile_parser_rejects_unknown_fields(tmp_path, monkeypatch) -> None:

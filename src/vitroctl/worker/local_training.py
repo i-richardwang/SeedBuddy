@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import shutil
-from dataclasses import asdict
 from pathlib import Path
 
 from vitroctl.detectors.ultralytics.checkpoints import CHECKPOINT_FILES, EPOCH_JOURNAL
@@ -19,7 +18,7 @@ def prepare_local_training(claim: TrainingClaim, root: Path) -> None:
         "runId": claim.run_id,
         "snapshotId": claim.dataset_snapshot_id,
         "workerId": claim.worker_id,
-        "recipe": asdict(claim.recipe),
+        "recipe": claim.recipe.to_dict(),
     }
     checkpoint = claim.checkpoint
     if checkpoint:
