@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
-from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import Detector
 from vitroctl.detectors.traditional.config import (
     DEFAULT_PIPELINE_CONFIG,
@@ -33,7 +32,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class WeightsSource(Protocol):
-    def weights(self, version_id: str) -> bytes: ...
+    def weights(self, version_id: str, deadline: float) -> bytes: ...
 
 
 @dataclass(frozen=True)
@@ -45,14 +44,7 @@ class ModelManifest:
     artifact: dict[str, Any]
 
     @classmethod
-    def from_document(
-        cls, value: Any, context: str = "model manifest"
-    ) -> ModelManifest:
-        validate_wire_contract("inference-model-manifest", value, context)
-        return cls.decode(value)
-
-    @classmethod
-    def decode(cls, value: Any) -> ModelManifest:
+    def decode(cls, value: Any, context: str) -> ModelManifest:
         return cls(
             model_version_id=value["modelVersionId"],
             classes=tuple(value["classes"]),
@@ -73,7 +65,7 @@ class ModelStore:
         self._device = device
         self._loaded: tuple[str, Detector] | None = None
 
-    def load(self, manifest: ModelManifest) -> Detector:
+    def load(self, manifest: ModelManifest, deadline: float) -> Detector:
         version_id = manifest.model_version_id
         if self._loaded and self._loaded[0] == version_id:
             return self._loaded[1]
@@ -81,7 +73,7 @@ class ModelStore:
         artifact = manifest.artifact
         if artifact["kind"] == "ultralytics":
             detector: Detector = self._ultralytics_detector(
-                version_id, manifest.classes, artifact
+                version_id, manifest.classes, artifact, deadline
             )
         else:
             if TRADITIONAL_CLASS not in manifest.classes:
@@ -100,13 +92,15 @@ class ModelStore:
     def unload(self) -> None:
         if self._loaded is None:
             return
-        _, detector = self._loaded
         self._loaded = None
-        del detector
         release_accelerator()
 
     def _ultralytics_detector(
-        self, version_id: str, classes: tuple[str, ...], artifact: dict[str, Any]
+        self,
+        version_id: str,
+        classes: tuple[str, ...],
+        artifact: dict[str, Any],
+        deadline: float,
     ) -> UltralyticsDetector:
         required_runtime = artifact["training"]["runtime"]["version"]
         require_ultralytics_version(required_runtime)
@@ -121,12 +115,12 @@ class ModelStore:
                 )
             except CACHE_VALIDATION_ERRORS as error:
                 LOGGER.warning("discarding invalid cache for %s: %s", version_id, error)
-                self._discard_cache_entry(destination)
+                shutil.rmtree(destination)
 
         with atomic_directory(destination) as temporary:
             weights = temporary / "weights" / "best.pt"
             weights.parent.mkdir(parents=True)
-            content = self._source.weights(version_id)
+            content = self._source.weights(version_id, deadline)
             if len(content) != artifact["weights"]["bytes"]:
                 raise ValueError("Downloaded YOLO weights have an unexpected size")
             verify_digest(content_digest(content), artifact["weights"]["digest"])
@@ -148,7 +142,3 @@ class ModelStore:
         if cached.artifact_digest != expected_digest:
             raise ValueError("YOLO artifact does not match its published digest")
         return cached
-
-    @staticmethod
-    def _discard_cache_entry(path: Path) -> None:
-        shutil.rmtree(path)

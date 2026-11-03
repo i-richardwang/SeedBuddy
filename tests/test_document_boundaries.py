@@ -8,13 +8,10 @@ from pathlib import Path
 import pytest
 
 from vitroctl.contracts import validation
-from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.datasets.manifest import DatasetManifest
-from vitroctl.detectors.contract import DetectionResult
 from vitroctl.training.documents import TrainingClaim, TrainingSnapshot
 from vitroctl.training.recipe import TrainingRecipe
 from vitroctl.worker.inference_protocol import Assignment
-from vitroctl.worker.model_store import ModelManifest
 
 FIXTURES = Path(__file__).parent / "fixtures/contracts"
 
@@ -42,20 +39,9 @@ def _fixture(name: str):
             _fixture("inference-assignment-yolo.json"),
         ),
         (
-            "inference-model-manifest",
-            ModelManifest.from_document,
-            _fixture("inference-assignment-yolo.json")["manifest"],
-        ),
-        (
             "dataset-manifest",
             DatasetManifest.from_document,
             _fixture("dataset-manifest.json"),
-        ),
-        ("annotation", AnnotationDocument.from_document, _fixture("annotation.json")),
-        (
-            "detection-result",
-            DetectionResult.from_document,
-            _fixture("detection.json"),
         ),
         (
             "training-snapshot",

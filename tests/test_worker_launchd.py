@@ -57,7 +57,6 @@ def test_restart_waits_for_the_worker_to_stop_then_loads_its_definition(
     calls: list[tuple[str, ...]] = []
     loaded = iter([True, True, True, False, False])
     monkeypatch.setattr(worker_launchd, "require_launchd", lambda: None)
-    monkeypatch.setattr(worker_launchd, "load_profile", lambda _name: None)
     monkeypatch.setattr(
         worker_launchd, "install_launch_agent", lambda _name: Path("/tmp/worker.plist")
     )
@@ -79,7 +78,6 @@ def test_restart_waits_for_the_worker_to_stop_then_loads_its_definition(
 def test_restart_bootstraps_an_unloaded_service(monkeypatch) -> None:
     calls: list[tuple[str, ...]] = []
     monkeypatch.setattr(worker_launchd, "require_launchd", lambda: None)
-    monkeypatch.setattr(worker_launchd, "load_profile", lambda _name: None)
     monkeypatch.setattr(
         worker_launchd, "install_launch_agent", lambda _name: Path("/tmp/worker.plist")
     )

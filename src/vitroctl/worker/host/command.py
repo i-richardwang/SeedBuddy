@@ -65,19 +65,25 @@ def _status(args: argparse.Namespace) -> int:
 
 
 def _start(args: argparse.Namespace) -> int:
-    for check in doctor_profile(args.profile):
+    require_launchd()
+    profile = load_profile(args.profile)
+    for check in preflight_profile(args.profile, profile):
         print(check)
     start_service(args.profile)
     return 0
 
 
 def _stop(args: argparse.Namespace) -> int:
+    require_launchd()
+    load_profile(args.profile)
     stop_service(args.profile)
     return 0
 
 
 def _restart(args: argparse.Namespace) -> int:
-    for check in doctor_profile(args.profile):
+    require_launchd()
+    profile = load_profile(args.profile)
+    for check in preflight_profile(args.profile, profile):
         print(check)
     restart_service(args.profile)
     return 0

@@ -560,7 +560,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
         return SimpleNamespace(
             best_weights=output / "weights" / "best.pt",
             summary=summary,
-            metrics={},
+            context=json.loads((output / "training-context.json").read_text()),
         )
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", materialize)

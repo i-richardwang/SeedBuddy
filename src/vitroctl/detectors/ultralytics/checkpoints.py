@@ -1,4 +1,6 @@
 """Files maintained by the local Ultralytics trainer for resuming execution."""
 
 EPOCH_JOURNAL = "epochs.jsonl"
-CHECKPOINT_FILES = ("weights/last.pt", "weights/best.pt", EPOCH_JOURNAL)
+LAST_CHECKPOINT = "weights/last.pt"
+BEST_CHECKPOINT = "weights/best.pt"
+CHECKPOINT_FILES = (LAST_CHECKPOINT, BEST_CHECKPOINT, EPOCH_JOURNAL)

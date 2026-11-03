@@ -7,6 +7,7 @@ import pytest
 from conftest import model_bundle
 
 from vitroctl.cli import main
+from vitroctl.detectors.ultralytics import YoloTrainingResult
 from vitroctl.models.bundle import (
     read_bundle,
     training_bundle,
@@ -181,7 +182,12 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
             )
         )
         return SimpleNamespace(
-            best_weights=weights, summary=summary, metrics=metadata["validation"]
+            best_weights=weights,
+            summary=summary,
+            context={
+                "codeRevision": "sha256:" + "a" * 64,
+                "effectiveParameters": recipe["parameters"],
+            },
         )
 
     monkeypatch.setattr(training, "train_yolo_detector", train)
@@ -199,14 +205,6 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
     spec.write_text(json.dumps({"dataset": "local", "recipe": recipe}))
     assert main(args + ["--resume"]) == 2
     assert len(calls) == 1
-    (output / "training" / "training-context.json").unlink()
-    with pytest.raises(FileNotFoundError):
-        training_bundle(
-            output / "training" / "best.pt",
-            output / "training" / "inference.json",
-            ["seed"],
-            document["provenance"],
-        )
 
 
 @pytest.mark.parametrize("size", [2560, 3072])
@@ -228,7 +226,9 @@ def test_training_bundle_refuses_unusable_validation(tmp_path):
     summary.write_text(json.dumps({"inference": {"ready": False}}))
     (tmp_path / "training-context.json").write_text("{}")
     with pytest.raises(ValueError, match="usable validation"):
-        training_bundle(tmp_path / "best.pt", summary, ["seed"], {})
+        training_bundle(
+            YoloTrainingResult(tmp_path / "best.pt", summary, {}), ["seed"], {}
+        )
 
 
 @pytest.mark.parametrize("invalid_structure", [False, True])

@@ -13,7 +13,7 @@ from vitroctl.io.http import authorized_client
 RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True)
 class WorkerConnection:
     server_url: str
     token: str
@@ -54,7 +54,8 @@ class WorkerHttpClient:
     def request(
         self, method: str, url: str, *, deadline: float | None = None, **kwargs: Any
     ) -> httpx.Response:
-        for attempt in range(3):
+        attempt = 0
+        while True:
             try:
                 if deadline is None:
                     response = self._client.request(method, url, **kwargs)
@@ -98,4 +99,4 @@ class WorkerHttpClient:
             if deadline is not None:
                 delay = min(delay, max(0, deadline - time.monotonic()))
             time.sleep(delay)
-        raise RuntimeError("HTTP retry loop ended without a response")
+            attempt += 1

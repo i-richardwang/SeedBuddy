@@ -2,9 +2,13 @@ import json
 from pathlib import Path
 
 import pytest
-from conftest import annotation_document, manifest_entry, write_manifest
+from conftest import (
+    annotation_document,
+    decode_annotation,
+    manifest_entry,
+    write_manifest,
+)
 
-from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.datasets.manifest import load_dataset_manifest
 
@@ -34,7 +38,7 @@ def test_manifest_annotated_keeps_only_annotated_images(tmp_path: Path) -> None:
 
 def test_shared_annotation_contract() -> None:
     payload = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
-    annotation = AnnotationDocument.from_document(payload, "annotation")
+    annotation = decode_annotation(payload, "annotation")
 
     assert annotation.digest == "c" * 64
     assert len(annotation.instances) == 1
@@ -75,14 +79,14 @@ def test_unversioned_annotation_is_rejected() -> None:
     del payload["schemaVersion"]
 
     with pytest.raises(ValueError, match="annotation.*shared contract"):
-        AnnotationDocument.from_document(payload)
+        decode_annotation(payload)
 
 
 def test_annotation_schema_rejects_unknown_fields_and_invalid_identities() -> None:
     payload = annotation_document("1" * 64)
     payload["unexpected"] = True
     with pytest.raises(ValueError, match="annotation.*shared contract"):
-        AnnotationDocument.from_document(payload)
+        decode_annotation(payload)
     with pytest.raises(ValueError, match="annotation.image.digest.*shared contract"):
         validate_wire_contract(
             "annotation", annotation_document("images/a.jpg"), "annotation"
@@ -92,4 +96,4 @@ def test_annotation_schema_rejects_unknown_fields_and_invalid_identities() -> No
         "1" * 64, [{"x": 95, "y": 20, "width": 8, "height": 6}]
     )
     with pytest.raises(ValueError, match=r"instances\[0\].bbox exceeds image bounds"):
-        AnnotationDocument.from_document(payload, "annotation")
+        decode_annotation(payload, "annotation")

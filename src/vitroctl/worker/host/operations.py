@@ -148,7 +148,7 @@ def profile_summary(name: str) -> str:
     return f"{name}\t{state}\t{service}\t{device}"
 
 
-def tail_log(name: str, *, lines: int = 100, follow: bool = False) -> None:
+def tail_log(name: str, *, lines: int, follow: bool) -> None:
     if lines <= 0:
         raise ValueError("log line count must be positive")
     path = profile_directory(name) / "worker.log"

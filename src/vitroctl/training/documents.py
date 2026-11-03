@@ -13,14 +13,14 @@ from vitroctl.training.recipe import TrainingRecipe
 TrainingPhase = Literal["preparing", "training", "validating"]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True)
 class TrainingCheckpoint:
     attempt: int
     epoch: int
     worker_id: str
 
     @classmethod
-    def decode(cls, checkpoint: dict[str, Any]) -> TrainingCheckpoint:
+    def decode(cls, checkpoint: dict[str, Any], context: str) -> TrainingCheckpoint:
         return cls(
             attempt=checkpoint["attempt"],
             epoch=checkpoint["epoch"],
@@ -28,7 +28,7 @@ class TrainingCheckpoint:
         )
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True)
 class TrainingClaim:
     run_id: str
     dataset_snapshot_id: str
@@ -41,23 +41,23 @@ class TrainingClaim:
     @classmethod
     def from_document(cls, value: Any, context: str = "training run") -> TrainingClaim:
         validate_wire_contract("training-run", value, context)
-        return cls.decode(value)
+        return cls.decode(value, context)
 
     @classmethod
-    def decode(cls, value: Any) -> TrainingClaim:
-        context = "training run"
-        state_context = f"{context}.state"
+    def decode(cls, value: Any, context: str) -> TrainingClaim:
         state = value["state"]
         if state["status"] != "running":
-            raise ValueError(f"{state_context}.status must be running")
+            raise ValueError(f"{context}.state.status must be running")
         return cls(
             run_id=value["id"],
             dataset_snapshot_id=value["datasetSnapshotId"],
             attempt=value["attempt"],
-            recipe=TrainingRecipe.decode(value["recipe"]),
+            recipe=TrainingRecipe.decode(value["recipe"], f"{context}.recipe"),
             worker_id=state["workerId"],
             session_id=state["sessionId"],
-            checkpoint=TrainingCheckpoint.decode(value["checkpoint"])
+            checkpoint=TrainingCheckpoint.decode(
+                value["checkpoint"], f"{context}.checkpoint"
+            )
             if value["checkpoint"] is not None
             else None,
         )
@@ -80,12 +80,14 @@ class TrainingSnapshot:
     @classmethod
     def from_document(cls, value: Any, context: str = "snapshot") -> TrainingSnapshot:
         validate_wire_contract("training-snapshot", value, context)
-        return cls.decode(value)
+        return cls.decode(value, context)
 
     @classmethod
-    def decode(cls, value: Any) -> TrainingSnapshot:
-        context = "snapshot"
-        images = tuple(_snapshot_image(raw) for raw in value["images"])
+    def decode(cls, value: Any, context: str) -> TrainingSnapshot:
+        images = tuple(
+            _snapshot_image(raw, f"{context}.images[{i}]")
+            for i, raw in enumerate(value["images"])
+        )
         classes = tuple(value["classes"])
         validate_annotation_set(
             (
@@ -106,13 +108,13 @@ class TrainingSnapshot:
         )
 
 
-def _snapshot_image(value: Any) -> SnapshotImage:
-    digest = value["digest"]
-    annotation = AnnotationDocument.decode(value["annotation"])
+def _snapshot_image(value: Any, context: str) -> SnapshotImage:
     return SnapshotImage(
-        digest=digest,
+        digest=value["digest"],
         width=value["width"],
         height=value["height"],
         split=value["split"],
-        annotation=annotation,
+        annotation=AnnotationDocument.decode(
+            value["annotation"], f"{context}.annotation"
+        ),
     )

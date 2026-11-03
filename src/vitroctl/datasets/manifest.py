@@ -16,7 +16,7 @@ from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.contracts.annotation_set import ImageDocuments, validate_annotation_set
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import DetectionResult
-from vitroctl.io.files import file_digest
+from vitroctl.io.files import file_digest, verify_digest
 
 MANIFEST_SCHEMA_VERSION = 1
 MAX_DATASET_MANIFEST_BYTES = 16 * 1024 * 1024
@@ -51,6 +51,11 @@ class ManifestImage:
 
 
 @dataclass(frozen=True)
+class AnnotatedImage(ManifestImage):
+    annotation: AnnotationDocument
+
+
+@dataclass(frozen=True)
 class DatasetManifest:
     dataset: str
     model_id: str
@@ -60,16 +65,18 @@ class DatasetManifest:
     @classmethod
     def from_document(cls, value: Any, context: str = "manifest") -> DatasetManifest:
         validate_wire_contract("dataset-manifest", value, context)
-        return cls.decode(value)
+        return cls.decode(value, context)
 
     @classmethod
-    def decode(cls, value: Any) -> DatasetManifest:
-        context = "manifest"
+    def decode(cls, value: Any, context: str) -> DatasetManifest:
         dataset = value["dataset"]
         model = value["model"]
         model_id = model["id"]
         classes = tuple(model["classes"])
-        images = tuple(_image(raw) for raw in value["images"])
+        images = tuple(
+            _image(raw, f"{context}.images[{i}]")
+            for i, raw in enumerate(value["images"])
+        )
         validate_annotation_set(
             (
                 ImageDocuments(
@@ -86,8 +93,12 @@ class DatasetManifest:
         return cls(dataset=dataset, model_id=model_id, classes=classes, images=images)
 
     @property
-    def annotated(self) -> tuple[ManifestImage, ...]:
-        return tuple(image for image in self.images if image.annotation is not None)
+    def annotated(self) -> tuple[AnnotatedImage, ...]:
+        return tuple(
+            AnnotatedImage(**{**vars(image), "annotation": image.annotation})
+            for image in self.images
+            if image.annotation is not None
+        )
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -111,11 +122,11 @@ def verified_blob(data_root: str | Path, digest: str) -> Path:
     """The path of the blob named ``digest`` once its bytes hash to that digest."""
     path = blob_path(data_root, digest)
     try:
-        actual_digest = file_digest(path)
+        verify_digest(file_digest(path), digest)
     except FileNotFoundError as error:
         raise BlobError(f"Blob is missing from the data root: {digest}") from error
-    if actual_digest != digest:
-        raise BlobError(f"Blob failed digest verification: {digest}")
+    except ValueError as error:
+        raise BlobError(str(error)) from error
     return path
 
 
@@ -123,14 +134,14 @@ def manifest_path(data_root: str | Path, dataset: str) -> Path:
     return Path(data_root) / "datasets" / f"{dataset}.json"
 
 
-def _image(value: Any) -> ManifestImage:
+def _image(value: Any, context: str) -> ManifestImage:
     detection = None
     if value["detection"] is not None:
-        detection = DetectionResult.decode(value["detection"])
+        detection = DetectionResult.decode(value["detection"], f"{context}.detection")
     annotation = (
         None
         if value["annotation"] is None
-        else AnnotationDocument.decode(value["annotation"])
+        else AnnotationDocument.decode(value["annotation"], f"{context}.annotation")
     )
     return ManifestImage(
         digest=value["digest"],

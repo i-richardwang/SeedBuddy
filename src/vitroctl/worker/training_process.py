@@ -7,14 +7,15 @@ import logging
 import multiprocessing
 import os
 import queue
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from multiprocessing.connection import Connection
 from pathlib import Path
 from typing import Any
 
-from vitroctl.detectors.ultralytics import EpochReport, YoloTrainingInterruptedError
-from vitroctl.detectors.ultralytics.training import (
+from vitroctl.detectors.ultralytics import (
+    EpochReport,
+    YoloTrainingInterruptedError,
     YoloTrainingResult,
     train_yolo_detector,
 )
@@ -47,7 +48,7 @@ def _train(
         pass  # The supervisor revoked execution and closed its end of the pipe.
     except Exception as error:  # noqa: BLE001 - forward trainer failures to the supervising worker
         with suppress(BrokenPipeError, EOFError):
-            connection.send(("error", f"{type(error).__name__}: {error}"))
+            connection.send(("error", str(error) or type(error).__name__))
     finally:
         connection.close()
 
@@ -60,8 +61,21 @@ def run_training_process(
     on_training_start: Callable[[], None],
     on_epoch: Callable[[EpochReport], None],
     on_validation_start: Callable[[], None],
-    **options: Any,
+    parameters: Mapping[str, Any],
+    model: str | Path,
+    model_digest: str,
+    runtime_version: str,
+    device: str | None,
+    resume_required: bool,
 ) -> YoloTrainingResult:
+    options = {
+        "parameters": parameters,
+        "model": model,
+        "model_digest": model_digest,
+        "runtime_version": runtime_version,
+        "device": device,
+        "resume_required": resume_required,
+    }
     context = multiprocessing.get_context("spawn")
     parent, child = context.Pipe()
     process = context.Process(

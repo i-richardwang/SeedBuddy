@@ -31,7 +31,6 @@ def test_traditional_fallback_is_local_to_seed_geometry():
     assert geometry.used_fallback
     assert geometry.center == (60, 40)
     assert geometry.radius == 80 * 0.43
-    assert geometry.dish_mask.shape == (80, 120)
 
 
 def test_thumbnail_geometry_matches_the_shared_boundary_cases():

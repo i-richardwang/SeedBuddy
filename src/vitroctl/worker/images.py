@@ -29,6 +29,7 @@ LOGGER = logging.getLogger(__name__)
 
 BUDGET_BYTES = 20 * 1024**3
 DOWNLOADS = 4
+POLL_SECONDS = 0.5
 _PARTIAL = ".partial"
 
 Download = Callable[[str], bytes]
@@ -150,14 +151,12 @@ class ImageCache:
 def wait_for(
     future: Future[Path],
     cancelled: Callable[[], bool],
-    *,
-    poll_seconds: float = 0.5,
 ) -> Path:
     """The fetched file, or `CancelledError` once the caller stops waiting."""
     while True:
         if cancelled():
             raise CancelledError
         try:
-            return future.result(timeout=poll_seconds)
+            return future.result(timeout=POLL_SECONDS)
         except FutureTimeoutError:
             continue

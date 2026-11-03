@@ -27,8 +27,6 @@ class InferenceRunner:
         self.process.close()
 
     def run_once(self, stopped: threading.Event) -> bool:
-        if stopped.is_set():
-            return False
         claimed_at = time.monotonic()
         assignment = self.client.claim()
         if assignment is None:

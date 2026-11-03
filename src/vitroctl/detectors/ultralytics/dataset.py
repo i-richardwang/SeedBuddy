@@ -7,13 +7,16 @@ import shutil
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import TypedDict
 
-from vitroctl.contracts.annotation import AnnotationDocument, AnnotationInstance
+from vitroctl.contracts.annotation import AnnotationInstance
 from vitroctl.datasets.geometry import require_image_dimensions
-from vitroctl.datasets.manifest import ManifestImage, verified_blob
+from vitroctl.datasets.manifest import AnnotatedImage, verified_blob
 from vitroctl.io.files import atomic_directory
 from vitroctl.io.image_io import CANONICAL_EXTENSION, read_image
+
+DEFAULT_VALIDATION_FRACTION = 0.2
+DEFAULT_SEED = 0
 
 
 class DatasetSplitError(ValueError):
@@ -48,7 +51,7 @@ class DatasetImage:
     height: int
     instances: tuple[AnnotationInstance, ...]
     file_path: Path
-    split: str | None = None
+    split: str | None
 
 
 def _label_text(image: DatasetImage, class_indices: dict[str, int]) -> str:
@@ -102,8 +105,8 @@ def export_dataset_images(
     class_names: Sequence[str],
     output_dir: str | Path,
     *,
-    validation_fraction: float = 0.2,
-    seed: int = 0,
+    validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
+    seed: int = DEFAULT_SEED,
     link_images: bool = False,
 ) -> YoloDatasetManifest:
     """
@@ -172,12 +175,12 @@ def export_dataset_images(
 
 
 def export_yolo_dataset(
-    annotated: Sequence[ManifestImage],
+    annotated: Sequence[AnnotatedImage],
     class_names: Sequence[str],
     data_root: str | Path,
     output_dir: str | Path,
-    validation_fraction: float = 0.2,
-    seed: int = 0,
+    validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
+    seed: int = DEFAULT_SEED,
 ) -> YoloDatasetManifest:
     """Export the annotations as a YOLO detection dataset."""
     images = [
@@ -185,7 +188,7 @@ def export_yolo_dataset(
             digest=image.digest,
             width=image.width,
             height=image.height,
-            instances=cast(AnnotationDocument, image.annotation).instances,
+            instances=image.annotation.instances,
             split=image.split,
             file_path=verified_blob(data_root, image.digest),
         )

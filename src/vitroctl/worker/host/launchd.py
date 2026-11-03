@@ -11,7 +11,6 @@ from typing import Any
 
 from vitroctl.io.files import atomic_file
 from vitroctl.worker.host.profiles import (
-    load_profile,
     profile_directory,
     validate_profile_name,
     worker_home,
@@ -58,8 +57,6 @@ def require_launchd() -> None:
 
 
 def install_launch_agent(name: str) -> Path:
-    require_launchd()
-    load_profile(name)
     path = launch_agent_path(name)
     with atomic_file(path) as handle:
         handle.write(plistlib.dumps(launch_agent_document(name), sort_keys=True))
@@ -95,8 +92,6 @@ def start_service(name: str) -> None:
 
 def stop_service(name: str) -> None:
     """Stop the Worker; `bootout` returns before launchd has let the process go."""
-    require_launchd()
-    load_profile(name)
     if not service_loaded(name):
         return
     _launchctl("bootout", _service_target(name))

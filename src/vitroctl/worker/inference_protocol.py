@@ -28,12 +28,12 @@ class Assignment:
     @classmethod
     def from_document(cls, value: Any, context: str = "assignment") -> Assignment:
         validate_wire_contract("inference-assignment", value, context)
-        return cls.decode(value)
+        return cls.decode(value, context)
 
     @classmethod
-    def decode(cls, value: Any) -> Assignment:
+    def decode(cls, value: Any, context: str) -> Assignment:
         result = cls(
-            ModelManifest.decode(value["manifest"]),
+            ModelManifest.decode(value["manifest"], f"{context}.manifest"),
             value["image"],
             value["attempt"],
             value["leaseExpiresAt"],
@@ -45,7 +45,7 @@ class Assignment:
             < timestamp(result.lease_expires_at)
             <= timestamp(result.deadline_at)
         ):
-            raise ValueError("Inference assignment has invalid execution deadlines")
+            raise ValueError(f"{context} has invalid execution deadlines")
         return result
 
     @property
@@ -56,7 +56,6 @@ class Assignment:
 class InferenceClient:
     def __init__(self, worker: WorkerClient) -> None:
         self.worker = worker
-        self.deadline: float | None = None
 
     def identity(self, assignment: Assignment) -> dict[str, str | int]:
         return {**self.worker.identity, "attempt": assignment.attempt}
@@ -72,18 +71,18 @@ class InferenceClient:
         assignment = response.json()["assignment"]
         return None if assignment is None else Assignment.from_document(assignment)
 
-    def weights(self, version_id: str) -> bytes:
+    def weights(self, version_id: str, deadline: float) -> bytes:
         response = self.worker.request(
             "GET",
             f"api/worker/inference/model-versions/{version_id}/weights",
-            deadline=self.deadline,
+            deadline=deadline,
         )
         response.raise_for_status()
         return response.content
 
-    def download(self, digest: str) -> bytes:
+    def download(self, digest: str, deadline: float) -> bytes:
         response = self.worker.request(
-            "GET", f"api/worker/inference/images/{digest}", deadline=self.deadline
+            "GET", f"api/worker/inference/images/{digest}", deadline=deadline
         )
         response.raise_for_status()
         return response.content

@@ -209,3 +209,27 @@ def model_bundle(weights: Path, recipe):
             },
         },
     }
+
+
+def decode_annotation(value, context="annotation"):
+    from vitroctl.contracts.annotation import AnnotationDocument
+    from vitroctl.contracts.validation import validate_wire_contract
+
+    validate_wire_contract("annotation", value, context)
+    return AnnotationDocument.decode(value, context)
+
+
+def decode_detection(value, context="detection"):
+    from vitroctl.contracts.validation import validate_wire_contract
+    from vitroctl.detectors.contract import DetectionResult
+
+    validate_wire_contract("detection-result", value, context)
+    return DetectionResult.decode(value, context)
+
+
+def decode_model_manifest(value, context="model manifest"):
+    from vitroctl.contracts.validation import validate_wire_contract
+    from vitroctl.worker.model_store import ModelManifest
+
+    validate_wire_contract("inference-model-manifest", value, context)
+    return ModelManifest.decode(value, context)

@@ -18,6 +18,7 @@ from vitroctl.detectors.ultralytics import (
     YoloTrainingInterruptedError,
     export_dataset_images,
 )
+from vitroctl.detectors.ultralytics.checkpoints import LAST_CHECKPOINT
 from vitroctl.models.bundle import (
     read_bundle,
     training_bundle,
@@ -30,7 +31,7 @@ from vitroctl.training.documents import (
     TrainingSnapshot,
 )
 from vitroctl.worker.images import ImageCache, wait_for
-from vitroctl.worker.local_training import prepare_local_training
+from vitroctl.worker.local_training import attempt_directory, prepare_local_training
 from vitroctl.worker.session import LeaseLostError, WorkerClient, keep_lease
 from vitroctl.worker.training_process import run_training_process
 
@@ -216,7 +217,7 @@ def _prune_stale_runs(runs: Path) -> None:
         if (
             directory.is_dir()
             and not (directory / "bundle").is_dir()
-            and not (directory / "run/weights/last.pt").is_file()
+            and not (directory / "run" / LAST_CHECKPOINT).is_file()
             and directory.stat().st_mtime < horizon
         ):
             shutil.rmtree(directory, ignore_errors=True)
@@ -258,15 +259,13 @@ def _train_bundle(
         raise YoloTrainingInterruptedError("training interrupted")
     exported = json.loads((root / "dataset" / "manifest.json").read_text())
     document = training_bundle(
-        result.best_weights,
-        result.summary,
+        result,
         exported["class_names"],
         training_provenance(
             fingerprint=None,
             snapshot_id=claim.dataset_snapshot_id,
             dataset_description="Reviewed training snapshot",
             evaluation_description="Validation split of the training snapshot",
-            metrics=result.metrics,
         ),
     )
     return write_bundle(result.best_weights, document, root / "bundle")
@@ -282,7 +281,7 @@ def serve_training_claim(
 ) -> None:
     runs = work_root / RUNS_DIRECTORY
     _prune_stale_runs(runs)
-    root = runs / f"{claim.run_id}-{claim.attempt}"
+    root = attempt_directory(runs, claim.run_id, claim.attempt)
     root.mkdir(parents=True, exist_ok=True)
     os.utime(root)  # a run ages from its latest claim
     try:
@@ -311,7 +310,7 @@ def serve_training_claim(
     finally:
         if (root / "bundle").is_dir():
             LOGGER.info("Training bundle retained for delivery at %s", root / "bundle")
-        elif (root / "run/weights/last.pt").is_file():
+        elif (root / "run" / LAST_CHECKPOINT).is_file():
             LOGGER.warning(
                 "Local training state retained for this worker at %s",
                 root,

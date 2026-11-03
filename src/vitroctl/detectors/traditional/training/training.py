@@ -15,9 +15,19 @@ from vitroctl.detectors.traditional.training.evaluation import (
     evaluate_proposals,
 )
 
-BANDWIDTHS: tuple[float | None, ...] = (None, 1.0, 2.0, 3.0)
-REGULARIZATIONS = (0.3, 1.0, 3.0, 10.0, 30.0)
-THRESHOLDS = tuple(float(value) for value in np.linspace(0.30, 0.95, 27))
+
+@dataclass(frozen=True)
+class SelectionGrid:
+    bandwidths: tuple[float | None, ...]
+    regularizations: tuple[float, ...]
+    thresholds: tuple[float, ...]
+
+
+_DEFAULT_GRID = SelectionGrid(
+    (None, 1.0, 2.0, 3.0),
+    (0.3, 1.0, 3.0, 10.0, 30.0),
+    tuple(float(value) for value in np.linspace(0.30, 0.95, 27)),
+)
 _MAXIMUM_CALIBRATION_CENTERS = 128
 _CALIBRATION_TARGET_LOGIT = 2.0
 
@@ -274,10 +284,13 @@ def train_candidate_model(
     images: Sequence[PreparedImage],
     prior: CandidateModel,
     config: PipelineConfig,
-    bandwidths: Sequence[float | None],
-    regularizations: Sequence[float],
-    thresholds: Sequence[float],
+    grid: SelectionGrid = _DEFAULT_GRID,
 ) -> CandidateModelTraining:
+    bandwidths, regularizations, thresholds = (
+        grid.bandwidths,
+        grid.regularizations,
+        grid.thresholds,
+    )
     if len(images) < 2:
         raise ValueError(
             "Candidate model selection requires at least two complete images"

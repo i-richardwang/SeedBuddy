@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from conftest import decode_annotation, decode_detection
 
 from vitroctl.contracts.annotation import BoundingBox
 from vitroctl.contracts.validation import validate_wire_contract
@@ -56,7 +57,7 @@ def test_shared_detection_contract() -> None:
     ).to_dict()
     fixture = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     assert document == fixture
-    assert DetectionResult.from_document(fixture).to_dict() == fixture
+    assert decode_detection(fixture).to_dict() == fixture
 
 
 def test_parser_rejects_unknown_contract_fields() -> None:
@@ -163,28 +164,21 @@ def test_contract_rejects_values_the_web_cannot_accept(change, reason) -> None:
         validate_wire_contract("detection-result", {**document, **change}, "detection")
 
 
-def test_result_rejects_duplicate_ids_and_out_of_bounds_boxes() -> None:
-    outside = DetectionInstance("seed-1", "seed", BoundingBox(95, 20, 8, 6), 0.9)
-    with pytest.raises(ValueError, match="exceeds image bounds"):
-        DetectionResult(
-            "c" * 64,
-            100,
-            80,
-            PRODUCER,
-            (outside,),
-            DetectionQuality("ok"),
-        )
-
-    instance = DetectionInstance("seed-1", "seed", BoundingBox(10, 20, 8, 6), 0.9)
-    with pytest.raises(ValueError, match="Duplicate"):
-        DetectionResult(
-            "c" * 64,
-            100,
-            80,
-            PRODUCER,
-            (instance, instance),
-            DetectionQuality("ok"),
-        )
+@pytest.mark.parametrize(
+    "decode, fixture",
+    [(decode_detection, "detection.json"), (decode_annotation, "annotation.json")],
+)
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_instance_semantics_share_context_and_messages(decode, fixture, duplicate):
+    document = json.loads((CONTRACT_FIXTURE.parent / fixture).read_text())
+    if duplicate:
+        document["instances"] *= 2
+        reason = r"custom.instances\[1\].id is a duplicate"
+    else:
+        document["instances"][0]["bbox"]["x"] = 99
+        reason = r"custom.instances\[0\].bbox exceeds image bounds"
+    with pytest.raises(ValueError, match=reason):
+        decode(document, "custom")
 
 
 def test_execution_failure_is_not_a_detection_document() -> None:
@@ -198,17 +192,9 @@ def test_execution_failure_is_not_a_detection_document() -> None:
         validate_wire_contract("detection-result", failure, "detection")
 
 
-@pytest.mark.parametrize(
-    ("digest", "width", "height", "reason"),
-    [
-        ("d" * 64, 100, 80, "describes another image"),
-        ("c" * 64, 101, 80, "dimensions differ"),
-        ("c" * 64, 100, 81, "dimensions differ"),
-    ],
-)
-def test_detection_must_describe_the_source_image(digest, width, height, reason):
+def test_detection_must_describe_the_source_image():
     fixture = json.loads(CONTRACT_FIXTURE.read_text())
-    result = DetectionResult.from_document(fixture)
-    with pytest.raises(ValueError, match=reason):
-        result.require_image(digest, width, height)
-    result.require_image("c" * 64, 100, 80)
+    result = decode_detection(fixture)
+    with pytest.raises(ValueError, match="describes another image"):
+        result.require_image("d" * 64)
+    result.require_image("c" * 64)

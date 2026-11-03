@@ -204,6 +204,5 @@ def test_unrecognizable_dish_requires_review(tmp_path: Path) -> None:
     assert payload["model"]["fingerprint"] == result.execution.model_fingerprint
     assert result.quality.status == "review_required"
     assert "dish_detection_failed" in result.quality.warnings
-    assert recognition.geometry.dish_mask.shape == (400, 600)
     assert recognition.regions.shape == (400, 600)
     assert recognition.overlay().shape == (400, 600, 3)

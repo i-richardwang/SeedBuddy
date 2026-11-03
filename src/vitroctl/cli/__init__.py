@@ -5,14 +5,13 @@ import csv
 import json
 import sys
 from pathlib import Path
-from typing import cast
 
 import httpx
 
 from vitroctl.cli.connection import connection, connection_options
 from vitroctl.cli.models import add_model_commands
+from vitroctl.cli.output import json_output
 from vitroctl.cli.training import add_training_commands
-from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.datasets.manifest import (
     DatasetManifest,
     load_dataset_manifest,
@@ -42,12 +41,11 @@ from vitroctl.detectors.traditional.training import (
     prepare_images,
     train_candidate_model,
 )
-from vitroctl.detectors.traditional.training.training import (
-    BANDWIDTHS,
-    REGULARIZATIONS,
-    THRESHOLDS,
+from vitroctl.detectors.ultralytics import (
+    DEFAULT_SEED,
+    DEFAULT_VALIDATION_FRACTION,
+    export_yolo_dataset,
 )
-from vitroctl.detectors.ultralytics import export_yolo_dataset
 from vitroctl.io.files import atomic_directory
 from vitroctl.worker.host.command import add_worker_commands
 
@@ -111,7 +109,7 @@ def _prepared_images(
     if not annotated:
         raise ValueError("No annotations found")
     return prepare_images(
-        [cast(AnnotationDocument, image.annotation) for image in annotated],
+        [image.annotation for image in annotated],
         data_root,
         config,
     )
@@ -126,7 +124,7 @@ def _evaluate_traditional(args: argparse.Namespace) -> int:
         "proposal": evaluate_proposals(images).to_dict(),
         "detection": evaluate_candidate_model(model, images, config).to_dict(),
     }
-    print(json.dumps(report, indent=2))
+    json_output(report)
     return 0
 
 
@@ -134,9 +132,7 @@ def _train_candidate_scoring(args: argparse.Namespace) -> int:
     config = _pipeline_config(args.config)
     images = _prepared_images(args, config)
     base_model = _candidate_model(args.base_model)
-    trained = train_candidate_model(
-        images, base_model, config, BANDWIDTHS, REGULARIZATIONS, THRESHOLDS
-    )
+    trained = train_candidate_model(images, base_model, config)
     output = Path(args.output)
     with atomic_directory(output) as working:
         model_path = working / "model.json"
@@ -194,11 +190,9 @@ def _push_dataset(args: argparse.Namespace) -> int:
 
 def _export_yolo(args: argparse.Namespace) -> int:
     data_root = Path(args.data_root)
-    source = manifest_path(data_root, args.dataset)
-    dataset = load_dataset_manifest(source)
-    annotated = dataset.annotated
+    dataset = load_dataset_manifest(manifest_path(data_root, args.dataset))
     manifest = export_yolo_dataset(
-        annotated,
+        dataset.annotated,
         dataset.classes,
         data_root,
         args.output,
@@ -281,8 +275,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     _add_dataset_options(export_yolo)
     export_yolo.add_argument("--output", required=True)
-    export_yolo.add_argument("--validation-fraction", type=float, default=0.2)
-    export_yolo.add_argument("--seed", type=int, default=0)
+    export_yolo.add_argument(
+        "--validation-fraction", type=float, default=DEFAULT_VALIDATION_FRACTION
+    )
+    export_yolo.add_argument("--seed", type=int, default=DEFAULT_SEED)
     export_yolo.set_defaults(handler=_export_yolo)
 
     add_model_commands(commands)
