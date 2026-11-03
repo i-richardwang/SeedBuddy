@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
 
 import {
-  WorkerAlreadyEnrolledError,
+  WorkerNameTakenError,
   WorkerNotFoundError,
   WorkerSessionConflictError,
 } from "../../domain/workers/errors";
-import { testHeartbeat } from "../testing/fixtures";
+import { testHeartbeat } from "../testing/workers";
 import {
   authenticateWorker,
   enrollWorker,
@@ -48,7 +48,7 @@ test("an enrolled worker's token proves which worker it is, until it is removed"
 test("a name is enrolled once", async () => {
   await enrollWorker("named-once");
   await expect(enrollWorker("named-once")).rejects.toBeInstanceOf(
-    WorkerAlreadyEnrolledError,
+    WorkerNameTakenError,
   );
 });
 

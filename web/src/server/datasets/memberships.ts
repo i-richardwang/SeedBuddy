@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 
 import {
-  DatasetModelError,
+  DatasetModelMismatchError,
   DatasetNameTakenError,
   DatasetNotFoundError,
 } from "../../domain/datasets/errors";
@@ -244,7 +244,7 @@ async function resolveObservedImages(
   );
   const modelIds = [...new Set(observed.map((row) => row.modelId))];
   if (modelIds.length > 1) {
-    throw new DatasetModelError(
+    throw new DatasetModelMismatchError(
       `The images were observed for different models: ${modelIds.join(", ")}`,
     );
   }
@@ -294,7 +294,7 @@ export async function addExperimentObservationImages(
     }
     const { modelId, observed } = await resolveObservedImages(images, tx);
     if (dataset.modelId !== modelId) {
-      throw new DatasetModelError(
+      throw new DatasetModelMismatchError(
         `Dataset ${dataset.name} trains ${dataset.modelId}, not ${modelId}`,
       );
     }

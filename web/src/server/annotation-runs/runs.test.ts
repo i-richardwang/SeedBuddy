@@ -6,7 +6,7 @@ import { database } from "../infra/db/client";
 import { annotationRuns } from "../infra/db/schema";
 import { createModel, setModelAnnotation } from "../models/public";
 import { readReview } from "../readings/public";
-import { observeImages } from "../testing/fixtures";
+import { observeImages } from "../testing/experiments";
 import { cancelAnnotationRun, createAnnotationRun } from "./runs";
 import { nextAnnotationTask, savePreview, submitProposal } from "./tasks";
 

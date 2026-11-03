@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ExperimentGrid, ObservationImageCell } from "./contracts";
+import type { CultureEvent } from "./culture-events";
+import type { ExperimentGrid, ObservationImageCell } from "./read-model";
 import type {
-  CultureEvent,
   Experiment,
   ExperimentObservation,
   ManualReading,

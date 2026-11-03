@@ -7,8 +7,8 @@ import {
   observationCells,
   unitDays,
 } from "./cell-reading";
-import type { ExperimentGrid } from "./contracts";
 import { observationOrdinals } from "./culture-events";
+import type { ExperimentGrid } from "./read-model";
 import {
   type ExperimentObservation,
   observationIdSchema,
@@ -49,7 +49,7 @@ const summaryUnitSchema = z.strictObject({
   rate: z.number().nullable(),
 });
 
-export type SummaryUnit = z.infer<typeof summaryUnitSchema>;
+type SummaryUnit = z.infer<typeof summaryUnitSchema>;
 
 /**
  * One treatment on one observation. `units` are the treatment's units in the
@@ -117,7 +117,7 @@ export function statistic(values: readonly number[]): Statistic | null {
 }
 
 /** The observation rates are taken against: the first one made. */
-export function baselineObservation(
+function baselineObservation(
   observations: readonly ExperimentObservation[],
 ): ExperimentObservation | null {
   return observations.reduce<ExperimentObservation | null>(

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/read-model";
 import { pairInOrder, suggestUnit } from "../../domain/experiments/naming";
 import {
   type PhotoConflict,

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { DatasetImportError } from "../domain/datasets/errors";
+import { DatasetImportInvalidError } from "../domain/datasets/errors";
 import {
   DatasetManifestTooLargeError,
   datasetManifestSchema,
@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/transfer/datasets/$dataset")({
           const dataset = await importDataset(parsed.data);
           return Response.json({ dataset }, { status: 201 });
         } catch (error) {
-          if (error instanceof DatasetImportError) {
+          if (error instanceof DatasetImportInvalidError) {
             return failed(error.message, 409);
           }
           throw error;

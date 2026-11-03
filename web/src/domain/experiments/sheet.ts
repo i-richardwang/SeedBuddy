@@ -9,16 +9,16 @@ import {
   unitDays,
 } from "./cell-reading";
 import {
+  type ObservationOrdinals,
+  observationOrdinals,
+} from "./culture-events";
+import {
   type ExperimentGrid,
   type ObservationImageCell,
   observationImageCellSchema,
   type Unit,
   unitSchema,
-} from "./contracts";
-import {
-  type ObservationOrdinals,
-  observationOrdinals,
-} from "./culture-events";
+} from "./read-model";
 import {
   experimentObservationSchema,
   experimentSchema,

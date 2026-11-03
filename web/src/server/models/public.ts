@@ -1,3 +1,4 @@
+export { prepareDatabase } from "./preparation";
 export {
   collectUnreferencedModelWeights,
   importModelUpload,
@@ -10,7 +11,6 @@ export { modelRecordCounts, toModelRecords } from "./records";
 export {
   createModel,
   deleteModel,
-  installBuiltinModels,
   listAllModelVersions,
   listModels,
   listModelVersions,

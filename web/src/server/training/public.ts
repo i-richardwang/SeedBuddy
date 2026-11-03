@@ -3,6 +3,7 @@ export { listTrainingAttempts } from "./attempts";
 export { collectTrainingArtifactParts } from "./collection";
 export { controlTrainingRun } from "./control";
 export { listTrainingEpochs } from "./epochs";
+export { readTrainingRun } from "./ownership";
 export { publishTrainingArtifact } from "./publication";
 export { toTrainingRun } from "./records";
 export {
@@ -12,10 +13,12 @@ export {
   enterTrainingPhase,
   failTrainingRun,
   latestTrainingRun,
-  readTrainingRun,
   recordTrainingEpoch,
   renewTrainingLease,
-  snapshotForRun,
   trainingLeaseHeld,
 } from "./runs";
-export { datasetSnapshotOverviews, readDatasetSnapshot } from "./snapshots";
+export {
+  datasetSnapshotOverviews,
+  readDatasetSnapshot,
+  snapshotForRun,
+} from "./snapshots";

@@ -1,13 +1,10 @@
 import { expect, test } from "bun:test";
 
-import {
-  imageDigest,
-  observeTextsIntoDataset,
-  resultFor,
-  testHeartbeat,
-} from "../testing/fixtures";
+import { observeTextsIntoDataset } from "../testing/datasets";
+import { imageDigest, resultFor } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
-import { readDatasetImage } from "./dataset-image";
+import { testHeartbeat } from "../testing/workers";
+import { datasetImageDetail } from "./dataset-image-detail";
 
 test("a dataset image page steps through the dataset in its order", async () => {
   const { version, dataset } = await observeTextsIntoDataset("di", [
@@ -23,7 +20,7 @@ test("a dataset image page steps through the dataset in its order", async () => 
     runtimes: testHeartbeat("di-worker").runtimes,
   });
 
-  const middle = await readDatasetImage({ dataset: dataset.id, digest: b! });
+  const middle = await datasetImageDetail({ dataset: dataset.id, digest: b! });
   expect(middle?.model.id).toBe(version.modelId);
   expect(middle?.review).toEqual({
     ref: { digest: b!, modelId: version.modelId },
@@ -38,14 +35,14 @@ test("a dataset image page steps through the dataset in its order", async () => 
   expect(middle?.previous).toEqual({ digest: a!, filename: "di-a.jpg" });
   expect(middle?.next).toEqual({ digest: c!, filename: "di-c.jpg" });
 
-  const first = await readDatasetImage({ dataset: dataset.id, digest: a! });
+  const first = await datasetImageDetail({ dataset: dataset.id, digest: a! });
   expect(first?.previous).toBeNull();
   expect(first?.review.detection).toBeNull();
 
   expect(
-    await readDatasetImage({ dataset: dataset.id, digest: "0".repeat(64) }),
+    await datasetImageDetail({ dataset: dataset.id, digest: "0".repeat(64) }),
   ).toBeNull();
   expect(
-    await readDatasetImage({ dataset: crypto.randomUUID(), digest: a! }),
+    await datasetImageDetail({ dataset: crypto.randomUUID(), digest: a! }),
   ).toBeNull();
 });

@@ -1,16 +1,16 @@
 import { useState } from "react";
 
-import { imageReading } from "../../domain/experiments/cell-reading";
+import { cellReadingFromImage } from "../../domain/experiments/cell-reading";
 import type {
   ObservationImageCell,
   Unit,
-} from "../../domain/experiments/contracts";
+} from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
   ManualReading,
   Treatment,
 } from "../../domain/experiments/schema";
-import { enterManualReadings } from "../../functions/experiments";
+import { updateManualReadings } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -157,7 +157,7 @@ function ManualReadingsForm({
         }
         void action.run(
           () =>
-            enterManualReadings({
+            updateManualReadings({
               data: {
                 experiment,
                 observation: observation.id,
@@ -212,7 +212,7 @@ function ManualReadingsForm({
           {units.map((unit) => {
             const draft = drafts.get(unit.id) ?? {};
             const owner = treatmentOf.get(unit.treatment);
-            const photographed = imageReading(
+            const photographed = cellReadingFromImage(
               photographs.get(unit.id),
               observation,
             );

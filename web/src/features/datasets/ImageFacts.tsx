@@ -1,14 +1,10 @@
-import type { getDatasetDetail } from "../../functions/datasets";
+import type { DatasetImageOverview } from "../../domain/datasets/read-model";
 import { Absent } from "../../ui/Absent";
 import { QualityTags } from "../../ui/DetectionQuality";
 import { Flexbox } from "../../ui/kit/Flex";
 import { Text } from "../../ui/kit/Text";
 import { formatCount } from "../../ui/numbers";
 import { UnclearTag } from "../images/unclear";
-
-export type DatasetImageOverview = NonNullable<
-  Awaited<ReturnType<typeof getDatasetDetail>>
->["images"][number];
 
 /** Whether anything is said against the image: the detector's warnings, or a person's mark. */
 export function hasQualityNotes(image: DatasetImageOverview): boolean {

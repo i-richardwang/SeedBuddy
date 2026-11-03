@@ -8,13 +8,8 @@ import {
   datasetUpdateSchema,
   newDatasetImageAdditionSchema,
 } from "../domain/datasets/schema";
-import {
-  addExperimentObservationImages,
-  addExperimentObservationImagesToNewDataset,
-  removeDatasetImages,
-  updateDataset,
-} from "../server/datasets/public";
-import { datasetDetail, readDatasetImage } from "../server/queries/public";
+import * as datasetsService from "../server/datasets/public";
+import { datasetDetail, datasetImageDetail } from "../server/queries/public";
 
 export const getDatasetDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema)
@@ -22,21 +17,23 @@ export const getDatasetDetail = createServerFn({ method: "GET" })
 
 export const getDatasetImage = createServerFn({ method: "GET" })
   .validator(datasetImageRefSchema)
-  .handler(({ data }) => readDatasetImage(data));
+  .handler(({ data }) => datasetImageDetail(data));
 
-export const addToDataset = createServerFn({ method: "POST" })
+export const createDatasetMemberships = createServerFn({ method: "POST" })
   .validator(datasetImageAdditionSchema)
-  .handler(({ data }) => addExperimentObservationImages(data));
+  .handler(({ data }) => datasetsService.addExperimentObservationImages(data));
 
 /** Founds a dataset for the images' model and adds them, in one step. */
-export const addToNewDataset = createServerFn({ method: "POST" })
+export const createDatasetFromImages = createServerFn({ method: "POST" })
   .validator(newDatasetImageAdditionSchema)
-  .handler(({ data }) => addExperimentObservationImagesToNewDataset(data));
+  .handler(({ data }) =>
+    datasetsService.addExperimentObservationImagesToNewDataset(data),
+  );
 
-export const editDataset = createServerFn({ method: "POST" })
+export const updateDataset = createServerFn({ method: "POST" })
   .validator(datasetUpdateSchema)
-  .handler(({ data }) => updateDataset(data));
+  .handler(({ data }) => datasetsService.updateDataset(data));
 
 export const removeFromDataset = createServerFn({ method: "POST" })
   .validator(datasetImageRemovalSchema)
-  .handler(({ data }) => removeDatasetImages(data));
+  .handler(({ data }) => datasetsService.removeDatasetImages(data));

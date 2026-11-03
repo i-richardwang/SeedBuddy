@@ -1,8 +1,6 @@
-import type { ImageReview } from "../../domain/experiments/contracts";
-import type {
-  CultureEventType,
-  ExperimentObservation,
-} from "../../domain/experiments/schema";
+import type { ReviewState } from "../../domain/experiments/read-model";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
+import type { CultureEventType } from "../../domain/experiments/culture-events";
 import type { SummaryMeasure } from "../../domain/experiments/summary";
 import { countsEveryClass } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";
@@ -64,7 +62,7 @@ export function joinFacts(facts: readonly string[]): string {
 }
 
 export const IMAGE_REVIEW_LABELS: Record<
-  ImageReview,
+  ReviewState,
   { tone: StatusTone; label: () => string }
 > = {
   reviewed: { tone: "success", label: m.experiment_image_reviewed },

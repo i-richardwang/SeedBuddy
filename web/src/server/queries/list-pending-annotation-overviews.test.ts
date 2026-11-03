@@ -7,8 +7,8 @@ import {
 import { storeAnnotation } from "../annotations/documents";
 import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
 import { createModel, setModelAnnotation } from "../models/public";
-import { observeImagesForModel } from "../testing/fixtures";
-import { listPendingAnnotations } from "./pending-annotations";
+import { observeImagesForModel } from "../testing/experiments";
+import { listPendingAnnotationOverviews } from "./list-pending-annotation-overviews";
 
 test("an image waits once per model until someone reads it or while a run on it is in progress, which comes first", async () => {
   const annotation = {
@@ -34,7 +34,7 @@ test("an image waits once per model until someone reads it or while a run on it 
     images: observed.images,
   });
   const listed = async () =>
-    (await listPendingAnnotations(model.id)).images.map(
+    (await listPendingAnnotationOverviews(model.id)).images.map(
       (image) => image.ref.digest,
     );
   expect((await listed()).sort()).toEqual([...observed.digests].sort());
@@ -52,7 +52,7 @@ test("an image waits once per model until someone reads it or while a run on it 
     input: "review",
     scope: null,
   });
-  const { images } = await listPendingAnnotations(model.id);
+  const { images } = await listPendingAnnotationOverviews(model.id);
   expect(images.map((image) => [image.ref.digest, image.progress])).toEqual([
     [observed.digests[0]!, run.progress],
     [observed.digests[1]!, null],
@@ -64,7 +64,7 @@ test("an image waits once per model until someone reads it or while a run on it 
     model: model.id,
     annotation: { ...annotation, instructions: "" },
   });
-  expect(await listPendingAnnotations(model.id)).toEqual({
+  expect(await listPendingAnnotationOverviews(model.id)).toEqual({
     total: 0,
     images: [],
   });

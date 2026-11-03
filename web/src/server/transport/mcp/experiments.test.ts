@@ -4,18 +4,19 @@ import { McpClientNotFoundError } from "../../../domain/auth/errors";
 import { agentOperations } from "../../agent/operations";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
 import { banUser, revokeUserSessions } from "../../auth/users";
-import { authorizeMcpClient, signInAs } from "../../testing/auth";
+import { agentHeaders, authorizeMcpClient, signInAs } from "../../testing/auth";
 import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
-import { experimentsMcpHandler, serveExperimentsMcp } from "./experiments";
+import { serveExperimentsMcp } from "./experiments";
 
 async function rpc(method: string, params?: unknown): Promise<unknown> {
-  const response = await experimentsMcpHandler.fetch(
-    modernRequest(
-      "http://workbench/api/experiments/mcp",
-      method,
-      params as Record<string, unknown> | undefined,
-    ),
+  const request = modernRequest(
+    `${process.env.BETTER_AUTH_URL}/api/experiments/mcp`,
+    method,
+    params as Record<string, unknown> | undefined,
   );
+  for (const [key, value] of await agentHeaders())
+    request.headers.set(key, value);
+  const response = await serveExperimentsMcp(request);
   expect(response.status).toBe(200);
   return (await rpcMessage(response)).result;
 }
@@ -165,16 +166,15 @@ describe("experiment MCP authorization", () => {
     const member = await signInAs("member");
     const { accessToken } = await authorizeMcpClient(member.headers);
     expect((await call(accessToken)).status).toBe(200);
-    await banUser(admin.headers, { user: member.user.id });
+    await banUser(admin.user, { user: member.user.id });
     expect((await call(accessToken)).status).toBe(401);
   });
 
   test("revoking the account's sessions invalidates an issued access token", async () => {
-    const admin = await signInAs("admin");
     const member = await signInAs("member");
     const { accessToken } = await authorizeMcpClient(member.headers);
     expect((await call(accessToken)).status).toBe(200);
-    await revokeUserSessions(admin.headers, { user: member.user.id });
+    await revokeUserSessions({ user: member.user.id });
     expect((await call(accessToken)).status).toBe(401);
   });
 

@@ -1,5 +1,6 @@
 import sharp from "sharp";
 
+import { ValidationError } from "../../domain/errors";
 import {
   MAX_SOURCE_IMAGE_PIXELS,
   SOURCE_IMAGE_FORMATS,
@@ -35,7 +36,9 @@ const MAX_EDGE_PIXELS = 16384;
 const SOURCE_FORMAT_SET = new Set<string>(SOURCE_IMAGE_FORMATS);
 
 /** A source that cannot enter the canonical image boundary. */
-export class ImageSourceError extends Error {}
+export class ImageSourceInvalidError extends ValidationError {
+  readonly code = "image_source_invalid";
+}
 
 /**
  * The pixel size of bytes that are already a canonical image, as another
@@ -66,7 +69,7 @@ export async function canonicalImageSize(
     metadata.hasProfile ||
     metadata.orientation !== undefined
   ) {
-    throw new ImageSourceError("The bytes are not a canonical image");
+    throw new ImageSourceInvalidError("The bytes are not a canonical image");
   }
   return { width: metadata.width, height: metadata.height };
 }
@@ -95,20 +98,24 @@ async function canonicalizeSource(source: Uint8Array): Promise<CanonicalImage> {
     limitInputPixels: MAX_SOURCE_IMAGE_PIXELS,
   });
   const unsupported = () =>
-    new ImageSourceError("The file must contain a JPEG, PNG, or TIFF image");
+    new ImageSourceInvalidError(
+      "The file must contain a JPEG, PNG, or TIFF image",
+    );
   const metadata = await image.metadata().catch(() => {
     throw unsupported();
   });
   const { format, width, height } = metadata;
   if (!format || !SOURCE_FORMAT_SET.has(format)) throw unsupported();
   if ((metadata.pages ?? 1) !== 1) {
-    throw new ImageSourceError("The file must contain exactly one image");
+    throw new ImageSourceInvalidError(
+      "The file must contain exactly one image",
+    );
   }
   if (!width || !height) {
-    throw new ImageSourceError("The file does not decode as an image");
+    throw new ImageSourceInvalidError("The file does not decode as an image");
   }
   if (width > MAX_EDGE_PIXELS || height > MAX_EDGE_PIXELS) {
-    throw new ImageSourceError(
+    throw new ImageSourceInvalidError(
       `Edges longer than ${MAX_EDGE_PIXELS} pixels cannot be stored: ${width}x${height}`,
     );
   }
@@ -119,7 +126,7 @@ async function canonicalizeSource(source: Uint8Array): Promise<CanonicalImage> {
     .avif({ quality: QUALITY, effort: EFFORT })
     .toBuffer({ resolveWithObject: true })
     .catch(() => {
-      throw new ImageSourceError(
+      throw new ImageSourceInvalidError(
         "The file cannot be converted into a supported image",
       );
     });

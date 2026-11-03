@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { ModelAnnotation } from "../../domain/models/schema";
-import { addModel } from "../../functions/models";
+import { createModel } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -59,7 +59,7 @@ function ModelForm({
   const submit = () => {
     void run(
       () =>
-        addModel({
+        createModel({
           data: {
             id,
             name,

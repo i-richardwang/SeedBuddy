@@ -7,14 +7,10 @@ import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { database } from "../infra/db/client";
 import { models } from "../infra/db/schema";
 import { createModel, readModel } from "../models/public";
+import { failure } from "../testing/agent";
 import { type AgentOperation, command, query } from "./definition";
-import { type AgentCallResult, executeAgentOperation } from "./execution";
+import { executeAgentOperation } from "./execution";
 import { agentOperations } from "./operations";
-
-function failure(result: AgentCallResult): { code: string; message: string } {
-  if (result.ok) throw new Error("Operation unexpectedly succeeded");
-  return { code: result.code, message: result.message };
-}
 
 function registryOf(
   ...operations: AgentOperation[]

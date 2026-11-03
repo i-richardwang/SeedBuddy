@@ -1,9 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import type {
+  DatasetImageDetail,
   DatasetImageStep,
-  DatasetImageView,
-} from "../../domain/datasets/image";
+} from "../../domain/datasets/read-model";
 import type { DatasetImageRef } from "../../domain/datasets/schema";
 import { membershipOrder, readDataset } from "../datasets/public";
 import { readUnclearImages } from "../images/public";
@@ -12,9 +12,9 @@ import { annotations, datasetImages } from "../infra/db/schema";
 import { readModel } from "../models/public";
 import { readReview } from "../readings/public";
 
-export async function readDatasetImage(
+export async function datasetImageDetail(
   ref: DatasetImageRef,
-): Promise<DatasetImageView | null> {
+): Promise<DatasetImageDetail | null> {
   const db = await database();
   const dataset = await readDataset(ref.dataset, db);
   if (!dataset) return null;

@@ -3,7 +3,7 @@ import { type ReactNode, useState } from "react";
 
 import type { Exclusion } from "../../domain/experiments/analysis";
 import { countChange } from "../../domain/experiments/cell-reading";
-import type { UnitSeries } from "../../domain/experiments/contracts";
+import type { UnitDetail } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
@@ -21,7 +21,7 @@ import { UnclearAlert } from "../images/unclear";
 import { observationLabel } from "./labels";
 import { UnitDayCount } from "./UnitDayCount";
 
-type UnitObservation = UnitSeries["observations"][number];
+type UnitObservation = UnitDetail["observations"][number];
 
 /**
  * The day to set beside the day in view at first: the last one the unit was

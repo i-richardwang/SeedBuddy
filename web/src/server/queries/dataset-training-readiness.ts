@@ -1,6 +1,6 @@
 import type { AnnotationDocument } from "../../domain/annotation/schema";
+import type { DatasetTrainingReadiness } from "../../domain/datasets/read-model";
 import type { Dataset } from "../../domain/datasets/schema";
-import type { DatasetTrainingReadiness } from "../../domain/training/read-model";
 import type { TrainingRun } from "../../domain/training/schema";
 import type { ImageRecord } from "../datasets/public";
 import {
@@ -9,7 +9,7 @@ import {
   readDatasetSnapshot,
 } from "../training/public";
 import { listOnlineTrainers } from "../workers/public";
-import { trainingWorkerOptions } from "./training-workers";
+import { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
 
 /**
  * Reviews the last run did not train on: images reviewed since, and images
@@ -62,7 +62,7 @@ export async function datasetTrainingReadiness(
   ]);
   return {
     active,
-    workers: await trainingWorkerOptions(at),
+    workers: await listTrainingWorkerOverviews(at),
     reviewedSinceLastRun: await reviewedSinceLastRun(
       records,
       latest ?? undefined,

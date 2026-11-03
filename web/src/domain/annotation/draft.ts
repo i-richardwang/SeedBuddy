@@ -2,7 +2,7 @@ import { canonicalJson } from "../../lib/json/canonical";
 import type { AnnotationInstance, ReviewSource } from "./schema";
 
 /** The boxes of a draft and the reading they descend from. */
-export interface DraftState {
+interface DraftState {
   instances: AnnotationInstance[];
   origin: ReviewSource | null;
 }

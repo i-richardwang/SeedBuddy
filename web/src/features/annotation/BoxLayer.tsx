@@ -16,9 +16,9 @@ import {
 } from "../../domain/annotation/geometry";
 import type {
   AnnotationInstance,
-  BoundingBox,
   ImageSize,
 } from "../../domain/annotation/schema";
+import type { ImageRectangle } from "../../domain/images/geometry";
 import { classColor } from "../../domain/models/classes";
 import { usePanGesture, useViewport } from "../../ui/viewport/ImageViewport";
 import { CANVAS_COLORS, type LayerKey, nextClass } from "./controls";
@@ -65,7 +65,7 @@ function Box({
   cursor,
   children,
 }: {
-  box: BoundingBox;
+  box: ImageRectangle;
   color: string;
   ordinal?: number;
   selected?: boolean;
@@ -143,7 +143,7 @@ type BoxGesture =
       pointerId: number;
       id: string;
       start: Point;
-      box: BoundingBox;
+      box: ImageRectangle;
       /** The box was selected before this press, so a press without a drag turns it over. */
       wasSelected: boolean;
     }
@@ -153,7 +153,7 @@ type BoxGesture =
       id: string;
       handle: Handle;
       start: Point;
-      box: BoundingBox;
+      box: ImageRectangle;
     };
 
 /**

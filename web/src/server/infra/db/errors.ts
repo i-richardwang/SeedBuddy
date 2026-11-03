@@ -2,7 +2,7 @@
  * Postgres reports the broken constraint on the driver error under the wrapper;
  * the deployed driver names the field `constraint_name` and PGlite `constraint`.
  */
-export function isUniqueViolation(error: unknown, constraint: string): boolean {
+function isUniqueViolation(error: unknown, constraint: string): boolean {
   const cause = (error as { cause?: unknown } | null)?.cause as
     | { code?: string; constraint?: string; constraint_name?: string }
     | undefined;

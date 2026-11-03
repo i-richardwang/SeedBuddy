@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, lte, not, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, not, sql } from "drizzle-orm";
 
 import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { InferenceFailure } from "../../domain/inference/tasks";
@@ -37,7 +37,7 @@ export function attemptIsActive(at: Date) {
     gt(inferenceAttempts.leaseExpiresAt, at),
     gt(inferenceAttempts.deadlineAt, at),
     sessionIsCurrent(inferenceAttempts),
-  );
+  )!;
 }
 /** Sample server time after acquiring ownership locks, never before waiting on one. */
 export async function inferenceTime(tx: Executor, at?: Date): Promise<Date> {
@@ -45,6 +45,7 @@ export async function inferenceTime(tx: Executor, at?: Date): Promise<Date> {
   const [row] = await tx
     .select({ at: sql<string>`clock_timestamp()::text` })
     .from(sql`(select 1) as clock`);
+  // The scalar clock query always returns exactly one row.
   return new Date(row!.at);
 }
 export async function lockTask(
@@ -107,16 +108,7 @@ async function expireInferenceAttempts(
         eq(inferenceTasks.attempt, inferenceAttempts.attempt),
       ),
     )
-    .where(
-      and(
-        eq(inferenceTasks.status, "running"),
-        or(
-          lte(inferenceAttempts.leaseExpiresAt, at),
-          lte(inferenceAttempts.deadlineAt, at),
-          not(sessionIsCurrent(inferenceAttempts)),
-        ),
-      ),
-    )
+    .where(and(eq(inferenceTasks.status, "running"), not(attemptIsActive(at))))
     .orderBy(asc(inferenceTasks.modelVersionId), asc(inferenceTasks.imageId))
     .for("update", { of: inferenceTasks, skipLocked: true });
   let expired = 0;

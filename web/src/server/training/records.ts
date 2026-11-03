@@ -1,3 +1,4 @@
+/** Converts stored training state columns into the domain run document. */
 import {
   type TrainingRun,
   trainingRunSchema,

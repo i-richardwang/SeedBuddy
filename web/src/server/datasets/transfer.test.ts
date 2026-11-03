@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import sharp from "sharp";
 
-import { DatasetImportError } from "../../domain/datasets/errors";
+import { DatasetImportInvalidError } from "../../domain/datasets/errors";
 import { readAnnotation } from "../annotations/documents";
-import { ImageSourceError } from "../images/ingest";
+import { ImageSourceInvalidError } from "../images/ingest";
 import { imageBlobKey } from "../images/keys";
 import { storeCanonicalImage } from "../images/store";
 import {
@@ -13,13 +13,8 @@ import {
 } from "../images/unclear";
 import { requireBlob } from "../infra/blobs/store";
 import { contentDigest } from "../infra/digest";
-import {
-  imageBytes,
-  imageDigest,
-  observeTextsIntoDataset,
-  reviewedDataset,
-  storeTexts,
-} from "../testing/fixtures";
+import { observeTextsIntoDataset, reviewedDataset } from "../testing/datasets";
+import { imageBytes, imageDigest, storeTexts } from "../testing/images";
 import { handleCanonicalImageUpload } from "../transport/http/image-upload";
 import { readDatasetByName } from "./memberships";
 import { listImageRecords } from "./records";
@@ -42,7 +37,7 @@ describe("canonical images entering by digest", () => {
   test("are refused when the bytes disagree with the digest or the encoding", async () => {
     const bytes = await canonicalBytes("transfer-mismatch");
     await expect(storeCanonicalImage("0".repeat(64), bytes)).rejects.toThrow(
-      ImageSourceError,
+      ImageSourceInvalidError,
     );
     const png = await imageBytes("transfer-png");
     await expect(storeCanonicalImage(contentDigest(png), png)).rejects.toThrow(
@@ -228,7 +223,7 @@ describe("dataset transfer", () => {
     ).rejects.toThrow(/other metadata/);
     await expect(
       attempt({ dataset: "transfer-held-2" }),
-    ).rejects.toBeInstanceOf(DatasetImportError);
+    ).rejects.toBeInstanceOf(DatasetImportInvalidError);
     expect(await readDatasetByName("transfer-held-2")).toBeNull();
 
     expect(
@@ -268,7 +263,7 @@ describe("dataset transfer", () => {
       results.filter((result) => result.status === "fulfilled"),
     ).toHaveLength(1);
     const rejected = results.find((result) => result.status === "rejected");
-    expect(rejected?.reason).toBeInstanceOf(DatasetImportError);
+    expect(rejected?.reason).toBeInstanceOf(DatasetImportInvalidError);
     expect(await readDatasetByName("transfer-race")).toEqual({
       id: expect.any(String),
       name: "transfer-race",

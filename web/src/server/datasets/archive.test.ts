@@ -5,7 +5,7 @@ import { datasetManifestSchema } from "../../domain/datasets/manifest";
 import { readStoredZip } from "../../lib/archive/zip";
 import { imageBlobKey } from "../images/keys";
 import { requireBlob } from "../infra/blobs/store";
-import { reviewedDataset } from "../testing/fixtures";
+import { reviewedDataset } from "../testing/datasets";
 import { datasetArchive } from "./archive";
 
 test("an archive holds the manifest first and then every image by digest", async () => {

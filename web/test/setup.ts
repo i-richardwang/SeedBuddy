@@ -14,13 +14,8 @@ if (
     (path) => statSync(path).mtimeMs > compiledAt,
   )
 ) {
-  const compile = Bun.spawn([process.execPath, "scripts/compile-messages.ts"], {
-    cwd: webRoot,
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  if ((await compile.exited) !== 0)
-    throw new Error("Message compilation failed");
+  const { compileMessages } = await import("../scripts/compile-messages");
+  await compileMessages();
 }
 
 process.env.VITROFLOW_IMAGE_ANALYSIS_URL = new URL(

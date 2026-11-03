@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
+import { datasetOverviewSchema } from "../../domain/datasets/read-model";
 import {
   datasetContentsSchema,
   datasetImageAdditionResultSchema,
@@ -8,7 +9,6 @@ import {
   datasetImageRemovalResultSchema,
   datasetImageRemovalSchema,
   datasetListRequestSchema,
-  datasetOverviewSchema,
   datasetRefSchema,
   datasetRequestSchema,
   datasetSchema,

@@ -7,7 +7,7 @@ import {
 import {
   createReplicates,
   createTreatment,
-  editTreatment,
+  updateTreatment,
 } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
@@ -94,7 +94,7 @@ function TreatmentForm({
               ? createTreatment({
                   data: { experiment, ...draft, replicates },
                 })
-              : editTreatment({
+              : updateTreatment({
                   data: { experiment, treatment: treatment.id, ...draft },
                 }),
           creating ? m.treatment_not_added() : m.treatment_not_saved(),

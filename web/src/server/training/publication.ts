@@ -1,6 +1,6 @@
 import { modelBundleSchema } from "../../domain/models/bundle";
 import {
-  TrainingArtifactValidationError,
+  TrainingArtifactInvalidError,
   TrainingRunConflictError,
   TrainingRunNotFoundError,
 } from "../../domain/training/errors";
@@ -14,12 +14,8 @@ import {
   uploadModelWeights,
 } from "../models/public";
 import { readTrainingArtifactParts } from "./artifacts";
-import {
-  lockTrainingRun,
-  readTrainingRun,
-  requireOwnedRunningRun,
-  transitionTrainingRun,
-} from "./runs";
+import { readTrainingRun, requireOwnedRunningRun } from "./ownership";
+import { lockTrainingRun, transitionTrainingRun } from "./runs";
 import { readDatasetSnapshot } from "./snapshots";
 
 /** Training owns execution; the model registry owns its delivered artifact. */
@@ -30,14 +26,14 @@ export async function publishTrainingArtifact(
 ) {
   const parsed = modelBundleSchema.safeParse(bundle);
   if (!parsed.success)
-    throw new TrainingArtifactValidationError(parsed.error.message);
+    throw new TrainingArtifactInvalidError(parsed.error.message);
   const document = parsed.data;
   const db = await database();
   const current = await readTrainingRun(runId, db);
   if (!current)
     throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
   if (canonicalJson(document.training) !== canonicalJson(current.recipe))
-    throw new TrainingArtifactValidationError(
+    throw new TrainingArtifactInvalidError(
       "Training artifact identity does not match the run recipe",
     );
   if (current.attempt !== owner.attempt)
@@ -48,7 +44,7 @@ export async function publishTrainingArtifact(
   if (!snapshot)
     throw new TrainingRunNotFoundError("Training snapshot is missing");
   if (document.provenance.dataset.snapshotId !== snapshot.id)
-    throw new TrainingArtifactValidationError(
+    throw new TrainingArtifactInvalidError(
       "Bundle does not describe this training snapshot",
     );
   if (current.state.status === "succeeded") {

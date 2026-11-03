@@ -1,12 +1,15 @@
 import { and, eq, or, type SQLWrapper, sql } from "drizzle-orm";
 
-import type { AnnotationRef } from "../../domain/annotation/schema";
 import { datasetIdSchema } from "../../domain/datasets/schema";
 import {
   experimentIdSchema,
   observationIdSchema,
   unitIdSchema,
 } from "../../domain/experiments/schema";
+import type {
+  ImagePlace,
+  ImageSearchOverview,
+} from "../../domain/images/read-model";
 import { imageDigestSchema } from "../../domain/images/schema";
 import { database } from "../infra/db/client";
 import {
@@ -17,17 +20,6 @@ import {
   experiments,
   experimentUnits,
 } from "../infra/db/schema";
-
-/** Where a person sees an image: a unit's photograph of a day, or a dataset's. */
-type ImagePlace =
-  | { experiment: string; unit: string; observedOn: string }
-  | { dataset: string };
-
-interface FoundImage {
-  ref: AnnotationRef;
-  filename: string;
-  places: ImagePlace[];
-}
 
 type Wanted =
   | { kind: "filename"; name: string }
@@ -78,7 +70,9 @@ function named(filename: SQLWrapper, name: string) {
  * every place it is seen. A link names the one image its page shows; a
  * filename may name several, which the places tell apart.
  */
-export async function findImages(image: string): Promise<FoundImage[]> {
+export async function findImages(
+  image: string,
+): Promise<ImageSearchOverview[]> {
   const want = wanted(image);
   if (!want) return [];
   const db = await database();
@@ -167,7 +161,7 @@ export async function findImages(image: string): Promise<FoundImage[]> {
     want.kind === "unit" && !want.observation
       ? inExperiments.slice(-1)
       : inExperiments;
-  const found = new Map<string, FoundImage>();
+  const found = new Map<string, ImageSearchOverview>();
   const place = (
     row: { digest: string; modelId: string; filename: string },
     where: ImagePlace,

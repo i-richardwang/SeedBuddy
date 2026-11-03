@@ -17,12 +17,8 @@ import { completeInferenceClaim } from "../../inference/public";
 import { database } from "../../infra/db/client";
 import { contentDigest } from "../../infra/digest";
 import { readReview } from "../../readings/public";
-import {
-  baselineVersion,
-  FIXTURE_EDGE,
-  imageBytes,
-  imageDigest,
-} from "../../testing/fixtures";
+import { FIXTURE_EDGE, imageBytes, imageDigest } from "../../testing/images";
+import { baselineVersion } from "../../testing/models";
 import { enrollWorker } from "../../workers/public";
 import { routeHandler, workerRoute } from "./testing";
 
@@ -261,7 +257,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
         image: { ...result.image, digest: "0".repeat(64) },
       })
     ).status,
-  ).toBe(400);
+  ).toBe(422);
   expect(
     (
       await put({

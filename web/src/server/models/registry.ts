@@ -5,9 +5,9 @@ import {
   SEED_DETECTOR_BASELINE,
 } from "../../domain/models/builtins";
 import {
-  ModelIdTakenError,
-  ModelInUseError,
+  ModelNameTakenError,
   ModelNotFoundError,
+  ModelUsageConflictError,
   ModelVersionNotFoundError,
 } from "../../domain/models/errors";
 import {
@@ -165,7 +165,7 @@ export async function createModel(
   });
   const created = await insertModel(model, executor ?? (await database()));
   if (!created) {
-    throw new ModelIdTakenError(`Model ${model.id} already exists`);
+    throw new ModelNameTakenError(`Model ${model.id} already exists`);
   }
   return created;
 }
@@ -204,7 +204,7 @@ export async function deleteModel(
     if (!taken) throw new ModelNotFoundError(`Unknown model: ${ref.model}`);
     const held = heldBy(await modelRecords(ref.model, tx));
     if (held.length > 0) {
-      throw new ModelInUseError(
+      throw new ModelUsageConflictError(
         `Model ${ref.model} is named by ${held.join(", ")} and cannot be deleted`,
       );
     }

@@ -5,13 +5,13 @@ import {
   type TrainingOverrides,
   trainingOverridesSchema,
 } from "../../domain/training/parameters";
-import type { DatasetTrainingReadiness } from "../../domain/training/read-model";
+import type { DatasetTrainingReadiness } from "../../domain/datasets/read-model";
 import type {
   TrainingPreset,
   TrainingPresetId,
 } from "../../domain/training/recipes";
 import { MIN_SNAPSHOT_IMAGES } from "../../domain/training/schema";
-import { startTrainingRun } from "../../functions/training";
+import { createTrainingRun } from "../../functions/training";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -93,7 +93,7 @@ function TrainSession({
   const submit = () => {
     void action.run(
       () =>
-        startTrainingRun({
+        createTrainingRun({
           data: { dataset, presetId, overrides, targetWorkerId },
         }),
       m.training_not_started(),

@@ -6,7 +6,7 @@ import { createModel, readCurrentVersionId } from "../../models/public";
 import { apiKeyHeaders, signInAs } from "../../testing/auth";
 import { modernRequest, rpcMessage } from "../../testing/mcp";
 import { trainingBundle } from "../../testing/model-bundle";
-import { experimentsMcpHandler } from "../mcp/experiments";
+import { serveExperimentsMcp } from "../mcp/experiments";
 import { serveAgentOperationCall } from "./agent";
 import { serveModelWeightsUpload } from "./model-upload";
 
@@ -75,11 +75,16 @@ test("HTTP uploads and MCP registration share a candidate without creating train
     }),
   );
   expect(uploaded.status).toBe(200);
-  const response = await experimentsMcpHandler.fetch(
-    modernRequest("http://workbench/api/experiments/mcp", "tools/call", {
-      name: "register-model-upload",
-      arguments: { uploadId },
-    }),
+  const response = await serveExperimentsMcp(
+    modernRequest(
+      `${process.env.BETTER_AUTH_URL}/api/experiments/mcp`,
+      "tools/call",
+      {
+        name: "register-model-upload",
+        arguments: { uploadId },
+      },
+      key.secret,
+    ),
   );
   const message = await rpcMessage(response);
   const result = message.result as {

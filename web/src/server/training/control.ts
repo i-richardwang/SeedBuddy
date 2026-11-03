@@ -16,9 +16,9 @@ import {
   activeTrainingRun,
   lockTrainingRun,
   transitionTrainingRun,
-  validateTrainingTarget,
 } from "./runs";
 import { readDatasetSnapshot } from "./snapshots";
+import { validateTrainingTarget } from "./targets";
 
 /** Control and worker writes serialize on the task, making revocation immediate. */
 export async function controlTrainingRun(

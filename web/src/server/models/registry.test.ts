@@ -6,9 +6,9 @@ import {
   SEED_DETECTOR_MODEL_ID,
 } from "../../domain/models/builtins";
 import {
-  ModelIdTakenError,
-  ModelInUseError,
+  ModelNameTakenError,
   ModelNotFoundError,
+  ModelUsageConflictError,
   ModelVersionNotFoundError,
 } from "../../domain/models/errors";
 import {
@@ -22,11 +22,8 @@ import { deleteObservation } from "../experiments/public";
 import { database } from "../infra/db/client";
 import { connect } from "../infra/db/connection";
 import { modelVersions } from "../infra/db/schema";
-import {
-  observeImagesForModel,
-  registerTrainedVersion,
-  traditionalVersion,
-} from "../testing/fixtures";
+import { observeImagesForModel } from "../testing/experiments";
+import { registerTrainedVersion, traditionalVersion } from "../testing/models";
 import {
   createModel,
   deleteModel,
@@ -153,7 +150,7 @@ test("a task exists as soon as it is named, before anything can answer it", asyn
       name: "Something else",
       classes: ["seed"],
     }),
-  ).rejects.toBeInstanceOf(ModelIdTakenError);
+  ).rejects.toBeInstanceOf(ModelNameTakenError);
 });
 
 test("a task nothing records against can be withdrawn", async () => {
@@ -172,7 +169,7 @@ test("a task nothing records against can be withdrawn", async () => {
   ).rejects.toBeInstanceOf(ModelNotFoundError);
   await expect(
     deleteModel({ model: SEED_DETECTOR_MODEL_ID }),
-  ).rejects.toBeInstanceOf(ModelInUseError);
+  ).rejects.toBeInstanceOf(ModelUsageConflictError);
 });
 
 test("a review outliving its observation still holds its model", async () => {
@@ -195,7 +192,7 @@ test("a review outliving its observation still holds its model", async () => {
   });
 
   await expect(deleteModel({ model: modelId })).rejects.toBeInstanceOf(
-    ModelInUseError,
+    ModelUsageConflictError,
   );
 });
 
@@ -263,7 +260,7 @@ contendedTest(
       await waitForLockContention(testDatabaseUrl!);
       commit();
       await recording;
-      await expect(withdrawal).rejects.toBeInstanceOf(ModelInUseError);
+      await expect(withdrawal).rejects.toBeInstanceOf(ModelUsageConflictError);
     } finally {
       commit();
       await recording.catch(() => {});

@@ -20,11 +20,8 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import {
-  BoxCount,
-  type DatasetImageOverview,
-  ImageQuality,
-} from "./ImageFacts";
+import { BoxCount, ImageQuality } from "./ImageFacts";
+import { type DatasetImageOverview } from "../../domain/datasets/read-model";
 import {
   DATASET_IMAGE_STATE_TONE,
   DATASET_IMAGE_STATES,

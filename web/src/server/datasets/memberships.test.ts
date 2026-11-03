@@ -14,18 +14,17 @@ import { database } from "../infra/db/client";
 import { inferenceOutcomes } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
 import { createModel, registerModel } from "../models/registry";
+import { observeTextsIntoDataset } from "../testing/datasets";
+import { observeImages, observeImagesForModel } from "../testing/experiments";
 import {
   FIXTURE_EDGE,
   imageBytes,
   imageDigest,
-  observeImages,
-  observeImagesForModel,
-  observeTextsIntoDataset,
-  registerTrainedVersion,
   resultFor,
-  testHeartbeat,
-} from "../testing/fixtures";
+} from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
+import { registerTrainedVersion } from "../testing/models";
+import { testHeartbeat } from "../testing/workers";
 import {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,

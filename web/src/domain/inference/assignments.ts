@@ -31,9 +31,7 @@ export const inferenceTargetSchema = z.strictObject({
   digest: imageDigestSchema,
 });
 
-export type InferenceModelManifest = z.infer<
-  typeof inferenceModelManifestSchema
->;
+type InferenceModelManifest = z.infer<typeof inferenceModelManifestSchema>;
 export type InferenceAssignment = z.infer<typeof inferenceAssignmentSchema>;
 
 export function inferenceModelManifest(

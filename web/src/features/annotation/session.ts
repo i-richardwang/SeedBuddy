@@ -13,7 +13,7 @@ import type {
   ReviewSource,
 } from "../../domain/annotation/schema";
 import type { Model } from "../../domain/models/schema";
-import { saveAnnotation } from "../../functions/review";
+import { updateAnnotation } from "../../functions/review";
 import { canonicalJson } from "../../lib/json/canonical";
 import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
@@ -267,7 +267,7 @@ export function useImageSession({
     dispatch({ type: "submit" });
     const result = await runSave(
       () =>
-        saveAnnotation({
+        updateAnnotation({
           data: {
             ref: review.ref,
             base: draft.base,

@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 
 import {
-  WorkerAlreadyEnrolledError,
+  WorkerNameTakenError,
   WorkerNotFoundError,
 } from "../../domain/workers/errors";
 import type { EnrolledWorker } from "../../domain/workers/schema";
@@ -35,7 +35,7 @@ export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
     .onConflictDoNothing({ target: workers.id })
     .returning({ id: workers.id });
   if (!enrolled) {
-    throw new WorkerAlreadyEnrolledError(
+    throw new WorkerNameTakenError(
       `A worker named ${workerId} is already enrolled`,
     );
   }

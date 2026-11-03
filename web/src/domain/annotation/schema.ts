@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { resourceIdSchema } from "../identifiers/schema";
+import { imageRectangleSchema } from "../images/geometry";
 import { imageDigestSchema } from "../images/schema";
 import { classNameSchema } from "../models/classes";
 
@@ -33,18 +34,11 @@ export const REVIEW_SOURCES = ["review", "proposal", "detection"] as const;
 
 export type ReviewSource = (typeof REVIEW_SOURCES)[number];
 
-export const boundingBoxSchema = z.strictObject({
-  x: z.number().finite(),
-  y: z.number().finite(),
-  width: z.number().positive(),
-  height: z.number().positive(),
-});
-
 /** One box a reviewer keeps, with the class the model's task defines. */
 export const annotationInstanceSchema = z.strictObject({
   id: z.string().min(1),
   class: classNameSchema,
-  bbox: boundingBoxSchema,
+  bbox: imageRectangleSchema,
 });
 
 export const annotationSchema = z
@@ -84,7 +78,6 @@ export const annotationSchema = z
     });
   });
 
-export type BoundingBox = z.infer<typeof boundingBoxSchema>;
 export type AnnotationInstance = z.infer<typeof annotationInstanceSchema>;
 export type AnnotationDocument = z.infer<typeof annotationSchema>;
 export type ImageSize = Pick<AnnotationDocument["image"], "width" | "height">;

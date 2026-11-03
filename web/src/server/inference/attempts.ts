@@ -195,7 +195,9 @@ export async function claimInferenceAssignment(
       })
       .where(taskKey({ digest: task.imageId, versionId: task.modelVersionId }))
       .returning();
-    return assignment(tx, updated!, stored!, at);
+    if (!updated || !stored)
+      throw new InferenceAttemptConflictError("Inference claim was not stored");
+    return assignment(tx, updated, stored, at);
   });
 }
 

@@ -12,7 +12,7 @@ import {
 } from "../../domain/training/schema";
 import {
   listTrainingRunOverviews,
-  trainingWorkerOptions,
+  listTrainingWorkerOverviews,
 } from "../queries/public";
 import {
   controlTrainingRun,
@@ -31,7 +31,7 @@ export const trainingOperations = [
     output: z.array(
       z.strictObject({ workerId: resourceIdSchema, online: z.boolean() }),
     ),
-    handler: () => trainingWorkerOptions(),
+    handler: () => listTrainingWorkerOverviews(),
   }),
   command({
     transaction: "service",

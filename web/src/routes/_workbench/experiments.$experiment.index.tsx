@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-router";
 import { z } from "zod";
 
-import type { ExperimentGrid } from "../../domain/experiments/contracts";
+import type { ExperimentGrid } from "../../domain/experiments/read-model";
 import { experimentIdSchema } from "../../domain/experiments/schema";
 import {
   EXPERIMENT_TABS,

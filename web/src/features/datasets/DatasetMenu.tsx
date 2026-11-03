@@ -5,7 +5,7 @@ import {
   DATASET_NAME_PATTERN,
   type NamedDataset,
 } from "../../domain/datasets/schema";
-import { editDataset } from "../../functions/datasets";
+import { updateDataset } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { FormDialog } from "../../ui/FormDialog";
@@ -89,7 +89,7 @@ function RenameDatasetForm({
 
   const submit = () => {
     void run(
-      () => editDataset({ data: { dataset: dataset.id, name } }),
+      () => updateDataset({ data: { dataset: dataset.id, name } }),
       m.dataset_rename_failed(),
       {
         onSuccess: onDone,

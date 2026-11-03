@@ -1,13 +1,16 @@
-import { and, asc, eq } from "drizzle-orm";
+/** Reads experiment records and enforces record existence within a transaction. */
+import { and, asc, eq, inArray } from "drizzle-orm";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import {
+  type CultureEvent,
+  cultureEventSchema,
+} from "../../domain/experiments/culture-events";
 import {
   ExperimentNotFoundError,
   ObservationNotFoundError,
 } from "../../domain/experiments/errors";
+import type { Unit } from "../../domain/experiments/read-model";
 import {
-  type CultureEvent,
-  cultureEventSchema,
   type Experiment,
   type ExperimentObservation,
   experimentObservationSchema,
@@ -265,4 +268,71 @@ export function atObservationImage(
     eq(experimentObservationImages.experimentId, experimentId),
     eq(experimentObservationImages.id, observationImageId),
   );
+}
+
+type RecordScope = { treatment: string } | { unit: string } | null;
+
+/**
+ * Whether images, counts or culture events were recorded: on the whole experiment,
+ * on one treatment's units, or on one unit.
+ */
+export async function hasRecords(
+  experimentId: string,
+  scope: RecordScope,
+  tx: Executor,
+): Promise<boolean> {
+  const inScope = (
+    unitId:
+      | typeof experimentObservationImages.unitId
+      | typeof experimentManualReadings.unitId
+      | typeof experimentCultureEvents.unitId,
+  ) => {
+    if (scope === null) return undefined;
+    if ("unit" in scope) return eq(unitId, scope.unit);
+    return inArray(
+      unitId,
+      tx
+        .select({ id: experimentUnits.id })
+        .from(experimentUnits)
+        .where(
+          and(
+            eq(experimentUnits.experimentId, experimentId),
+            eq(experimentUnits.treatmentId, scope.treatment),
+          ),
+        ),
+    );
+  };
+  const [image] = await tx
+    .select({ id: experimentObservationImages.id })
+    .from(experimentObservationImages)
+    .where(
+      and(
+        eq(experimentObservationImages.experimentId, experimentId),
+        inScope(experimentObservationImages.unitId),
+      ),
+    )
+    .limit(1);
+  if (image) return true;
+  const [manual] = await tx
+    .select({ unitId: experimentManualReadings.unitId })
+    .from(experimentManualReadings)
+    .where(
+      and(
+        eq(experimentManualReadings.experimentId, experimentId),
+        inScope(experimentManualReadings.unitId),
+      ),
+    )
+    .limit(1);
+  if (manual) return true;
+  const [event] = await tx
+    .select({ id: experimentCultureEvents.id })
+    .from(experimentCultureEvents)
+    .where(
+      and(
+        eq(experimentCultureEvents.experimentId, experimentId),
+        inScope(experimentCultureEvents.unitId),
+      ),
+    )
+    .limit(1);
+  return event !== undefined;
 }

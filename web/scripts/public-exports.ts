@@ -16,6 +16,8 @@ export function unusedPublicExports(
     uses.get(target)!.add(name);
   };
   for (const [file, source] of sources) {
+    if (file.endsWith(".test.ts") || file.startsWith("src/server/testing/"))
+      continue;
     const tree = parse(source, {
       sourceType: "module",
       plugins: ["typescript", "jsx"],
@@ -31,6 +33,20 @@ export function unusedPublicExports(
                 ? specifier.imported.name
                 : specifier.imported.value,
             );
+          } else if (specifier.type === "ImportNamespaceSpecifier") {
+            const binding = ref.scope.getBinding(specifier.local.name);
+            const references = binding?.referencePaths ?? [];
+            if (references.length === 0) use(target, "*");
+            for (const reference of references) {
+              const parent = reference.parentPath;
+              if (
+                parent?.isMemberExpression() &&
+                !parent.node.computed &&
+                parent.node.property.type === "Identifier"
+              )
+                use(target, parent.node.property.name);
+              else use(target, "*");
+            }
           } else use(target, "*");
         }
       },

@@ -10,7 +10,7 @@ import {
   unitDays,
   unitReading,
 } from "../../domain/experiments/cell-reading";
-import type { ExperimentGrid, Unit } from "../../domain/experiments/contracts";
+import type { ExperimentGrid, Unit } from "../../domain/experiments/read-model";
 import {
   type ObservationOrdinals,
   observationOrdinals,

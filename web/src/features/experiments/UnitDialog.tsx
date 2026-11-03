@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/read-model";
 import type { Treatment } from "../../domain/experiments/schema";
-import { editUnit } from "../../functions/experiments";
+import { updateUnit } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -74,7 +74,7 @@ function UnitForm({
         if (code.trim() === "") return;
         void action.run(
           () =>
-            editUnit({
+            updateUnit({
               data: { experiment, unit: unit.id, code, treatment },
             }),
           m.unit_not_saved(),

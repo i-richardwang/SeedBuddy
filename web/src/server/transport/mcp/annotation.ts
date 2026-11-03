@@ -25,9 +25,13 @@ import {
   submitProposal,
   viewAnnotationTask,
 } from "../../annotation-runs/public";
-import { findImages, listPendingAnnotations } from "../../queries/public";
+import {
+  findImages,
+  listPendingAnnotationOverviews,
+} from "../../queries/public";
 import { readAnnotationReading } from "../../readings/public";
 import { guardMcpRequest, serveAuthorized } from "./access";
+import { mcpErrorContent } from "./errors";
 
 const textContent = (value: unknown) => ({
   type: "text" as const,
@@ -76,7 +80,7 @@ function registerAnnotationTools(server: McpServer) {
           return await call(args as z.infer<S>);
         } catch (error) {
           const { code, message } = classifyAgentFailure(error, name);
-          return { isError: true, content: [textContent({ code, message })] };
+          return mcpErrorContent({ code, message });
         }
       },
     );
@@ -87,7 +91,9 @@ function registerAnnotationTools(server: McpServer) {
     z.strictObject({ modelId: resourceIdSchema.optional() }),
     { readOnlyHint: true },
     async (args) => ({
-      content: [textContent(await listPendingAnnotations(args.modelId))],
+      content: [
+        textContent(await listPendingAnnotationOverviews(args.modelId)),
+      ],
     }),
   );
   register(

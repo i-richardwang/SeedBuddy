@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/read-model";
 import type { Treatment } from "../../domain/experiments/schema";
-import { editUnitsTreatment } from "../../functions/experiments";
+import { updateUnitsTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -82,7 +82,7 @@ function MoveForm({
         if (treatment === "" || units.length === 0) return;
         void action.run(
           () =>
-            editUnitsTreatment({
+            updateUnitsTreatment({
               data: {
                 experiment,
                 units: units.map((unit) => unit.id),

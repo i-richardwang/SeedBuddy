@@ -3,19 +3,13 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "bun:test";
 
 import {
-  ExperimentObservationImageAlreadyUsedError,
-  ObservationImageRejectedError,
+  ExperimentObservationImageConflictError,
+  ObservationImageConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
-import { ImageNotFoundError } from "../../domain/images/errors";
-import { SEED_DETECTOR } from "../../domain/models/builtins";
-import { collectImages } from "../images/collection";
 import { imageBlobKey } from "../images/keys";
-import { clearImageUnclear, markImageUnclear } from "../images/unclear";
 import { blobExists } from "../infra/blobs/store";
-import { database } from "../infra/db/client";
-import { inferenceOutcomes } from "../infra/db/schema";
-import { imageDigest, storeTexts } from "../testing/fixtures";
+import { imageDigest, storeTexts } from "../testing/images";
 import {
   seedDetectionResult,
   seedInferenceTaskFailure,
@@ -23,19 +17,18 @@ import {
 import { readExperimentObservationImage } from "./observation-image";
 import {
   assignObservationImages,
+  recordObservation,
   retryObservationImageAnalysis,
   unassignObservationImage,
 } from "./observation-images";
 import { createObservation } from "./observations";
-import { readExperimentGrid, readUnit } from "./queries";
+import { readExperimentGrid } from "./queries";
 import {
   assignImages,
+  countedImageResult,
   createExperiment,
-  failureFor,
   INOCULATED,
-  imagesByUnit,
   reading,
-  resultFor,
   trainedVersion,
   unitsOf,
   worker,
@@ -80,7 +73,7 @@ test("image assignment rejects duplicate units and reused images", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ObservationImageRejectedError);
+  ).rejects.toThrow(ObservationImageConflictError);
   await expect(
     assignObservationImages({
       experiment: experiment.id,
@@ -98,7 +91,7 @@ test("image assignment rejects duplicate units and reused images", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ObservationImageRejectedError);
+  ).rejects.toThrow(ObservationImageConflictError);
   await expect(
     assignObservationImages({
       experiment: experiment.id,
@@ -140,10 +133,8 @@ test("image assignment rejects duplicate units and reused images", async () => {
     });
     throw new Error("Expected reused image to be rejected");
   } catch (error) {
-    expect(error).toBeInstanceOf(ExperimentObservationImageAlreadyUsedError);
-    expect(
-      (error as ExperimentObservationImageAlreadyUsedError).images,
-    ).toEqual([
+    expect(error).toBeInstanceOf(ExperimentObservationImageConflictError);
+    expect((error as ExperimentObservationImageConflictError).images).toEqual([
       {
         digest: first!,
         filename: "IMG_0413.jpg",
@@ -200,7 +191,7 @@ test("a filled cell can be given a different image", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ExperimentObservationImageAlreadyUsedError);
+  ).rejects.toThrow(ExperimentObservationImageConflictError);
 
   expect(
     (
@@ -244,106 +235,6 @@ test("a filled cell can be given a different image", async () => {
   expect(afterByUnit.get(units.get("A-2")!)?.digest).toBe(first);
 });
 
-test("a photograph found unclear is marked on its image, wherever it is shown", async () => {
-  const version = await trainedVersion("exp-unclear");
-  const experiment = await createExperiment({
-    name: "Unclear",
-    inoculatedOn: INOCULATED,
-    treatments: [{ name: "A", replicates: 2 }],
-  });
-  // Unclear photographs do not count unless the experiment says so.
-  expect(experiment.countsUnclear).toBe(false);
-  const units = await unitsOf(experiment.id);
-  const day7 = await createObservation({
-    experiment: experiment.id,
-    observedOn: "2026-08-08",
-    note: "",
-    ...reading(version),
-  });
-  const [fogged, clear] = await storeTexts(["u-a1", "u-a2"]);
-  // A photograph known to be unclear is marked as it is placed.
-  await assignObservationImages({
-    experiment: experiment.id,
-    observation: day7.id,
-    images: [
-      {
-        unit: units.get("A-1")!,
-        digest: fogged!,
-        filename: "fogged.jpg",
-        unclear: true,
-      },
-      { unit: units.get("A-2")!, digest: clear!, filename: "clear.jpg" },
-    ],
-  });
-  const cellOf = async (id: string, unit: string) =>
-    (await readExperimentGrid(id))!.images.find(
-      (image) => image.unit === unit,
-    )!;
-  expect((await cellOf(experiment.id, units.get("A-1")!)).unclear).toBe(true);
-  expect((await cellOf(experiment.id, units.get("A-2")!)).unclear).toBe(false);
-  const page = await readUnit({
-    experiment: experiment.id,
-    unit: units.get("A-1")!,
-  });
-  expect(page?.shown?.unclear).toBe(true);
-  expect(page?.observations[0]?.image?.unclear).toBe(true);
-
-  // Marking again is harmless; the image is not read again.
-  expect(await markImageUnclear({ digest: fogged! })).toEqual({
-    digest: fogged,
-    marked: false,
-  });
-
-  // The mark is the image's: another experiment showing it shows the mark.
-  const other = await createExperiment({
-    name: "Unclear elsewhere",
-    inoculatedOn: INOCULATED,
-    countsUnclear: true,
-  });
-  expect(other.countsUnclear).toBe(true);
-  const otherUnits = await unitsOf(other.id);
-  const otherDay = await createObservation({
-    experiment: other.id,
-    observedOn: "2026-08-09",
-    note: "",
-    ...reading(version),
-  });
-  await assignObservationImages({
-    experiment: other.id,
-    observation: otherDay.id,
-    images: [
-      { unit: otherUnits.get("A-1")!, digest: fogged!, filename: "f.jpg" },
-    ],
-  });
-  expect((await cellOf(other.id, otherUnits.get("A-1")!)).unclear).toBe(true);
-
-  // Clearing makes it clear again, and clearing twice is harmless.
-  expect(await clearImageUnclear({ digest: fogged! })).toEqual({
-    digest: fogged,
-    cleared: true,
-  });
-  expect(await clearImageUnclear({ digest: fogged! })).toEqual({
-    digest: fogged,
-    cleared: false,
-  });
-  expect((await cellOf(experiment.id, units.get("A-1")!)).unclear).toBe(false);
-
-  const unknown = "f".repeat(64);
-  await expect(markImageUnclear({ digest: unknown })).rejects.toThrow(
-    ImageNotFoundError,
-  );
-  await expect(clearImageUnclear({ digest: unknown })).rejects.toThrow(
-    ImageNotFoundError,
-  );
-});
-
-test("an unclear mark keeps no image alive", async () => {
-  const [loose] = await storeTexts(["unclear-loose"]);
-  await markImageUnclear({ digest: loose! });
-  const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-  expect(await collectImages(later)).toContain(loose!);
-});
-
 test("an assignment can be unassigned and the image given to another unit", async () => {
   const version = await trainedVersion("exp-unassign");
   const experiment = await createExperiment({
@@ -375,7 +266,13 @@ test("an assignment can be unassigned and the image given to another unit", asyn
       },
     ],
   });
-  const images = await imagesByUnit(experiment.id);
+  const imageGrid = (await readExperimentGrid(experiment.id))!;
+  const unitCodes = new Map(
+    imageGrid.units.map((unit) => [unit.id, unit.code]),
+  );
+  const images = new Map(
+    imageGrid.images.map((image) => [unitCodes.get(image.unit)!, image.id]),
+  );
 
   await expect(
     assignObservationImages({
@@ -389,7 +286,7 @@ test("an assignment can be unassigned and the image given to another unit", asyn
         },
       ],
     }),
-  ).rejects.toThrow(ExperimentObservationImageAlreadyUsedError);
+  ).rejects.toThrow(ExperimentObservationImageConflictError);
 
   await unassignObservationImage({
     experiment: experiment.id,
@@ -448,7 +345,7 @@ test("analyzes images for the observation's model and exposes tallies", async ()
 
   await seedDetectionResult(
     { versionId: version.id, digest: d1 },
-    resultFor(version, d1, 3),
+    countedImageResult(version, d1, 3),
     worker,
   );
   await seedInferenceTaskFailure(
@@ -471,7 +368,13 @@ test("analyzes images for the observation's model and exposes tallies", async ()
     ["D-2", "failed", null, "no unit found"],
   ]);
 
-  const images = await imagesByUnit(experiment.id);
+  const imageGrid = (await readExperimentGrid(experiment.id))!;
+  const unitCodes = new Map(
+    imageGrid.units.map((unit) => [unit.id, unit.code]),
+  );
+  const images = new Map(
+    imageGrid.images.map((image) => [unitCodes.get(image.unit)!, image.id]),
+  );
   const failed = {
     experiment: experiment.id,
     observationImage: images.get("D-2")!,
@@ -493,166 +396,47 @@ test("analyzes images for the observation's model and exposes tallies", async ()
   ).toHaveLength(3);
 });
 
-test("a unit page shows its newest image and steps through units on its day", async () => {
-  const version = await trainedVersion("exp-observation-unit");
+test("an observation day is recorded with its photographs, or not at all", async () => {
+  const version = await trainedVersion("exp-record");
   const experiment = await createExperiment({
-    name: "Unit series",
+    name: "Record",
     inoculatedOn: INOCULATED,
-    treatments: [{ name: "S", replicates: 2 }],
+    treatments: [{ name: "A", replicates: 2 }],
   });
   const units = await unitsOf(experiment.id);
-  const day7 = await createObservation({
+  const [first, second] = await storeTexts(["record-a1", "record-a2"]);
+
+  const day = await recordObservation({
     experiment: experiment.id,
-    observedOn: "2026-08-08",
+    observedOn: "2026-08-07",
     note: "",
     ...reading(version),
+    images: [
+      { unit: units.get("A-1")!, digest: first!, filename: "A-1.jpg" },
+      { unit: units.get("A-2")!, digest: second!, filename: "A-2.jpg" },
+    ],
   });
-  const day14 = await createObservation({
-    experiment: experiment.id,
-    observedOn: "2026-08-15",
-    note: "",
-    ...reading(version),
-  });
-  await assignImages(experiment.id, day7.id, units, {
-    "S-1": "s-d1-s1",
-    "S-2": "s-d1-s2",
-  });
-  await assignImages(experiment.id, day14.id, units, {
-    "S-1": "s-d3-s1",
-  });
-  const ref = {
-    experiment: experiment.id,
-    unit: units.get("S-1")!,
-  };
-
-  const newest = await readUnit(ref);
-  expect(newest?.shown?.model.classes).toEqual(SEED_DETECTOR.classes);
-  expect(newest?.shown?.observation.id).toBe(day14.id);
-  expect(newest?.observations.map((item) => item.image?.state ?? null)).toEqual(
-    ["pending", "pending"],
-  );
-  // Each day's photograph carries its size, to be framed beside another.
-  const latest = newest?.observations[1]?.image;
-  expect(latest && [latest.width, latest.height]).toEqual([
-    newest!.shown!.review.width,
-    newest!.shown!.review.height,
-  ]);
-  expect(newest?.observation).toBe(day14.id);
-  expect(newest?.navigation.map((item) => [item.code, item.image])).toEqual([
-    ["S-1", "unreviewed"],
-    ["S-2", null],
+  expect(day.hasRecords).toBeTrue();
+  const grid = await readExperimentGrid(experiment.id);
+  expect(grid?.observations.map((item) => item.id)).toEqual([day.id]);
+  expect(grid?.images.map((image) => image.observation)).toEqual([
+    day.id,
+    day.id,
   ]);
 
-  const earlier = await readUnit(ref, day7.id);
-  expect(earlier?.shown?.review.ref.digest).toBe(await imageDigest("s-d1-s1"));
-
-  const lonely = await readUnit({
-    ...ref,
-    unit: units.get("S-2")!,
-  });
-  expect(lonely?.shown?.observation.id).toBe(day7.id);
-  expect(lonely?.observations[1]?.image).toBeNull();
-  const missing = await readUnit({ ...ref, unit: units.get("S-2")! }, day14.id);
-  expect(missing?.observation).toBe(day14.id);
-  expect(missing?.shown).toBeNull();
-  expect(await readUnit(ref, randomUUID())).toBeNull();
-  expect(
-    await readUnit({
-      ...ref,
-      unit: randomUUID(),
-    }),
-  ).toBeNull();
-});
-
-test("two experiments analyzing one image with one version share one inference", async () => {
-  const version = await trainedVersion("exp-shared");
-  const [digest] = await storeTexts(["shared-image"]);
-  const experimentIds: string[] = [];
-  for (const name of ["Shared demand A", "Shared demand B"]) {
-    const experiment = await createExperiment({
-      name,
-      inoculatedOn: INOCULATED,
-      treatments: [{ name: "S", replicates: 1 }],
-    });
-    const units = await unitsOf(experiment.id);
-    const observation = await createObservation({
+  await expect(
+    recordObservation({
       experiment: experiment.id,
-      observedOn: "2026-08-08",
+      observedOn: "2026-08-14",
       note: "",
       ...reading(version),
-    });
-    await assignObservationImages({
-      experiment: experiment.id,
-      observation: observation.id,
       images: [
-        {
-          unit: units.get("S-1")!,
-          digest: digest!,
-          filename: "S1.jpg",
-        },
+        { unit: units.get("A-1")!, digest: first!, filename: "A-1.jpg" },
       ],
-    });
-    experimentIds.push(experiment.id);
-  }
-
-  const states = async () =>
-    Promise.all(
-      experimentIds.map(
-        async (id) => (await readExperimentGrid(id))?.images[0]?.state,
-      ),
-    );
-  expect(await states()).toEqual(["pending", "pending"]);
-
-  await seedDetectionResult(
-    { versionId: version.id, digest: digest! },
-    resultFor(version, digest!, 1),
-    worker,
-  );
-  expect(await states()).toEqual(["analyzed", "analyzed"]);
-});
-
-test("the database refuses execution failures in the detection results", async () => {
-  const version = await trainedVersion("exp-failure-fk");
-  const [digest] = await storeTexts(["failure-fk"]);
-  const failure = failureFor(version, digest!);
-
-  const invalidFailure = (async () => {
-    await (await database()).insert(inferenceOutcomes).values({
-      imageId: digest!,
-      modelVersionId: version.id,
-      document: {
-        ...failure,
-        producer: failure.producer,
-      } as never,
-      recordedAt: new Date(),
-    });
-  })();
-  await expect(invalidFailure).rejects.toThrow();
-});
-
-test("an experiment observation image is a garbage-collection root", async () => {
-  const version = await trainedVersion("exp-gc");
-  const experiment = await createExperiment({
-    name: "GC",
-    inoculatedOn: INOCULATED,
-    treatments: [{ name: "E", replicates: 1 }],
-  });
-  const units = await unitsOf(experiment.id);
-  const observation = await createObservation({
-    experiment: experiment.id,
-    observedOn: "2026-08-08",
-    note: "",
-    ...reading(version),
-  });
-  await assignImages(experiment.id, observation.id, units, {
-    "E-1": "gc-e1",
-  });
-  const kept = await imageDigest("gc-e1");
-  const [loose] = await storeTexts(["gc-loose"]);
-  const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
-  const collected = await collectImages(later);
-
-  expect(collected).toContain(loose!);
-  expect(collected).not.toContain(kept);
-  expect(await blobExists(imageBlobKey(kept))).toBeTrue();
+    }),
+  ).rejects.toThrow(ExperimentObservationImageConflictError);
+  expect(
+    (await readExperimentGrid(experiment.id))?.observations,
+    "a refused photograph leaves no empty day behind",
+  ).toHaveLength(1);
 });

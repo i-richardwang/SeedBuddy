@@ -1,0 +1,132 @@
+import { createHash } from "node:crypto";
+
+import { eq } from "drizzle-orm";
+
+import {
+  SEED_DETECTOR,
+  SEED_DETECTOR_BASELINE_VERSION_ID,
+} from "../../domain/models/builtins";
+import type { ModelVersion } from "../../domain/models/schema";
+import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
+import { createDataset, readDatasetByName } from "../datasets/memberships";
+import { transaction } from "../infra/db/client";
+import { datasetSnapshots, trainingRuns } from "../infra/db/schema";
+import {
+  readCurrentVersionId,
+  readModelVersion,
+  registerModel,
+  registerModelVersion,
+  setCurrentVersion,
+} from "../models/registry";
+
+/** The builtin seed germination model every deployment starts with. */
+export async function baselineVersion(): Promise<ModelVersion> {
+  const version = await readModelVersion(SEED_DETECTOR_BASELINE_VERSION_ID);
+  if (!version) throw new Error("builtin models are not registered");
+  return version;
+}
+
+/**
+ * A model of a test's own, with a traditional version the way a builtin ships:
+ * the first one registered reads until another is chosen. A test that needs
+ * several versions registers them here rather than against the builtin model
+ * every other test observes with.
+ */
+export async function traditionalVersion(
+  modelId: string,
+  slug: string,
+  createdAt = "2026-08-26T01:00:00.000Z",
+): Promise<ModelVersion> {
+  await registerModel({
+    schemaVersion: 1,
+    id: modelId,
+    name: `${modelId} detector`,
+    task: "object_detection",
+    classes: SEED_DETECTOR.classes,
+    annotation: DEFAULT_MODEL_ANNOTATION,
+  });
+  const version = await registerModelVersion({
+    schemaVersion: 1,
+    id: `${modelId}.${slug}`,
+    modelId,
+    createdAt,
+    source: { kind: "builtin", definition: slug },
+    artifact: { kind: "traditional", digest: "c".repeat(64) },
+  });
+  if ((await readCurrentVersionId(modelId)) === null) {
+    await setCurrentVersion({ model: modelId, version: version.id });
+  }
+  return version;
+}
+
+/**
+ * Registers a trained version of `modelId`, as a training run would publish
+ * it: a candidate, which reads nothing until a test makes it current.
+ */
+export async function registerTrainedVersion(
+  modelId: string,
+  slug = "yolo-v1",
+): Promise<ModelVersion> {
+  const datasetName = `${modelId}.${slug}.dataset`;
+  const snapshotId = `${modelId}.${slug}.snapshot`;
+  const runId = `${modelId}.${slug}.run`;
+  const value: ModelVersion = {
+    schemaVersion: 1,
+    id: `${modelId}.${slug}`,
+    modelId,
+    createdAt: "2026-08-27T02:00:00.000Z",
+    source: {
+      kind: "training_run",
+      trainingRunId: runId,
+      trainingAttempt: 1,
+      datasetSnapshotId: snapshotId,
+    },
+    artifact: {
+      kind: "ultralytics",
+      digest: createHash("sha256").update(`${modelId}.${slug}`).digest("hex"),
+      weights: { digest: "c".repeat(64), bytes: 10 },
+      inference: {
+        confidence: 0.4,
+        imageSize: 768,
+        maxDetections: 500,
+        endToEnd: false,
+      },
+      validation: {
+        precision: 0.6,
+        recall: 0.5,
+        map50: 0.8,
+        map50To95: 0.4,
+        fitness: 0.44,
+      },
+      training: YOLO26N_WHOLE_RECIPE,
+    },
+  };
+  return transaction(async (tx) => {
+    const { id: datasetId } =
+      (await readDatasetByName(datasetName, tx)) ??
+      (await createDataset({ name: datasetName, modelId }, tx));
+    await tx
+      .insert(datasetSnapshots)
+      .values({ id: snapshotId, datasetId, modelId, createdAt: new Date() })
+      .onConflictDoNothing();
+    await tx
+      .insert(trainingRuns)
+      .values({
+        id: runId,
+        modelId,
+        datasetSnapshotId: snapshotId,
+        createdAt: new Date(value.createdAt),
+        attempt: 1,
+        recipe: YOLO26N_WHOLE_RECIPE,
+        status: "queued",
+      })
+      .onConflictDoNothing();
+    const version = await registerModelVersion(value, tx);
+    await tx
+      .update(trainingRuns)
+      .set({ status: "succeeded", modelVersionId: version.id })
+      .where(eq(trainingRuns.id, runId));
+    return version;
+  });
+}

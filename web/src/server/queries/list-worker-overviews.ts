@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { workerPresence } from "../../domain/workers/presence";
+import type { WorkerPresenceDetail } from "../../domain/workers/read-model";
 import type { WorkerActivity } from "../../domain/workers/schema";
 import { attemptIsActive } from "../inference/public";
 import { database } from "../infra/db/client";
@@ -15,7 +16,7 @@ import {
   listEnrolledWorkers,
   listWorkers,
 } from "../workers/public";
-import { imageFilenames } from "./image-names";
+import { imageFilenames } from "./image-filenames";
 
 /**
  * A held lease belongs to its worker's current session, so each worker's
@@ -78,7 +79,7 @@ async function trainingActivity(
  * Every enrolled worker with its latest session: presence, what it is doing,
  * and how long ago it was heard from. A worker that never connected has none.
  */
-export async function listWorkerPresence() {
+export async function listWorkerOverviews(): Promise<WorkerPresenceDetail> {
   const at = new Date();
   const age = (timestamp: string) =>
     Math.max(0, Math.floor((at.getTime() - Date.parse(timestamp)) / 1000));

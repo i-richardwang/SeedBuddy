@@ -5,7 +5,10 @@ import {
   type NamedDataset,
 } from "../../domain/datasets/schema";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
-import { addToDataset, addToNewDataset } from "../../functions/datasets";
+import {
+  createDatasetMemberships,
+  createDatasetFromImages,
+} from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -71,8 +74,8 @@ function AddToDatasetForm({
     void run(
       () =>
         choice === NEW_DATASET
-          ? addToNewDataset({ data: { name, images } })
-          : addToDataset({ data: { dataset: choice, images } }),
+          ? createDatasetFromImages({ data: { name, images } })
+          : createDatasetMemberships({ data: { dataset: choice, images } }),
       m.dataset_add_nothing_added(),
       {
         onSuccess: (value) => {

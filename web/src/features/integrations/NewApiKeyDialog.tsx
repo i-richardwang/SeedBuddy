@@ -7,7 +7,7 @@ import {
   type IssuedApiKey,
   MAX_API_KEY_DAYS,
 } from "../../domain/auth/integrations";
-import { addApiKey } from "../../functions/integrations";
+import { createApiKey } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
 import { CopyableCode } from "../../ui/CopyableCode";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
@@ -117,7 +117,7 @@ function NewApiKeySession({
             EXPIRY_OPTIONS.find((option) => option.id === expiry)?.days ?? null;
           void action.run(
             () =>
-              addApiKey({
+              createApiKey({
                 data: {
                   name: String(form.get("name") ?? ""),
                   scopes,

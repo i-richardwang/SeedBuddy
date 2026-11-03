@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/read-model";
 import { unitIsAvailableOn } from "../../domain/experiments/culture-events";
 import type { PlacedPhoto } from "../../domain/experiments/photos";
 import {
@@ -11,7 +11,7 @@ import {
 import type { Model } from "../../domain/models/schema";
 import {
   createObservation,
-  editObservation,
+  updateObservation,
 } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
@@ -215,7 +215,7 @@ function EditObservationForm({
         event.preventDefault();
         void action.run(
           () =>
-            editObservation({
+            updateObservation({
               data: { experiment, observation: observation.id, ...value },
             }),
           m.observation_not_saved(),

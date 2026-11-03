@@ -10,10 +10,10 @@ import {
   imageReview,
 } from "../../domain/experiments/cell-reading";
 import type {
-  ImageReview,
-  UnitSeries,
+  ReviewState,
+  UnitDetail,
   UnitStep,
-} from "../../domain/experiments/contracts";
+} from "../../domain/experiments/read-model";
 import {
   latestCultureEvent,
   observationOrdinals,
@@ -87,7 +87,7 @@ export function UnitWorkbench({
   compare,
   onCompareChange,
 }: {
-  series: UnitSeries;
+  series: UnitDetail;
   datasets: NamedDataset[];
   show?: ReviewSource;
   onShowChange: (source: ReviewSource | undefined) => void;
@@ -432,7 +432,7 @@ function framedPictures(
   loaderData: unknown,
   compare: string | undefined,
 ): string[] {
-  const series = loaderData as UnitSeries | undefined;
+  const series = loaderData as UnitDetail | undefined;
   if (!series) return [];
   return series.observations.flatMap(({ observation, image }) =>
     image &&
@@ -442,7 +442,7 @@ function framedPictures(
   );
 }
 
-function ReviewDot({ review }: { review: ImageReview }) {
+function ReviewDot({ review }: { review: ReviewState }) {
   const { tone, label } = IMAGE_REVIEW_LABELS[review];
   return <StatusDot tone={tone} label={label()} />;
 }

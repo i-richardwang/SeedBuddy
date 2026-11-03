@@ -1,3 +1,4 @@
+/** Composes experiment grids, unit series, and overview listings. */
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
@@ -5,13 +6,13 @@ import {
   imageReview,
   observationCells,
 } from "../../domain/experiments/cell-reading";
+import { unitOrder } from "../../domain/experiments/naming";
 import type {
   ExperimentGrid,
   ExperimentOverview,
   ObservationImageCell,
-  UnitSeries,
-} from "../../domain/experiments/contracts";
-import { unitOrder } from "../../domain/experiments/naming";
+  UnitDetail,
+} from "../../domain/experiments/read-model";
 import type {
   Experiment,
   ImageAnalysisState,
@@ -185,7 +186,7 @@ export function readUnitRow(ref: UnitRef): Promise<UnitRow | null> {
 export function readUnit(
   ref: UnitRef,
   observationId?: string,
-): Promise<UnitSeries | null> {
+): Promise<UnitDetail | null> {
   return snapshot((db) => readUnitSeries(ref, observationId, db));
 }
 
@@ -193,7 +194,7 @@ async function readUnitSeries(
   ref: UnitRef,
   observationId: string | undefined,
   db: Executor,
-): Promise<UnitSeries | null> {
+): Promise<UnitDetail | null> {
   const experiment = await readExperimentRecord(ref.experiment, db);
   if (!experiment) return null;
   const { treatments, units, observations, images, manualReadings } =

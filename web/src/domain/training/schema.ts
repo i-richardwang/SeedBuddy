@@ -185,8 +185,8 @@ export const TRAINING_ATTEMPT_OUTCOMES = [
 export interface TrainingAttempt {
   attempt: number;
   workerId: string;
-  startedAt: string;
-  finishedAt: string | null;
+  startedAt: z.infer<typeof timestampSchema>;
+  finishedAt: z.infer<typeof timestampSchema> | null;
   outcome: (typeof TRAINING_ATTEMPT_OUTCOMES)[number] | null;
   error: string | null;
 }

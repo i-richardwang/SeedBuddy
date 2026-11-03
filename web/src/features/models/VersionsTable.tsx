@@ -3,15 +3,13 @@ import { LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
-import {
-  isReading,
-  type VersionComparison,
-} from "../../domain/models/comparison";
+import { isReading } from "../../domain/models/comparison";
+import { type VersionComparison } from "../../domain/models/read-model";
 import {
   type ModelVersion,
   validationMetric,
 } from "../../domain/models/schema";
-import type { VersionOverview } from "../../domain/training/read-model";
+import type { VersionOverview } from "../../domain/models/read-model";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { IdentifierName } from "../../ui/IdentifierName";

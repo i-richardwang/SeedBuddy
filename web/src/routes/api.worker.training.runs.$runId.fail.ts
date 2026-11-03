@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { attemptOwnerSchema } from "../domain/workers/schema";
+import { attemptClaimSchema } from "../domain/workers/schema";
 import { failTrainingRun } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
 
-const bodySchema = attemptOwnerSchema.extend({
+const bodySchema = attemptClaimSchema.extend({
   error: z.string().min(1).max(2000),
 });
 

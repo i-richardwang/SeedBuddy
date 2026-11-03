@@ -1,11 +1,10 @@
 import sharp from "sharp";
 
-import type { BoundingBox } from "../../domain/annotation/schema";
 import type {
   AnnotationContent,
   AnnotationDefinition,
 } from "../../domain/annotation-runs/schema";
-import type { Region } from "../../domain/annotation-runs/tasks";
+import type { ImageRectangle, ImageRegion } from "../../domain/images/geometry";
 import { classColor } from "../../domain/models/classes";
 import { createSingleFlight, createWorkGate } from "../../lib/async/work";
 import { ByteCache } from "../../lib/cache/bytes";
@@ -30,12 +29,12 @@ const escapeXml = (value: string) =>
         "'": "&apos;",
       })[c]!,
   );
-type MarkedBox = { bbox: BoundingBox; label: string; color: string };
+type MarkedBox = { bbox: ImageRectangle; label: string; color: string };
 
 /** Boxes outlined in their class's color, labeled with the class too when the task has several. */
 function marks(
   classes: readonly string[],
-  items: { id: string; class: string; bbox: BoundingBox }[],
+  items: { id: string; class: string; bbox: ImageRectangle }[],
 ): MarkedBox[] {
   return items.map((item) => ({
     bbox: item.bbox,
@@ -115,7 +114,7 @@ export function renderContext(
 export async function renderTask(
   contextId: string,
   definition: AnnotationDefinition,
-  region: Region,
+  region: ImageRegion,
   evidence: ImageRegionEvidence,
   preview?: { content: AnnotationContent; proposalId: string },
 ) {
@@ -136,7 +135,7 @@ export async function renderTask(
       "box_2d: [ymin, xmin, ymax, xmax], normalized 0–1000 relative to CLEAN",
   };
   panels.push(description(metadata));
-  const local = (b: BoundingBox) => ({
+  const local = (b: ImageRectangle) => ({
     x: (b.x - patch.x) * scale,
     y: (b.y - patch.y) * scale,
     width: b.width * scale,

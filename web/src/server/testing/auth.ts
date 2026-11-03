@@ -197,3 +197,17 @@ async function registerMcpClient(
   }
   return ((await registration.json()) as { client_id: string }).client_id;
 }
+
+export async function agentHeaders(): Promise<Headers> {
+  const { user } = await signInAs("member");
+  const { issueApiKey } = await import("../auth/api-keys");
+  return apiKeyHeaders(
+    (
+      await issueApiKey(user.id, {
+        name: "Agent test",
+        scopes: ["experiments"],
+        expiresInDays: null,
+      })
+    ).secret,
+  );
+}

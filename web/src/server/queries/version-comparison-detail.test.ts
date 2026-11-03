@@ -1,17 +1,13 @@
 import { expect, test } from "bun:test";
 
 import { setCurrentVersion } from "../models/public";
-import {
-  countedResult,
-  registerTrainedVersion,
-  snapshotImages,
-  TEST_RUNTIME,
-  traditionalVersion,
-  ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
+import { snapshotImages } from "../testing/datasets";
+import { countedResult } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
+import { registerTrainedVersion, traditionalVersion } from "../testing/models";
+import { TEST_RUNTIME, ULTRALYTICS_RUNTIME } from "../testing/workers";
 import { modelDetail } from "./model-detail";
-import { versionComparison } from "./version-comparison";
+import { versionComparisonDetail } from "./version-comparison-detail";
 
 test("a candidate is scored against the reviewers' counts on the held-out images both versions have read", async () => {
   const baseline = await traditionalVersion("compare-detector", "compare-v1");
@@ -55,7 +51,10 @@ test("a candidate is scored against the reviewers' counts on the held-out images
   await read(baseline, "compare-a", exactForCandidate!, { ungerminated: 8 });
   await read(baseline, "compare-b", exactForCurrent!, { ungerminated: 2 });
 
-  const comparison = await versionComparison(candidate.modelId, candidate.id);
+  const comparison = await versionComparisonDetail(
+    candidate.modelId,
+    candidate.id,
+  );
   expect(comparison).toMatchObject({
     currentVersionId: baseline.id,
     heldOut: 3,
@@ -98,5 +97,7 @@ test("a candidate is scored against the reviewers' counts on the held-out images
   ]);
 
   await setCurrentVersion({ model: candidate.modelId, version: candidate.id });
-  expect(await versionComparison(candidate.modelId, candidate.id)).toBeNull();
+  expect(
+    await versionComparisonDetail(candidate.modelId, candidate.id),
+  ).toBeNull();
 });

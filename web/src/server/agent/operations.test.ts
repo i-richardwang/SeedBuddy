@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import type { Dataset } from "../../domain/datasets/schema";
-import type { Unit } from "../../domain/experiments/contracts";
+import type { CultureEvent } from "../../domain/experiments/culture-events";
+import type { Unit } from "../../domain/experiments/read-model";
 import type {
-  CultureEvent,
   Experiment,
   ExperimentObservation,
   ManualReading,
@@ -15,26 +15,16 @@ import type {
 } from "../../domain/experiments/sheet";
 import { storeAnnotation } from "../annotations/documents";
 import { createModel } from "../models/public";
-import {
-  baselineVersion,
-  imageDigest,
-  observeImagesForModel,
-  storeTexts,
-} from "../testing/fixtures";
+import { failure } from "../testing/agent";
+import { observeImagesForModel } from "../testing/experiments";
+import { imageDigest, storeTexts } from "../testing/images";
+import { baselineVersion } from "../testing/models";
 import { type AgentCallResult, executeAgentOperation } from "./execution";
 import { agentOperations, describeAgentOperations } from "./operations";
 
 function output(result: AgentCallResult): unknown {
   if (!result.ok) throw new Error(`Operation failed: ${result.message}`);
   return result.output;
-}
-
-function failure(result: AgentCallResult): {
-  code: string;
-  message: string;
-} {
-  if (result.ok) throw new Error("Operation unexpectedly succeeded");
-  return { code: result.code, message: result.message };
 }
 
 async function readSheet(experiment: string): Promise<ExperimentSheet> {
@@ -653,6 +643,6 @@ describe("agent operations", () => {
         )
       ).images,
     });
-    expect(failure(mismatch).code).toBe("conflict");
+    expect(failure(mismatch).code).toBe("invalid_request");
   });
 });

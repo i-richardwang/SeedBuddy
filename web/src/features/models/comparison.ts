@@ -1,4 +1,4 @@
-import type { CountAccuracy } from "../../domain/models/comparison";
+import type { CountAccuracy } from "../../domain/models/read-model";
 import { formatDecimal, formatDecimalChange } from "../../ui/numbers";
 
 /** Mean count error per image, all classes together. */

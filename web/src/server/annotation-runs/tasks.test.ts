@@ -12,7 +12,7 @@ import { database } from "../infra/db/client";
 import { annotationRuns } from "../infra/db/schema";
 import { createModel, setModelAnnotation } from "../models/public";
 import { readAnnotationReading } from "../readings/public";
-import { observeImages } from "../testing/fixtures";
+import { observeImages } from "../testing/experiments";
 import { readTask } from "./access";
 import { cancelAnnotationRun, createAnnotationRun } from "./runs";
 import { nextAnnotationTask, savePreview, submitProposal } from "./tasks";

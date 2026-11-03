@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  CULTURE_EVENT_TYPES,
+  type CultureEvent,
   cultureEventExcludesFromAnalysis,
   cultureEventIsTerminal,
   excludingEvent,
@@ -8,11 +10,7 @@ import {
   unitIsAvailableAt,
   unitIsAvailableOn,
 } from "./culture-events";
-import {
-  CULTURE_EVENT_TYPES,
-  type CultureEvent,
-  type ExperimentObservation,
-} from "./schema";
+import type { ExperimentObservation } from "./schema";
 
 const observations: ExperimentObservation[] = [
   {

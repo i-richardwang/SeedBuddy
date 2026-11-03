@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { inferenceTargetSchema } from "../domain/inference/assignments";
-import { attemptOwnerSchema } from "../domain/workers/schema";
+import { attemptClaimSchema } from "../domain/workers/schema";
 import { renewInferenceClaim } from "../server/inference/public";
 import {
   parseWorkerSessionJson,
@@ -18,7 +18,7 @@ async function claimOf(params: unknown, request: Request, workerId: string) {
   );
   const owner = await parseWorkerSessionJson(
     request,
-    attemptOwnerSchema,
+    attemptClaimSchema,
     workerId,
   );
   return { target, owner };

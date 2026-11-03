@@ -6,7 +6,7 @@ import { isAdmin, type UserAccount } from "../../domain/auth/schema";
 import { NewUserDialog } from "../../features/users/NewUserDialog";
 import { RoleSelect } from "../../features/users/RoleSelect";
 import { UserMenu } from "../../features/users/UserMenu";
-import { changeUserRole, getUsers } from "../../functions/users";
+import { updateUserRole, getUsers } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -108,7 +108,7 @@ function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
           onChange={(role) => {
             if (role === account.role) return;
             void run(
-              () => changeUserRole({ data: { user: account.id, role } }),
+              () => updateUserRole({ data: { user: account.id, role } }),
               m.user_role_not_changed(),
             );
           }}

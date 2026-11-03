@@ -2,17 +2,15 @@ import { z } from "zod";
 
 import { REVIEW_SOURCES, type ReviewSource } from "../annotation/schema";
 import { countClasses, sameClasses, type Tally } from "../models/classes";
-import { UnknownClassError } from "../models/errors";
-import type { ImageReview, ObservationImageCell } from "./contracts";
+import { ClassInvalidError } from "../models/errors";
+import type { ObservationImageCell, ReviewState } from "./read-model";
 import type { ExperimentObservation, ManualReading } from "./schema";
 
 /**
  * Who stood behind a unit's number: a person who counted the dish itself
  * and entered the count, or one of the readings of its photograph.
  */
-export const READING_SOURCES = [...REVIEW_SOURCES, "manual"] as const;
-
-export type ReadingSource = (typeof READING_SOURCES)[number];
+const READING_SOURCES = [...REVIEW_SOURCES, "manual"] as const;
 
 /** What a unit read on a day: the individuals found, and who stood behind the number. */
 export const cellReadingSchema = z.strictObject({
@@ -32,7 +30,7 @@ export function resolveCountedClasses(
   if (!requested) return [...modelClasses];
   const unknown = requested.filter((name) => !modelClasses.includes(name));
   if (unknown.length > 0) {
-    throw new UnknownClassError(
+    throw new ClassInvalidError(
       `The model does not recognize ${unknown.length === 1 ? "class" : "classes"}: ${unknown.join(", ")}`,
     );
   }
@@ -74,7 +72,7 @@ export function observationCells(
 }
 
 /** A photograph is reviewed once a person has stored its boxes. */
-export function imageReview(image: ObservationImageCell): ImageReview {
+export function imageReview(image: ObservationImageCell): ReviewState {
   return image.annotationTally ? "reviewed" : "unreviewed";
 }
 
@@ -103,7 +101,7 @@ function imageTally(
  * What a day's photograph reads, counting the classes the day counts, or
  * nothing while there is no photograph or it has no reading.
  */
-export function imageReading(
+export function cellReadingFromImage(
   image: ObservationImageCell | null | undefined,
   observation: Pick<ExperimentObservation, "countedClasses">,
 ): CellReading | null {
@@ -149,7 +147,7 @@ export function cellReading(
   if (!cell) return null;
   return (
     manualReading(cell.manual, observation) ??
-    imageReading(cell.image, observation)
+    cellReadingFromImage(cell.image, observation)
   );
 }
 

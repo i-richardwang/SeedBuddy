@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { imageDigestSchema } from "../images/schema";
-import type { ExperimentGrid } from "./contracts";
+import type { ExperimentGrid } from "./read-model";
 import { calendarDaySchema } from "./schema";
 
 /** A photograph an experiment holds, named by the unit and day it shows. */

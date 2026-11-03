@@ -5,9 +5,9 @@ import { imageDigestSchema } from "../images/schema";
 import { inferenceTaskFailureSchema } from "../inference/tasks";
 import { tallySchema } from "../models/classes";
 import { modelSchema } from "../models/schema";
+import { cultureEventSchema } from "./culture-events";
 import {
   calendarDaySchema,
-  cultureEventSchema,
   experimentNameSchema,
   experimentObservationSchema,
   experimentSchema,
@@ -85,7 +85,7 @@ const unitNavigationEntrySchema = z.strictObject({
 /** Whether a person has reviewed a photograph's boxes. */
 const IMAGE_REVIEWS = ["reviewed", "unreviewed"] as const;
 
-export type ImageReview = (typeof IMAGE_REVIEWS)[number];
+export type ReviewState = (typeof IMAGE_REVIEWS)[number];
 
 /**
  * A unit as the series steps through it on the observation in view, with
@@ -113,7 +113,7 @@ const experimentObservationImageSchema = z.strictObject({
   unclear: z.boolean(),
 });
 
-export type ExperimentObservationImage = z.infer<
+export type ExperimentObservationImageDetail = z.infer<
   typeof experimentObservationImageSchema
 >;
 
@@ -128,7 +128,7 @@ const unitSeriesSchema = z.strictObject({
   shown: experimentObservationImageSchema.nullable(),
 });
 
-export type UnitSeries = z.infer<typeof unitSeriesSchema>;
+export type UnitDetail = z.infer<typeof unitSeriesSchema>;
 
 /** An experiment as the overview lists it: its design's size and how far its observations have come. */
 export const experimentOverviewSchema = z.strictObject({
@@ -140,3 +140,10 @@ export const experimentOverviewSchema = z.strictObject({
 });
 
 export type ExperimentOverview = z.infer<typeof experimentOverviewSchema>;
+
+import type { Dataset } from "../datasets/schema";
+import type { Model } from "../models/schema";
+export interface ExperimentDetail extends ExperimentGrid {
+  models: Model[];
+  datasets: Dataset[];
+}

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq, inArray } from "drizzle-orm";
 
-import { DatasetImportError } from "../../domain/datasets/errors";
+import { DatasetImportInvalidError } from "../../domain/datasets/errors";
 import {
   type DatasetManifest,
   datasetManifestSchema,
@@ -89,10 +89,12 @@ export async function importDataset(
   return transaction(async (tx) => {
     const model = await readModel(manifest.model.id, tx);
     if (!model) {
-      throw new DatasetImportError(`Unknown model: ${manifest.model.id}`);
+      throw new DatasetImportInvalidError(
+        `Unknown model: ${manifest.model.id}`,
+      );
     }
     if (!sameClasses(model.classes, manifest.model.classes)) {
-      throw new DatasetImportError(
+      throw new DatasetImportInvalidError(
         `Model ${model.id} has classes ${listed(model.classes)}, not ${listed(manifest.model.classes)}`,
       );
     }
@@ -104,7 +106,9 @@ export async function importDataset(
     await refusingUnique(
       "datasets_name",
       () =>
-        new DatasetImportError(`Dataset ${manifest.dataset} already exists`),
+        new DatasetImportInvalidError(
+          `Dataset ${manifest.dataset} already exists`,
+        ),
       () => tx.insert(datasets).values({ ...dataset, createdAt: addedAt }),
     );
     const digests = manifest.images.map((image) => image.digest).sort();
@@ -126,7 +130,9 @@ export async function importDataset(
     );
     const missing = digests.filter((digest) => !stored.has(digest));
     if (missing.length > 0) {
-      throw new DatasetImportError(`Images are not stored: ${listed(missing)}`);
+      throw new DatasetImportInvalidError(
+        `Images are not stored: ${listed(missing)}`,
+      );
     }
     const mismatched = manifest.images.filter((image) => {
       const image_ = stored.get(image.digest)!;
@@ -137,7 +143,7 @@ export async function importDataset(
       );
     });
     if (mismatched.length > 0) {
-      throw new DatasetImportError(
+      throw new DatasetImportInvalidError(
         `Images have other metadata here: ${listed(mismatched.map((image) => image.digest))}`,
       );
     }
@@ -152,7 +158,7 @@ export async function importDataset(
         reviewed.has(image.digest),
       );
       if (conflicting.length > 0) {
-        throw new DatasetImportError(
+        throw new DatasetImportInvalidError(
           `Images are already reviewed for ${model.id}: ${listed(conflicting.map((image) => image.digest))}`,
         );
       }

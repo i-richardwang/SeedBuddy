@@ -1,17 +1,19 @@
 import { z } from "zod";
 
 import {
-  experimentOverviewSchema,
-  unitSchema,
-} from "../../domain/experiments/contracts";
+  cultureEventRefSchema,
+  cultureEventSchema,
+  cultureEventsRequestSchema,
+} from "../../domain/experiments/culture-events";
 import {
   ExperimentNotFoundError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import {
-  cultureEventRefSchema,
-  cultureEventSchema,
-  cultureEventsRequestSchema,
+  experimentOverviewSchema,
+  unitSchema,
+} from "../../domain/experiments/read-model";
+import {
   experimentObservationSchema,
   experimentRefSchema,
   experimentRequestSchema,

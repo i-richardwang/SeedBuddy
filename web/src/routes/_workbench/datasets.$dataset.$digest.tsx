@@ -3,10 +3,8 @@ import { useEffect, useEffectEvent } from "react";
 import { z } from "zod";
 
 import { REVIEW_SOURCES } from "../../domain/annotation/schema";
-import type {
-  DatasetImageStep,
-  DatasetImageView,
-} from "../../domain/datasets/image";
+import type { DatasetImageStep } from "../../domain/datasets/read-model";
+import type { DatasetImageDetail } from "../../domain/datasets/read-model";
 import { datasetImageRefSchema } from "../../domain/datasets/schema";
 import {
   ImageWorkbench,
@@ -42,7 +40,7 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/$digest")({
   },
   staticData: {
     crumbs: ({ loaderData }) => {
-      const { dataset, model, review } = loaderData as DatasetImageView;
+      const { dataset, model, review } = loaderData as DatasetImageDetail;
       return [...datasetCrumbs(model, dataset), { label: review.filename }];
     },
   },
@@ -65,7 +63,7 @@ export const Route = createFileRoute("/_workbench/datasets/$dataset/$digest")({
 
 /** The picture a dataset image's page frames. */
 const shownPictures = (loaderData: unknown) => {
-  const view = loaderData as DatasetImageView | undefined;
+  const view = loaderData as DatasetImageDetail | undefined;
   return view ? [view.review.ref.digest] : [];
 };
 

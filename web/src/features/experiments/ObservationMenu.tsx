@@ -5,7 +5,7 @@ import type { NamedDataset } from "../../domain/datasets/schema";
 import type {
   ObservationImageCell,
   Unit,
-} from "../../domain/experiments/contracts";
+} from "../../domain/experiments/read-model";
 import type { PlacedPhoto } from "../../domain/experiments/photos";
 import type {
   ExperimentObservation,

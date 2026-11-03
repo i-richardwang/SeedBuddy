@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { UserRole } from "../../domain/auth/schema";
-import { addUser } from "../../functions/users";
+import { createUser } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -54,7 +54,7 @@ function NewUserForm({
         const form = new FormData(event.currentTarget);
         void run(
           () =>
-            addUser({
+            createUser({
               data: {
                 name: String(form.get("name") ?? ""),
                 email: String(form.get("email") ?? ""),

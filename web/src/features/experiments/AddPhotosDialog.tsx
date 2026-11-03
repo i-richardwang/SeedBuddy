@@ -1,7 +1,7 @@
-import type { Unit } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/read-model";
 import type { PlacedPhoto } from "../../domain/experiments/photos";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
-import { assignImagesToObservation } from "../../functions/experiments";
+import { updateObservationImages } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -73,7 +73,7 @@ function AddPhotosSession({
           event.preventDefault();
           void action.run(
             () =>
-              assignImagesToObservation({
+              updateObservationImages({
                 data: {
                   experiment,
                   observation: observation.id,

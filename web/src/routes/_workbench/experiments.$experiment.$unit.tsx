@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { REVIEW_SOURCES } from "../../domain/annotation/schema";
-import type { UnitSeries } from "../../domain/experiments/contracts";
+import type { UnitDetail } from "../../domain/experiments/read-model";
 import {
   observationIdSchema,
   unitRefSchema,
@@ -46,7 +46,7 @@ export const Route = createFileRoute(
   },
   staticData: {
     crumbs: ({ loaderData }) => {
-      const { experiment, unit } = loaderData as UnitSeries;
+      const { experiment, unit } = loaderData as UnitDetail;
       return [
         { label: m.experiments_title(), href: "/experiments" },
         { label: experiment.name, href: `/experiments/${experiment.id}` },

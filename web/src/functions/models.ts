@@ -6,20 +6,15 @@ import {
   modelRequestSchema,
   modelVersionRefSchema,
 } from "../domain/models/schema";
+import * as modelsService from "../server/models/public";
 import {
-  createModel,
-  deleteModel,
-  setCurrentVersion,
-  setModelAnnotation,
-} from "../server/models/public";
-import {
-  modelCatalogue,
+  listModelOverviews,
   modelDetail,
-  versionComparison,
+  versionComparisonDetail,
 } from "../server/queries/public";
 
 export const getModelCatalogue = createServerFn({ method: "GET" }).handler(() =>
-  modelCatalogue(),
+  listModelOverviews(),
 );
 
 export const getModelDetail = createServerFn({ method: "GET" })
@@ -28,22 +23,22 @@ export const getModelDetail = createServerFn({ method: "GET" })
 
 export const getVersionComparison = createServerFn({ method: "GET" })
   .validator(modelVersionRefSchema)
-  .handler(({ data }) => versionComparison(data.model, data.version));
+  .handler(({ data }) => versionComparisonDetail(data.model, data.version));
 
 export const chooseCurrentVersion = createServerFn({ method: "POST" })
   .validator(modelVersionRefSchema)
-  .handler(({ data }) => setCurrentVersion(data));
+  .handler(({ data }) => modelsService.setCurrentVersion(data));
 
-export const addModel = createServerFn({ method: "POST" })
+export const createModel = createServerFn({ method: "POST" })
   .validator(modelRequestSchema)
-  .handler(({ data }) => createModel(data));
+  .handler(({ data }) => modelsService.createModel(data));
 
 export const updateModelAnnotation = createServerFn({ method: "POST" })
   .validator(modelAnnotationRequestSchema)
-  .handler(({ data }) => setModelAnnotation(data));
+  .handler(({ data }) => modelsService.setModelAnnotation(data));
 
 export const removeModel = createServerFn({ method: "POST" })
   .validator(modelRefSchema)
   .handler(async ({ data }) => {
-    await deleteModel(data);
+    await modelsService.deleteModel(data);
   });

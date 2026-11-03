@@ -1,6 +1,7 @@
+/** Loads one observation photograph with its review and unit navigation. */
 import { and, eq } from "drizzle-orm";
 
-import type { ExperimentObservationImage } from "../../domain/experiments/contracts";
+import type { ExperimentObservationImageDetail } from "../../domain/experiments/read-model";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { markedUnclear } from "../images/public";
 import { currentVersion } from "../inference/public";
@@ -37,14 +38,14 @@ export function atImageObservation() {
 export function readExperimentObservationImage(
   ref: ObservationImageRef,
   executor?: Executor,
-): Promise<ExperimentObservationImage | null> {
+): Promise<ExperimentObservationImageDetail | null> {
   return inSnapshot(executor, (db) => readObservationImage(ref, db));
 }
 
 async function readObservationImage(
   ref: ObservationImageRef,
   db: Executor,
-): Promise<ExperimentObservationImage | null> {
+): Promise<ExperimentObservationImageDetail | null> {
   const [row] = await db
     .select({
       observationImage: experimentObservationImages,

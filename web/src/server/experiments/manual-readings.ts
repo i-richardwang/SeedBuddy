@@ -5,7 +5,7 @@ import {
   unitIsAvailableAt,
 } from "../../domain/experiments/culture-events";
 import {
-  ManualReadingRejectedError,
+  ManualReadingConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import type {
@@ -41,7 +41,7 @@ function checkTally(
     (name) => !modelClasses.includes(name),
   );
   if (unknown.length > 0) {
-    throw new ManualReadingRejectedError(
+    throw new ManualReadingConflictError(
       `The model does not recognize ${unknown.length === 1 ? "class" : "classes"} counted for ${unitCode}: ${unknown.join(", ")}`,
     );
   }
@@ -49,7 +49,7 @@ function checkTally(
     (name) => !Object.hasOwn(tally, name),
   );
   if (unanswered.length > 0) {
-    throw new ManualReadingRejectedError(
+    throw new ManualReadingConflictError(
       `The count for ${unitCode} leaves out ${unanswered.length === 1 ? "a class" : "classes"} this day counts: ${unanswered.join(", ")}`,
     );
   }
@@ -95,7 +95,7 @@ export async function recordManualReadings(
       ({ unit }) => !unitIsAvailableAt(unit.events, observation, ordinals),
     );
     if (unavailable.length > 0) {
-      throw new ManualReadingRejectedError(
+      throw new ManualReadingConflictError(
         `Counts cannot be entered for units removed before this observation: ${unavailable.map(({ unit }) => unit.code).join(", ")}`,
       );
     }

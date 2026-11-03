@@ -3,18 +3,14 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "bun:test";
 
 import {
-  ObservationImageRejectedError,
+  ObservationImageConflictError,
+  UnitConflictError,
   UnitNotFoundError,
-  UnitRejectedError,
 } from "../../domain/experiments/errors";
 import { database } from "../infra/db/client";
 import { experimentCultureEvents } from "../infra/db/schema";
-import { storeTexts } from "../testing/fixtures";
-import {
-  deleteCultureEvent,
-  recordCultureEvent,
-  recordCultureEvents,
-} from "./culture-events";
+import { storeTexts } from "../testing/images";
+import { deleteCultureEvent, recordCultureEvents } from "./culture-events";
 import { recordManualReadings } from "./manual-readings";
 import { assignObservationImages } from "./observation-images";
 import { createObservation, updateObservation } from "./observations";
@@ -43,15 +39,15 @@ test("at most one terminal event", async () => {
   });
 
   const results = await Promise.allSettled([
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit: units.get("A-1")!,
+      units: [units.get("A-1")!],
       type: "discarded",
       observation: day7.id,
     }),
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit: units.get("A-1")!,
+      units: [units.get("A-1")!],
       type: "harvested",
       observation: day7.id,
     }),
@@ -60,20 +56,20 @@ test("at most one terminal event", async () => {
   const rejected = results.filter((result) => result.status === "rejected");
   expect(recorded).toHaveLength(1);
   expect(rejected).toHaveLength(1);
-  expect(rejected[0]!.reason).toBeInstanceOf(UnitRejectedError);
+  expect(rejected[0]!.reason).toBeInstanceOf(UnitConflictError);
 
   await deleteCultureEvent({
     experiment: experiment.id,
-    event: recorded[0]!.value.id,
+    event: recorded[0]!.value[0]!.id,
   });
   await expect(
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit: units.get("A-1")!,
+      units: [units.get("A-1")!],
       type: "missing",
       observation: day7.id,
     }),
-  ).resolves.toMatchObject({ type: "missing" });
+  ).resolves.toMatchObject([{ type: "missing" }]);
 });
 
 test("culture events take effect until they are removed", async () => {
@@ -91,23 +87,23 @@ test("culture events take effect until they are removed", async () => {
     ...reading(version),
   });
 
-  const event = await recordCultureEvent({
+  const [event] = await recordCultureEvents({
     experiment: experiment.id,
-    unit: units.get("A-1")!,
+    units: [units.get("A-1")!],
     type: "contaminated",
     observation: day7.id,
   });
-  expect([event.type, event.observation]).toEqual(["contaminated", day7.id]);
+  expect([event!.type, event!.observation]).toEqual(["contaminated", day7.id]);
   await expect(
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit: units.get("A-1")!,
+      units: [units.get("A-1")!],
       type: "contaminated",
       observation: day7.id,
     }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitConflictError);
 
-  await deleteCultureEvent({ experiment: experiment.id, event: event.id });
+  await deleteCultureEvent({ experiment: experiment.id, event: event!.id });
 
   const day14 = await createObservation({
     experiment: experiment.id,
@@ -115,9 +111,9 @@ test("culture events take effect until they are removed", async () => {
     note: "",
     ...reading(version),
   });
-  const terminalEvent = await recordCultureEvent({
+  const [terminalEvent] = await recordCultureEvents({
     experiment: experiment.id,
-    unit: units.get("A-1")!,
+    units: [units.get("A-1")!],
     type: "discarded",
     observation: day7.id,
   });
@@ -134,10 +130,10 @@ test("culture events take effect until they are removed", async () => {
         },
       ],
     }),
-  ).rejects.toThrow(ObservationImageRejectedError);
+  ).rejects.toThrow(ObservationImageConflictError);
   await deleteCultureEvent({
     experiment: experiment.id,
-    event: terminalEvent.id,
+    event: terminalEvent!.id,
   });
   await assignObservationImages({
     experiment: experiment.id,
@@ -152,40 +148,40 @@ test("culture events take effect until they are removed", async () => {
   });
 
   await expect(
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit: units.get("A-1")!,
+      units: [units.get("A-1")!],
       type: "harvested",
       observation: day7.id,
     }),
   ).rejects.toThrow("has records after this observation");
 
-  await recordCultureEvent({
+  await recordCultureEvents({
     experiment: experiment.id,
-    unit: units.get("A-2")!,
+    units: [units.get("A-2")!],
     type: "contaminated",
     observation: day14.id,
   });
   await expect(
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit: units.get("A-2")!,
+      units: [units.get("A-2")!],
       type: "discarded",
       observation: day7.id,
     }),
   ).rejects.toThrow("has records after this observation");
 
   await expect(
-    recordCultureEvent({
+    recordCultureEvents({
       experiment: experiment.id,
-      unit: randomUUID(),
+      units: [randomUUID()],
       type: "missing",
       observation: day7.id,
     }),
   ).rejects.toThrow(UnitNotFoundError);
 
   const rows = await (await database()).select().from(experimentCultureEvents);
-  expect(rows.some((row) => row.id === event.id)).toBeFalse();
+  expect(rows.some((row) => row.id === event!.id)).toBeFalse();
 });
 
 test("the same culture event can be recorded on several units", async () => {
@@ -209,7 +205,7 @@ test("the same culture event can be recorded on several units", async () => {
     type: "contaminated",
     observation: day7.id,
   });
-  expect(events.map((event) => event.type)).toEqual([
+  expect(events.map((event) => event!.type)).toEqual([
     "contaminated",
     "contaminated",
   ]);
@@ -221,10 +217,10 @@ test("the same culture event can be recorded on several units", async () => {
       type: "contaminated",
       observation: day7.id,
     }),
-  ).rejects.toThrow(UnitRejectedError);
+  ).rejects.toThrow(UnitConflictError);
   expect(
     (await readExperimentGrid(experiment.id))?.units.filter((unit) =>
-      unit.events.some((event) => event.type === "contaminated"),
+      unit.events.some((event) => event!.type === "contaminated"),
     ),
   ).toHaveLength(2);
 });
@@ -254,9 +250,9 @@ test("correcting dates cannot move records beyond a unit's removal", async () =>
     observation: counted.id,
     readings: [{ unit, tally: { ungerminated: 2, germinated: 3 } }],
   });
-  await recordCultureEvent({
+  await recordCultureEvents({
     experiment: experiment.id,
-    unit,
+    units: [unit],
     observation: removed.id,
     type: "discarded",
   });
@@ -273,7 +269,7 @@ test("correcting dates cannot move records beyond a unit's removal", async () =>
         ...reading(version),
         countedClasses: observation.countedClasses,
       }),
-    ).rejects.toThrow(UnitRejectedError);
+    ).rejects.toThrow(UnitConflictError);
     const grid = (await readExperimentGrid(experiment.id))!;
     expect(
       grid.observations.find((item) => item.id === observation.id)!.observedOn,
