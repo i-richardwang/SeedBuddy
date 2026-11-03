@@ -1,6 +1,6 @@
 # Images
 
-Every image is stored once, as a canonical AVIF under its digest. Ingestion also
+Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF. Those bytes determine the digest, dimensions, browser view, inference input and training input. Every image is stored once under its digest. Ingestion also
 finds the culture dish in it, so that work reading the image, such as
 [AI annotation](ai-annotation.md), can be bounded to the dish.
 
@@ -18,7 +18,7 @@ Completed analysis stores its recipe identity and circle. A null circle means
 successful analysis with no candidate; null analysis means unavailable. Repeated
 uploads reuse current completed results.
 
-One shared `image_geometry/dish-recipe.json` supplies Hough parameters and coverage
+One shared `src/vitroctl/image_geometry/dish-recipe.json` supplies Hough parameters and coverage
 policy to both runtimes, validated against the generated `dish-recipe` contract.
 The server uses Sharp Lanczos3 and OpenCV.js; native Python uses OpenCV INTER_AREA.
 They share parameters and half-up thumbnail dimensions, but can produce slightly
@@ -41,13 +41,9 @@ on its own hourly cadence; infrastructure failures back off for one minute witho
 stopping the other responsibility. Maintenance uses one Sharp processing thread
 and its own compute runtime, so its resource budget is separate from the
 workbench's. Compose and the Zeabur template include this process as an
-application service, using `bun dist/maintenance.js` and the shared database and
-blob-store environment.
+application service. Built command entry points are listed in [Backend architecture](backend-architecture.md#persistence-and-startup).
 
-Deploy workbench and maintenance from the same source commit; image-based
-deployments use the same image digest for both roles. Maintenance has no public
-port or browser authentication settings. Existing Zeabur projects must add this
-service explicitly: updating a template does not modify deployed projects.
+Deployment roles are described in the [deployment guide](../README.md#deployment).
 
 `images.dish_analysis_attempted_at` durably records each analysis attempt.
 Maintenance prioritizes never-attempted images, then the oldest eligible attempts,
@@ -59,8 +55,7 @@ individually and do not block later images. Database and object-store transport
 failures reach infrastructure backoff. Completed no-candidate results are not
 retried. Shutdown finishes the current image before stopping.
 
-From the built Web application, `bun run images:analyze [batch-size]` performs one
-finite sweep of eligible images, using batches of 100 by default (maximum 1000).
+The finite analysis sweep accepts an optional positional batch size, 100 by default (maximum 1000).
 A fixed attempt cutoff excludes every image tried during the sweep, even if a
 long sweep outlasts its retry interval. Recent attempts remain in cooldown. The
 command reports examined, completed, failed and skipped counts. Completed means
@@ -70,3 +65,5 @@ write unnecessary. Every attempt satisfies
 a nonzero exit status; skipped results do not. It uses the same canonical pixels
 and detector as ingestion. Maintenance keeps the corpus current on its own; a
 manual sweep is for refreshing it at once.
+
+`images/preview.ts` derives a small rendition after ingestion or on a read that finds it missing. Collection removes it with the source image. `images/processing.ts` admits one large-image operation per process across ingestion, analysis and regional preparation; encoded caches are bounded and contain no annotation or model state.

@@ -7,7 +7,7 @@ lives.
 ## What a model declares
 
 A model declares the classes it recognizes and nothing else. Classes are the
-model's identity: the image page offers them as the class of a new box, the
+model's identity: the image page offers them as the class of a box being drawn, the
 YOLO export indexes labels by them, dataset transfer requires both ends to
 agree on them, and a training snapshot freezes them alongside the images.
 
@@ -34,7 +34,7 @@ What a day counts is the experiment's question, not the model's. A germination
 trial photographs its dishes before anything has germinated and counts every
 seed, `ungerminated` and `germinated` alike; later days count `germinated`
 alone, since grown seedlings hide the seeds that have not germinated and the
-photograph no longer shows them all. A day counts every class its model
+photograph does not show them all. A day counts every class its model
 recognizes unless it names fewer, and it always counts at least one.
 
 ## Where the numbers come from
@@ -44,7 +44,7 @@ individuals of each class it held. A photograph is one way to get it, and
 the usual one; a person counting the dish at the bench is another. Where the
 number came from is kept beside it, and the analysis reads the number.
 
-**A cell** is one unit on one day. It holds the photograph taken of the unit
+A cell is one unit on one day. It holds the photograph taken of the unit
 that day, if one was, and the count a person entered for it, if one was;
 it exists once it has either. One unit has at most one photograph and one
 entered count per day.
@@ -56,7 +56,7 @@ result. A proposal counts because an agent that sees the photograph reads it
 better than the detector, but it is still a machine's reading; only a review
 marks the image reviewed, and the grid shows the difference.
 
-**A count entered by hand** is a tally too, kept by class, for a day that was
+A count entered by hand is a tally too, kept by class, for a day that was
 not photographed or a dish that was counted at the bench, such as when its
 seedlings were moved. It is entered for a whole observation at a time, a row
 per unit and a field per class the day counts. It outranks every reading of
@@ -66,10 +66,10 @@ unit removed from the bench before the observation can no more be counted
 than photographed, and a count is a record like a photograph: it keeps its
 observation and unit from being deleted, and holds the unit on the bench
 through the day it was counted on. Correcting an observation date must preserve
-that lifetime: no photograph, manual count or culture event may move past the
+that lifetime: no photograph, count entered by hand or culture event may move past the
 unit’s terminal observation.
 
-An observation with manual counts keeps its model until those counts are
+An observation with counts entered by hand keeps its model until those counts are
 explicitly withdrawn. Even identically named classes in another model can
 mean different things; switching models never reinterprets those counts.
 Changing the counted classes within the same model remains allowed.
@@ -80,7 +80,7 @@ never gave is unanswered, not zero, so the count must give every class the
 day counts, and if the day later comes to count a class the count did not
 give, the cell reads from its photograph instead, or has no number.
 
-**A count** is how many instances of the classes its day counts a unit's
+A count is how many instances of the classes its day counts a unit's
 reading found. The tally keeps every class whatever the day counts, so changing
 the classes recounts the same readings, and nothing is read again.
 
@@ -164,13 +164,13 @@ A unit out of the analysis on a day contributes to no treatment summary that
 day, and no day comparison measures a change across it. Two things take a
 unit out.
 
-**A culture event** takes it out from the observation that records it:
+A culture event takes it out from the observation that records it:
 contaminated, discarded, and missing do. Nonviable does not. Harvested keeps
 it included on the recorded observation and excludes it from later ones, when
 the unit has left the bench. What came before the event still happened, so
 the earlier days stand.
 
-**An unclear photograph** is one a person could not read clearly, a fogged lid
+An unclear photograph is one a person could not read clearly, a fogged lid
 or a dish out of focus. The mark is the image's, wherever it is shown.
 Whether an unclear photograph counts is each experiment's setting, and it does
 not unless someone turns the setting on. Where it does not, the photograph
