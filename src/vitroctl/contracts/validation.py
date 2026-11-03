@@ -46,3 +46,9 @@ def validate_wire_contract(name: str, value: Any, context: str) -> None:
         for part in error.absolute_path
     )
     raise ValueError(f"{context}{suffix} violates the shared contract: {error.message}")
+
+
+def outbound(name: str, document: dict[str, Any]) -> dict[str, Any]:
+    """Validate a document at the send boundary."""
+    validate_wire_contract(name, document, name)
+    return document

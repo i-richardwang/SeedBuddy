@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal, cast
 
 from vitroctl.contracts.annotation import AnnotationDocument
+from vitroctl.contracts.annotation_set import AnnotatedImage, validate_annotation_set
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.training.recipe import TrainingRecipe
 
@@ -106,17 +107,20 @@ class TrainingSnapshot:
             _snapshot_image(raw, f"{context}.images[{index}]")
             for index, raw in enumerate(value["images"])
         )
-        digests = [image.digest for image in images]
-        if len(set(digests)) != len(digests):
-            raise ValueError(f"{context} lists an image digest more than once")
         classes = tuple(value["classes"])
-        known = set(classes)
-        for image in images:
-            for instance in image.annotation.instances:
-                if instance.class_name not in known:
-                    raise ValueError(
-                        f"{context} annotation uses unknown class {instance.class_name}"
-                    )
+        validate_annotation_set(
+            (
+                AnnotatedImage(
+                    image.digest,
+                    image.width,
+                    image.height,
+                    {"annotation": image.annotation},
+                )
+                for image in images
+            ),
+            classes,
+            context,
+        )
         return cls(
             id=value["id"],
             dataset_id=value["datasetId"],
@@ -131,19 +135,10 @@ def _snapshot_image(value: Any, context: str) -> SnapshotImage:
     annotation = AnnotationDocument.from_document(
         value["annotation"], f"{context}.annotation"
     )
-    if annotation.digest != digest:
-        raise ValueError(f"{context}.annotation describes another image")
-    width = value["width"]
-    height = value["height"]
-    if (annotation.width, annotation.height) != (width, height):
-        raise ValueError(
-            f"{context}.annotation is drawn on {annotation.width}x{annotation.height}, "
-            f"not {width}x{height}"
-        )
     return SnapshotImage(
         digest=digest,
-        width=width,
-        height=height,
+        width=value["width"],
+        height=value["height"],
         split=value["split"],
         annotation=annotation,
     )

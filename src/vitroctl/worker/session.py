@@ -134,9 +134,12 @@ class WorkerClient(WorkerHttpClient):
     def identity(self) -> dict[str, str]:
         return self.session.identity
 
-    def heartbeat(self) -> None:
+    def heartbeat(self, *, deadline: float | None = None) -> None:
         response = self.request(
-            "POST", "api/worker/heartbeat", json=self.session.heartbeat()
+            "POST",
+            "api/worker/heartbeat",
+            json=self.session.heartbeat(),
+            deadline=deadline,
         )
         self.require_current_session(response)
 

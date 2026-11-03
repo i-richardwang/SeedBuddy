@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.detectors.contract import DetectionResult
+from vitroctl.contracts.validation import outbound, validate_wire_contract
 from vitroctl.io.image_io import verify_digest
 from vitroctl.worker.model_store import ModelManifest
 from vitroctl.worker.session import WorkerClient
@@ -97,20 +96,13 @@ class InferenceClient:
         return response.json()
 
     def heartbeat(self, deadline: float) -> None:
-        response = self.worker.request(
-            "POST",
-            "api/worker/heartbeat",
-            json=self.worker.session.heartbeat(),
-            deadline=deadline,
-        )
-        self.worker.require_current_session(response)
+        self.worker.heartbeat(deadline=deadline)
 
     def put_result(
-        self, assignment: Assignment, document: dict[str, object], deadline: float
+        self, assignment: Assignment, document: dict[str, Any], deadline: float
     ) -> None:
-        validate_wire_contract("detection-result", document, "detection")
-        result = DetectionResult.from_document(document)
-        if result.digest != assignment.image:
+        document = outbound("detection-result", document)
+        if document["image"]["digest"] != assignment.image:
             raise ValueError("Detection describes another image")
         response = self.worker.request(
             "PUT",

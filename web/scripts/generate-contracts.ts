@@ -15,6 +15,7 @@ import { modelBundleSchema } from "../src/domain/models/bundle";
 import { trainingParametersSchema } from "../src/domain/training/parameters";
 import {
   datasetSnapshotSchema,
+  trainingEpochReportSchema,
   trainingRecipeSchema,
   trainingRunSchema,
 } from "../src/domain/training/schema";
@@ -32,6 +33,7 @@ const contracts: ReadonlyArray<[string, ZodType]> = [
   ["inference-model-manifest", inferenceModelManifestSchema],
   ["detection-result", detectionResultSchema],
   ["training-run", trainingRunSchema],
+  ["training-epoch-report", trainingEpochReportSchema],
   ["training-recipe", trainingRecipeSchema],
   ["training-snapshot", datasetSnapshotSchema],
 ];

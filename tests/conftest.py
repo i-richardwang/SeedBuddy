@@ -14,6 +14,7 @@ from vitroctl.datasets.manifest import (
     blob_path,
     manifest_path,
 )
+from vitroctl.models.bundle import weights_descriptor
 
 SEED_CLASSES = ("ungerminated", "germinated")
 
@@ -168,4 +169,43 @@ PARAMETERS = {
 def recipe(request: pytest.FixtureRequest) -> dict[str, Any]:
     filename = getattr(request, "param", "yolo26n-whole-v1.recipe.json")
     path = Path(__file__).parents[1] / "configs/yolo26" / filename
-    return json.loads(path.read_text())["recipe"]
+    return json.loads(path.read_text())
+
+
+def model_bundle(weights: Path, recipe):
+    return {
+        "schemaVersion": 1,
+        "classes": ["seed"],
+        "weights": weights_descriptor(weights),
+        "inference": {
+            "mode": "whole_image",
+            "iou": 0.7,
+            "confidence": 0.26,
+            "imageSize": 1536,
+            "maxDetections": 500,
+            "endToEnd": False,
+        },
+        "training": recipe,
+        "validation": {
+            "precision": 0.5,
+            "recall": 0.4,
+            "map50": 0.5,
+            "map50To95": 0.3,
+            "fitness": 0.3,
+        },
+        "provenance": {
+            "dataset": {
+                "fingerprint": None,
+                "snapshotId": None,
+                "description": "Independent experiment",
+            },
+            "selectedEpoch": 30,
+            "codeRevision": None,
+            "effectiveParameters": {"nbs": 8},
+            "evaluation": {
+                "description": "15 comparison images",
+                "calibration": "8 calibration images",
+                "metrics": {"countMae": 17.5},
+            },
+        },
+    }

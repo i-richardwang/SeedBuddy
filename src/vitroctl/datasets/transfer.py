@@ -66,6 +66,7 @@ class PushReport:
 def _client(
     server_url: str, token: str, transport: httpx.BaseTransport | None
 ) -> httpx.Client:
+    """transport is a test seam; production uses the default transport."""
     return httpx.Client(
         base_url=server_url.rstrip("/") + "/",
         headers={"Authorization": f"Bearer {token}"},

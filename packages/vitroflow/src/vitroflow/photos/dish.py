@@ -1,4 +1,4 @@
-"""Dish geometry is byte-identical to the workbench recipe; the repository test suite pins it."""
+"""The dish recipe is byte-identical to the workbench recipe; the repository test suite pins it."""
 
 from __future__ import annotations
 

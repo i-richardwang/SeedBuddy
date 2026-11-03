@@ -65,6 +65,7 @@ def test_omitted_nominal_batch_retains_runtime_semantics(recipe) -> None:
 
 @pytest.mark.parametrize("recipe", ["yolo26s-whole-2048-v1.recipe.json"], indirect=True)
 def test_2048_recipe_pins_training_schedule_and_nominal_batch(recipe) -> None:
+    assert recipe["baseModel"]["reference"] == "yolo26s.pt"
     assert {
         key: recipe["parameters"][key]
         for key in ("imgsz", "nbs", "batch", "epochs", "patience", "warmup_epochs")

@@ -230,7 +230,7 @@ def test_inference_worker_downloads_a_published_yolo_artifact(
     store.unload()
     weights.write_bytes(b"corrupt")
     source.content = b"WEIGHTS"
-    with pytest.raises(ValueError, match="unexpected digest"):
+    with pytest.raises(ValueError, match="Content failed digest verification"):
         store.load(manifest)
 
 
