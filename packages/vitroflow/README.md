@@ -61,7 +61,7 @@ Each photograph is judged on its own, so the sharpest photograph of a dish can s
 
 ## Confirming the suggestions
 
-The first shot and its `suitable` are a suggestion, and the person who will count the dish has the last word. `review` prints the address of a page on this machine. The page lists the dishes and shows every photograph of the one in view. Changing between the photographs of a dish keeps each seed in place, so focus can be compared at one spot.
+The first shot and its `suitable` are a suggestion, and the person who will count the dish has the last word. `review` prints the address of a page on the local computer. The page lists the dishes and shows every photograph of the one in view. Changing between the photographs of a dish keeps each seed in place, so focus can be compared at one spot.
 
 For each dish, accept the suggestion, or bring up the photograph to use and mark its seeds as countable, not countable, or not sure. A decision moves on to the next dish that still has none. A note can be kept with the confirmation. Accept remaining suggestions confirms the suggestion for every dish that still has none, and leaves a correction that is already there as it is. Worth a look shows the dishes whose suggested photograph cannot be counted, or that have another photograph about as sharp.
 

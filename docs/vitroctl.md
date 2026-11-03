@@ -40,7 +40,7 @@ vitroctl worker restart mac-studio
 vitroctl worker stop mac-studio
 ```
 
-`launchd` restarts a Worker that crashes. A Worker whose machine is removed from the Workers page stops and stays stopped, and `worker list` shows why; enroll the machine again and rerun `setup --force` with the enrollment token.
+`launchd` restarts a Worker that crashes. A Worker removed from the Workers page stops and stays stopped, and `worker list` shows why; enroll it again and rerun `setup --force` with the enrollment token.
 
 `stop` and `restart` return once the Worker has exited; `restart` then loads the current LaunchAgent definition. Training runs in a supervised child process, so shutdown or detection of a revoked lease stops even a trainer blocked inside a GPU operation. The server revokes ownership immediately; the Worker detects revocation on its next training request or lease renewal. Each attempt uses a private directory. Completed but undelivered bundles are retained; other attempt directories are removed when execution exits.
 
@@ -52,7 +52,7 @@ Workers validate both training recipes and the training metadata in published mo
 
 The training dialog assigns work automatically or to a specific enrolled Worker. A run's status on its page is the menu that controls it: Pause training revokes the current attempt and releases the model immediately; Cancel training… asks before it ends the task. Pausing a task frees its model for another run; a paused or failed task continues once no other run of its model is in progress, on the training Worker its dialog names, from its saved epoch or from the beginning. A pinned task waits for its selected Worker rather than silently moving elsewhere.
 
-Each epoch saves the latest resumable weights, best weights, and epoch journal on the Worker. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes never leave the machine during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. The Start from the beginning command uses the restart behavior described below. Missing or invalid files fail with an explicit restart instruction; machine or disk loss is not recoverable from the workbench.
+Each epoch saves the latest resumable weights, best weights, and epoch journal on the Worker. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes stay on the Worker during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. The Start from the beginning command uses the restart behavior described below. Missing or invalid files fail with an explicit restart instruction; host or disk loss is not recoverable from the workbench.
 
 Local recovery checks the run, frozen dataset snapshot, recipe, and Worker identity before atomically copying each recovery directory into the next attempt. The trainer verifies the checkpoint and epoch journal before resuming. Attempts with local weights or a finished bundle are excluded from automatic stale-run cleanup; their log identifies the retained directory. Remove retained directories explicitly when unneeded.
 
@@ -64,7 +64,7 @@ The run page lists execution attempts and the last reported local checkpoint epo
 
 `vitroctl worker run <profile>` runs a Worker in the foreground without `launchd`.
 
-A Worker keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files with shared cached bytes. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
+A Worker keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
 
 ## Datasets
 

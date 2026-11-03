@@ -190,9 +190,7 @@ regions overlapping by IoU ≥ 0.5 as one object, whatever class each region
 judged it, at most one box per region, strongest overlaps first. Each object
 yields one box, its class included: a retained input box first, then a box its
 region owns, then a whole halo reading over a cut one. A halo reading its owning
-region did not confirm is dropped. A scoped run
-reads the frozen input boxes of regions it did not redraw (those whose centers
-fall there) as retained readings, so its seams behave the same way. Overlaps
+region did not confirm is dropped. Seam collection treats frozen input under the [scope rules](#product-workflow) as retained readings. Overlaps
 within one region are never merged. Owned boxes touching internal patch edges
 are rejected. A box's uncertainty is the agent's own judgment and stays with
 the box chosen for its object. Frozen input uncertainty, when present, describes
