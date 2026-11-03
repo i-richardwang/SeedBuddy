@@ -15,13 +15,11 @@ claude mcp add --transport http vitroflow-annotation https://<workbench>/api/ann
 
 ## Product workflow
 
-An image/model can have detector results, an AI proposal and an accepted human
-review. The review takes precedence over the proposal, which takes precedence
-over detection. Only a human review makes the image eligible for training.
+The [reading rules](readings.md#where-the-numbers-come-from) define how an AI proposal contributes to counts and human review.
 
-A run has two inputs besides the image. Its **input** is the boxes it begins
+A run has two inputs besides the image. Its input is the boxes it begins
 from: none, so the agent draws from clean pixels, or a set of boxes it refits.
-Its **scope** is the part of the image it redraws: the whole image, or only the
+Its scope is the part of the image it redraws: the whole image, or only the
 regions some source-pixel boxes touch, in which case every other region keeps
 its input boxes. When beginning from an AI proposal, untouched regions also keep
 which of their boxes await confirmation. The touched regions are replaced in full,
@@ -43,7 +41,7 @@ agent, in any conversation, continues it from the first region still waiting.
 ## Authorization
 
 A person's agent authenticates with user OAuth for the annotation resource, or
-with a personal API key that holds the **Image annotation** scope, presented as
+with a personal API key that holds the Image annotation scope, presented as
 a bearer token. The annotation server carries no experiment or model tools, and
 the experiment server accepts neither OAuth tokens bound to the annotation
 resource nor keys issued for annotation alone.
@@ -62,6 +60,8 @@ Initialization uses the shared, retryable auth service.
 
 ## Tool contract
 
+`annotation_find({image})` finds image references by filename or workbench page URL and lists their experiment or dataset locations. Ambiguous matches are presented for selection.
+
 `annotation_pending({modelId?})` lists the images in datasets and experiment
 observations waiting for an agent. Images with a run in progress come first, with
 its progress, to be continued with `annotation_next`. Then come those that have
@@ -70,7 +70,7 @@ has annotation instructions. `modelId` narrows the listing to one model; a
 listing names at most 100 images and reports how many wait in all.
 
 `annotation_read({ref: {digest, modelId}})` returns how the image is annotated
-for the model right now: the reviewer's boxes, the AI proposal and the detection
+for the model at the time of the call: the reviewer's boxes, the AI proposal and the detection
 as source-coordinate instances, which of them the image reads by, and any run
 still at work. It is the view to consult before redrawing part of an image.
 
@@ -94,7 +94,7 @@ region is accepted, so a run interrupted in one conversation continues in anothe
 It is refused when the image has no run in progress.
 
 `annotation_cancel({ref})` cancels the image's run in progress and discards its
-accepted regions, so a new run can start with another input or scope.
+accepted regions, so another run can start with another input or scope.
 
 Each region is then worked through four tools:
 
@@ -124,11 +124,11 @@ Each region is then worked through four tools:
   neighboring regions. Boxes are outlined in their class's color, and a model
   with several classes labels each box with its class and names the colors. Preview and final collection use the same projection.
 - `annotation_submit({taskId, proposalId})` durably accepts exactly the previewed
-  proposal. Changed geometry requires a new preview. Empty regions still submit an
+  proposal. Changed geometry requires another preview. Empty regions still submit an
   empty instance list. The final accepted region automatically completes the run.
 
 Images are MCP image content containing PNG bytes, not authenticated download URLs.
-Only the service reads canonical AVIFs from the existing blob store. The default
+Only the service reads canonical AVIFs from the blob store. The default
 512-pixel core, 32-pixel halo and 1× display preserve native region detail; the
 shared overview is limited to a 1024-pixel longest side. Display magnification
 changes presentation, not final coordinates. Runs are limited to 4096 regions;
@@ -141,7 +141,7 @@ unmarked base overview. A scoped or dish run prepares only the regions it assign
 their assets are shared with whole-image runs. Region geometry is shared with task
 planning; rules, initial boxes and proposals are not part of the image assets.
 The source digest, core size, halo, display scale and renderer version identify
-reusable assets in the existing blob store, including after a server restart.
+reusable assets in the blob store, including after a server restart.
 A completion receipt identifies an asset plan. Incomplete preparations reuse
 finished images and resume the same preparation path.
 
@@ -151,7 +151,7 @@ evidence, not decoded originals. Context reads the overview; views and previews
 read CLEAN. Reference and proposal overlays use a separate 16 MiB LRU and at most
 two concurrent renders. Decoder and render working memory are additional to these
 cache budgets. The run's state is checked even on cache hits.
-Collection removes derived assets when their source Image is no longer rooted.
+Collection removes derived assets when their source Image is unreferenced.
 
 A dish run covers the dish its image's stored [analysis](images.md) found.
 Coverage expands the detected radius by 15%. A core is omitted only when its
@@ -165,11 +165,11 @@ Starting a run reads metadata in one transaction, freezes coverage and tasks, an
 performs no image I/O, detection or PNG preparation. Missing, obsolete,
 no-candidate or invalid-circle analysis keeps full-image coverage, and the start
 logs its reason with the image and run IDs. Analysis refreshes and model settings
-never alter an existing frozen run.
+never alter a frozen run.
 
 A conversation handling multiple regions loads shared context once, then loops
 through next, view, preview and submit. It reloads context whenever the region's
-`contextId` changes or the previous context is no longer available. A newly
+`contextId` changes or the previous context is unavailable. A newly
 launched agent always loads it, including an agent resuming a partially completed
 run. Context loading is read-only and does not advance the run.
 
@@ -177,18 +177,10 @@ For 20 fresh regions with one preview each, this flow delivers one overview,
 20 CLEAN views and 40 preview images. This counts image messages, not model
 tokens.
 
-A connected client must actually deliver MCP image content to its vision model.
-Displaying an image in the chat UI alone does not verify that behavior. Real
-ChatGPT or other hosted-client image handling and continuous tool execution must
-be smoke-tested in that client. The service does not assume that one conversation
-will process an entire dataset without interruption.
-
-Example instruction after connecting a client:
-
 For seed annotation, use the [worker](ai-annotation-prompts/annotator.md) and
 [parent batch dispatch](ai-annotation-prompts/coordinator.md) templates. A fresh
 worker handles one image for at most 12 accepted regions or 15 minutes, then ends;
-the next batch uses a new subagent on the same run. Initial annotation and maintenance
+the next batch uses another subagent on the same run. Initial annotation and maintenance
 share this workflow, with different run inputs. Project criteria include user-confirmed
 early plump germination. Workers inspect previews themselves; no separate reviewer
 or automatic full-image rerun is required. Human reviews retain precedence.
@@ -204,6 +196,8 @@ or automatic full-image rerun is required. Human reviews retain precedence.
 > next image. The result is saved as an AI proposal.
 
 ## Persistence and failure semantics
+
+Tool handler failures return `isError: true` with a text content block containing JSON `{ "code": "…", "message": "…" }`.
 
 Postgres is the single authority:
 
@@ -233,4 +227,4 @@ establish visual accuracy.
 
 A run stays open until completed or cancelled; an agent that stops leaves its
 accepted regions for the next one. A transport retry of an accepted proposal is
-idempotent. A cancelled run is not resumed; a new run starts over.
+idempotent. A cancelled run is not resumed; another run starts over.
