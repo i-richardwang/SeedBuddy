@@ -9,22 +9,26 @@ ROOT = Path(__file__).resolve().parents[1] / "src"
 DEPENDENCIES: dict[str, set[str]] = {
     "contracts": set(),
     "io": set(),
+    "detector_contracts": {"contracts"},
     "image_geometry": {"contracts"},
-    "datasets": {"contracts", "io"},
+    "datasets": {"contracts", "detector_contracts", "io"},
     "training": {"contracts", "datasets"},
     "traditional": {
+        "detector_contracts",
         "contracts",
         "datasets",
         "io",
         "image_geometry",
     },
     "ultralytics": {
+        "detector_contracts",
         "contracts",
         "datasets",
         "training",
         "io",
     },
     "worker": {
+        "detector_contracts",
         "models",
         "contracts",
         "datasets",
@@ -36,6 +40,7 @@ DEPENDENCIES: dict[str, set[str]] = {
     "host": {"worker", "contracts", "io"},
     "models": {"contracts", "io"},
     "cli": {
+        "detector_contracts",
         "models",
         "host",
         "worker",
@@ -57,7 +62,7 @@ def owner(module: str) -> str:
     for prefix, name in (
         ("detectors.traditional", "traditional"),
         ("detectors.ultralytics", "ultralytics"),
-        ("detectors", "contracts"),
+        ("detectors", "detector_contracts"),
         ("worker.host", "host"),
     ):
         if suffix == prefix or suffix.startswith(prefix + "."):
@@ -131,7 +136,9 @@ def check_architecture(
             )
         ):
             if not target.startswith("vitroctl"):
-                if layer == "contracts" and target.split(".")[0] in {
+                if layer in {"contracts", "detector_contracts"} and target.split(".")[
+                    0
+                ] in {
                     "torch",
                     "cv2",
                     "httpx",

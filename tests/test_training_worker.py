@@ -247,16 +247,25 @@ def test_a_run_fetches_only_the_images_this_machine_does_not_hold(
     claim = TrainingClaim.parse(_run())
     dataset = materialize_snapshot(
         Client(),  # type: ignore[arg-type]
-        claim, tmp_path / "one", images=cache, cancelled=lambda: False
+        claim,
+        tmp_path / "one",
+        images=cache,
+        cancelled=lambda: False,
     )
     first = list(requested)
     again = materialize_snapshot(
         Client(),  # type: ignore[arg-type]
-        claim, tmp_path / "one", images=cache, cancelled=lambda: False
+        claim,
+        tmp_path / "one",
+        images=cache,
+        cancelled=lambda: False,
     )
     materialize_snapshot(
         Client(),  # type: ignore[arg-type]
-        claim, tmp_path / "two", images=cache, cancelled=lambda: False
+        claim,
+        tmp_path / "two",
+        images=cache,
+        cancelled=lambda: False,
     )
     cache.close()
 

@@ -105,12 +105,7 @@ class ModelStore:
         require_ultralytics_version(required_runtime)
         expected_digest = artifact["digest"]
         inference = artifact["inference"]
-        settings = YoloInferenceSettings(
-            inference["confidence"],
-            inference["imageSize"],
-            inference["maxDetections"],
-            inference["endToEnd"],
-        )
+        settings = YoloInferenceSettings.from_document(inference)
         destination = self._artifacts / version_id
         if destination.exists():
             try:

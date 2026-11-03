@@ -26,12 +26,7 @@ def verify_runtime(document: dict[str, Any], weights: Path) -> None:
     settings = document["inference"]
     detector = UltralyticsDetector(
         weights,
-        YoloInferenceSettings(
-            settings["confidence"],
-            settings["imageSize"],
-            settings["maxDetections"],
-            settings["endToEnd"],
-        ),
+        YoloInferenceSettings.from_document(settings),
         tuple(document["classes"]),
         "cpu",
     )

@@ -406,3 +406,33 @@ def test_push_requires_a_local_manifest(tmp_path: Path) -> None:
         _push(tmp_path, handle)
 
     assert received == []
+
+
+@pytest.mark.parametrize("declared", [False, True])
+def test_pull_bounds_streamed_blobs_and_preserves_cached_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, declared: bool
+) -> None:
+    from vitroctl.datasets import transfer
+
+    monkeypatch.setattr(transfer, "MAX_IMAGE_BYTES", 4)
+    cached = blob_path(tmp_path, DIGEST_A)
+    cached.parent.mkdir(parents=True)
+    cached.write_bytes(b"old")
+
+    class Stream(httpx.SyncByteStream):
+        def __iter__(self):
+            yield b"abc"
+            yield b"def"
+
+    def server(request: httpx.Request) -> httpx.Response:
+        if "/datasets/" in request.url.path:
+            return httpx.Response(200, json=_manifest())
+        return httpx.Response(
+            200, headers={"content-length": "6"} if declared else {}, stream=Stream()
+        )
+
+    with pytest.raises(DatasetTransferError, match="Image exceeds 4 bytes"):
+        _pull(tmp_path, server)
+    assert cached.read_bytes() == b"old"
+    assert list(cached.parent.iterdir()) == [cached]
+    assert not (tmp_path / "datasets").exists()

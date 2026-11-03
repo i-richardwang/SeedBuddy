@@ -49,9 +49,8 @@ def write_text_atomically(path: str | Path, content: str) -> None:
         handle.write(content.encode("utf-8"))
 
 
-def file_digest(path: str | Path, *, suffix: bytes = b"") -> str:
-    """SHA-256 of a file, optionally followed by an artifact's identity metadata."""
+def file_digest(path: str | Path) -> str:
+    """SHA-256 of a file."""
     with Path(path).open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256")
-    digest.update(suffix)
     return digest.hexdigest()
