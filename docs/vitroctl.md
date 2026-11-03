@@ -164,7 +164,7 @@ vitroctl training resume <run-id> --dataset <dataset-id> --attempt 1 --restart -
 vitroctl training cancel <run-id> --dataset <dataset-id> --attempt 2
 ```
 
-`--data-root` is accepted only with `--local`. `training resume --restart` discards the recovery reference and starts training afresh, allowing another Worker to claim the run. Recovery follows the [Worker binding rules](#workers).
+`training run --data-root` is accepted only with `--local`. `training resume --restart` discards the recovery reference and starts training afresh, allowing another Worker to claim the run. Recovery follows the [Worker binding rules](#workers).
 
 Local outputs retain the fixed input manifest, exported data and split membership, checkpoints, epoch journal, inference summary, and `bundle/`. Resume requires the saved `input.json` to exactly match the canonical JSON identity built from the spec and manifest, including their camelCase wire keys, before using a checkpoint; changing data or parameters requires another output directory. A completed training cannot be resumed from a stripped final checkpoint. Its bundle can still be imported repeatedly without training.
 
