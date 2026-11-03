@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
@@ -17,7 +16,7 @@ import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
 import { Select } from "../../ui/kit/Select";
 import { RevealOnceDialog } from "../../ui/RevealOnceDialog";
-import { API_SCOPE_LABELS } from "./labels";
+import { apiScopeLabel } from "./labels";
 
 const FORM_ID = "new-api-key";
 
@@ -44,7 +43,6 @@ export function NewApiKeyDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const [issued, setIssued] = useState<IssuedApiKey | null>(null);
 
   return (
@@ -68,7 +66,6 @@ export function NewApiKeyDialog({
         hint={m.api_key_dialog_shown_once()}
         onClose={() => {
           setIssued(null);
-          void router.invalidate();
         }}
       >
         {(apiKey) => (
@@ -129,7 +126,7 @@ function NewApiKeySession({
           );
         }}
       >
-        <Form.Field label={m.api_key_dialog_name_label()} name="name" required>
+        <Form.Field label={m.api_key_column_name()} name="name" required>
           <Input
             name="name"
             autoComplete="off"
@@ -138,13 +135,13 @@ function NewApiKeySession({
             placeholder={m.api_key_dialog_name_placeholder()}
           />
         </Form.Field>
-        <Form.Field label={m.api_key_dialog_scopes_label()} required fieldset>
+        <Form.Field label={m.api_key_column_scopes()} required fieldset>
           <CheckboxGroup
             value={scopes}
             disabled={action.busy}
             options={API_SCOPES.map((scope) => ({
               value: scope,
-              label: API_SCOPE_LABELS[scope](),
+              label: apiScopeLabel(scope),
             }))}
             onChange={(next) =>
               setScopes(API_SCOPES.filter((scope) => next.includes(scope)))

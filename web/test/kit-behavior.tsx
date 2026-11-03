@@ -94,7 +94,9 @@ const scenarios: Record<string, () => Promise<void>> = {
       return (
         <Table
           aria-label="Letters"
-          empty={rows.length === 0 && <p data-empty="">Nothing yet</p>}
+          empty={
+            rows.length === 0 ? <p data-empty="">Nothing yet</p> : undefined
+          }
         >
           <TableHeader>
             <tr>

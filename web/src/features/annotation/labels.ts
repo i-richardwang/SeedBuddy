@@ -3,13 +3,13 @@ import { m } from "../../paraglide/messages";
 import type { StatusTone } from "../../ui/kit/Status";
 import type { Standing } from "./session";
 
-export const SOURCE_LABELS: Record<ReviewSource, () => string> = {
+const SOURCE_LABELS: Record<ReviewSource, () => string> = {
   review: m.annotation_source_review,
-  proposal: m.annotation_source_proposal,
+  proposal: m.annotation_ai_section,
   detection: m.annotation_source_detected,
 };
 
-export const STANDING_LABELS: Record<
+const STANDING_LABELS: Record<
   Standing,
   { tone: StatusTone; label: () => string }
 > = {
@@ -19,3 +19,15 @@ export const STANDING_LABELS: Record<
   detection: { tone: "info", label: m.annotation_standing_detection },
   unread: { tone: "neutral", label: m.annotation_standing_unread },
 };
+
+export function sourceLabel(value: ReviewSource): string {
+  return SOURCE_LABELS[value]();
+}
+
+export function standingLabel(value: Standing): string {
+  return STANDING_LABELS[value].label();
+}
+
+export function standingTone(value: Standing): StatusTone {
+  return STANDING_LABELS[value].tone;
+}

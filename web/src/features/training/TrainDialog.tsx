@@ -46,7 +46,7 @@ export function trainRefusal({
   return null;
 }
 
-/** A new run's preset, its worker and its parameters, chosen before it is queued. */
+/** A new run's preset, its Worker and its parameters, chosen before it is queued. */
 export function TrainDialog({
   set,
   open,
@@ -125,7 +125,7 @@ function TrainSession({
         }}
       >
         {training.workerMemoryBytes === null ? (
-          <Alert type="warning" title={m.training_dialog_no_worker()} />
+          <Alert type="warning" title={m.training_worker_unavailable()} />
         ) : null}
         <Form.Field
           label={m.training_preset()}

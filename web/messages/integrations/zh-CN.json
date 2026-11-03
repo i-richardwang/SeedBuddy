@@ -16,9 +16,7 @@
   ],
   "api_key_dialog_create": "创建",
   "api_key_dialog_expires_label": "有效期",
-  "api_key_dialog_name_label": "名称",
   "api_key_dialog_name_placeholder": "实验室笔记本上的 Claude",
-  "api_key_dialog_scopes_label": "权限范围",
   "api_key_dialog_secret_label": "API 密钥",
   "api_key_dialog_shown_once": "只显示这一次。持有密钥即可在其权限范围内操作。",
   "api_key_dialog_title": "新建 API 密钥",
@@ -52,7 +50,6 @@
       }
     }
   ],
-  "mcp_column_actions": "操作",
   "mcp_column_approved": "授权时间",
   "mcp_column_client": "客户端",
   "mcp_column_servers": "可访问",

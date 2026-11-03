@@ -4,8 +4,7 @@
   "attempt_column_reason": "Reason",
   "attempt_column_result": "Result",
   "attempt_column_started": "Started",
-  "attempt_column_worker": "Worker",
-  "attempt_empty_title": "No worker has picked up this run yet",
+  "attempt_empty_title": "No Worker has picked up this run yet",
   "attempt_number": [
     {
       "declarations": [
@@ -70,8 +69,6 @@
   "parameter_warmup_epochs": "Warmup epochs",
   "run_column_best_map50": "Best mAP50",
   "run_column_dataset": "Dataset",
-  "run_column_epochs": "Epochs",
-  "run_column_map50_95": "mAP50-95",
   "run_column_run": "Run",
   "run_column_version": "Version",
   "run_empty_description": "Start a run from one of the model's datasets.",
@@ -95,7 +92,7 @@
   "run_state_preparing": "Preparing",
   "run_state_queued": "Queued",
   "run_state_succeeded": "Succeeded",
-  "run_state_training": "Training",
+  "run_state_training": "Training in progress",
   "run_state_validating": "Validating",
   "training_advanced_parameters": "Advanced parameters",
   "training_attempts": "Attempts",
@@ -107,19 +104,9 @@
   "training_cancel_note": "Its finished epochs stay readable, but the run can't be continued.",
   "training_cancel_title": "Cancel {run}?",
   "training_curves": "Curves",
-  "training_dialog_no_worker": "No training worker is online",
   "training_dialog_title": "Train a new version",
   "training_failed_title": "Training failed",
-  "training_kpi_best_epoch": [
-    {
-      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
-      "match": {
-        "epoch=*": "Epoch {formattedEpoch}"
-      }
-    }
-  ],
   "training_kpi_best_map": "Best mAP50-95",
-  "training_kpi_epochs": "Epochs",
   "training_kpi_published": "Published {version}",
   "training_kpi_saved": [
     {
@@ -167,16 +154,14 @@
     }
   ],
   "training_resume_from_start": "From the beginning",
-  "training_resume_local_worker": "Resume uses local files on {worker}. If they are missing, restart training.",
   "training_resume_no_progress": "No progress has been saved yet, so training starts from the beginning.",
   "training_resume_title": "Continue {run}",
   "training_retry": "Retry",
   "training_retry_title": "Retry {run}",
   "training_run_page_title": "{run} of {dataset}",
-  "training_running_worker": "Running on {worker}",
   "training_runs": "Training runs",
   "training_runtime": "{framework} {version}",
-  "training_stall_move": "Pause it, then continue on another worker.",
+  "training_stall_move": "Pause it, then continue on another Worker.",
   "training_stall_no_progress": [
     {
       "declarations": [
@@ -188,13 +173,16 @@
       }
     }
   ],
-  "training_stall_reconnect": "The run waits for it to reconnect, or pause it and continue on another worker.",
-  "training_stall_takeover": "The next available worker will take it over.",
-  "training_stall_worker_lost": "{worker} lost contact",
-  "training_waiting_auto": "Waiting for an available worker",
+  "training_stall_reconnect": "The run waits for it to reconnect, or pause it and continue on another Worker.",
+  "training_stall_takeover": "The next available Worker will take it over.",
+  "training_waiting_auto": "Waiting for an available Worker",
   "training_waiting_first_epoch": "Waiting for the first epoch",
-  "training_waiting_worker": "Waiting for {worker} to pick it up",
   "training_worker": "Worker",
   "training_worker_auto": "Automatic assignment",
-  "training_worker_offline": "{worker} · offline"
+  "training_worker_lost": "{worker} lost contact",
+  "training_worker_offline": "{worker} · offline",
+  "training_worker_resume_local": "Resume uses local files on {worker}. If they are missing, restart training.",
+  "training_worker_running": "Running on {worker}",
+  "training_worker_unavailable": "No training Worker is online",
+  "training_worker_waiting": "Waiting for {worker} to pick it up"
 }

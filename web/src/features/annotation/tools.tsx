@@ -93,7 +93,7 @@ const LAYER_ICONS = { boxes: Square, ids: Hash, checks: ScanSearch } as const;
 const LAYER_LABELS = {
   boxes: m.annotation_layer_boxes,
   ids: m.annotation_layer_ids,
-  checks: m.annotation_layer_checks,
+  checks: m.annotation_ai_checks,
 } as const;
 
 /** What is drawn over the image, each shown or hidden by its own toggle. */

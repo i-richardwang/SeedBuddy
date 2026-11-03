@@ -11,12 +11,13 @@ export const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 
 /**
  * A generated identifier, a kind's prefix and a UUID or a digest, read by
- * the first eight digits of its generated part; a declared identifier, such
+ * the first eight digits of its generated part. A bare image digest reads
+ * by its first eight digits too; a declared identifier, such
  * as `traditional-v1`, reads whole.
  */
 const GENERATED_ID = /^[a-z]+-([0-9a-f-]{32,})$/;
 
 export function identifierLabel(id: string): string {
-  const generated = GENERATED_ID.exec(id)?.[1];
+  const generated = /^[a-f0-9]{64}$/.test(id) ? id : GENERATED_ID.exec(id)?.[1];
   return generated ? generated.replaceAll("-", "").slice(0, 8) : id;
 }

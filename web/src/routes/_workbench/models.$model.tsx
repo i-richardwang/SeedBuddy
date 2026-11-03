@@ -8,7 +8,7 @@ import { ChartLine, Images, Network, Upload } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
-import { DatasetCard } from "../../features/datasets/DatasetCard";
+import { DatasetsGrid } from "../../features/datasets/DatasetsGrid";
 import { ImportDatasetDialog } from "../../features/datasets/ImportDatasetDialog";
 import { ModelMenu } from "../../features/models/ModelMenu";
 import { modelIsFree } from "../../features/models/records";
@@ -22,7 +22,7 @@ import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
-import { CardGrid, CardGridSkeleton } from "../../ui/kit/SummaryCard";
+import { CardGridSkeleton } from "../../ui/kit/SummaryCard";
 import { formatList } from "../../ui/lists";
 import { classLabel, modelName } from "../../ui/model-names";
 import {
@@ -125,32 +125,21 @@ function ModelPage() {
           </Button>
         }
       >
-        <CardGrid
-          aria-label={m.model_datasets()}
+        <DatasetsGrid
+          datasets={datasets}
           empty={
-            datasets.length === 0 && (
-              <Empty
-                icon={Images}
-                title={m.datasets_empty()}
-                description={m.datasets_empty_description()}
-                action={
-                  <Button render={<Link to="/experiments" />}>
-                    {m.dataset_open_experiments()}
-                  </Button>
-                }
-              />
-            )
-          }
-        >
-          {datasets.map((dataset) => (
-            <DatasetCard
-              key={dataset.dataset.id}
-              dataset={dataset.dataset}
-              images={dataset.imageCount}
-              reviewed={dataset.reviewedCount}
+            <Empty
+              icon={Images}
+              title={m.datasets_empty()}
+              description={m.datasets_empty_description()}
+              action={
+                <Button render={<Link to="/experiments" />}>
+                  {m.dataset_open_experiments()}
+                </Button>
+              }
             />
-          ))}
-        </CardGrid>
+          }
+        />
       </PageSection>
 
       <PageSection title={m.training_runs()}>

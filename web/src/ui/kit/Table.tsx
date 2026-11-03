@@ -83,7 +83,7 @@ export function Table({
   ...props
 }: TableProps) {
   const { contentRef, onScroll, shadow, tableRef } = useFixedColumns();
-  const isEmpty = empty != null && empty !== false;
+  const isEmpty = empty !== undefined;
   if (isEmpty && toolbar == null) {
     return <EmptyPlace variant={variant}>{empty}</EmptyPlace>;
   }

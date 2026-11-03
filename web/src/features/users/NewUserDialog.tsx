@@ -10,7 +10,7 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
-import { PasswordField } from "./PasswordField";
+import { PasswordField } from "../../ui/PasswordField";
 import { RoleSelect } from "./RoleSelect";
 
 const FORM_ID = "new-user";
@@ -27,7 +27,7 @@ export function NewUserDialog({
     <FormDialog
       open={open}
       onClose={onClose}
-      title={m.user_dialog_new_title()}
+      title={m.users_new()}
       okText={m.user_dialog_add()}
       formId={FORM_ID}
       busy={action.busy}

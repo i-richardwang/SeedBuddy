@@ -34,7 +34,6 @@
   "annotation_discard_edits": "放弃修改",
   "annotation_file": "文件名",
   "annotation_layer_boxes": "标记",
-  "annotation_layer_checks": "待确认",
   "annotation_layer_ids": "序号",
   "annotation_lock": "锁定编辑",
   "annotation_named_count": [
@@ -53,7 +52,6 @@
   "annotation_save": "保存",
   "annotation_save_failed": "保存失败",
   "annotation_source_detected": "模型计数",
-  "annotation_source_proposal": "AI 建议",
   "annotation_source_review": "复核",
   "annotation_standing_detection": "模型计数 · 待复核",
   "annotation_standing_edited": "未保存",

@@ -51,7 +51,7 @@ export function TreatmentMenu({
         label: m.treatment_menu_remove(),
         onClick: () =>
           confirmDestructive({
-            title: m.treatment_delete_title({ name: treatment.name }),
+            title: m.experiment_delete_title({ name: treatment.name }),
             content: m.treatment_delete_note(),
             confirmLabel: m.treatment_delete(),
             onConfirm: async () => {
@@ -60,7 +60,7 @@ export function TreatmentMenu({
               });
             },
             onSuccess: () => {
-              toast.success(m.treatment_deleted({ name: treatment.name }));
+              toast.success(m.experiment_deleted({ name: treatment.name }));
             },
           }),
       },
@@ -70,7 +70,7 @@ export function TreatmentMenu({
   return (
     <>
       <RowMenu
-        label={m.treatment_actions({ name: treatment.name })}
+        label={m.experiment_actions({ name: treatment.name })}
         items={items}
       />
       <TreatmentDialog

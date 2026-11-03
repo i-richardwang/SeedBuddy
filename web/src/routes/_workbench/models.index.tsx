@@ -2,15 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Network, Plus } from "lucide-react";
 import { useState } from "react";
 
-import { ModelCard } from "../../features/models/ModelCard";
 import { ModelDialog } from "../../features/models/ModelDialog";
+import { ModelsGrid } from "../../features/models/ModelsGrid";
 import { getModelCatalogue } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton } from "../../ui/kit/PageSkeleton";
-import { CardGrid, CardGridSkeleton } from "../../ui/kit/SummaryCard";
+import { CardGridSkeleton } from "../../ui/kit/SummaryCard";
 import { Page, PageColumnSkeleton } from "../../ui/Page";
 
 export const Route = createFileRoute("/_workbench/models/")({
@@ -43,27 +43,17 @@ function ModelsPage() {
       description={m.models_description()}
       actions={entries.length > 0 ? create : undefined}
     >
-      <CardGrid
-        aria-label={m.models_title()}
+      <ModelsGrid
+        entries={entries}
         empty={
-          entries.length === 0 && (
-            <Empty
-              icon={Network}
-              title={m.models_empty()}
-              description={m.models_empty_description()}
-              action={create}
-            />
-          )
-        }
-      >
-        {entries.map((entry) => (
-          <ModelCard
-            key={entry.model.id}
-            model={entry.model}
-            records={entry.records}
+          <Empty
+            icon={Network}
+            title={m.models_empty()}
+            description={m.models_empty_description()}
+            action={create}
           />
-        ))}
-      </CardGrid>
+        }
+      />
       <ModelDialog open={creating} onClose={() => setCreating(false)} />
     </Page>
   );

@@ -22,7 +22,7 @@ import { Tag } from "../../ui/kit/Tag";
 import { Text } from "../../ui/kit/Text";
 import { toast } from "../../ui/kit/Toast";
 import { Timestamp } from "../../ui/Timestamp";
-import { API_SCOPE_LABELS } from "./labels";
+import { apiScopeLabel } from "./labels";
 import { NewApiKeyDialog } from "./NewApiKeyDialog";
 
 /** The reader's API keys, and the one place a new key is created. */
@@ -50,7 +50,7 @@ export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
           variant="borderless"
           aria-label={m.integrations_api_keys()}
           empty={
-            apiKeys.length === 0 && (
+            apiKeys.length === 0 ? (
               <Empty
                 icon={KeyRound}
                 title={m.api_key_empty()}
@@ -61,7 +61,7 @@ export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
                   </Button>
                 }
               />
-            )
+            ) : undefined
           }
         >
           <TableHeader>
@@ -105,7 +105,7 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
         <Flexbox horizontal gap={4} wrap="wrap">
           {apiKey.scopes.map((scope) => (
             <Tag key={scope} size="small">
-              {API_SCOPE_LABELS[scope]()}
+              {apiScopeLabel(scope)}
             </Tag>
           ))}
         </Flexbox>

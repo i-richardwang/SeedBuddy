@@ -4,7 +4,6 @@
   "attempt_column_reason": "原因",
   "attempt_column_result": "结果",
   "attempt_column_started": "开始",
-  "attempt_column_worker": "计算节点",
   "attempt_empty_title": "还没有计算节点领取这次训练",
   "attempt_number": [
     {
@@ -70,8 +69,6 @@
   "parameter_warmup_epochs": "预热轮次",
   "run_column_best_map50": "最佳 mAP50",
   "run_column_dataset": "训练集",
-  "run_column_epochs": "轮次",
-  "run_column_map50_95": "mAP50-95",
   "run_column_run": "训练任务",
   "run_column_version": "版本",
   "run_empty_description": "在训练集页面开始训练。",
@@ -107,19 +104,9 @@
   "training_cancel_note": "已完成的轮次仍可查看，但这次训练不能再继续。",
   "training_cancel_title": "取消训练 {run}？",
   "training_curves": "曲线",
-  "training_dialog_no_worker": "没有在线的训练计算节点",
   "training_dialog_title": "训练新版本",
   "training_failed_title": "训练失败",
-  "training_kpi_best_epoch": [
-    {
-      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
-      "match": {
-        "epoch=*": "第 {formattedEpoch} 轮"
-      }
-    }
-  ],
   "training_kpi_best_map": "最佳 mAP50-95",
-  "training_kpi_epochs": "轮次",
   "training_kpi_published": "已发布 {version}",
   "training_kpi_saved": [
     {
@@ -167,13 +154,11 @@
     }
   ],
   "training_resume_from_start": "从头开始",
-  "training_resume_local_worker": "续训使用 {worker} 上的本地文件。文件丢失时，需要从头训练。",
   "training_resume_no_progress": "还没有保存的进度，将从头开始训练。",
   "training_resume_title": "继续训练 {run}",
   "training_retry": "重试",
   "training_retry_title": "重试训练 {run}",
   "training_run_page_title": "{dataset} 的训练 {run}",
-  "training_running_worker": "在 {worker} 上运行",
   "training_runs": "训练任务",
   "training_runtime": "{framework} {version}",
   "training_stall_move": "可以先暂停，再换一个计算节点继续。",
@@ -190,11 +175,14 @@
   ],
   "training_stall_reconnect": "训练会等它重新连上；也可以先暂停，再换一个计算节点继续。",
   "training_stall_takeover": "训练会交给下一个空闲的计算节点。",
-  "training_stall_worker_lost": "{worker} 已失去联系",
   "training_waiting_auto": "等待可用的计算节点",
   "training_waiting_first_epoch": "等待第一轮完成",
-  "training_waiting_worker": "等待 {worker} 领取",
   "training_worker": "计算节点",
   "training_worker_auto": "自动分配",
-  "training_worker_offline": "{worker} · 离线"
+  "training_worker_lost": "{worker} 已失去联系",
+  "training_worker_offline": "{worker} · 离线",
+  "training_worker_resume_local": "续训使用 {worker} 上的本地文件。文件丢失时，需要从头训练。",
+  "training_worker_running": "在 {worker} 上运行",
+  "training_worker_unavailable": "没有在线的训练计算节点",
+  "training_worker_waiting": "等待 {worker} 领取"
 }

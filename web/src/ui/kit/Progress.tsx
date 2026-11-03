@@ -24,11 +24,7 @@ export function Progress({
   return (
     <BaseProgress.Root
       aria-label={label}
-      className={cn(
-        "ui-progress",
-        size === "small" && "ui-progress-small",
-        className,
-      )}
+      className={cn(size === "small" && "ui-progress-small", className)}
       max={max}
       value={value}
     >

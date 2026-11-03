@@ -112,7 +112,7 @@ const SETTINGS_COLUMN = "mx-auto flex w-full max-w-5xl flex-col gap-9 pb-26";
 
 /**
  * A settings page: the reader's own account, keys and connections, or the
- * workspace's people and machines. Its `PageHeader` names it and carries the
+ * workspace's people and Workers. Its `PageHeader` names it and carries the
  * page's one command, ruled off from the content: a column of
  * `SettingsGroup`s, or for a page that is one roster, the roster itself.
  */

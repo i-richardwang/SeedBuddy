@@ -130,6 +130,5 @@
   "image_split": "Training split",
   "image_split_train": "Training",
   "image_split_val": "Validation",
-  "image_steps": "Images",
   "image_title": "{file} in {dataset}"
 }

@@ -7,7 +7,6 @@ import type { TrainingRunDetail } from "../../domain/training/read-model";
 import {
   isTrainingRunActive,
   isTrainingRunResumable,
-  type TrainingRun,
 } from "../../domain/training/schema";
 import { datasetCrumbs } from "../../features/models/crumbs";
 import {
@@ -18,6 +17,7 @@ import {
   ParametersList,
   ParametersListSkeleton,
 } from "../../features/training/ParametersList";
+import { runPlacement } from "../../features/training/placement";
 import { ResumeTrainingDialog } from "../../features/training/ResumeTrainingDialog";
 import { useTrainingRunControl } from "../../features/training/run-control";
 import { TrainingAttempts } from "../../features/training/TrainingAttempts";
@@ -111,7 +111,7 @@ function TrainingRunPage() {
   const lead = published
     ? m.training_kpi_published({ version: identifierLabel(published.id) })
     : best
-      ? m.training_kpi_best_epoch({ epoch: best.epoch })
+      ? m.epoch_tooltip_epoch({ epoch: best.epoch })
       : null;
   const saved =
     run.checkpoint && (live || isTrainingRunResumable(run))
@@ -160,7 +160,7 @@ function TrainingRunPage() {
         facts={[lead, saved].filter((fact) => fact !== null)}
         aside={
           <ProgressMeter
-            label={m.training_kpi_epochs()}
+            label={m.parameter_epochs()}
             count={m.run_epochs_progress({ completed: epochs.length, total })}
             value={epochs.length}
             max={total}
@@ -205,14 +205,4 @@ function TrainingRunPage() {
       ) : null}
     </Page>
   );
-}
-
-/** Where a queued or running run runs, or will. */
-function runPlacement({ state, targetWorkerId }: TrainingRun) {
-  if (state.status === "running")
-    return m.training_running_worker({ worker: state.workerId });
-  if (state.status !== "queued") return null;
-  return targetWorkerId
-    ? m.training_waiting_worker({ worker: targetWorkerId })
-    : m.training_waiting_auto();
 }

@@ -9,7 +9,7 @@ import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
 import type { StatusTone } from "../../ui/kit/Status";
-import { countedClassesName, modelName } from "../../ui/model-names";
+import { countedClassesLabel, modelName } from "../../ui/model-names";
 
 /** An observation is named by the day it was made. */
 export function observationLabel(observation: ExperimentObservation): string {
@@ -31,7 +31,7 @@ export function observationQuestion(
     ...(nameModel ? [modelName(model)] : []),
     ...(countsEveryClass(observation.countedClasses, model.classes)
       ? []
-      : [countedClassesName(observation.countedClasses)]),
+      : [countedClassesLabel(observation.countedClasses)]),
   ]);
 }
 
@@ -63,10 +63,18 @@ export function joinFacts(facts: readonly string[]): string {
   );
 }
 
-export const IMAGE_REVIEW_LABELS: Record<
+const IMAGE_REVIEW_LABELS: Record<
   ImageReview,
   { tone: StatusTone; label: () => string }
 > = {
   reviewed: { tone: "success", label: m.experiment_image_reviewed },
   unreviewed: { tone: "neutral", label: m.experiment_image_unreviewed },
 };
+
+export function imageReviewLabel(value: ImageReview): string {
+  return IMAGE_REVIEW_LABELS[value].label();
+}
+
+export function imageReviewTone(value: ImageReview): StatusTone {
+  return IMAGE_REVIEW_LABELS[value].tone;
+}

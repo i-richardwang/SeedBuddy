@@ -30,9 +30,7 @@ function searchable({ experiment }: ExperimentOverview): string {
     experiment.plantMaterial,
     experiment.explantType,
     experiment.baseMedium,
-  ]
-    .join("\n")
-    .toLowerCase();
+  ].join("\n");
 }
 
 /**
@@ -89,13 +87,13 @@ export function ExperimentsTable({
         <tr>
           <TableHead>{m.experiments_column_experiment()}</TableHead>
           <TableHead>{m.experiments_column_material()}</TableHead>
-          <TableHead>{m.experiments_column_medium()}</TableHead>
-          <TableHead>{m.experiments_column_inoculated()}</TableHead>
+          <TableHead>{m.experiment_field_base_medium()}</TableHead>
+          <TableHead>{m.experiment_field_inoculated()}</TableHead>
           <TableHead className="w-20" numeric>
-            {m.experiments_column_treatments()}
+            {m.experiment_treatments()}
           </TableHead>
           <TableHead className="w-24" numeric>
-            {m.experiments_column_units()}
+            {m.experiment_units()}
           </TableHead>
           <TableHead className="w-24" numeric>
             {m.experiments_column_observations()}
@@ -129,22 +127,19 @@ export function ExperimentsTable({
                 <TableCell cellLabel={m.experiments_column_material()}>
                   {material || <Absent />}
                 </TableCell>
-                <TableCell cellLabel={m.experiments_column_medium()}>
+                <TableCell cellLabel={m.experiment_field_base_medium()}>
                   {experiment.baseMedium || <Absent />}
                 </TableCell>
                 <TableCell
-                  cellLabel={m.experiments_column_inoculated()}
+                  cellLabel={m.experiment_field_inoculated()}
                   className="whitespace-nowrap"
                 >
                   <Day value={experiment.inoculatedOn} />
                 </TableCell>
-                <TableCell
-                  cellLabel={m.experiments_column_treatments()}
-                  numeric
-                >
+                <TableCell cellLabel={m.experiment_treatments()} numeric>
                   {formatCount(treatments)}
                 </TableCell>
-                <TableCell cellLabel={m.experiments_column_units()} numeric>
+                <TableCell cellLabel={m.experiment_units()} numeric>
                   {formatCount(units)}
                 </TableCell>
                 <TableCell

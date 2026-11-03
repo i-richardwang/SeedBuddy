@@ -8,20 +8,16 @@ type ActionResult<T> = { ok: true; value: T } | { ok: false; error: unknown };
 
 /**
  * Runs `work` and reports a failure as an error toast titled `failure`; the
- * result says whether the work succeeded. An aborted `signal` suppresses
- * the failure toast; it does not cancel the work or stop awaiting its result.
+ * result says whether the work succeeded.
  */
-export async function runAction<T>(
+async function runAction<T>(
   work: () => Promise<T>,
   failure: string,
-  signal?: AbortSignal,
 ): Promise<ActionResult<T>> {
   try {
     return { ok: true, value: await work() };
   } catch (error) {
-    if (!signal?.aborted) {
-      toast.error({ title: failure, description: errorMessage(error) });
-    }
+    toast.error({ title: failure, description: errorMessage(error) });
     return { ok: false, error };
   }
 }

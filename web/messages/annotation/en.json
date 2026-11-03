@@ -34,7 +34,6 @@
   "annotation_discard_edits": "Discard changes",
   "annotation_file": "Filename",
   "annotation_layer_boxes": "Marks",
-  "annotation_layer_checks": "To check",
   "annotation_layer_ids": "Numbers",
   "annotation_lock": "Lock editing",
   "annotation_named_count": [
@@ -53,7 +52,6 @@
   "annotation_save": "Save",
   "annotation_save_failed": "Save failed",
   "annotation_source_detected": "Model count",
-  "annotation_source_proposal": "AI proposal",
   "annotation_source_review": "Review",
   "annotation_standing_detection": "Model count · to review",
   "annotation_standing_edited": "Unsaved",

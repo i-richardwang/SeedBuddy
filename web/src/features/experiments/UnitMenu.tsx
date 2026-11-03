@@ -70,6 +70,7 @@ export function UnitMenu({
   datasets: NamedDataset[];
 }) {
   const confirmDestructive = useConfirmDestructive();
+  const unclearAction = useAsyncAction();
   const navigateAfterWrite = useNavigateAfterWrite();
   const [open, setOpen] = useState<Action | null>(null);
   const close = () => setOpen(null);
@@ -93,30 +94,17 @@ export function UnitMenu({
     // Marks the photograph unclear or clears its mark; either only changes
     // what counts.
     const { unclear } = image;
-    const file = image.review.filename;
     const ref = { digest: image.review.ref.digest };
     items.push({
       key: "unclear",
       icon: unclear ? Eye : EyeOff,
-      label: unclear ? m.unclear_menu_clear() : m.unclear_menu_mark(),
+      label: unclear ? m.unclear_clear() : m.unclear_mark(),
+      disabled: unclearAction.busy,
       onClick: () =>
-        confirmDestructive({
-          title: unclear
-            ? m.unclear_clear_title({ file })
-            : m.unclear_mark_title({ file }),
-          confirmLabel: unclear ? m.unclear_clear() : m.unclear_mark(),
-          onConfirm: async () => {
-            if (unclear) await clearUnclear({ data: ref });
-            else await markUnclear({ data: ref });
-          },
-          onSuccess: () => {
-            toast.success(
-              unclear
-                ? m.unclear_cleared({ file })
-                : m.unclear_marked({ file }),
-            );
-          },
-        }),
+        void unclearAction.run(async () => {
+          if (unclear) await clearUnclear({ data: ref });
+          else await markUnclear({ data: ref });
+        }, m.unclear_not_saved()),
     });
   }
   items.push({
@@ -142,6 +130,8 @@ export function UnitMenu({
           confirmLabel: m.unit_unassign(),
           onConfirm: async () => {
             await removeObservationImage({ data: image.ref });
+          },
+          onSuccess: async () => {
             toast.success(m.unit_image_unassigned());
             await navigateAfterWrite({
               to: "/experiments/$experiment",

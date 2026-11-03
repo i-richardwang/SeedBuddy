@@ -18,12 +18,12 @@ import { ProgressMeter } from "../../ui/kit/Progress";
 import { StatisticHero } from "../../ui/kit/Statistic";
 import { Text } from "../../ui/kit/Text";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { countedClassesName } from "../../ui/model-names";
+import { countedClassesLabel } from "../../ui/model-names";
 import { formatCount, formatNumber } from "../../ui/numbers";
 import { Stepper } from "../../ui/Stepper";
 import { WorkbenchSection } from "../../ui/shell/Workbench";
 import { ClassLabel } from "./controls";
-import { SOURCE_LABELS } from "./labels";
+import { sourceLabel } from "./labels";
 
 /**
  * How many of each class the boxes on view hold, and the number the image
@@ -61,7 +61,7 @@ export function CountsSection({
             ? undefined
             : [
                 m.annotation_counted_classes({
-                  classes: countedClassesName(counted),
+                  classes: countedClassesLabel(counted),
                 }),
               ]
         }
@@ -93,7 +93,7 @@ export function CountsSection({
             options={sources.map((source) => ({
               value: source,
               label: m.annotation_named_count({
-                name: SOURCE_LABELS[source](),
+                name: sourceLabel(source),
                 count: countClasses(
                   tally(sourceInstances(review, source) ?? []),
                   counted,

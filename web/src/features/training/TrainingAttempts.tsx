@@ -27,8 +27,8 @@ import type { TrainingRunControl } from "./run-control";
 import { TrainingAttemptState } from "./TrainingRunState";
 
 /**
- * Each time a worker took the run up, the latest first, with how it ended
- * and why; the attempt under way has lost contact once its worker no longer
+ * Each time a Worker took the run up, the latest first, with how it ended
+ * and why; the attempt under way has lost contact once its Worker no longer
  * holds the run, before the next claim records it so. What keeps the run
  * from moving stands over the table: a failure or a stall with the command
  * that moves it again when it will not move on its own, and another run of
@@ -96,15 +96,15 @@ export function TrainingAttempts({
         aria-label={m.training_attempts()}
         size="small"
         empty={
-          attempts.length === 0 && (
+          attempts.length === 0 ? (
             <Empty icon={Server} title={m.attempt_empty_title()} />
-          )
+          ) : undefined
         }
       >
         <TableHeader>
           <tr>
             <TableHead>{m.attempt_column_number()}</TableHead>
-            <TableHead>{m.attempt_column_worker()}</TableHead>
+            <TableHead>{m.training_worker()}</TableHead>
             <TableHead>{m.attempt_column_started()}</TableHead>
             <TableHead>{m.attempt_column_result()}</TableHead>
             <TableHead className="w-full">
@@ -154,8 +154,8 @@ export function TrainingAttempts({
 
 /**
  * Why a running run has stopped moving, and what moves it again. A lost
- * worker hands an unpinned run to the next free one on its own; a pinned run
- * waits for its worker, and one whose worker holds it without progress waits
+ * Worker hands an unpinned run to the next free one on its own; a pinned run
+ * waits for its Worker, and one whose Worker holds it without progress waits
  * for no one, so both offer the pause that frees it for another.
  */
 function StallAlert({
@@ -175,7 +175,7 @@ function StallAlert({
       type="warning"
       title={
         stall === "worker-lost"
-          ? m.training_stall_worker_lost({ worker })
+          ? m.training_worker_lost({ worker })
           : m.training_stall_no_progress({ minutes: TRAINING_STALL_MINUTES })
       }
       description={

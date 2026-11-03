@@ -17,7 +17,7 @@ export function TreatmentField({
   onChange: (treatment: string) => void;
 }) {
   return (
-    <Form.Field label={m.treatment_label()} required>
+    <Form.Field label={m.experiment_column_treatment()} required>
       <Select
         disabled={disabled}
         options={treatments.map((treatment) => ({

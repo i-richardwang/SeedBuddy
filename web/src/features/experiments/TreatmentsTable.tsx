@@ -48,7 +48,7 @@ export function TreatmentsTable({
           <tr>
             <TableHead>{m.experiment_column_treatment()}</TableHead>
             <TableHead>{m.treatment_factor_label()}</TableHead>
-            <TableHead>{m.treatment_note_label()}</TableHead>
+            <TableHead>{m.observation_note_label()}</TableHead>
             <TableHead className="w-24" numeric>
               {m.experiment_units()}
             </TableHead>
@@ -68,7 +68,7 @@ export function TreatmentsTable({
                 <TableCell cellLabel={m.treatment_factor_label()}>
                   {factor || <Absent />}
                 </TableCell>
-                <TableCell cellLabel={m.treatment_note_label()}>
+                <TableCell cellLabel={m.observation_note_label()}>
                   {treatment.note ? (
                     <span className="line-clamp-2">{treatment.note}</span>
                   ) : (

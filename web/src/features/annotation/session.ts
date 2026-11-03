@@ -105,7 +105,7 @@ function reduceSession(
 
 /**
  * Where the boxes on view stand: edited and not yet confirmed, a person's
- * review, a machine's reading awaiting one, or nothing read at all.
+ * review, a Worker's reading awaiting one, or nothing read at all.
  */
 export type Standing =
   "edited" | "reviewed" | Exclude<ReviewSource, "review"> | "unread";

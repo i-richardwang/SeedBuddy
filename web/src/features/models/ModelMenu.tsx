@@ -49,13 +49,15 @@ export function ModelMenu({
         key: "delete",
         danger: true,
         icon: Trash2,
-        label: m.model_menu_delete_item(),
+        label: m.model_menu_delete(),
         onClick: () =>
           confirmDestructive({
             title: m.model_delete_title({ name }),
             confirmLabel: m.model_delete(),
             onConfirm: async () => {
               await removeModel({ data: { model: model.id } });
+            },
+            onSuccess: async () => {
               toast.success(m.model_deleted({ name }));
               await navigateAfterWrite({ to: "/models" });
             },

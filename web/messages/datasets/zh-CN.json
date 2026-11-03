@@ -130,6 +130,5 @@
   "image_split": "训练划分",
   "image_split_train": "训练集",
   "image_split_val": "验证集",
-  "image_steps": "图片",
   "image_title": "{dataset} 中的 {file}"
 }
