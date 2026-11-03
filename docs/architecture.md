@@ -28,7 +28,7 @@ Domain exceptions inherit shared categories from `domain/errors.ts` and carry st
 
 `image_geometry` owns dish circle detection without model or annotation dependencies; traditional detection uses it, and the workbench reads the same [recipe](images.md) to bound AI annotation to the dish. AI annotation itself runs on the workbench and the agents people connect to it; see [AI annotation](ai-annotation.md).
 
-`vitroflow` depends on neither `vitroctl` nor the workbench. It ships its own `dish-recipe.json` as package data. A test pins those bytes to `src/vitroctl/image_geometry/dish-recipe.json`; its independent detector reads that recipe.
+`vitroflow` depends on neither `vitroctl` nor the workbench. It ships its own `dish-recipe.json` as package data. A test pins those bytes to `src/vitroctl/image_geometry/dish-recipe.json`; its independent detector reads that recipe and uses the same half-up thumbnail dimension rule as `image_geometry/recipe.py`.
 
 The allowed internal dependencies are defined by layer:
 
@@ -41,26 +41,26 @@ The allowed internal dependencies are defined by layer:
 | `datasets` | `contracts`, `detector_contracts`, `io` |
 | `training` | `contracts` |
 | `traditional` | `contracts`, `datasets`, `detector_contracts`, `image_geometry`, `io` |
-| `ultralytics` | `contracts`, `datasets`, `detector_contracts`, `io`, `training` |
+| `ultralytics` | `contracts`, `datasets`, `detector_contracts`, `io` |
 | `worker` | `contracts`, `detector_contracts`, `io`, `models`, `traditional`, `training`, `ultralytics` |
 | `host` | `io`, `worker` |
 | `models` | `contracts`, `io` |
-| `cli` | `datasets`, `host`, `io`, `models`, `traditional`, `training`, `ultralytics` |
+| `cli` | `contracts`, `datasets`, `host`, `io`, `models`, `traditional`, `training`, `ultralytics` |
 | `entry` | None |
 
-`detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. Reviewed dataset loading belongs to `datasets/annotations.py`. Traditional configuration defaults are `DEFAULT_PIPELINE_CONFIG` in `detectors/traditional/config.py`; split assignment belongs to `detectors/ultralytics/dataset.py`, which defines `assign_splits` without exporting it from the package.
+`detector_contracts` owns the `detectors` namespace outside its algorithm families. `host` owns `worker/host` and depends on the `worker` package layer. `entry` is the top-level package. `DatasetManifest.annotated` in `datasets/manifest.py` filters the manifest to reviewed images. Traditional configuration defaults are `DEFAULT_PIPELINE_CONFIG` in `detectors/traditional/config.py`; split assignment belongs to `detectors/ultralytics/dataset.py`, which defines `assign_splits` without exporting it from the package.
 
 `scripts/check_architecture.py` defines these layer names and checks ownership, dependency directions, unresolved package imports and cycles, including type-only and function-local imports.
 
 ## Execution identity
 
-Traditional execution identity lives in `detectors/traditional/identity.py`. Its source fingerprint includes the pipeline's behavior dependencies, including image decoding in `io/image_io.py`. The detector runtime fingerprint also includes its adapter and common contract. Source paths are explicit and resolved relative to their owning implementation; moving a dependency does not justify dropping it from coverage.
+Traditional execution identity lives in `detectors/traditional/identity.py`. Its source fingerprint includes the pipeline's behavior dependencies, including image decoding in `io/image_io.py`. The detector runtime fingerprint also includes its adapter and common contract. Source paths are explicit and resolved relative to their owning implementation. Digest helpers in `io/files.py` are outside the pipeline fingerprint inventory.
 
 A runtime fingerprint identifies execution code. A traditional artifact digest identifies the candidate model and configuration. Model Bundle version identity is defined in the [operator guide](vitroctl.md#training-and-model-delivery). These identities have different purposes: a source change can change runtime identity without changing the artifact or inventing another model version. Regression tests check this distinction by varying behavior-source and dish-recipe bytes. An import-closure check requires traditional and image-geometry algorithm modules reachable from the pipeline to remain in the fingerprint inventory.
 
 ## Database schema
 
-Startup applies all forward migrations in `web/drizzle/` through `web/src/server/bootstrap.ts` and `connection.migrate()`. The schema describes the records, and applied migrations are immutable. Tests cover empty database initialization and populated records.
+Startup applies all forward migrations in `web/drizzle/` through the [database preparation chain](backend-architecture.md#persistence-and-startup). The schema describes the records, and applied migrations are immutable. Tests cover empty database initialization and populated records.
 
 ## Continuous verification
 

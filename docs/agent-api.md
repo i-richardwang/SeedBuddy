@@ -75,7 +75,7 @@ Image bytes use the [HTTP upload surface](#http-surface); MCP operations take th
 
 ## Error contract
 
-Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subject>_mismatch`, `ConflictError` for `<subject>_name_taken` or `<subject>_conflict`, and `NotFoundError` for `<subject>_not_found`. Protocol adapters classify these domain errors: the agent transport emits `invalid_request`, `conflict`, `not_found`, `unauthorized` or `internal_error`. The current domain codes are:
+Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subject>_mismatch`, `ConflictError` for `<subject>_name_taken` or `<subject>_conflict`, and `NotFoundError` for `<subject>_not_found`. Protocol adapters classify these domain errors: the agent transport emits `invalid_request`, `conflict`, `not_found`, `unauthorized` or `internal_error`. The domain codes are:
 
 | Subject | Codes |
 | --- | --- |
@@ -86,15 +86,15 @@ Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subj
 | experiments | `experiment_not_found`, `experiment_observation_image_not_found`, `observation_not_found`, `treatment_not_found`, `unit_not_found`, `culture_event_not_found`, `experiment_name_taken`, `experiment_records_conflict`, `image_storage_conflict`, `observation_conflict`, `observation_model_counts_conflict`, `treatment_name_taken`, `treatment_conflict`, `unit_conflict`, `observation_image_conflict`, `manual_reading_conflict`, `experiment_observation_image_conflict`, `unit_name_taken` |
 | images | `image_not_found`, `image_source_invalid` |
 | inference | `detection_conflict`, `detection_outcome_invalid`, `detection_image_not_found`, `producer_mismatch`, `inference_attempt_conflict` |
-| models | `model_not_found`, `model_version_not_found`, `model_name_taken`, `model_usage_conflict`, `class_invalid`, `model_publication_invalid` |
+| models | `model_not_found`, `model_version_not_found`, `model_upload_not_found`, `model_name_taken`, `model_usage_conflict`, `class_invalid`, `model_publication_invalid` |
 | training | `training_run_conflict`, `training_run_not_found`, `training_artifact_invalid` |
 | workers | `worker_not_found`, `worker_name_taken`, `worker_session_conflict` |
 
-`annotation_conflict` maps to `conflict`; `dataset_manifest_too_large` maps to `invalid_request`. A missing image in reading lookup raises `image_not_found`.
+`dataset_manifest_too_large` maps to `invalid_request`.
 
 Both MCP servers report tool handler failures as `isError: true` with JSON `{ "code": "…", "message": "…" }` in text content. The MCP SDK owns argument validation before handlers run.
 
-HTTP image and weight uploads and dataset manifest PUTs share exact-length body admission. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. The `/api/transfer/*` surface uses `{ "error": "…" }`. Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
+HTTP image and weight uploads, Worker artifact parts and dataset manifest PUTs share `exactLengthBody` admission in `transport/http/upload-body.ts`. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. The `/api/transfer/*` surface uses `{ "error": "…" }`; importing for an unknown model returns 404, while `DatasetImportInvalidError` returns 409. Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
 
 ## Design and records
 
@@ -146,3 +146,7 @@ Record commands such as entering counts, moving units and creating an observatio
 ## Inference task control
 
 `get-inference-task` accepts `{ "versionId": "<model-version>", "digest": "<image-sha256>" }` and returns the durable task and its execution attempts, or null when no task has been materialized. Each attempt records its Worker, session, execution deadline, lease, final state and failure. `retry-inference-task` accepts the same target and resets a terminal failure's retry budget while retaining its attempt history. Successful results remain immutable. Experiment image reviews use the same retry operation internally.
+
+## Training and model delivery
+
+`list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload` and `use-model-version` expose training and model delivery through both surfaces. The [operator workflow](vitroctl.md#training-and-model-delivery) describes recipes, recovery and local file uploads.

@@ -4,7 +4,7 @@ The [reading rules](readings.md) define counts, exclusions, summaries and export
 
 ## Terms
 
-A reading is a count read from a photograph by a model or a person; an inference is a model’s reading. A count entered by hand records a tally supplied directly for a unit and observation.
+A reading is a count for a unit and observation, read from a photograph by a model or a person or entered by hand; a detection is a model’s reading.
 
 A Worker is a registered machine. A Worker process is the running program that authenticates as that Worker and supervises execution.
 
@@ -20,7 +20,7 @@ An observation is one occasion on one calendar day, at most once per experiment 
 
 One standardized photograph belongs to each unit and observation. Its source filename supplies a suggested unit code for confirmation and remains traceability metadata, not identity. Replacing or removing an assignment preserves the canonical image and its readings. Objects within a unit are subsamples; the physical dish circle is an image diagnostic, not the unit's identity.
 
-Images, counts entered by hand and culture events prevent deletion of their unit or observation, and prevent deletion of their treatment or experiment. Deleting an eligible treatment also deletes its units. An inoculation date cannot move past an observation. Discarded, harvested and missing are terminal culture events; a unit has at most one terminal event and has no records after it. An event entered by mistake can be removed.
+Images, counts entered by hand and culture events prevent deletion of their unit or observation, and prevent deletion of their treatment or experiment. Deleting an eligible treatment also deletes its units. An inoculation date cannot move past an observation. Discarded, harvested and missing are terminal culture events; a unit has at most one terminal event and has no records after it. An event entered by mistake can be removed. Correcting an observation date must preserve these lifetimes. An observation with counts entered by hand keeps its model until those counts are withdrawn; its counted classes can change within that model.
 
 ## Models and versions
 
@@ -30,7 +30,7 @@ Training publishes a candidate without selecting it. Candidate comparison uses t
 
 ## Dataset transfer
 
-A dataset manifest carries image memberships, annotations for its model, unclear marks and informational detections. Import requires a model with matching classes, all named images, an unused dataset name and no stored annotations for those images and that model. Import adds unclear marks without clearing them and does not import detections.
+A dataset manifest carries image memberships, annotations for its model, unclear marks and informational detections. Every image entry requires an `unclear` boolean; omitting it makes the manifest invalid. Import requires a model with matching classes, all named images, an unused dataset name and no stored annotations for those images and that model. Import adds unclear marks without clearing them and does not import detections.
 
 Download on the dataset page streams an uncompressed ZIP of its manifest and canonical images. Import on the model page uploads those bytes and applies the manifest. The archive uses the local data-root layout described in [vitroctl](vitroctl.md#datasets), so unpacking it yields a data root for one dataset. Transfer preserves image bytes and annotations.
 

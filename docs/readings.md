@@ -11,7 +11,7 @@ model's identity: the image page offers them as the class of a box being drawn, 
 YOLO export indexes labels by them, dataset transfer requires both ends to
 agree on them, and a training snapshot freezes them alongside the images.
 
-The built-in seed germination model recognizes `ungerminated` and
+The built-in `seed-detector` recognizes `ungerminated` and
 `germinated`, two states of one seed. Every visible seed is boxed in one of
 them, so a photograph annotated for it teaches the model both what a seed is
 and which state it is in. Seeds hidden under grown seedlings go unboxed, since
@@ -47,22 +47,13 @@ count entered by hand per day.
 
 Every photograph yields a tally: how many instances of each class the reading
 found. An image can hold three readings, and they rank: a reviewer's
-review outranks an AI agent's proposal, which outranks the detector's
-result. Only a review marks the image reviewed; the grid distinguishes it from automated readings. The grid and resolved sheet use detections from the current model version. The image review workbench can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
+review outranks an AI agent's proposal, which outranks the model’s
+detection. Only a review marks the image reviewed; the grid distinguishes it from automated readings. The grid and resolved sheet use detections from the current model version. The image review workbench can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
 
 A count entered by hand is a tally too, kept by class, for a day that was
 not photographed or a dish that was counted at the bench, such as when its
 seedlings were moved. It is entered for a whole observation at a time, a row
-per unit and a field per class the day counts. When it supplies every counted class, it takes precedence over the photograph. The grid marks it as a count entered by hand. A
-unit removed from the bench before the observation can no more be counted
-than photographed, and counts follow the [record lifetime rules](domain.md#experimental-design). Correcting an observation date must preserve
-that lifetime: no photograph, count entered by hand or culture event may move past the
-unit’s terminal observation.
-
-An observation with counts entered by hand keeps its model until those counts are
-explicitly withdrawn. Even identically named classes in another model can
-mean different things; switching models never reinterprets those counts.
-Changing the counted classes within the same model remains allowed.
+per unit and a field per class the day counts. When it supplies every counted class, it takes precedence over the photograph. The grid marks it as a count entered by hand. Counts and observation edits follow the [record lifetime rules](domain.md#experimental-design).
 
 A photograph's tally leaves out a class it found none of, and that class
 counts zero. A person's count may not: a class the day counts and the count
@@ -140,10 +131,7 @@ first observation itself has none, and a day read for another model has
 counts alone. A day is read by its rate where any treatment has one, and by
 its count otherwise.
 
-The workbench shows the summary as the experiment's second tab, a chart of one
-day's means with their standard deviations as error bars over a table of every
-day; the spreadsheet carries it as its second sheet, with n, mean, SD and SE
-under each date; and the agent's sheet carries it under the cells. Whether the
+The [experiment page](interface.md#pages) presents the summary. The spreadsheet carries it as its second sheet, with n, mean, SD and SE under each date; the agent’s sheet carries it under the cells. Whether the
 treatments differ significantly is a question the summary does not answer:
 the test and the multiple-comparison method are the researcher's to choose,
 so that work is done on the exported numbers.

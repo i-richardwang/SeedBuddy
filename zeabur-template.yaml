@@ -39,7 +39,7 @@ spec:
         bound for you. It has to be the domain you gave as the workbench domain,
         because that value is the auth issuer.
 
-        Database startup follows `docs/architecture.md`. The workbench creates
+        Database startup follows `docs/architecture.md#database-schema`. The workbench creates
         the first administrator from the supplied credentials. Maintenance starts after
         the workbench, uses the same Postgres and MinIO, and retries unavailable
         infrastructure. Deploy both application services from the same commit.
