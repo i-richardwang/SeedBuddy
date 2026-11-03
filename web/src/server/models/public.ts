@@ -2,6 +2,7 @@ export { prepareDatabase } from "./bootstrap";
 export {
   collectUnreferencedModelWeights,
   importModelUpload,
+  modelBundleVersionId,
   openModelWeights,
   prepareModelUpload,
   registerUploadedModel,

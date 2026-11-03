@@ -3,7 +3,7 @@
  * S3-compatible bucket:
  *
  *   images/<xx>/<sha256>                         images, by content digest
- *   image-previews/<sha256>.webp                 derived workbench previews
+ *   image-previews/<xx>/<sha256>                 derived workbench previews
  *   image-regions/<sha256>/<recipe>/<region>.png  derived image evidence
  *   model-artifacts/<upload-id>/<sha256>         immutable model delivery
  *   training-artifact-parts/<run>/<attempt>/... pending final-model parts

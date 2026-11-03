@@ -8,6 +8,7 @@ import type { AttemptOwner } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
 import { database, operationTime, transaction } from "../infra/db/client";
 import {
+  modelBundleVersionId,
   prepareModelUpload,
   readModelVersion,
   registerUploadedModel,
@@ -53,14 +54,14 @@ export async function completeTrainingRun(
   return transaction(async (tx) => {
     const locked = await lockTrainingRun(runId, tx);
     const at = await operationTime(tx);
-    if (locked.attempt !== owner.attempt)
-      throw new TrainingRunConflictError("Training attempt was superseded");
     if (locked.state.status === "succeeded") {
+      if (locked.attempt !== owner.attempt)
+        throw new TrainingRunConflictError("Training attempt was superseded");
       const version = await readModelVersion(locked.state.modelVersionId, tx);
       if (
-        version?.artifact.kind !== "ultralytics" ||
-        canonicalJson(version.artifact.weights) !==
-          canonicalJson(document.weights)
+        !version ||
+        version.id !==
+          modelBundleVersionId(locked.modelId, document, version.source)
       )
         throw new TrainingRunConflictError(
           "Training already published different contents",
@@ -82,8 +83,8 @@ export async function completeTrainingRun(
     return transitionTrainingRun(
       runId,
       { status: "succeeded", modelVersionId: version.id },
-      tx,
       at,
+      tx,
     );
   });
 }

@@ -128,6 +128,7 @@ export async function readDatasetSnapshot(
  */
 export async function createDatasetSnapshot(
   datasetId: string,
+  at: Date,
   tx: Executor,
 ): Promise<DatasetSnapshot> {
   const dataset = await readDataset(datasetId, tx);
@@ -153,7 +154,7 @@ export async function createDatasetSnapshot(
     id: snapshotId,
     datasetId,
     modelId: dataset.modelId,
-    createdAt: new Date(),
+    createdAt: at,
   });
   await tx.insert(datasetSnapshotImages).values(
     members.map(({ digest, split, annotation }) => ({

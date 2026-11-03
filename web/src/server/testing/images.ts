@@ -70,7 +70,19 @@ export async function resultFor(
   content: string,
   runtime = TEST_RUNTIME,
 ): Promise<DetectionResult> {
-  return countedImageResult(version, await imageDigest(content), 1, runtime);
+  return {
+    ...makeResult([{ id: 0, x: 10, y: 10 }], {
+      digest: await imageDigest(content),
+      dishRadius: FIXTURE_EDGE / 4,
+      width: FIXTURE_EDGE,
+      height: FIXTURE_EDGE,
+    }),
+    producer: {
+      modelVersionId: version.id,
+      artifactDigest: version.artifact.digest,
+      runtime,
+    },
+  };
 }
 
 /** One box per instance the tally counts, laid along the top of the image. */

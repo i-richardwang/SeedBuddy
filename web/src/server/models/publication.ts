@@ -32,6 +32,15 @@ import {
   requireModel,
 } from "./registry";
 
+/** A bundle's registered identity includes its provenance and execution source. */
+export function modelBundleVersionId(
+  modelId: string,
+  bundle: ModelBundle,
+  source: ModelVersion["source"],
+): string {
+  return `version-${documentDigest({ modelId, bundle, source })}`;
+}
+
 const UPLOAD_LIFETIME = 24 * 60 * 60 * 1000;
 
 export function bundleDigest(bundle: ModelBundle): string {
@@ -53,13 +62,13 @@ function executableSettings(bundle: ModelBundle) {
 
 export async function prepareModelUpload(modelId: string, value: ModelBundle) {
   const bundle = modelBundleSchema.parse(value);
-  const model = await requireModel(modelId, await database());
+  const db = await database();
+  const model = await requireModel(modelId, db);
   if (!sameClasses(model.classes, bundle.classes))
     throw new ModelPublicationInvalidError(
       "Bundle classes and their order must match the model",
     );
   const uploadId = `upload-${documentDigest({ modelId, bundle })}`;
-  const db = await database();
   const at = await operationTime(db);
   const expiresAt = new Date(at.getTime() + UPLOAD_LIFETIME);
   await db
@@ -129,7 +138,7 @@ export async function registerUploadedModel(
     bundleDigest: bundleDigest(row.bundle),
     provenance: row.bundle.provenance,
   };
-  const id = `version-${documentDigest({ modelId: row.modelId, bundle: row.bundle, source: origin })}`;
+  const id = modelBundleVersionId(row.modelId, row.bundle, origin);
   const existing = await readModelVersion(id, tx);
   if (existing) return existing;
   if (!row.artifactDigest)

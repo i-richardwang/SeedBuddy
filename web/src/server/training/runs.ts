@@ -110,10 +110,9 @@ function stateColumns(
 export async function transitionTrainingRun(
   runId: string,
   state: TrainingRun["state"],
+  at: Date,
   db: Executor,
-  suppliedAt?: Date,
 ): Promise<TrainingRun> {
-  const at = await operationTime(db, suppliedAt);
   const [row] = await db
     .update(trainingRuns)
     .set({
@@ -129,9 +128,9 @@ export async function transitionTrainingRun(
     await finishAttempt(
       run,
       state.status,
-      db,
       state.status === "failed" ? state.error : null,
       at,
+      db,
     );
   }
   return run;
@@ -152,8 +151,8 @@ async function fencedUpdate(
   runId: string,
   owner: AttemptOwner,
   set: Partial<typeof trainingRuns.$inferInsert>,
-  db: Executor,
   at: Date,
+  db: Executor,
 ): Promise<TrainingRun> {
   const [row] = await db
     .update(trainingRuns)
@@ -237,7 +236,8 @@ export async function createTrainingRun(
         `Training run ${active.id} is still active for ${dataset.modelId}`,
       );
     }
-    const snapshot = await createDatasetSnapshot(datasetId, tx);
+    const at = await operationTime(tx);
+    const snapshot = await createDatasetSnapshot(datasetId, at, tx);
     const runId = trainingRunId(randomUUID());
     const [row] = await tx
       .insert(trainingRuns)
@@ -245,7 +245,7 @@ export async function createTrainingRun(
         id: runId,
         modelId: snapshot.modelId,
         datasetSnapshotId: snapshot.id,
-        createdAt: new Date(),
+        createdAt: at,
         attempt: 0,
         targetWorkerId,
         recipe: trainingRecipeSchema.parse(recipe),
@@ -317,7 +317,7 @@ export async function claimTrainingRun(
       .for("update", { skipLocked: true });
     if (!candidate) return null;
     if (candidate.status === "running")
-      await finishAttempt(toTrainingRun(candidate), "expired", tx, null, at);
+      await finishAttempt(toTrainingRun(candidate), "expired", null, at, tx);
     await tx.insert(trainingAttempts).values({
       runId: candidate.id,
       attempt: candidate.attempt + 1,
@@ -371,8 +371,8 @@ export async function renewTrainingRun(
       runId,
       owner,
       { leaseExpiresAt: leaseUntil(at) },
-      db,
       at,
+      db,
     );
   });
 }
@@ -412,8 +412,8 @@ export async function enterTrainingPhase(
         }),
         ...(phase !== current.state.phase ? { lastProgressAt: at } : {}),
       },
-      db,
       at,
+      db,
     );
   });
 }
@@ -477,8 +477,8 @@ export async function recordTrainingEpoch(
             }
           : {}),
       },
-      tx,
       at,
+      tx,
     );
   });
 }
@@ -494,10 +494,10 @@ export async function failTrainingRun(
       runId,
       owner,
       stateColumns({ status: "failed", error: error.slice(0, 2000) }),
-      tx,
       at,
+      tx,
     );
-    await finishAttempt(run, "failed", tx, error.slice(0, 2000), at);
+    await finishAttempt(run, "failed", error.slice(0, 2000), at, tx);
     return run;
   });
 }

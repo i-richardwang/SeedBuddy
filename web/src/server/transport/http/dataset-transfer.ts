@@ -7,6 +7,7 @@ import {
   encodeDatasetManifest,
   MAX_DATASET_MANIFEST_BYTES,
 } from "../../../domain/datasets/manifest";
+import { ModelNotFoundError } from "../../../domain/models/errors";
 import { importDataset, readDatasetManifest } from "../../datasets/public";
 import { exactLengthBody, uploadFailure as failed } from "./upload-body";
 
@@ -57,6 +58,7 @@ export async function serveDatasetImport(
     const dataset = await importDataset(parsed.data);
     return Response.json({ dataset }, { status: 201 });
   } catch (error) {
+    if (error instanceof ModelNotFoundError) return failed(error.message, 404);
     if (error instanceof DatasetImportInvalidError) {
       return failed(error.message, 409);
     }

@@ -211,6 +211,12 @@ test("publication registers one immutable version per training run", async () =>
   );
   expect(completed).toEqual(repeated);
   await expect(
+    completeTrainingRun(run.id, owner("publisher"), weights, {
+      ...publication,
+      inference: { ...publication.inference, confidence: 0.7 },
+    }),
+  ).rejects.toThrow(/different contents/);
+  await expect(
     completeTrainingRun(
       run.id,
       owner("publisher"),
