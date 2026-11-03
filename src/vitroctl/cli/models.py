@@ -26,7 +26,7 @@ def _verify_runtime(document: dict[str, Any], weights: Path) -> None:
     settings = document["inference"]
     detector = UltralyticsDetector(
         weights,
-        YoloInferenceSettings.decode(settings),
+        YoloInferenceSettings.decode(settings, "model bundle.inference"),
         tuple(document["classes"]),
         "cpu",
     )

@@ -1,3 +1,5 @@
+"""Launchd primitives; commands check platform support and load profiles once."""
+
 from __future__ import annotations
 
 import os

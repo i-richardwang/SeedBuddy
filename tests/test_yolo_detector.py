@@ -27,7 +27,7 @@ class _Tensor:
         return self._values
 
 
-def test_ultralytics_detector_uses_published_inference_settings(
+def test_yolo_detector_uses_published_inference_settings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls: list[tuple[str, dict[str, object]]] = []
@@ -104,7 +104,7 @@ def test_ultralytics_detector_uses_published_inference_settings(
     ]
 
 
-def test_ultralytics_detector_binds_weight_classes_to_the_model(
+def test_yolo_detector_binds_weight_classes_to_the_model(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class FakeYolo:

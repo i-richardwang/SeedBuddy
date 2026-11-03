@@ -32,7 +32,7 @@ class YoloInferenceSettings:
     end_to_end: bool
 
     @classmethod
-    def decode(cls, document: dict[str, Any]) -> YoloInferenceSettings:
+    def decode(cls, document: dict[str, Any], context: str) -> YoloInferenceSettings:
         return cls(
             document["confidence"],
             document["imageSize"],

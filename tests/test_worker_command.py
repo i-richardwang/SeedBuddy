@@ -167,3 +167,40 @@ def test_list_reports_each_profile(tmp_path, monkeypatch, capsys) -> None:
     assert main(["worker", "list"]) == 0
 
     assert capsys.readouterr().out == ("trainer\tnever started\tnot loaded\tcpu\n")
+
+
+@pytest.mark.parametrize("action", ["start", "restart", "stop"])
+def test_service_commands_check_platform_and_profile_once(
+    tmp_path, monkeypatch, action
+):
+    from vitroctl.worker.host import launchd
+
+    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    profile = WorkerProfile(server_url="https://example.test", token="secret")
+    save_profile("trainer", profile)
+    checks = []
+    loads = []
+    monkeypatch.setattr(
+        worker_command, "require_launchd", lambda: checks.append("platform")
+    )
+    original = worker_command.load_profile
+
+    def load(name):
+        loads.append(name)
+        return original(name)
+
+    monkeypatch.setattr(worker_command, "load_profile", load)
+    monkeypatch.setattr(
+        worker_command,
+        "preflight_profile",
+        lambda name, value: (checks.append(value) or "ready",),
+    )
+    monkeypatch.setattr(
+        launchd, "launch_agent_path", lambda _: tmp_path / "agent.plist"
+    )
+    monkeypatch.setattr(launchd.shutil, "which", lambda _: "/opt/bin/vitroctl")
+    monkeypatch.setattr(launchd, "service_loaded", lambda _: False)
+    monkeypatch.setattr(launchd, "_launchctl", lambda *args: None)
+    assert main(["worker", action, "trainer"]) == 0
+    assert loads == ["trainer"]
+    assert checks == (["platform"] if action == "stop" else ["platform", profile])

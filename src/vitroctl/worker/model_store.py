@@ -106,7 +106,9 @@ class ModelStore:
         require_ultralytics_version(required_runtime)
         expected_digest = artifact["digest"]
         inference = artifact["inference"]
-        settings = YoloInferenceSettings.decode(inference)
+        settings = YoloInferenceSettings.decode(
+            inference, "model manifest.artifact.inference"
+        )
         destination = self._artifacts / version_id
         if destination.exists():
             try:

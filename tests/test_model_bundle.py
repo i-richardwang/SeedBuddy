@@ -158,14 +158,6 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
         weights = output / "best.pt"
         weights.write_bytes(b"trained once")
         metadata = model_bundle(weights, recipe)
-        (output / "training-context.json").write_text(
-            json.dumps(
-                {
-                    "codeRevision": "sha256:" + "a" * 64,
-                    "effectiveParameters": recipe["parameters"],
-                }
-            )
-        )
         summary = output / "inference.json"
         summary.write_text(
             json.dumps(
@@ -224,7 +216,6 @@ def test_high_resolution_bundle_roundtrips(tmp_path, size, recipe):
 def test_training_bundle_refuses_unusable_validation(tmp_path):
     summary = tmp_path / "inference.json"
     summary.write_text(json.dumps({"inference": {"ready": False}}))
-    (tmp_path / "training-context.json").write_text("{}")
     with pytest.raises(ValueError, match="usable validation"):
         training_bundle(
             YoloTrainingResult(tmp_path / "best.pt", summary, {}), ["seed"], {}
@@ -292,3 +283,56 @@ def test_remote_training_rejects_invalid_recipe_before_send(
     spec.write_text(json.dumps({"dataset": "dataset-id", "recipe": recipe}))
     assert main(["training", "run", "--spec", str(spec)]) == 2
     assert calls == []
+
+
+@pytest.mark.parametrize(
+    "arguments, message",
+    [
+        (["--data-root", "data"], "apply only to --local"),
+        (["--local", "--worker", "other"], "cannot be combined"),
+        (["--local"], "requires --output"),
+    ],
+)
+def test_training_mode_conflicts_fail_before_reading_the_spec(
+    tmp_path, capsys, arguments, message
+):
+    assert (
+        main(["training", "run", "--spec", str(tmp_path / "absent.json"), *arguments])
+        == 2
+    )
+    assert message in capsys.readouterr().err
+
+
+def test_training_bundle_uses_result_context_and_one_metric_source(tmp_path, recipe):
+    from vitroctl.models.bundle import training_provenance
+
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"trained")
+    template = model_bundle(weights, recipe)
+    summary = tmp_path / "publication.json"
+    summary.write_text(
+        json.dumps(
+            {
+                "inference": {
+                    key: value
+                    for key, value in template["inference"].items()
+                    if key not in {"mode", "iou"}
+                }
+                | {"ready": True},
+                "training": recipe,
+                "validation": template["validation"],
+            }
+        )
+    )
+    context = {"codeRevision": "supplied revision", "effectiveParameters": {"batch": 2}}
+    result = YoloTrainingResult(weights, summary, context)
+    provenance = training_provenance(
+        fingerprint=None,
+        snapshot_id="snapshot-one",
+        dataset_description="dataset",
+        evaluation_description="validation",
+    )
+    document = training_bundle(result, ["seed"], provenance)
+    assert document["provenance"]["codeRevision"] == "supplied revision"
+    assert document["provenance"]["effectiveParameters"] == {"batch": 2}
+    assert document["provenance"]["evaluation"]["metrics"] is document["validation"]

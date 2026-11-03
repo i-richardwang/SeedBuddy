@@ -353,3 +353,26 @@ def test_outbound_detection_is_validated_before_any_network_request(change, reas
         assert server.calls == []
     finally:
         client.worker.close()
+
+
+def test_each_download_uses_its_call_deadline(monkeypatch):
+    server = Workbench()
+    client = server.client()
+    deadlines = []
+
+    def request(method, url, *, deadline):
+        deadlines.append(deadline)
+        return httpx.Response(
+            200,
+            content=b"bytes",
+            request=httpx.Request(method, "https://example.test/" + url),
+        )
+
+    monkeypatch.setattr(client.worker, "request", request)
+    try:
+        assert client.download("c" * 64, 100.0) == b"bytes"
+        assert client.weights("model-one", 200.0) == b"bytes"
+        assert client.download("d" * 64, 300.0) == b"bytes"
+        assert deadlines == [100.0, 200.0, 300.0]
+    finally:
+        client.worker.close()

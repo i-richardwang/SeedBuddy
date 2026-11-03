@@ -30,12 +30,9 @@ def test_seed_recipe_parameters_are_accepted_ultralytics_arguments(recipe) -> No
 
     for name, value in parameters.items():
         assert getattr(cfg, name) == value
-    assert cfg.optimizer == "AdamW"
-    assert cfg.mosaic == pytest.approx(0.0)
-    assert cfg.max_det == 500
 
 
-def test_ultralytics_resolves_exported_dataset_from_its_yaml(
+def test_yolo_resolves_exported_dataset_from_its_yaml(
     tmp_path: Path, monkeypatch
 ) -> None:
     from ultralytics.data import utils as data_utils

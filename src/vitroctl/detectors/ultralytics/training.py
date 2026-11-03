@@ -379,9 +379,6 @@ def train_yolo_detector(
         "codeRevision": "sha256:"
         + hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
-    write_text_atomically(
-        save_dir / "training-context.json", json.dumps(context, indent=2) + "\n"
-    )
     validator_model = yolo(str(best_weights))
     if on_validation_start:
         on_validation_start()

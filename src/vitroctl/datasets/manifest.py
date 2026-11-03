@@ -95,7 +95,17 @@ class DatasetManifest:
     @property
     def annotated(self) -> tuple[AnnotatedImage, ...]:
         return tuple(
-            AnnotatedImage(**{**vars(image), "annotation": image.annotation})
+            AnnotatedImage(
+                digest=image.digest,
+                width=image.width,
+                height=image.height,
+                filename=image.filename,
+                bytes=image.bytes,
+                split=image.split,
+                detection=image.detection,
+                annotation=image.annotation,
+                unclear=image.unclear,
+            )
             for image in self.images
             if image.annotation is not None
         )
