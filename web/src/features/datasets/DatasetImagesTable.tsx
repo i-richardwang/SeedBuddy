@@ -1,19 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { ImagePlus, PenLine, Search, SearchX } from "lucide-react";
+import { Search, SearchX } from "lucide-react";
+import type { ReactNode } from "react";
 
-import type { getDatasetOverview } from "../../functions/datasets";
+import type { NamedDataset } from "../../domain/datasets/schema";
 import { m } from "../../paraglide/messages";
-import { Absent } from "../../ui/Absent";
-import { QualityTags } from "../../ui/DetectionQuality";
 import { usePagedSearch } from "../../ui/hooks/usePagedSearch";
-import { Button } from "../../ui/kit/Button";
-import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { Empty } from "../../ui/kit/Empty";
-import { Flexbox } from "../../ui/kit/Flex";
 import { Icon } from "../../ui/kit/Icon";
 import { Input } from "../../ui/kit/Input";
 import { Pagination } from "../../ui/kit/Pagination";
-import { PreviewMedia } from "../../ui/kit/PreviewLayout";
 import { Status } from "../../ui/kit/Status";
 import {
   Table,
@@ -23,12 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from "../../ui/kit/Table";
-import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { formatCount } from "../../ui/numbers";
-import { previewSrc } from "../../ui/viewport/picture";
-import { UnclearTag } from "../annotation/unclear";
+import {
+  BoxCount,
+  type DatasetOverviewImage,
+  ImageQuality,
+} from "./ImageFacts";
 import {
   DATASET_IMAGE_STATE_TONE,
   DATASET_IMAGE_STATES,
@@ -38,23 +34,17 @@ import {
 } from "./labels";
 import { RemoveImageButton } from "./RemoveImageButton";
 
-type DatasetOverview = NonNullable<
-  Awaited<ReturnType<typeof getDatasetOverview>>
->;
-
-type DatasetOverviewImage = DatasetOverview["images"][number];
-
 type Filter = DatasetImageState | "all";
 
 /** Searchable images, with their review state, quality and count. */
 export function DatasetImagesTable({
   dataset,
-  name,
+  empty,
   images,
   previewed,
 }: {
-  dataset: string;
-  name: string;
+  dataset: NamedDataset;
+  empty: ReactNode;
   images: DatasetOverviewImage[];
   previewed?: string;
 }) {
@@ -62,15 +52,15 @@ export function DatasetImagesTable({
     images.map((image) => [image.digest, datasetImageState(image)]),
   );
   const { query, setQuery, filter, setFilter, matches, shown, pagination } =
-    usePagedSearch(images, {
+    usePagedSearch<DatasetOverviewImage, Filter>(images, {
       text: (image) => image.filename,
-      initialFilter: "all" as Filter,
+      initialFilter: "all",
       accepts: (image, filter) =>
         filter === "all" || states.get(image.digest) === filter,
     });
   return (
     <Table
-      aria-label={m.dataset_images_table({ dataset: name })}
+      aria-label={m.dataset_images_table({ dataset: dataset.name })}
       size="small"
       narrow="cards"
       toolbar={
@@ -107,16 +97,7 @@ export function DatasetImagesTable({
       footer={pagination ? <Pagination {...pagination} /> : undefined}
       empty={
         images.length === 0 ? (
-          <Empty
-            icon={ImagePlus}
-            title={m.dataset_empty_images()}
-            description={m.dataset_empty_images_description()}
-            action={
-              <Button render={<Link to="/experiments" />}>
-                {m.dataset_open_experiments()}
-              </Button>
-            }
-          />
+          empty
         ) : matches.length === 0 ? (
           <Empty
             icon={SearchX}
@@ -154,7 +135,7 @@ export function DatasetImagesTable({
                   render={
                     <Link
                       to="/datasets/$dataset"
-                      params={{ dataset }}
+                      params={{ dataset: dataset.id }}
                       search={{ image: image.digest }}
                     />
                   }
@@ -178,105 +159,12 @@ export function DatasetImagesTable({
                 />
               </TableCell>
               <TableCell cellSlot="actions" className="text-end">
-                <RemoveImageButton
-                  dataset={{ id: dataset, name }}
-                  image={image}
-                />
+                <RemoveImageButton dataset={dataset} image={image} />
               </TableCell>
             </TableRow>
           );
         })}
       </TableBody>
     </Table>
-  );
-}
-
-/** One image beside the list: the photograph, where it stands, and the way into its annotation. */
-export function ImagePreview({
-  dataset,
-  image,
-  state,
-}: {
-  dataset: string;
-  image: DatasetOverviewImage;
-  state: DatasetImageState;
-}) {
-  return (
-    <>
-      <PreviewMedia src={previewSrc(image.digest)} alt={image.filename} />
-      <Descriptions>
-        <DescriptionsItem label={m.dataset_column_state()}>
-          <Status tone={DATASET_IMAGE_STATE_TONE[state]}>
-            {datasetImageStateLabel(state)}
-          </Status>
-        </DescriptionsItem>
-        <DescriptionsItem label={m.dataset_preview_boxes()}>
-          <BoxCount
-            detected={image.detectionCount}
-            proposed={image.proposalCount}
-            boxes={image.reviewCount}
-          />
-        </DescriptionsItem>
-        {hasQualityNotes(image) ? (
-          <DescriptionsItem label={m.dataset_preview_quality()}>
-            <ImageQuality image={image} />
-          </DescriptionsItem>
-        ) : null}
-      </Descriptions>
-      <Button
-        block
-        type="primary"
-        icon={PenLine}
-        render={
-          <Link
-            to="/datasets/$dataset/$digest"
-            params={{ dataset, digest: image.digest }}
-          />
-        }
-      >
-        {m.dataset_preview_open()}
-      </Button>
-    </>
-  );
-}
-
-/** Whether anything is said against the image: the detector's warnings, or a person's mark. */
-function hasQualityNotes(image: DatasetOverviewImage): boolean {
-  return (
-    (image.quality !== null && image.quality.status !== "ok") || image.unclear
-  );
-}
-
-/** What is said against the image, or nothing. */
-function ImageQuality({ image }: { image: DatasetOverviewImage }) {
-  if (!hasQualityNotes(image)) return <Absent />;
-  return (
-    <Flexbox horizontal gap={4} wrap="wrap">
-      {image.unclear ? <UnclearTag /> : null}
-      {image.quality && image.quality.status !== "ok" ? (
-        <QualityTags quality={image.quality} />
-      ) : null}
-    </Flexbox>
-  );
-}
-
-/** A reviewer's count reads plain; an unreviewed proposal or detection reads tertiary. */
-function BoxCount({
-  detected,
-  proposed,
-  boxes,
-}: {
-  detected: number | null;
-  proposed: number | null;
-  boxes: number | null;
-}) {
-  if (boxes !== null) return <>{formatCount(boxes)}</>;
-  const unreviewed = proposed ?? detected;
-  return unreviewed === null ? (
-    <Absent />
-  ) : (
-    <Text as="span" type="tertiary">
-      {formatCount(unreviewed)}
-    </Text>
   );
 }

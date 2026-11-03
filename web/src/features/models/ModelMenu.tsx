@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { NotebookPen, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -6,7 +5,7 @@ import type { Model, ModelAnnotation } from "../../domain/models/schema";
 import { removeModel, updateModelAnnotation } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -30,6 +29,7 @@ export function ModelMenu({
   model: Model;
   deletable: boolean;
 }) {
+  const confirmDestructive = useConfirmDestructive();
   const navigateAfterWrite = useNavigateAfterWrite();
   const [editing, setEditing] = useState(false);
   const name = modelName(model);
@@ -59,6 +59,7 @@ export function ModelMenu({
               toast.success(m.model_deleted({ name }));
               await navigateAfterWrite({ to: "/models" });
             },
+            invalidate: false,
           }),
       },
     );
@@ -109,7 +110,6 @@ function ModelAnnotationForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [instructions, setInstructions] = useState(
     model.annotation.instructions,
   );
@@ -129,7 +129,6 @@ function ModelAnnotationForm({
       m.model_annotation_not_saved(),
       {
         onSuccess: onDone,
-        invalidate: () => router.invalidate(),
       },
     );
   };

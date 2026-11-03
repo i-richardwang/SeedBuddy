@@ -15,12 +15,20 @@ export function SignedInUser({ user }: { user: WorkbenchUser }) {
   const { busy, run } = useAsyncAction();
 
   const signOut = () =>
-    void run(async () => {
-      const { error } = await authClient.signOut();
-      if (error) throw new Error(error.message);
-      await router.invalidate();
-      await navigate({ to: "/login" });
-    }, m.sign_out_failed());
+    void run(
+      async () => {
+        const { error } = await authClient.signOut();
+        if (error) throw new Error(error.message);
+      },
+      m.sign_out_failed(),
+      {
+        invalidate: false,
+        onSuccess: async () => {
+          await router.invalidate();
+          await navigate({ to: "/login" });
+        },
+      },
+    );
 
   return (
     <AppShellAccount

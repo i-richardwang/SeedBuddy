@@ -1,11 +1,10 @@
-import { useRouter } from "@tanstack/react-router";
 import { KeyRound, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { ApiKey } from "../../domain/auth/integrations";
 import { removeApiKey } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
@@ -90,7 +89,7 @@ export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
 }
 
 function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const expired =
     apiKey.expiresAt !== null && new Date(apiKey.expiresAt) <= new Date();
 
@@ -144,7 +143,6 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
               onSuccess: () => {
                 toast.success(m.api_key_revoked({ name: apiKey.name }));
               },
-              invalidate: () => router.invalidate(),
             })
           }
         />

@@ -65,6 +65,5 @@
   "workers_empty": "No workers enrolled yet",
   "workers_empty_description_admin": "Enroll a worker, then run the setup command on it.",
   "workers_empty_description_member": "An administrator enrolls the workers that run detection and training.",
-  "workers_title": "Workers",
-  "workers_workers": "Workers"
+  "workers_title": "Workers"
 }

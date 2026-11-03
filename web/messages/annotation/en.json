@@ -60,16 +60,7 @@
   "annotation_standing_proposal": "AI proposal · to review",
   "annotation_standing_reviewed": "Reviewed",
   "annotation_standing_unread": "Not read yet",
-  "annotation_standing_unreviewed": "To review",
   "annotation_tools": "Annotation tools",
   "annotation_undo": "Undo",
-  "annotation_unlock": "Unlock editing",
-  "unclear_cleared": "{file} reads as clear again",
-  "unclear_label": "Unclear",
-  "unclear_marked": "{file} marked unclear",
-  "unclear_menu_clear": "Clear unclear mark",
-  "unclear_menu_mark": "Mark photograph unclear",
-  "unclear_not_saved": "The mark was not saved",
-  "unclear_section": "Unclear photograph",
-  "unclear_switch_description": "It cannot be read clearly, such as a fogged lid or a dish out of focus"
+  "annotation_unlock": "Unlock editing"
 }

@@ -11,7 +11,7 @@ import { Icon } from "./Icon";
  * key is shown uppercased.
  */
 
-export interface HotkeyProps {
+interface HotkeyProps {
   /** Puts all keys in one keycap, as after a tooltip's text. */
   compact?: boolean;
   keys: string;

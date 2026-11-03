@@ -15,7 +15,7 @@ import { cn } from "./cn";
 
 type Length = number | string;
 
-export interface SkeletonProps extends Omit<
+interface SkeletonProps extends Omit<
   HTMLAttributes<HTMLDivElement>,
   "children" | "style"
 > {

@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 
 import { m } from "../paraglide/messages";
-import { type ActionSuccess, runAction } from "./hooks/useAsyncAction";
+import { type ActionSuccess, useAsyncAction } from "./hooks/useAsyncAction";
 import { confirmModal } from "./kit/Modal";
 
 /**
@@ -10,37 +10,42 @@ import { confirmModal } from "./kit/Modal";
  * hears every way of dismissing it. The returned function withdraws the
  * question unanswered.
  */
-export function confirmDestructive({
-  title,
-  content,
-  confirmLabel,
-  onConfirm,
-  onCancel,
-  onSuccess,
-  invalidate,
-}: {
-  title: string;
-  content?: ReactNode;
-  confirmLabel: string;
-  onConfirm: () => void | Promise<void>;
-  onCancel?: () => void;
-} & ActionSuccess<void>): () => void {
-  return confirmModal({
-    title,
-    content,
-    okText: confirmLabel,
-    danger: true,
-    onOk: async () => {
-      const result = await runAction(
-        async () => {
-          await onConfirm();
-          await onSuccess?.();
-          await invalidate?.();
+export function useConfirmDestructive() {
+  const { run } = useAsyncAction();
+  return useCallback(
+    function confirmDestructive({
+      title,
+      content,
+      confirmLabel,
+      onConfirm,
+      onCancel,
+      onSuccess,
+      invalidate,
+    }: {
+      title: string;
+      content?: ReactNode;
+      confirmLabel: string;
+      onConfirm: () => void | Promise<void>;
+      onCancel?: () => void;
+    } & ActionSuccess<void>): () => void {
+      return confirmModal({
+        title,
+        content,
+        okText: confirmLabel,
+        danger: true,
+        onOk: async () => {
+          const result = await run(
+            async () => {
+              await onConfirm();
+            },
+            m.action_failed({ action: confirmLabel }),
+            { onSuccess, invalidate },
+          );
+          if (!result.ok) throw result.error;
         },
-        m.action_failed({ action: confirmLabel }),
-      );
-      if (!result.ok) throw result.error;
+        onCancel,
+      });
     },
-    onCancel,
-  });
+    [run],
+  );
 }

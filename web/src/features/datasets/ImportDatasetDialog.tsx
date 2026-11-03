@@ -52,16 +52,21 @@ function ImportArchiveForm({
     void run(
       () => importDatasetArchive(file, setProgress),
       m.dataset_import_failed(),
-    ).then(async (result) => {
+      {
+        invalidate: false,
+        onSuccess: async (dataset) => {
+          onDone();
+          await navigateAfterWrite({
+            to: "/datasets/$dataset",
+            params: { dataset: dataset.id },
+          });
+        },
+      },
+    ).then((result) => {
       if (!result.ok) {
         setProgress(null);
         return;
       }
-      onDone();
-      await navigateAfterWrite({
-        to: "/datasets/$dataset",
-        params: { dataset: result.value.id },
-      });
     });
 
   return progress ? (

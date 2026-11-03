@@ -1,4 +1,4 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
@@ -17,7 +17,7 @@ import { chooseCurrentVersion } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { digestLabel } from "../../ui/IdentifierName";
+import { IdentifierName } from "../../ui/IdentifierName";
 import { Flexbox } from "../../ui/kit/Flex";
 import {
   Table,
@@ -97,7 +97,6 @@ function VersionSession({
   onClose: () => void;
   afterClose: () => void;
 }) {
-  const router = useRouter();
   const { busy, run } = useAsyncAction();
   const label = identifierLabel(version.id);
 
@@ -113,7 +112,6 @@ function VersionSession({
           toast.success(m.version_made_current({ version: label }));
           onClose();
         },
-        invalidate: () => router.invalidate(),
       },
     );
   };
@@ -404,7 +402,7 @@ function ImageName({ image }: { image: ComparedImage }) {
   if (!image.dataset) {
     return (
       <Text as="span" type="tertiary">
-        {digestLabel(image.digest)}
+        <IdentifierName id={image.digest} />
       </Text>
     );
   }

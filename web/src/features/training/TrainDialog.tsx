@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
@@ -82,7 +81,6 @@ function TrainSession({
   onClose: () => void;
   afterClose: () => void;
 }) {
-  const router = useRouter();
   const action = useAsyncAction();
   const [presetId, setPresetId] = useState(defaultTrainingPresetId);
   const [overrides, setOverrides] = useState<TrainingOverrides>({});
@@ -104,7 +102,6 @@ function TrainSession({
           onClose();
           toast.success(m.training_queued());
         },
-        invalidate: () => router.invalidate(),
       },
     );
   };

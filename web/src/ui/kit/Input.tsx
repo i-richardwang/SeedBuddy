@@ -19,7 +19,7 @@ import { Icon } from "./Icon";
  * `.dark`, so rendering never reads the theme.
  */
 
-export type InputSize = "small" | "middle" | "large";
+type InputSize = "small" | "middle" | "large";
 
 const SIZE = {
   large: "ui-input-size-large",
@@ -31,7 +31,7 @@ const SIZE = {
 export const shellClass = (size?: InputSize) =>
   cn("ui-input", size && SIZE[size]);
 
-export interface InputProps extends Omit<
+interface InputProps extends Omit<
   BaseInput.Props,
   "size" | "prefix" | "render" | "className" | "style"
 > {
@@ -85,7 +85,7 @@ export function InputPassword(props: Omit<InputProps, "type" | "suffix">) {
   );
 }
 
-export interface TextAreaProps extends Omit<
+interface TextAreaProps extends Omit<
   ComponentProps<"textarea">,
   "prefix" | "style"
 > {
@@ -127,7 +127,7 @@ export function TextArea({
   );
 }
 
-export interface InputNumberProps extends Omit<
+interface InputNumberProps extends Omit<
   NumberField.Root.Props,
   "className" | "style" | "render" | "onValueChange" | "children" | "ref"
 > {

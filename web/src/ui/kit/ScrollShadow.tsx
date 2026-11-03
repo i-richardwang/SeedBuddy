@@ -11,7 +11,7 @@ import {
 import { cn } from "./cn";
 import { mergeRefs } from "./refs";
 
-export interface ScrollShadowProps extends ComponentProps<"div"> {
+interface ScrollShadowProps extends ComponentProps<"div"> {
   as?: ElementType;
   /** Fade length as a percentage of the box. */
   size: number;

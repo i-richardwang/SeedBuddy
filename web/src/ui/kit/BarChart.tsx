@@ -34,12 +34,12 @@ export interface BarChartItem {
   spread: number | null;
 }
 
-export interface BarChartTooltip {
+interface BarChartTooltip {
   title: ReactNode;
   rows: ChartTooltipRow[];
 }
 
-export interface BarChartProps {
+interface BarChartProps {
   /** A control over the chart, beside its title. */
   extra?: ReactNode;
   height: number;

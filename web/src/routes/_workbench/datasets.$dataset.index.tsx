@@ -1,13 +1,11 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
-import { ChartLine, Images } from "lucide-react";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { ChartLine, ImagePlus, Images } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
-import {
-  DatasetImagesTable,
-  ImagePreview,
-} from "../../features/datasets/DatasetImagesTable";
+import { DatasetImagesTable } from "../../features/datasets/DatasetImagesTable";
 import { DatasetMenu } from "../../features/datasets/DatasetMenu";
+import { ImagePreview } from "../../features/datasets/ImagePreview";
 import { datasetImageState } from "../../features/datasets/labels";
 import { modelCrumbs } from "../../features/models/crumbs";
 import { TrainButton } from "../../features/training/TrainButton";
@@ -17,6 +15,7 @@ import { getDatasetOverview } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
+import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
 import { StatisticHero, StatisticHeroSkeleton } from "../../ui/kit/Statistic";
@@ -135,8 +134,19 @@ function DatasetPage() {
       />
       <PageSection title={m.dataset_images()}>
         <DatasetImagesTable
-          dataset={dataset}
-          name={name}
+          dataset={{ id: dataset, name }}
+          empty={
+            <Empty
+              icon={ImagePlus}
+              title={m.dataset_empty_images()}
+              description={m.dataset_empty_images_description()}
+              action={
+                <Button render={<Link to="/experiments" />}>
+                  {m.dataset_open_experiments()}
+                </Button>
+              }
+            />
+          }
           images={images}
           previewed={previewed}
         />

@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -6,7 +5,7 @@ import type { Treatment } from "../../domain/experiments/schema";
 import { removeTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { RowMenu } from "../../ui/ActionsMenu";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { toast } from "../../ui/kit/Toast";
 import { ReplicatesDialog, TreatmentDialog } from "./TreatmentDialog";
@@ -24,7 +23,7 @@ export function TreatmentMenu({
   /** The last treatment of an experiment is not offered for deletion. */
   deletable: boolean;
 }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const [open, setOpen] = useState<Action | null>(null);
   const close = () => setOpen(null);
 
@@ -63,7 +62,6 @@ export function TreatmentMenu({
             onSuccess: () => {
               toast.success(m.treatment_deleted({ name: treatment.name }));
             },
-            invalidate: () => router.invalidate(),
           }),
       },
     );

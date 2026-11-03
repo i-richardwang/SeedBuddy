@@ -124,25 +124,32 @@ function LoginPage() {
         onSubmit={(event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
-          void run(async () => {
-            const { data, error } = await authClient.signIn.email({
-              email,
-              password: String(form.get("password") ?? ""),
-            });
-            if (error) {
-              setRejected(true);
-              return null;
-            }
-            return continuation(data) ?? destination;
-          }, m.login_failed()).then(async (result) => {
-            if (!result.ok || result.value === null) return;
-            if (result.value !== destination) {
-              window.location.assign(result.value);
-              return;
-            }
-            await router.invalidate();
-            await navigate({ href: destination });
-          });
+          void run(
+            async () => {
+              const { data, error } = await authClient.signIn.email({
+                email,
+                password: String(form.get("password") ?? ""),
+              });
+              if (error) {
+                setRejected(true);
+                return null;
+              }
+              return continuation(data) ?? destination;
+            },
+            m.login_failed(),
+            {
+              invalidate: false,
+              onSuccess: async (next) => {
+                if (next === null) return;
+                if (next !== destination) {
+                  window.location.assign(next);
+                  return;
+                }
+                await router.invalidate();
+                await navigate({ href: destination });
+              },
+            },
+          );
         }}
       >
         <input

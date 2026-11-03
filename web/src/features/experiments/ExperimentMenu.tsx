@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { Download, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -6,7 +5,7 @@ import type { Experiment } from "../../domain/experiments/schema";
 import { editExperiment, removeExperiment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -31,6 +30,7 @@ export function ExperimentMenu({
   experiment: Experiment;
   hasRecords: boolean;
 }) {
+  const confirmDestructive = useConfirmDestructive();
   const navigateAfterWrite = useNavigateAfterWrite();
   const [editing, setEditing] = useState(false);
 
@@ -64,6 +64,7 @@ export function ExperimentMenu({
             toast.success(m.experiment_deleted({ name: experiment.name }));
             await navigateAfterWrite({ to: "/experiments" });
           },
+          invalidate: false,
         }),
     });
   }
@@ -120,7 +121,6 @@ function EditExperimentForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [inoculatedOn, setInoculatedOn] = useState(experiment.inoculatedOn);
   const [countsUnclear, setCountsUnclear] = useState(experiment.countsUnclear);
   return (
@@ -142,7 +142,6 @@ function EditExperimentForm({
           m.experiment_not_saved(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

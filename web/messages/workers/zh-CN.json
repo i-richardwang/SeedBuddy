@@ -65,6 +65,5 @@
   "workers_empty": "还没有登记计算节点",
   "workers_empty_description_admin": "登记一台计算节点，然后在计算节点上运行设置命令。",
   "workers_empty_description_member": "运行检测与训练的计算节点由管理员登记。",
-  "workers_title": "计算节点",
-  "workers_workers": "计算节点"
+  "workers_title": "计算节点"
 }

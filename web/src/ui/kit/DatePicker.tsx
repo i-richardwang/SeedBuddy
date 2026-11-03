@@ -53,7 +53,7 @@ import { shellClass } from "./Input";
  * only in the browser.
  */
 
-export interface DatePickerProps {
+interface DatePickerProps {
   disabled?: boolean;
   /** The earliest day that can be picked. */
   earliest?: CalendarDay;

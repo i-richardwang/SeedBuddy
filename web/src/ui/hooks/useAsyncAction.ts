@@ -1,3 +1,4 @@
+import { useRouter } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 
 import { errorMessage } from "../errors";
@@ -26,13 +27,14 @@ export async function runAction<T>(
 }
 
 export interface ActionSuccess<T> {
-  /** Runs after the write succeeds and the busy flag clears, before reloading. */
+  /** Runs after the write succeeds, while busy, before reloading. */
   onSuccess?: (value: T) => void | Promise<void>;
-  invalidate?: () => Promise<void>;
+  invalidate?: false;
 }
 
 /** One action's busy flag and a `runAction` that raises it while the work runs. */
 export function useAsyncAction() {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const run = useCallback(
     async <T>(
@@ -41,19 +43,18 @@ export function useAsyncAction() {
       options: ActionSuccess<T> = {},
     ) => {
       setBusy(true);
-      let result: ActionResult<T>;
       try {
-        result = await runAction(work, failure);
+        return await runAction(async () => {
+          const value = await work();
+          await options.onSuccess?.(value);
+          if (options.invalidate !== false) await router.invalidate();
+          return value;
+        }, failure);
       } finally {
         setBusy(false);
       }
-      if (result.ok) {
-        await options.onSuccess?.(result.value);
-        await options.invalidate?.();
-      }
-      return result;
     },
-    [],
+    [router],
   );
   return { busy, run };
 }

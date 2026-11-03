@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
@@ -72,7 +71,6 @@ function TreatmentForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [name, setName] = useState(treatment?.name ?? "");
   const [factor, setFactor] = useState(factorDraft(treatment?.factor ?? null));
   const [note, setNote] = useState(treatment?.note ?? "");
@@ -102,7 +100,6 @@ function TreatmentForm({
           creating ? m.treatment_not_added() : m.treatment_not_saved(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}
@@ -178,7 +175,6 @@ function ReplicatesForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [replicates, setReplicates] = useState(1);
   return (
     <Form
@@ -193,7 +189,6 @@ function ReplicatesForm({
           m.treatment_replicates_not_added(),
           {
             onSuccess: onDone,
-            invalidate: () => router.invalidate(),
           },
         );
       }}

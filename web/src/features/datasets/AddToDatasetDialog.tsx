@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
@@ -65,7 +64,6 @@ function AddToDatasetForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [choice, setChoice] = useState(datasets[0]?.id ?? NEW_DATASET);
   const [name, setName] = useState("");
 
@@ -87,7 +85,6 @@ function AddToDatasetForm({
               : m.dataset_add_result({ added, dataset }),
           );
         },
-        invalidate: () => router.invalidate(),
       },
     );
   };

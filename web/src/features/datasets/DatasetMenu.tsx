@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { Download, PencilLine } from "lucide-react";
 import { useState } from "react";
 
@@ -86,7 +85,6 @@ function RenameDatasetForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [name, setName] = useState(dataset.name);
 
   const submit = () => {
@@ -95,7 +93,6 @@ function RenameDatasetForm({
       m.dataset_rename_failed(),
       {
         onSuccess: onDone,
-        invalidate: () => router.invalidate(),
       },
     );
   };

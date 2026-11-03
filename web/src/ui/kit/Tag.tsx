@@ -4,15 +4,15 @@ import { cn } from "./cn";
 
 /** A filled label; `color` tints it with a status color. */
 
-export type TagSize = "small" | "middle";
-export type TagStatusColor = "warning" | "info";
+type TagSize = "small" | "middle";
+type TagStatusColor = "warning" | "info";
 
 const COLOR = {
   warning: "ui-tag-warning",
   info: "ui-tag-info",
 } satisfies Record<TagStatusColor, string>;
 
-export interface TagProps extends Omit<ComponentProps<"span">, "color"> {
+interface TagProps extends Omit<ComponentProps<"span">, "color"> {
   color?: TagStatusColor;
   size?: TagSize;
 }

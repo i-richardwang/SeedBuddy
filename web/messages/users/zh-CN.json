@@ -30,6 +30,7 @@
   "user_role_of": "{name} 的角色",
   "user_sessions_not_revoked": "会话未撤销",
   "user_signed_out_everywhere": "{name} 已在所有设备上退出",
+  "user_status_active": "正常",
   "user_status_suspended": "已停用",
   "user_suspend_body": "将在所有设备上退出登录，账户予以保留。",
   "user_suspend_confirm": "停用用户",

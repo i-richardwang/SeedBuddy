@@ -1,10 +1,9 @@
-import { useRouter } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 
 import type { NamedDataset } from "../../domain/datasets/schema";
 import { removeFromDataset } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { toast } from "../../ui/kit/Toast";
 
@@ -16,7 +15,7 @@ export function RemoveImageButton({
   dataset: NamedDataset;
   image: { digest: string; filename: string };
 }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
 
   return (
     <ActionIcon
@@ -43,7 +42,6 @@ export function RemoveImageButton({
               }),
             );
           },
-          invalidate: () => router.invalidate(),
         })
       }
     />

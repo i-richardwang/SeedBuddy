@@ -1,5 +1,5 @@
 import { createFileRoute, getRouteApi } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { Plus, Server } from "lucide-react";
 import { useState } from "react";
 
 import { isAdmin } from "../../domain/auth/schema";
@@ -10,6 +10,7 @@ import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
+import { Empty } from "../../ui/kit/Empty";
 import { TableSkeleton } from "../../ui/kit/PageSkeleton";
 import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
 
@@ -51,7 +52,24 @@ function WorkersPage() {
       <WorkersTable
         workers={workers}
         administers={administers}
-        enroll={enroll}
+        empty={
+          <Empty
+            icon={Server}
+            title={m.workers_empty()}
+            description={
+              administers
+                ? m.workers_empty_description_admin()
+                : m.workers_empty_description_member()
+            }
+            action={
+              administers ? (
+                <Button type="primary" icon={Plus} onClick={enroll}>
+                  {m.worker_enroll()}
+                </Button>
+              ) : null
+            }
+          />
+        }
       />
       {administers ? (
         <EnrollWorkerDialog

@@ -115,21 +115,18 @@ function NewApiKeySession({
           const form = new FormData(event.currentTarget);
           const expiresInDays =
             EXPIRY_OPTIONS.find((option) => option.id === expiry)?.days ?? null;
-          void action
-            .run(
-              () =>
-                addApiKey({
-                  data: {
-                    name: String(form.get("name") ?? ""),
-                    scopes,
-                    expiresInDays,
-                  },
-                }),
-              m.api_key_not_created(),
-            )
-            .then((result) => {
-              if (result.ok) onIssued(result.value);
-            });
+          void action.run(
+            () =>
+              addApiKey({
+                data: {
+                  name: String(form.get("name") ?? ""),
+                  scopes,
+                  expiresInDays,
+                },
+              }),
+            m.api_key_not_created(),
+            { invalidate: false, onSuccess: onIssued },
+          );
         }}
       >
         <Form.Field label={m.api_key_dialog_name_label()} name="name" required>

@@ -1,3 +1,4 @@
+import type { ImageReview } from "../../domain/experiments/contracts";
 import type {
   CultureEventType,
   ExperimentObservation,
@@ -7,6 +8,7 @@ import { countsEveryClass } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
+import type { StatusTone } from "../../ui/kit/Status";
 import { countedClassesName, modelName } from "../../ui/model-names";
 
 /** An observation is named by the day it was made. */
@@ -60,3 +62,11 @@ export function joinFacts(facts: readonly string[]): string {
     "",
   );
 }
+
+export const IMAGE_REVIEW_LABELS: Record<
+  ImageReview,
+  { tone: StatusTone; label: () => string }
+> = {
+  reviewed: { tone: "success", label: m.experiment_image_reviewed },
+  unreviewed: { tone: "neutral", label: m.experiment_image_unreviewed },
+};

@@ -18,7 +18,7 @@ import { Icon } from "./Icon";
 export type SelectSize = "middle" | "small";
 export type SelectVariant = "borderless" | "filled";
 
-export interface SelectOption<Value = string> {
+interface SelectOption<Value = string> {
   disabled?: boolean;
   /** A shortcut that picks this option elsewhere, shown at the end of its row. */
   hotkey?: string;
@@ -44,7 +44,7 @@ interface SelectBaseProps<Value> {
  * With `allowClear`, Backspace or Delete on the trigger empties the value and
  * `onChange` receives `null`; the clear glyph does the same for a pointer.
  */
-export type SelectProps<Value = string> = SelectBaseProps<Value> &
+type SelectProps<Value = string> = SelectBaseProps<Value> &
   (
     | { allowClear?: false; onChange: (value: Value) => void; value: Value }
     | {

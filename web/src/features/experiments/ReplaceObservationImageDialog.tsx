@@ -1,5 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
-
 import type { ExperimentObservationImage } from "../../domain/experiments/contracts";
 import { assignImagesToObservation } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
@@ -36,7 +34,6 @@ function ReplaceObservationImageSession({
   onClose,
   afterClose,
 }: ReplaceObservationImageDialogProps & { afterClose: () => void }) {
-  const router = useRouter();
   const uploads = useUploads();
   const action = useAsyncAction();
   const [replacement] = uploads.images.flatMap((item) =>
@@ -81,7 +78,6 @@ function ReplaceObservationImageSession({
             m.unit_image_not_replaced(),
             {
               onSuccess: onClose,
-              invalidate: () => router.invalidate(),
             },
           );
         }}

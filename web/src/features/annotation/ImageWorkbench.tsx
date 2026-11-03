@@ -33,6 +33,7 @@ import {
   ImageViewport,
   type ViewportFocus,
 } from "../../ui/viewport/ImageViewport";
+import { UnclearAlert, UnclearSection } from "../images/unclear";
 import { ChecksLayer, EditableBoxLayer } from "./BoxLayer";
 import type { LayerKey } from "./controls";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
@@ -42,7 +43,6 @@ import { setEditLocked, useEditLocked } from "./lock";
 import { useImageSession } from "./session";
 import { EditTools, LayerControls } from "./tools";
 import type { ImageWorkbenchContext } from "./types";
-import { UnclearAlert, UnclearSection } from "./unclear";
 
 interface ImageSubjectProps {
   model: Model;

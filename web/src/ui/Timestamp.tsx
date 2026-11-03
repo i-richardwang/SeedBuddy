@@ -1,4 +1,3 @@
-import { m } from "../paraglide/messages";
 import { getLocale } from "../paraglide/runtime";
 import { useClientValue } from "./kit/clientValue";
 
@@ -31,15 +30,4 @@ export function Timestamp({ value }: { value: string }) {
     UTC,
   );
   return <time dateTime={value}>{formatTimestamp(value, timeZone)}</time>;
-}
-
-export function formatAge(seconds: number) {
-  if (seconds < 60) return m.worker_age_seconds({ count: seconds });
-  if (seconds < 3600) {
-    return m.worker_age_minutes({ count: Math.floor(seconds / 60) });
-  }
-  if (seconds < 86400) {
-    return m.worker_age_hours({ count: Math.floor(seconds / 3600) });
-  }
-  return m.worker_age_days({ count: Math.floor(seconds / 86400) });
 }

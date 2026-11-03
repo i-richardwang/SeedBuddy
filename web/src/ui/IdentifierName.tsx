@@ -15,12 +15,7 @@ export function IdentifierName({
   id: string;
   render?: ReactElement;
 }) {
-  const label = identifierLabel(id);
+  const label = identifierLabel(/^[a-f0-9]{64}$/.test(id) ? `image-${id}` : id);
   const name = cloneElement(render, undefined, label);
   return label === id ? name : <Tooltip title={id}>{name}</Tooltip>;
-}
-
-/** Content digests have no generated-id prefix; twelve hex digits identify an image in a list. */
-export function digestLabel(digest: string): string {
-  return digest.slice(0, 12);
 }
