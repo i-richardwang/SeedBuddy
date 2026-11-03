@@ -30,8 +30,8 @@ from vitroctl.worker.session import (
 from vitroctl.worker.training import (
     TrainingClaim,
     TrainingClient,
+    TrainingSnapshot,
     materialize_snapshot,
-    parse_training_snapshot,
 )
 
 
@@ -166,10 +166,14 @@ def test_training_client_uses_its_own_control_plane_contract(tmp_path: Path) -> 
     )
     try:
         client.worker.heartbeat()
-        job = client.claim()
-        assert job is not None
+        claim = client.claim()
+        assert claim is not None
         dataset_yaml = materialize_snapshot(
-            client, job, tmp_path / "dataset", images=ImageCache(tmp_path / "images")
+            client,
+            claim,
+            tmp_path / "dataset",
+            images=ImageCache(tmp_path / "images"),
+            cancelled=lambda: False,
         )
     finally:
         client.worker.close()
@@ -211,7 +215,7 @@ def test_a_run_fetches_only_the_images_this_machine_does_not_hold(
         pixels = encoded_image(variant=variant)
         images[write_blob(tmp_path / "unused", pixels)] = pixels
     held, torn, missing = images
-    snapshot = parse_training_snapshot(
+    snapshot = TrainingSnapshot.from_document(
         _snapshot(
             [
                 _snapshot_image(held, "train", []),
@@ -231,20 +235,38 @@ def test_a_run_fetches_only_the_images_this_machine_does_not_hold(
     requested: list[str] = []
 
     class Client:
-        def fetch_snapshot(self, _job: TrainingClaim):
+        def fetch_snapshot(self, _claim: TrainingClaim):
             requested.append("snapshot")
             return snapshot
 
-        def download_image(self, _job: TrainingClaim, digest: str) -> bytes:
+        def download_image(self, _claim: TrainingClaim, digest: str) -> bytes:
             requested.append(digest)
             return images[digest]
 
     cache = ImageCache(cache_root)
-    job = TrainingClaim.parse(_run())
-    dataset = materialize_snapshot(Client(), job, tmp_path / "one", images=cache)  # type: ignore[arg-type]
+    claim = TrainingClaim.from_document(_run())
+    dataset = materialize_snapshot(
+        Client(),  # type: ignore[arg-type]
+        claim,
+        tmp_path / "one",
+        images=cache,
+        cancelled=lambda: False,
+    )
     first = list(requested)
-    again = materialize_snapshot(Client(), job, tmp_path / "one", images=cache)  # type: ignore[arg-type]
-    materialize_snapshot(Client(), job, tmp_path / "two", images=cache)  # type: ignore[arg-type]
+    again = materialize_snapshot(
+        Client(),  # type: ignore[arg-type]
+        claim,
+        tmp_path / "one",
+        images=cache,
+        cancelled=lambda: False,
+    )
+    materialize_snapshot(
+        Client(),  # type: ignore[arg-type]
+        claim,
+        tmp_path / "two",
+        images=cache,
+        cancelled=lambda: False,
+    )
     cache.close()
 
     assert first[0] == "snapshot"
@@ -257,7 +279,7 @@ def test_a_run_fetches_only_the_images_this_machine_does_not_hold(
 
 
 def test_snapshot_parser_validates_every_image_entry() -> None:
-    snapshot = parse_training_snapshot(
+    snapshot = TrainingSnapshot.from_document(
         _snapshot(
             [
                 _snapshot_image("1" * 64, "val", []),
@@ -274,11 +296,11 @@ def test_snapshot_parser_validates_every_image_entry() -> None:
         _snapshot_image("2" * 64, "train", []),
     ]
     with pytest.raises(ValueError, match=r"snapshot.schemaVersion.*shared contract"):
-        parse_training_snapshot({**_snapshot(valid_images), "schemaVersion": 99})
+        TrainingSnapshot.from_document({**_snapshot(valid_images), "schemaVersion": 99})
     with pytest.raises(
         ValueError, match=r"snapshot.images\[0\].split.*shared contract"
     ):
-        parse_training_snapshot(
+        TrainingSnapshot.from_document(
             _snapshot(
                 [
                     _snapshot_image("1" * 64, "test", []),
@@ -287,7 +309,7 @@ def test_snapshot_parser_validates_every_image_entry() -> None:
             )
         )
     with pytest.raises(ValueError, match=r"images\[0\].annotation describes another"):
-        parse_training_snapshot(
+        TrainingSnapshot.from_document(
             _snapshot(
                 [
                     {**_snapshot_image("1" * 64, "val", []), "digest": "2" * 64},
@@ -310,7 +332,7 @@ def test_training_client_rejects_snapshot_image_corruption() -> None:
     )
     try:
         with pytest.raises(ValueError, match="digest verification"):
-            client.download_image(TrainingClaim.parse(_run()), "a" * 64)
+            client.download_image(TrainingClaim.from_document(_run()), "a" * 64)
     finally:
         client.worker.close()
 
@@ -328,7 +350,7 @@ def test_training_client_surfaces_lease_loss() -> None:
     )
     try:
         with pytest.raises(LeaseLostError, match="lease expired"):
-            client.renew_lease(TrainingClaim.parse(_run()))
+            client.renew_lease(TrainingClaim.from_document(_run()))
     finally:
         client.worker.close()
 
@@ -354,36 +376,36 @@ def test_claim_response_requires_a_run_object() -> None:
 def test_training_claim_parses_the_complete_claim_contract() -> None:
     fixture = Path(__file__).parent / "fixtures" / "contracts" / "training-claim.json"
     response = json.loads(fixture.read_text(encoding="utf-8"))
-    job = TrainingClaim.parse(response["run"])
+    claim = TrainingClaim.from_document(response["run"])
 
-    assert job.run_id == "train-one"
-    assert job.model_id == "seed-detector"
-    assert job.dataset_snapshot_id == "snapshot-one"
-    assert job.worker_id == "trainer"
-    assert job.session_id == "trainer-session"
-    assert job.phase == "preparing"
+    assert claim.run_id == "train-one"
+    assert claim.model_id == "seed-detector"
+    assert claim.dataset_snapshot_id == "snapshot-one"
+    assert claim.worker_id == "trainer"
+    assert claim.session_id == "trainer-session"
+    assert claim.phase == "preparing"
 
 
 def test_training_claim_rejects_partial_or_foreign_claim_state() -> None:
     with pytest.raises(ValueError, match="training run.*shared contract"):
-        TrainingClaim.parse({"schemaVersion": 1, "id": "train-one"})
+        TrainingClaim.from_document({"schemaVersion": 1, "id": "train-one"})
     malformed = _run()
     malformed["state"] = {"status": "running"}
     with pytest.raises(ValueError, match="training run.state.*shared contract"):
-        TrainingClaim.parse(malformed)
+        TrainingClaim.from_document(malformed)
 
 
 def test_snapshot_materialization_honors_shutdown_before_network_access(
     tmp_path: Path,
 ) -> None:
     class UnexpectedClient:
-        def fetch_snapshot(self, _job: TrainingClaim) -> None:
+        def fetch_snapshot(self, _claim: TrainingClaim) -> None:
             pytest.fail("cancelled materialization must not request a snapshot")
 
     with pytest.raises(YoloTrainingInterruptedError, match="interrupted"):
         materialize_snapshot(
             UnexpectedClient(),  # type: ignore[arg-type]
-            TrainingClaim.parse(_run()),
+            TrainingClaim.from_document(_run()),
             tmp_path / "dataset",
             images=ImageCache(tmp_path / "images"),
             cancelled=lambda: True,
@@ -396,7 +418,7 @@ def test_lease_refresh_failure_cancels_training_and_surfaces_lease_loss(
     class FailingClient:
         renew_calls = 0
 
-        def renew_lease(self, _job: TrainingClaim) -> None:
+        def renew_lease(self, _claim: TrainingClaim) -> None:
             self.renew_calls += 1
             if self.renew_calls > 1:
                 raise OSError("connection lost")
@@ -412,7 +434,8 @@ def test_lease_refresh_failure_cancels_training_and_surfaces_lease_loss(
         pytest.raises(LeaseLostError, match="refresh failed"),
         keep_lease(
             client,  # type: ignore[arg-type]
-            lambda: client.renew_lease(TrainingClaim.parse(_run())),
+            lambda: client.renew_lease(TrainingClaim.from_document(_run())),
+            cancelled=lambda: False,
         ) as cancelled,
     ):
         while not cancelled() and time.monotonic() < deadline:
@@ -431,29 +454,29 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
     class Client:
         worker = SimpleNamespace(heartbeat=lambda: None)
 
-        def enter_phase(self, job: TrainingClaim, phase: str) -> None:
-            posted.append((job.run_id, {"phase": phase}))
+        def enter_phase(self, claim: TrainingClaim, phase: str) -> None:
+            posted.append((claim.run_id, {"phase": phase}))
 
-        def renew_lease(self, job: TrainingClaim) -> None:
-            posted.append((job.run_id, {"lease": "renewed"}))
+        def renew_lease(self, claim: TrainingClaim) -> None:
+            posted.append((claim.run_id, {"lease": "renewed"}))
 
-        def report_epoch(self, job: TrainingClaim, report: EpochReport) -> None:
-            posted.append((job.run_id, report.to_json()))
+        def report_epoch(self, claim: TrainingClaim, report: EpochReport) -> None:
+            posted.append((claim.run_id, report.to_json()))
 
         def publish_artifact(
-            self, job: TrainingClaim, weights: Path, inference: Path
+            self, claim: TrainingClaim, weights: Path, inference: Path
         ) -> None:
             if delivery_fails:
                 raise RuntimeError("delivery unavailable")
             artifacts.append(
-                (job.run_id, weights.read_bytes(), json.loads(inference.read_text()))
+                (claim.run_id, weights.read_bytes(), json.loads(inference.read_text()))
             )
 
-        def report_failure(self, job: TrainingClaim, error: str) -> None:
+        def report_failure(self, claim: TrainingClaim, error: str) -> None:
             if not delivery_fails:
                 pytest.fail(f"unexpected failure report: {error}")
 
-    def materialize(_client, _job, output: Path, **_options) -> Path:
+    def materialize(_client, _claim, output: Path, **_options) -> Path:
         output.mkdir(parents=True)
         dataset = output / "dataset.yaml"
         dataset.write_text("train: images/train\nval: images/val\n")
@@ -536,7 +559,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", materialize)
     monkeypatch.setattr(training_worker, "run_training_process", train)
-    job = TrainingClaim.parse(_run(parameters=_parameters(epochs=2)))
+    claim = TrainingClaim.from_document(_run(parameters=_parameters(epochs=2)))
 
     with (
         pytest.raises(RuntimeError, match="delivery unavailable")
@@ -545,7 +568,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
     ):
         training_worker.serve_training_claim(
             Client(),  # type: ignore[arg-type]
-            job,
+            claim,
             tmp_path,
             "mps",
             ImageCache(tmp_path / "images"),
@@ -582,16 +605,16 @@ def test_interrupted_training_claim_cleans_its_attempt_directory(
     class Client:
         worker = SimpleNamespace(heartbeat=lambda: None)
 
-        def enter_phase(self, _job: TrainingClaim, _phase: str) -> None:
+        def enter_phase(self, _claim: TrainingClaim, _phase: str) -> None:
             return None
 
-        def renew_lease(self, _job: TrainingClaim) -> None:
+        def renew_lease(self, _claim: TrainingClaim) -> None:
             return None
 
-        def report_failure(self, job: TrainingClaim, error: str) -> None:
+        def report_failure(self, claim: TrainingClaim, error: str) -> None:
             pytest.fail(f"an interruption is not a failure: {error}")
 
-    def materialize(_client, _job, output: Path, **_options) -> Path:
+    def materialize(_client, _claim, output: Path, **_options) -> Path:
         output.mkdir(parents=True, exist_ok=True)
         return output / "dataset.yaml"
 
@@ -602,13 +625,13 @@ def test_interrupted_training_claim_cleans_its_attempt_directory(
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", materialize)
     monkeypatch.setattr(training_worker, "run_training_process", interrupted)
-    job = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
 
     for _ in range(2):
         with pytest.raises(YoloTrainingInterruptedError):
             training_worker.serve_training_claim(
                 Client(),  # type: ignore[arg-type]
-                job,
+                claim,
                 tmp_path,
                 "mps",
                 ImageCache(tmp_path / "images"),
@@ -627,25 +650,25 @@ def test_training_claim_reports_an_unexpected_adapter_failure(
     class Client:
         worker = SimpleNamespace(heartbeat=lambda: None)
 
-        def enter_phase(self, _job: TrainingClaim, _phase: str) -> None:
+        def enter_phase(self, _claim: TrainingClaim, _phase: str) -> None:
             return None
 
-        def renew_lease(self, _job: TrainingClaim) -> None:
+        def renew_lease(self, _claim: TrainingClaim) -> None:
             return None
 
-        def report_failure(self, job: TrainingClaim, error: str) -> None:
-            failures.append((job.run_id, error))
+        def report_failure(self, claim: TrainingClaim, error: str) -> None:
+            failures.append((claim.run_id, error))
 
     def broken_materialization(*_args, **_kwargs) -> Path:
         raise KeyError("unexpected Ultralytics field")
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", broken_materialization)
-    job = TrainingClaim.parse(_run("train-broken"))
+    claim = TrainingClaim.from_document(_run("train-broken"))
 
     with pytest.raises(KeyError, match="unexpected Ultralytics field"):
         training_worker.serve_training_claim(
             Client(),  # type: ignore[arg-type]
-            job,
+            claim,
             tmp_path,
             "mps",
             ImageCache(tmp_path / "images"),
@@ -656,7 +679,7 @@ def test_training_claim_reports_an_unexpected_adapter_failure(
     assert not (tmp_path / "training-runs" / "train-broken-1").exists()
 
 
-def test_training_requests_keep_the_identity_of_their_job() -> None:
+def test_training_requests_keep_the_identity_of_their_claim() -> None:
     from dataclasses import replace
 
     attempts: list[int] = []
@@ -672,7 +695,7 @@ def test_training_requests_keep_the_identity_of_their_job() -> None:
         transport=httpx.MockTransport(respond),
     )
     client = TrainingClient(worker)
-    first = TrainingClaim.parse(_run())
+    first = TrainingClaim.from_document(_run())
     try:
         client.renew_lease(replace(first, attempt=2))
         client.renew_lease(first)
@@ -692,18 +715,18 @@ def test_local_checkpoint_resume_validates_identity_and_requires_original_worker
     from vitroctl.training.documents import TrainingCheckpoint
     from vitroctl.worker.local_training import prepare_local_training
 
-    job = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
     root = tmp_path / "train-one-1"
     root.mkdir()
-    prepare_local_training(job, root)
+    prepare_local_training(claim, root)
     for name in ("weights/last.pt", "weights/best.pt", "epochs.jsonl"):
         path = root / "run" / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text('{"epoch": 1}\n' if name.endswith("jsonl") else "weights")
     resumed = replace(
-        job,
+        claim,
         attempt=2,
-        checkpoint=TrainingCheckpoint(attempt=1, epoch=1, worker_id=job.worker_id),
+        checkpoint=TrainingCheckpoint(attempt=1, epoch=1, worker_id=claim.worker_id),
     )
     destination = tmp_path / "train-one-2"
     destination.mkdir()
@@ -771,7 +794,7 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
     )
     try:
         TrainingClient(worker).publish_artifact(
-            TrainingClaim.parse(_run()), weights, bundle
+            TrainingClaim.from_document(_run()), weights, bundle
         )
     finally:
         worker.close()
@@ -790,19 +813,19 @@ def test_retry_delivers_retained_bundle_without_training_again(
     from vitroctl.training.documents import TrainingCheckpoint
     from vitroctl.worker.local_training import prepare_local_training
 
-    job = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
     source = tmp_path / "training-runs/train-one-1"
     source.mkdir(parents=True)
-    prepare_local_training(job, source)
+    prepare_local_training(claim, source)
     (source / "bundle").mkdir()
     (source / "bundle/weights.pt").write_bytes(b"finished")
     (source / "bundle/bundle.json").write_text(
         json.dumps({"weights": {"bytes": 8, "digest": sha256(b"finished").hexdigest()}})
     )
     resumed = replace(
-        job,
+        claim,
         attempt=2,
-        checkpoint=TrainingCheckpoint(attempt=1, epoch=3, worker_id=job.worker_id),
+        checkpoint=TrainingCheckpoint(attempt=1, epoch=3, worker_id=claim.worker_id),
     )
     monkeypatch.setattr(
         training_worker, "keep_lease", lambda *a, **kw: nullcontext(lambda: cancelled)
@@ -899,7 +922,7 @@ def test_epoch_reports_no_weight_bytes_and_interruption_retains_local_state(
         with pytest.raises(YoloTrainingInterruptedError):
             training_worker.serve_training_claim(
                 TrainingClient(worker),
-                TrainingClaim.parse(_run()),
+                TrainingClaim.from_document(_run()),
                 tmp_path,
                 "cpu",
                 images,
@@ -921,16 +944,16 @@ def test_local_recovery_copy_is_atomic_and_retryable(
     from vitroctl.training.documents import TrainingCheckpoint
     from vitroctl.worker import local_training
 
-    job = TrainingClaim.parse(_run())
+    claim = TrainingClaim.from_document(_run())
     source = tmp_path / "train-one-1"
     source.mkdir()
-    local_training.prepare_local_training(job, source)
+    local_training.prepare_local_training(claim, source)
     (source / "bundle").mkdir()
     (source / "bundle/weights.pt").write_bytes(b"complete weights")
     resumed = replace(
-        job,
+        claim,
         attempt=2,
-        checkpoint=TrainingCheckpoint(attempt=1, epoch=1, worker_id=job.worker_id),
+        checkpoint=TrainingCheckpoint(attempt=1, epoch=1, worker_id=claim.worker_id),
     )
     destination = tmp_path / "train-one-2"
     destination.mkdir()
@@ -948,3 +971,26 @@ def test_local_recovery_copy_is_atomic_and_retryable(
 
     local_training.prepare_local_training(resumed, destination)
     assert (destination / "bundle/weights.pt").read_bytes() == b"complete weights"
+
+
+def test_training_claim_follows_shared_attempt_and_worker_id_bounds() -> None:
+    document = _run()
+    document["attempt"] = 0
+    document["state"] = {
+        "status": "running",
+        "workerId": "w" * 128,
+        "sessionId": "trainer-session",
+        "leaseExpiresAt": "2026-08-27T00:05:00.000Z",
+        "phase": "preparing",
+        "progress": 0.0,
+    }
+    claim = TrainingClaim.from_document(document)
+    assert claim.attempt == 0
+    assert claim.worker_id == "w" * 128
+    document["attempt"] = -1
+    with pytest.raises(ValueError, match="training run.attempt.*shared contract"):
+        TrainingClaim.from_document(document)
+    document["attempt"] = 0
+    document["state"] = {**document["state"], "workerId": "w" * 129}
+    with pytest.raises(ValueError, match="training run.state.*shared contract"):
+        TrainingClaim.from_document(document)

@@ -11,9 +11,9 @@ from vitroctl.datasets.annotations import load_annotations
 from vitroctl.datasets.manifest import (
     MAX_DATASET_MANIFEST_BYTES,
     BlobError,
+    DatasetManifest,
     blob_path,
     encode_dataset_manifest,
-    parse_dataset_manifest,
     verified_blob,
 )
 from vitroctl.datasets.transfer import (
@@ -35,7 +35,7 @@ CONTRACT_FIXTURE = (
 
 
 def test_shared_dataset_manifest_contract() -> None:
-    dataset = parse_dataset_manifest(
+    dataset = DatasetManifest.from_document(
         json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     )
 
@@ -64,7 +64,7 @@ def test_manifest_says_which_photographs_are_unclear() -> None:
     # A manifest that does not say reads as clear, and says so when written.
     del document["images"][1]["unclear"]
 
-    manifest = parse_dataset_manifest(document)
+    manifest = DatasetManifest.from_document(document)
     marked, unsaid = manifest.images
 
     assert marked.unclear is True
@@ -76,43 +76,43 @@ def test_manifest_says_which_photographs_are_unclear() -> None:
     malformed = _manifest()
     malformed["images"][0]["unclear"] = "yes"
     with pytest.raises((ValueError, TypeError), match=r"manifest.images\[0\].unclear"):
-        parse_dataset_manifest(malformed)
+        DatasetManifest.from_document(malformed)
 
 
 def test_manifest_documents_are_valid_and_belong_to_their_image() -> None:
     malformed = _manifest()
     malformed["images"][0]["detection"] = {"schemaVersion": 1}
     with pytest.raises(ValueError, match=r"manifest.images\[0\].detection"):
-        parse_dataset_manifest(malformed)
+        DatasetManifest.from_document(malformed)
 
     mismatched = _manifest()
     mismatched["images"][0]["annotation"]["image"]["height"] += 1
     with pytest.raises(ValueError, match="dimensions differ"):
-        parse_dataset_manifest(mismatched)
+        DatasetManifest.from_document(mismatched)
 
     unknown_class = _manifest()
     unknown_class["images"][0]["annotation"]["instances"][0]["class"] = "mould"
     with pytest.raises(ValueError, match="unknown class: mould"):
-        parse_dataset_manifest(unknown_class)
+        DatasetManifest.from_document(unknown_class)
 
     oversized_image = _manifest()
     oversized_image["images"][0]["bytes"] = MAX_IMAGE_BYTES + 1
     with pytest.raises(
         ValueError, match=r"manifest.images\[0\].bytes.*shared contract"
     ):
-        parse_dataset_manifest(oversized_image)
+        DatasetManifest.from_document(oversized_image)
 
 
 def test_manifest_encoding_is_canonical_and_bounded() -> None:
     document = _manifest()
-    encoded = encode_dataset_manifest(parse_dataset_manifest(document))
+    encoded = encode_dataset_manifest(DatasetManifest.from_document(document))
     assert json.loads(encoded) == document
     assert encoded.endswith(b"\n")
     assert b": " not in encoded
 
     document["images"][0]["filename"] = "x" * MAX_DATASET_MANIFEST_BYTES
     with pytest.raises(ValueError, match=f"exceeds {MAX_DATASET_MANIFEST_BYTES} bytes"):
-        encode_dataset_manifest(parse_dataset_manifest(document))
+        encode_dataset_manifest(DatasetManifest.from_document(document))
 
 
 def _server(
@@ -406,3 +406,33 @@ def test_push_requires_a_local_manifest(tmp_path: Path) -> None:
         _push(tmp_path, handle)
 
     assert received == []
+
+
+@pytest.mark.parametrize("declared", [False, True])
+def test_pull_bounds_streamed_blobs_and_preserves_cached_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, declared: bool
+) -> None:
+    from vitroctl.datasets import transfer
+
+    monkeypatch.setattr(transfer, "MAX_IMAGE_BYTES", 4)
+    cached = blob_path(tmp_path, DIGEST_A)
+    cached.parent.mkdir(parents=True)
+    cached.write_bytes(b"old")
+
+    class Stream(httpx.SyncByteStream):
+        def __iter__(self):
+            yield b"abc"
+            yield b"def"
+
+    def server(request: httpx.Request) -> httpx.Response:
+        if "/datasets/" in request.url.path:
+            return httpx.Response(200, json=_manifest())
+        return httpx.Response(
+            200, headers={"content-length": "6"} if declared else {}, stream=Stream()
+        )
+
+    with pytest.raises(DatasetTransferError, match="Image exceeds 4 bytes"):
+        _pull(tmp_path, server)
+    assert cached.read_bytes() == b"old"
+    assert list(cached.parent.iterdir()) == [cached]
+    assert not (tmp_path / "datasets").exists()

@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 import pytest
+from conftest import detection_document
 
 from vitroctl.detectors.contract import RuntimeDescriptor
 from vitroctl.worker import inference
@@ -87,7 +88,7 @@ class Process:
         check()
         if self.action:
             self.action(check)
-        return {"image": assignment.image}
+        return detection_document(assignment.image)
 
     def close(self):
         self.closed += 1
@@ -97,7 +98,7 @@ class Process:
     "filename", ["inference-assignment.json", "inference-assignment-yolo.json"]
 )
 def test_shared_assignment_contract(filename: str):
-    a = Assignment.parse(
+    a = Assignment.from_document(
         json.loads(
             (Path(__file__).parent / "fixtures/contracts" / filename).read_text()
         )
@@ -107,10 +108,10 @@ def test_shared_assignment_contract(filename: str):
 
 
 def test_assignment_requires_an_attempt_and_valid_deadlines():
-    with pytest.raises(ValueError):
-        Assignment.parse({"manifest": MANIFEST, "image": "c" * 64})
+    with pytest.raises(ValueError, match="assignment.*required property"):
+        Assignment.from_document({"manifest": MANIFEST, "image": "c" * 64})
     with pytest.raises(ValueError, match="deadlines"):
-        Assignment.parse({**DOCUMENT, "deadlineAt": DOCUMENT["serverTime"]})
+        Assignment.from_document({**DOCUMENT, "deadlineAt": DOCUMENT["serverTime"]})
 
 
 def test_worker_claims_only_one_task_and_fences_its_result():
@@ -265,7 +266,7 @@ def test_traditional_detector_requires_its_class(tmp_path: Path):
 
     store = ModelStore(NoWeights(), tmp_path, None)
     with pytest.raises(ValueError, match="declares ungerminated"):
-        store.load(ModelManifest.parse({**MANIFEST, "classes": ["germinated"]}))
+        store.load(ModelManifest.from_document({**MANIFEST, "classes": ["germinated"]}))
 
 
 def test_bounded_http_decodes_compressed_responses_once():
@@ -290,3 +291,74 @@ def test_bounded_http_decodes_compressed_responses_once():
         )
     finally:
         worker.close()
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        (
+            {"quality": {"status": "ok", "warnings": ["Not A Code"]}},
+            r"quality.warnings\[0\]",
+        ),
+        (
+            {
+                "instances": [
+                    {
+                        "id": "1",
+                        "class": "seed",
+                        "score": float("nan"),
+                        "bbox": {"x": 0, "y": 0, "width": 1, "height": 1},
+                    }
+                ]
+            },
+            r"instances\[0\].score must be finite",
+        ),
+        (
+            {
+                "instances": [
+                    {
+                        "id": "1",
+                        "class": "seed",
+                        "score": 1.1,
+                        "bbox": {"x": 0, "y": 0, "width": 1, "height": 1},
+                    }
+                ]
+            },
+            r"instances\[0\].score.*shared contract",
+        ),
+        (
+            {
+                "instances": [
+                    {
+                        "id": "1",
+                        "class": "seed",
+                        "score": 0.5,
+                        "bbox": {"x": 0, "y": 0, "width": 0, "height": 1},
+                    }
+                ]
+            },
+            r"instances\[0\].bbox.width.*shared contract",
+        ),
+        (
+            {"image": {"digest": "d" * 64, "width": 1000, "height": 800}},
+            "describes another image",
+        ),
+        (
+            {"image": {"digest": "c" * 64, "width": 10, "height": 10}},
+            "exceeds image bounds",
+        ),
+    ],
+)
+def test_outbound_detection_is_validated_before_any_network_request(change, reason):
+    server = Workbench()
+    client = server.client()
+    try:
+        with pytest.raises(ValueError, match=reason):
+            client.put_result(
+                Assignment.from_document(DOCUMENT),
+                {**detection_document("c" * 64), **change},
+                time.monotonic() + 10,
+            )
+        assert server.calls == []
+    finally:
+        client.worker.close()

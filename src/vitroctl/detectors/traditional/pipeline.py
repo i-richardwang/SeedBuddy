@@ -9,7 +9,10 @@ from vitroctl.detectors.traditional.candidates import (
     CandidateEvidence,
     describe_candidates,
 )
-from vitroctl.detectors.traditional.config import PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+    PipelineConfig,
+)
 from vitroctl.detectors.traditional.detection import CandidateSelection, detect_seeds
 from vitroctl.detectors.traditional.geometry import DishRegions, estimate_geometry
 from vitroctl.detectors.traditional.identity import ExecutionIdentity
@@ -37,7 +40,7 @@ class CandidateAnalysis:
 
 def analyze_candidates(
     path: str | Path,
-    config: PipelineConfig = PipelineConfig(),  # noqa: B008
+    config: PipelineConfig = DEFAULT_PIPELINE_CONFIG,
 ) -> CandidateAnalysis:
     image = read_image(path)
     geometry = estimate_geometry(image, config)
@@ -107,7 +110,7 @@ class Recognition:
 def recognize(
     image_path: str | Path,
     *,
-    config: PipelineConfig = PipelineConfig(),  # noqa: B008
+    config: PipelineConfig = DEFAULT_PIPELINE_CONFIG,
     model: CandidateModel = DEFAULT_MODEL,
 ) -> Recognition:
     analysis = analyze_candidates(image_path, config)
@@ -141,7 +144,7 @@ def recognize(
 def count_seeds(
     image_path: str | Path,
     *,
-    config: PipelineConfig = PipelineConfig(),  # noqa: B008
+    config: PipelineConfig = DEFAULT_PIPELINE_CONFIG,
     model: CandidateModel = DEFAULT_MODEL,
 ) -> CountResult:
     return recognize(image_path, config=config, model=model).result

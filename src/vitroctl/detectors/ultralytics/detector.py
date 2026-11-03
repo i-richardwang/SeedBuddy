@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import hashlib
 import json
-import math
 from dataclasses import dataclass, field
 from importlib.metadata import version
 from pathlib import Path
@@ -20,7 +20,6 @@ from vitroctl.detectors.contract import (
     adapter_fingerprint,
 )
 from vitroctl.detectors.ultralytics.runtime import load_yolo
-from vitroctl.io.files import file_digest
 
 
 @dataclass(frozen=True)
@@ -30,21 +29,14 @@ class YoloInferenceSettings:
     max_detections: int
     end_to_end: bool
 
-    def __post_init__(self) -> None:
-        if isinstance(self.confidence, bool) or not isinstance(
-            self.confidence, (int, float)
-        ):
-            raise TypeError("YOLO confidence must be a number")
-        if not math.isfinite(self.confidence) or not 0 <= self.confidence <= 1:
-            raise ValueError("YOLO confidence must be between zero and one")
-        for value, name in (
-            (self.image_size, "image size"),
-            (self.max_detections, "maximum detections"),
-        ):
-            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-                raise ValueError(f"YOLO {name} must be a positive integer")
-        if not isinstance(self.end_to_end, bool):
-            raise TypeError("YOLO end_to_end must be a boolean")
+    @classmethod
+    def from_document(cls, document: dict[str, Any]) -> YoloInferenceSettings:
+        return cls(
+            document["confidence"],
+            document["imageSize"],
+            document["maxDetections"],
+            document["endToEnd"],
+        )
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -89,13 +81,15 @@ class UltralyticsDetector:
             if not CLASS_NAME.fullmatch(name):
                 raise ValueError(f"Invalid YOLO class name: {name}")
         self._runtime = load_yolo()
-        self._artifact_digest = file_digest(
-            self.weights,
-            suffix=b"\0"
-            + json.dumps(
+        with self.weights.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256")
+        digest.update(b"\0")
+        digest.update(
+            json.dumps(
                 self.settings.to_dict(), sort_keys=True, separators=(",", ":")
-            ).encode(),
+            ).encode()
         )
+        self._artifact_digest = digest.hexdigest()
         self._runtime_descriptor = ultralytics_runtime_descriptor()
 
     @property

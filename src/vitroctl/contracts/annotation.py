@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from vitroctl.contracts.validation import validate_wire_contract
-
 ANNOTATION_SCHEMA_VERSION = 1
 
 
@@ -126,8 +124,3 @@ def _parse_instances(
             )
         )
     return tuple(instances)
-
-
-def parse_annotation(value: Any, context: str = "annotation") -> AnnotationDocument:
-    validate_wire_contract("annotation", value, context)
-    return AnnotationDocument.from_document(value, context)

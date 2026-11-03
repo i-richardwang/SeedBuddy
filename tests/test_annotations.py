@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 from conftest import annotation_document, manifest_entry, write_manifest
 
-from vitroctl.contracts.annotation import parse_annotation
+from vitroctl.contracts.annotation import AnnotationDocument
+from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.datasets.annotations import load_annotations
 
 CONTRACT_FIXTURE = Path(__file__).parent / "fixtures" / "contracts" / "annotation.json"
@@ -31,9 +32,9 @@ def test_load_annotations_keeps_only_annotated_images(tmp_path: Path) -> None:
 
 
 def test_shared_annotation_contract() -> None:
-    annotation = parse_annotation(
-        json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
-    )
+    payload = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
+    validate_wire_contract("annotation", payload, "annotation")
+    annotation = AnnotationDocument.from_document(payload, "annotation")
 
     assert annotation.digest == "c" * 64
     assert len(annotation.instances) == 1
@@ -74,20 +75,23 @@ def test_unversioned_annotation_is_rejected() -> None:
     del payload["schemaVersion"]
 
     with pytest.raises(ValueError, match="annotation.*shared contract"):
-        parse_annotation(payload)
+        validate_wire_contract("annotation", payload, "annotation")
 
 
 def test_annotation_schema_rejects_unknown_fields_and_invalid_identities() -> None:
     payload = annotation_document("1" * 64)
     payload["unexpected"] = True
     with pytest.raises(ValueError, match="annotation.*shared contract"):
-        parse_annotation(payload)
+        validate_wire_contract("annotation", payload, "annotation")
 
     with pytest.raises(ValueError, match="annotation.image.digest.*shared contract"):
-        parse_annotation(annotation_document("images/a.jpg"))
+        validate_wire_contract(
+            "annotation", annotation_document("images/a.jpg"), "annotation"
+        )
 
     payload = annotation_document(
         "1" * 64, [{"x": 95, "y": 20, "width": 8, "height": 6}]
     )
+    validate_wire_contract("annotation", payload, "annotation")
     with pytest.raises(ValueError, match=r"instances\[0\].bbox exceeds image bounds"):
-        parse_annotation(payload)
+        AnnotationDocument.from_document(payload, "annotation")

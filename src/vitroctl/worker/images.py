@@ -147,13 +147,13 @@ class ImageCache:
 
 def wait_for(
     future: Future[Path],
-    cancelled: Callable[[], bool] | None = None,
+    cancelled: Callable[[], bool],
     *,
     poll_seconds: float = 0.5,
 ) -> Path:
     """The fetched file, or `CancelledError` once the caller stops waiting."""
     while True:
-        if cancelled and cancelled():
+        if cancelled():
             raise CancelledError
         try:
             return future.result(timeout=poll_seconds)

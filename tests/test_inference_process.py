@@ -54,6 +54,7 @@ def test_execution_process_is_warm_across_tasks(tmp_path):
         assert second["count"] == 2
     finally:
         worker.close()
+    assert worker._process is None
 
 
 def test_blocked_native_call_is_killed_and_the_process_can_restart(tmp_path):
@@ -67,10 +68,12 @@ def test_blocked_native_call_is_killed_and_the_process_can_restart(tmp_path):
     try:
         with pytest.raises(TimeoutError):
             worker.run(None, deadline, check)  # type: ignore[arg-type]
+        assert worker._process is None
         worker._target = warm_child
         assert worker.run(None, time.monotonic() + 20, lambda: None)["count"] == 1  # type: ignore[arg-type]
     finally:
         worker.close()
+    assert worker._process is None
 
 
 def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path):
@@ -80,6 +83,7 @@ def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path):
             worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
     finally:
         worker.close()
+    assert worker._process is None
 
 
 def partial_reply_child(connection, settings, session):
@@ -104,3 +108,4 @@ def test_partial_pipe_frame_cannot_block_the_supervisor(tmp_path):
             worker.run(None, deadline, check)  # type: ignore[arg-type]
     finally:
         worker.close()
+    assert worker._process is None

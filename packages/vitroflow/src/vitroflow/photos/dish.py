@@ -1,4 +1,4 @@
-"""Locate the culture dish so that matching and focus stay on its contents."""
+"""Dish geometry uses the workbench recipe, pinned by tests/test_dish_recipe.py."""
 
 from __future__ import annotations
 

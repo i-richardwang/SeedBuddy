@@ -11,10 +11,11 @@ from conftest import (
 )
 
 from vitroctl.contracts.annotation import (
+    AnnotationDocument,
     AnnotationInstance,
     BoundingBox,
-    parse_annotation,
 )
+from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.datasets.annotations import AnnotatedImage, load_annotations
 from vitroctl.datasets.manifest import BlobError, ManifestImage, blob_path
 from vitroctl.detectors.ultralytics import (
@@ -40,7 +41,10 @@ def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
     annotation = annotation_document(
         digest, [{"x": 10, "y": 20, "width": 20, "height": 10}]
     )
-    return AnnotatedImage(entry, parse_annotation(annotation))
+    validate_wire_contract("annotation", annotation, "annotation")
+    return AnnotatedImage(
+        entry, AnnotationDocument.from_document(annotation, "annotation")
+    )
 
 
 def _annotated_blobs(
@@ -239,3 +243,16 @@ def test_export_reads_recorded_splits_from_the_manifest(tmp_path: Path) -> None:
 
     recorded = {entry["digest"]: entry["split"] for entry in entries}
     assert {entry["digest"]: entry["split"] for entry in manifest["images"]} == recorded
+
+
+def test_yolo_export_honours_recorded_splits(tmp_path: Path) -> None:
+    data_root = tmp_path / "data"
+    annotated = _annotated_blobs(data_root, 3, splits=("val", "train", "train"))
+    output = tmp_path / "yolo"
+    manifest = export_yolo_dataset(annotated, SEED_CLASSES, data_root, output)
+    assert {entry["digest"]: entry["split"] for entry in manifest["images"]} == {
+        image.entry.digest: image.entry.split for image in annotated
+    }
+    for entry in manifest["images"]:
+        assert (output / entry["image"]).is_file()
+        assert (output / entry["label"]).is_file()

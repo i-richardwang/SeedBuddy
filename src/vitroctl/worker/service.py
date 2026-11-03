@@ -59,14 +59,14 @@ class Worker:
         if stopped.is_set():
             return False
         if self.client.session.can_train:
-            job = self.training.claim()
-            if job is not None:
+            claim = self.training.claim()
+            if claim is not None:
                 self.runner.close()
                 images = ImageCache(self.settings.work_dir / "images")
                 try:
                     serve_training_claim(
                         self.training,
-                        job,
+                        claim,
                         self.settings.work_dir,
                         self.settings.device,
                         images,

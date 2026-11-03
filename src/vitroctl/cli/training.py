@@ -14,14 +14,14 @@ from vitroctl.datasets.annotations import load_annotations
 from vitroctl.datasets.manifest import load_dataset_manifest, manifest_path
 from vitroctl.detectors.ultralytics import export_yolo_dataset, train_yolo_detector
 from vitroctl.models.bundle import training_bundle, write_bundle
-from vitroctl.training.recipe import parse_training_recipe
+from vitroctl.training.recipe import TrainingRecipe
 
 
 def run(args: argparse.Namespace) -> int:
     spec = json.loads(Path(args.spec).read_text())
     if not isinstance(spec, dict) or set(spec) != {"dataset", "recipe"}:
         raise ValueError("Training spec must contain dataset and recipe")
-    recipe = parse_training_recipe(spec["recipe"])
+    recipe = TrainingRecipe.from_document(spec["recipe"])
     if not args.local:
         if args.resume or args.output or args.device:
             raise ValueError(
@@ -144,7 +144,7 @@ def add_training_commands(commands: Any) -> None:
     start.add_argument("--data-root", default="data")
     start.add_argument("--device")
     start.add_argument("--resume", action="store_true")
-    connection_options(start)
+    connection_options(start, "experiments")
     start.set_defaults(handler=run)
     for name in ("workers", "list", "get", "pause", "cancel", "resume"):
         command = sub.add_parser(name)
@@ -158,5 +158,5 @@ def add_training_commands(commands: Any) -> None:
         if name == "resume":
             command.add_argument("--worker")
             command.add_argument("--restart", action="store_true")
-        connection_options(command)
+        connection_options(command, "experiments")
         command.set_defaults(handler=remote)

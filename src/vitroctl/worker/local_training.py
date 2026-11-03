@@ -14,20 +14,20 @@ from vitroctl.training.documents import TrainingClaim
 LOCAL_TRAINING_IDENTITY = "training-identity.json"
 
 
-def prepare_local_training(job: TrainingClaim, root: Path) -> None:
+def prepare_local_training(claim: TrainingClaim, root: Path) -> None:
     identity = {
-        "runId": job.run_id,
-        "snapshotId": job.dataset_snapshot_id,
-        "workerId": job.worker_id,
-        "recipe": asdict(job.recipe),
+        "runId": claim.run_id,
+        "snapshotId": claim.dataset_snapshot_id,
+        "workerId": claim.worker_id,
+        "recipe": asdict(claim.recipe),
     }
-    checkpoint = job.checkpoint
+    checkpoint = claim.checkpoint
     if checkpoint:
-        if checkpoint.worker_id != job.worker_id:
+        if checkpoint.worker_id != claim.worker_id:
             raise ValueError(
                 "Local checkpoint belongs to another worker; restart training"
             )
-        source = root.parent / f"{job.run_id}-{checkpoint.attempt}"
+        source = root.parent / f"{claim.run_id}-{checkpoint.attempt}"
         try:
             saved = json.loads((source / LOCAL_TRAINING_IDENTITY).read_text())
             if saved != identity:

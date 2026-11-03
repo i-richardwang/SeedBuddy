@@ -44,7 +44,9 @@ class ModelManifest:
     artifact: dict[str, Any]
 
     @classmethod
-    def parse(cls, value: Any, context: str = "model manifest") -> ModelManifest:
+    def from_document(
+        cls, value: Any, context: str = "model manifest"
+    ) -> ModelManifest:
         validate_wire_contract("inference-model-manifest", value, context)
         return cls(
             model_version_id=value["modelVersionId"],
@@ -105,12 +107,7 @@ class ModelStore:
         require_ultralytics_version(required_runtime)
         expected_digest = artifact["digest"]
         inference = artifact["inference"]
-        settings = YoloInferenceSettings(
-            inference["confidence"],
-            inference["imageSize"],
-            inference["maxDetections"],
-            inference["endToEnd"],
-        )
+        settings = YoloInferenceSettings.from_document(inference)
         destination = self._artifacts / version_id
         if destination.exists():
             try:
