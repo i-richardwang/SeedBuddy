@@ -47,7 +47,7 @@ Workbench and maintenance use the same source commit or image digest and storage
 
 ## Verification
 
-The default suite uses PGlite and in-memory blobs without external services. Run the complete deterministic gate from the repository root:
+The default suite uses PGlite and in-memory blobs without external services. Web tests can run directly with `cd web && bun test`; their preload compiles missing or stale messages. Run the complete deterministic gate from the repository root:
 
 ```bash
 make check
@@ -90,7 +90,7 @@ make check-s3
 ## Documentation
 
 - [Accounts](docs/accounts.md) — sign-in, administration and integrations.
-- [Records and datasets](docs/domain.md) — experimental design, model lifecycle and dataset transfer.
+- [Records, models and datasets](docs/domain.md) — experimental design, model lifecycle and dataset transfer.
 - [Readings](docs/readings.md) — counts, exclusions, summaries and spreadsheet semantics.
 - [vitroctl](docs/vitroctl.md) — source installation, Workers, local training and model delivery.
 - [vitroflow](packages/vitroflow/README.md) — photograph sorting and review.

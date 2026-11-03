@@ -19,11 +19,13 @@ database, immutable blob storage, and external runtimes
 
 `web/src/server/` and the framework entry `web/src/server.ts` are server-only, enforced by the Vite client import protection. `web/src/domain/` contains shared schemas and pure transformations; it never imports server implementations, UI, or localization. The complete runtime-capability map is described in [Architecture](architecture.md). Framework routes live in `web/src/routes/`, and Server Function adapters live in `web/src/functions/`.
 
-Business modules and `queries/` expose a small `public.ts`. Cross-module callers import that entry; files inside a module import their siblings directly. Public entries export specific operations and contracts, not every internal function. Infrastructure capabilities and protocol adapters use explicit file entry points instead of an all-purpose barrel.
+Business modules and `queries/` expose a small `public.ts`. Cross-module callers import that entry; files inside a module import their siblings directly. Public entries export specific operations and contracts, not every internal function. Infrastructure capabilities and protocol adapters use explicit file entry points.
 
 The allowed dependency graph lives in `web/scripts/architecture.ts`; the [architecture checker](architecture.md#web-boundaries) enforces it. Each server module has an explicit owner there.
 
-Cross-module page queries depend on business modules; business modules never depend on those pages. For example, `queries/dataset-overview.ts` combines dataset records and training state, so datasets do not depend back on training. Dataset review records remain in `datasets/` because both dataset transfer and training snapshot creation consume them. Image display names live in `queries/`: filenames belong to observation or dataset memberships, never to the global image asset.
+Cross-module page queries depend on business modules; business modules never depend on those pages. For example, `queries/dataset-detail.ts` combines dataset records and training state, and datasets do not depend on training. Dataset review records remain in `datasets/` because both dataset transfer and training snapshot creation consume them. Image display names live in `queries/`: filenames belong to observation or dataset memberships, never to the global image asset.
+
+List rows use `<Thing>Overview`, page read models use `<Thing>Detail`, and dataset training readiness is `DatasetTrainingReadiness` (`queries/training-readiness.ts`).
 
 Modules use Drizzle directly. The shared foreign-key graph lives in one schema, and cross-table reads use joins. Multi-module writes share an executor and acquire locks in a consistent order. Import boundaries complement database ownership rules, constraints, and concurrency tests.
 
@@ -47,15 +49,19 @@ Successful result storage, task completion and the attempt's canonical result di
 
 A Worker supervises a warm child process that owns downloads, model loading and prediction. Supervision uses a monotonic clock derived from server durations, bounded HTTP exchanges and interruptible IPC. The process is terminated on lost ownership, timeout, error, shutdown or before training. Inference deadlines are 10 minutes for the traditional detector and `min(30 minutes, 10 minutes + 2 minutes × ceil((imageSize / 1024)²))` for Ultralytics, covering cold loading and transfer. Leases are 90 seconds and renew every 20 seconds. These budgets are execution policy, not model identity. Tasks wait explicitly when no capable Worker exists; there is no overall queue-wait deadline.
 
-`inference/attempts.ts` owns claim and execution orchestration and calls `inference/outcomes.ts` with the same executor when completing a task. Result validation never depends on the task orchestrator. `training/runs.ts` owns run state transitions; `training/publication.ts` validates and publishes artifacts using those transitions. `models/publication.ts` owns portable model bundles, upload reservations, immutable version registration, weight delivery and collection. Training publication validates execution ownership and delegates registration within its short completion transaction. An external import uses the same registry without creating a training run.
+`inference/attempts.ts` owns claim and execution orchestration and calls `inference/outcomes.ts` with the same executor when completing a task. Result validation never depends on the task orchestrator. `training/epochs.ts` owns epoch reporting. `training/runs.ts` owns run state transitions; owned transitions write every state column, and lease renewal is a separate fenced update; `training/publication.ts` validates and publishes artifacts using those transitions. `models/publication.ts` owns portable model bundles, upload reservations, immutable version registration, weight delivery and collection. Training publication validates execution ownership and delegates registration within its short completion transaction. An external import uses the same registry without creating a training run.
 
 Production inference results enter through attempt completion. Tests seed detections or terminal task failures through `testing/inference.ts`; this fixture is outside the production module graph. Collection and outcome tests live alongside the image and inference modules that own those rules.
 
-Inference and training share the roster and its ownership vocabulary—Worker, session, lease, and attempt—but each keeps its own state machine. Claims lock the Worker row, and every owned write carries the predicate that the session is still the roster's. A lease holds while it is unexpired and its session is still current, so a restarted or removed Worker loses ownership without waiting for its lease to expire; inference then applies its bounded retry policy. A Worker process serves both queues, prioritizing training over inference, according to its advertised capabilities. The process owns the accelerator lifecycle: it releases the cached inference model before training and collects runtime allocations when training exits. Consecutive inference tasks may reuse the cached model.
+Inference and training share the roster and its ownership vocabulary—Worker, session, lease, and attempt—but each keeps its own state machine. Claims lock the Worker row, and every owned write carries the predicate that the session is still the roster's. A lease holds while it is unexpired and its session is still current, so a restarted or removed Worker loses ownership without waiting for its lease to expire; inference then applies its bounded retry policy. Removing a Worker returns its work to the queue under each queue's recovery rules. A Worker process serves both queues, prioritizing training over inference, according to its advertised capabilities. The process owns the accelerator lifecycle: it releases the cached inference model before training and collects runtime allocations when training exits. Consecutive inference tasks may reuse the cached model.
+
+## Annotation execution and readings
 
 `annotation-runs/runs.ts` reads and validates the current image, model, input readings and stored dish analysis under one image lock, then inserts the frozen definition and task plan in the same transaction; the image's active run is unique, so concurrent starts cannot create two. Starting a run performs no image I/O or computation. `tasks.ts` finds the next region of the image's run in progress and owns regional previews and acceptance, `access.ts` resolves a task identifier to its region and run, locking both only to accept the region, and pure domain operations validate geometry and collect final results. `views.ts` reads shared context and regional evidence through images; rendering formats a stable run context separately from regional CLEAN and overlays; MCP content encoding belongs to `transport/mcp`. `queries/pending-annotations.ts` lists the dataset and observation images with a run in progress, then those no one has read for their model, which the annotation server offers agents as work.
 
-The `readings` module owns the image's combined reading: stored human annotation, latest successful AI proposal, detection and the progress of a run in progress. Starting a run, MCP and workbench pages use that same read model. A page review adds the filename known by that page. `annotations` owns the human-reviewed document, and `annotation-runs` owns execution and acceptance. The read model uses stored data and inference selectors.
+The `readings` module owns the image's combined reading: stored human annotation, latest successful AI proposal, detection and the progress of a run in progress. Starting a run, MCP and workbench pages use that same read model. A page review adds the filename known by that page. `annotations` owns the human-reviewed document, and `annotation-runs` owns execution and acceptance. `readings/images.ts` owns a lateral subquery that pages left-join. Its version is an explicit parameter: callers choose the current version or the shown detecting version.
+
+## Training execution
 
 Training event reception runs outside the supervision loop, so an incomplete IPC frame cannot prevent cancellation or lease-loss checks. The supervisor terminates the trainer and its descendants when execution ends.
 
@@ -65,7 +71,7 @@ The Python Worker receives a `TrainingClaim` in `worker/training.py`. Its protoc
 
 ## Wire contracts
 
-Zod schemas in the Web package are authoritative for documents shared with Python. `web/scripts/generate-contracts.ts` emits JSON Schema into `src/vitroctl/contracts`. Python validates that shared structure first, then its small decoders construct domain objects and enforce cross-field semantics. `bun run contracts:generate` writes the schemas; `bun run contracts:check` detects stale output. The generated contracts are `annotation`, `dataset-manifest`, `detection-result`, `dish-recipe`, `inference-assignment`, `inference-model-manifest`, `model-bundle`, `training-parameters`, `training-recipe`, `training-run` and `training-snapshot`.
+Zod schemas in the Web package are authoritative for documents shared with Python. `web/scripts/generate-contracts.ts` emits JSON Schema into `src/vitroctl/contracts`. Python validates that shared structure first, then `X.from_document` decoders construct domain objects and enforce cross-field semantics. The Worker validates every outgoing detection document against the generated schema at the send boundary. Generated contracts admit nonnegative `attempt` values and Worker IDs up to 128 characters. `tests/test_training_recipe.py` pins the config wrapper to `schemaVersion: 1` and `recipe`. `bun run contracts:generate` writes the schemas; `bun run contracts:check` detects stale output. The generated contracts are `annotation`, `dataset-manifest`, `detection-result`, `dish-recipe`, `inference-assignment`, `inference-model-manifest`, `model-bundle`, `training-parameters`, `training-recipe`, `training-run` and `training-snapshot`.
 
 ## Persistence and startup
 
@@ -79,7 +85,7 @@ The blob driver only knows object keys and immutable bytes. `images/keys.ts` own
 
 The images module owns canonical sources, previews, dish analysis, regional evidence and unclear marks. Its processing and maintenance rules are described in [Images](images.md); annotation evidence and overlays in [AI annotation](ai-annotation.md).
 
-After `bun run build` in `web/`, `bun run maintenance` executes `dist/maintenance.js` as a long-running service. `bun run images:analyze` executes `dist/analyze-images.js` for one finite analysis sweep; `bun run blobs:collect` executes `dist/collect-blobs.js` for one collection pass. The one-shot entries close the database before exit.
+After `bun run build` in `web/`, `bun run maintenance` executes `dist/maintenance.js` as a long-running service. The finite analysis sweep is documented in [Images](images.md#maintenance); `bun run blobs:collect` executes `dist/collect-blobs.js` for one collection pass. The one-shot entries close the database before exit.
 
 ## Security boundary
 
@@ -87,7 +93,7 @@ API keys, MCP OAuth, browser sessions, and Worker tokens authenticate different 
 
 ## Module rule
 
-Split a module when it owns more than one lifecycle, not merely because it is long. Schema tables remain together while their foreign-key graph is the useful unit. Worker wire documents are separate from Worker orchestration, and connection mechanics are separate from application bootstrap. Protocol adapters project application operations.
+Split a module when it owns more than one lifecycle. Schema tables remain together while their foreign-key graph is the useful unit. Worker wire documents are separate from Worker orchestration, and connection mechanics are separate from application bootstrap. Protocol adapters project application operations.
 
 ## Annotation review
 
