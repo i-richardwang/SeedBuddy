@@ -31,7 +31,7 @@
   "version_dialog_column_candidate": "This version",
   "version_dialog_column_current": "Current {version}",
   "version_dialog_confirm": "Make current",
-  "version_dialog_effect": "Once current, the observation images of this model are counted again by it; reviewed and AI-proposed counts stay as they are. Any other version can be chosen back at any time, and its counts return at once without reading again.",
+  "version_dialog_effect": "Once current, the observation photos of this model are counted again by it; reviewed and AI-proposed counts stay as they are. Any other version can be chosen back at any time, and its counts return at once without reading again.",
   "version_dialog_failed": "{count} images could not be read and are left out of the comparison.",
   "version_dialog_failed_cell": "Not read",
   "version_dialog_held_out": [

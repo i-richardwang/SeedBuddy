@@ -77,6 +77,7 @@
   "manual_readings_description": "这里录入的数量作为该单元当天的计数，优先于照片读数。整行留空的单元不保留计数。",
   "manual_readings_field": "{unit}：{class}",
   "manual_readings_incomplete": "{units} 要么填全所有类别，要么整行留空",
+  "manual_readings_label": "手工计数",
   "manual_readings_not_saved": "计数未保存",
   "manual_readings_save": "保存计数",
   "manual_readings_title": "录入 {observation} 的计数",

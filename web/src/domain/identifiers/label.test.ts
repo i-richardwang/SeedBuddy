@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { identifierLabel } from "../src/domain/identifiers/schema";
+import { identifierLabel } from "./schema";
 
 test("bare image digests and generated identifiers share the label rule", () => {
   const digest = "0123456789abcdef".repeat(4);

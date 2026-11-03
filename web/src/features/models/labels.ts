@@ -8,7 +8,7 @@ const VERSION_SOURCE_LABELS = {
   training_run: m.version_source_training,
 } as const satisfies Record<
   ModelVersion["source"]["kind"],
-  (...args: never[]) => string
+  (input: { run: string }) => string
 >;
 export function versionSourceLabel(source: ModelVersion["source"]): string {
   return source.kind === "training_run"

@@ -73,7 +73,7 @@
   "experiment_summary": "Summary",
   "experiment_units_all_treatments": "All treatments",
   "experiment_units_not_moved": "Units not moved",
-  "experiments_description": "Lay out treatments and units, photo them on each observation day, and read the results.",
+  "experiments_description": "Lay out treatments and units, take photos on each observation day, and read the results.",
   "experiments_empty": "No experiments yet",
   "experiments_empty_description": "Start an experiment to lay out its treatments and units.",
   "experiments_no_matches": "No experiments match",
@@ -83,6 +83,7 @@
   "manual_readings_description": "A count entered here stands for the unit on this day, over whatever its photo reads. Leave a unit empty to keep no count for it.",
   "manual_readings_field": "{unit}: {class}",
   "manual_readings_incomplete": "Fill in every class of {units}, or leave them empty",
+  "manual_readings_label": "Manual counts",
   "manual_readings_not_saved": "Counts not saved",
   "manual_readings_save": "Save counts",
   "manual_readings_title": "Enter counts for {observation}",
@@ -118,7 +119,7 @@
     }
   ],
   "observation_images_fill_in_order": "Match in order",
-  "observation_images_heading": "photos for {observation}",
+  "observation_images_heading": "Photos for {observation}",
   "observation_images_placed": "Already {unit}, {day}",
   "observation_images_remaining": [
     {
@@ -200,8 +201,8 @@
   "unit_delete": "Delete unit",
   "unit_detection_failed": "Counting failed",
   "unit_edit": "Edit unit",
-  "unit_image_not_replaced": "photo not replaced",
-  "unit_image_unassigned": "photo unmatched",
+  "unit_image_not_replaced": "Photo not replaced",
+  "unit_image_unassigned": "Photo unmatched",
   "unit_menu_delete": "Delete unit…",
   "unit_menu_edit": "Edit unit…",
   "unit_menu_replace": "Replace photo…",

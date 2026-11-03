@@ -23,7 +23,6 @@ import { UnitDialog } from "./UnitDialog";
 
 type Action = "replace" | "edit" | "dataset";
 
-
 /** The unit's own commands and those on the photograph in view. */
 export function UnitMenu({
   experiment,

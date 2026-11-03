@@ -56,12 +56,12 @@ function resolveActiveHref(pathname: string, items: readonly AppNavItem[]) {
  * `groups` follow the places, 8px apart, each open at first.
  */
 export function AppNav({
-  groups = [],
+  groups,
   items,
   pathname,
   renderLink,
 }: {
-  groups?: AppNavGroup[];
+  groups: AppNavGroup[];
   items: AppNavItem[];
   pathname: string;
   /**

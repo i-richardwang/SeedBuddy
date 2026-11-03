@@ -23,9 +23,9 @@ import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { AddPhotosDialog } from "./AddPhotosDialog";
 import { observationQuestion } from "./copy";
-import { ObservationDialog } from "./ObservationDialog";
 import { EnterManualReadingsDialog } from "./EnterManualReadingsDialog";
 import { observationLabel } from "./labels";
+import { ObservationDialog } from "./ObservationDialog";
 
 type Action = "images" | "readings" | "dataset" | "edit";
 

@@ -14,7 +14,10 @@ export function userRoleLabel(value: UserRole): string {
 const USER_STATUS = {
   suspended: { label: m.user_status_suspended, tone: "warning" },
   active: { label: m.active_label, tone: "success" },
-} as const satisfies Record<"active" | "suspended", { label: () => string; tone: StatusTone }>;
+} as const satisfies Record<
+  "active" | "suspended",
+  { label: () => string; tone: StatusTone }
+>;
 export function userStatusLabel(account: UserAccount) {
   return USER_STATUS[account.banned ? "suspended" : "active"].label();
 }

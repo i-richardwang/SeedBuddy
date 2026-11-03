@@ -186,12 +186,7 @@ function ManualReadingsForm({
           })}
         />
       ) : null}
-      <Table
-        aria-label={m.manual_readings_title({
-          observation: observationLabel(observation),
-        })}
-        size="small"
-      >
+      <Table aria-label={m.manual_readings_label()} size="small">
         <TableHeader>
           <tr>
             <TableHead className="min-w-24">

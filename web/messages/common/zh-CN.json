@@ -2,7 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "account_label": "账户",
   "action_not_completed": "{action}未完成",
-  "active_label": "培养中",
+  "active_label": "正常",
   "add_action": "添加",
   "ai_proposal_label": "AI 建议",
   "app_name": "VitroFlow",

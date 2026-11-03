@@ -2,12 +2,7 @@ import assert from "node:assert/strict";
 
 import { act, useState } from "react";
 
-import { body, browser, button, press, render, unmount, waitFor } from "./dom";
-
-Object.defineProperty(globalThis, "scrollTo", {
-  configurable: true,
-  value: browser.scrollTo.bind(browser),
-});
+import { body, button, press, render, unmount, waitFor } from "./dom";
 
 const { createMemoryHistory, createRootRoute, createRouter, RouterProvider } =
   await import("@tanstack/react-router");

@@ -92,3 +92,8 @@ export function AuthConnection({
     </div>
   );
 }
+
+/** A divider between the page-wide controls in the footer. */
+export function AuthLayoutSeparator() {
+  return <span aria-hidden className="ui-auth-layout-separator" />;
+}

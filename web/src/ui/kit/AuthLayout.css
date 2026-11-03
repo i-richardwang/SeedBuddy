@@ -140,3 +140,10 @@
 .ui-auth-connection-link {
   color: var(--color-fg-secondary);
 }
+
+.ui-auth-layout-separator {
+  flex: none;
+  inline-size: 1px;
+  block-size: 24px;
+  background: var(--color-border-secondary);
+}

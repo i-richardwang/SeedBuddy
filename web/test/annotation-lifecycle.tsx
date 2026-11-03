@@ -191,7 +191,7 @@ await act(async () =>
   (named(m.annotation_unlock()) as unknown as { click(): void }).click(),
 );
 assert.ok(named(m.annotation_lock()), "the lock opens for editing");
-assert.ok(says(m.annotation_standing_reviewed()), "a review reads as reviewed");
+assert.ok(says(m.reviewed_label()), "a review reads as reviewed");
 assert.equal(
   button(m.annotation_confirm()),
   undefined,
@@ -200,7 +200,7 @@ assert.equal(
 await act(async () =>
   button(
     m.annotation_named_count({
-      name: m.annotation_proposal_label(),
+      name: m.ai_proposal_label(),
       count: 3,
     }),
   )!.click(),
@@ -228,7 +228,7 @@ assert.ok(says(countedOnly), "an image counting fewer classes names them");
 assert.ok(
   button(
     m.annotation_named_count({
-      name: m.annotation_proposal_label(),
+      name: m.ai_proposal_label(),
       count: 0,
     }),
   ),
@@ -270,7 +270,7 @@ await tapEmpty();
 assert.equal(boxes(), 2, "pressing empty image first clears the selection");
 await key({ key: "z", ctrlKey: true });
 assert.equal(boxes(), 1, "Undo takes the box back");
-assert.ok(says(m.annotation_standing_reviewed()), "undone edits leave none");
+assert.ok(says(m.reviewed_label()), "undone edits leave none");
 
 await tapEmpty();
 source = "proposal";
@@ -282,10 +282,10 @@ assert.equal(boxes(), 2, "Undo restores the edits before the reading");
 assert.equal(checks(), 0, "Undo restores the draft's lineage with its boxes");
 
 saveStatus = "conflict";
-await act(async () => button(m.annotation_save())!.click());
-assert.ok(pending(button(m.annotation_save())), "saving pends");
+await act(async () => button(m.save_action())!.click());
+assert.ok(pending(button(m.save_action())), "saving pends");
 assert.ok(
-  await refuses(button(m.annotation_save())),
+  await refuses(button(m.save_action())),
   "a pending save refuses presses",
 );
 await act(async () => releaseSave?.());
@@ -295,7 +295,7 @@ const conflict = () =>
   );
 assert.ok(conflict(), "a save conflict stays on the page");
 assert.equal(
-  button(m.annotation_save())?.getAttribute("aria-disabled"),
+  button(m.save_action())?.getAttribute("aria-disabled"),
   "true",
   "a conflicted draft cannot be saved again",
 );
@@ -311,7 +311,7 @@ assert.equal(boxes(), 1, "the reloaded draft starts from the stored review");
 saveStatus = "saved";
 await tapEmpty();
 const before = sourceChanges;
-await act(async () => button(m.annotation_save())!.click());
+await act(async () => button(m.save_action())!.click());
 await act(async () => releaseSave?.());
 assert.deepEqual(saved?.data.base, annotation.instances);
 assert.equal(
@@ -322,7 +322,7 @@ assert.equal(
 assert.equal(sourceChanges, before + 1, "saving returns to the best reading");
 assert.equal(source, undefined);
 assert.equal(boxes(), 2, "the saved boxes stay until fresh readings arrive");
-assert.ok(says(m.annotation_standing_reviewed()));
+assert.ok(says(m.reviewed_label()));
 
 await render({ onNext: () => nexts++ });
 assert.ok(
@@ -333,7 +333,7 @@ await key({ key: "Enter" });
 assert.equal(nexts, 1, "Enter moves on");
 await tapEmpty();
 await key({ key: "s", ctrlKey: true });
-assert.ok(pending(button(m.annotation_save())), "Mod+S saves");
+assert.ok(pending(button(m.save_action())), "Mod+S saves");
 await act(async () => releaseSave?.());
 assert.equal(nexts, 1, "saving stays on the image");
 assert.ok(

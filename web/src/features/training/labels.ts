@@ -27,7 +27,10 @@ const PHASE_LABELS = {
   preparing: m.run_state_preparing,
   training: m.run_state_training,
   validating: m.run_state_validating,
-} as const satisfies Record<Extract<TrainingRun["state"], {status: "running"}>["phase"], () => string>;
+} as const satisfies Record<
+  Extract<TrainingRun["state"], { status: "running" }>["phase"],
+  () => string
+>;
 
 const STATUS_LABELS = {
   queued: m.run_state_queued,
@@ -35,7 +38,10 @@ const STATUS_LABELS = {
   cancelled: m.run_state_cancelled,
   succeeded: m.run_state_succeeded,
   failed: m.failed_label,
-} as const satisfies Record<Exclude<TrainingRun["state"]["status"], "running">, () => string>;
+} as const satisfies Record<
+  Exclude<TrainingRun["state"]["status"], "running">,
+  () => string
+>;
 
 const LOOKS = {
   paused: { tone: "neutral", icon: CirclePause },

@@ -36,7 +36,7 @@ export function CopyButton({
         try {
           await navigator.clipboard.writeText(content);
         } catch {
-          toast.error(m.ui_copy_button_failed());
+          toast.error(m.ui_text_not_copied());
           return;
         }
         setCopied(true);

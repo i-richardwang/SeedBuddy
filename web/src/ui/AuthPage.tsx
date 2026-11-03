@@ -1,8 +1,7 @@
 import type { ComponentProps } from "react";
 
 import { AppBrand } from "./BrandLogo";
-import { AuthLayout } from "./kit/AuthLayout";
-import { ToolbarSeparator } from "./kit/Toolbar";
+import { AuthLayout, AuthLayoutSeparator } from "./kit/AuthLayout";
 import { ColorSchemeMenu, LanguageMenu } from "./Preferences";
 
 /** A page outside the signed-in shell: the brand above, the language and color scheme below. */
@@ -16,7 +15,7 @@ export function AuthPage(
       footer={
         <div className="flex items-center gap-2">
           <LanguageMenu />
-          <ToolbarSeparator />
+          <AuthLayoutSeparator />
           <ColorSchemeMenu />
         </div>
       }

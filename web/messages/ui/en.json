@@ -4,7 +4,6 @@
   "ui_cancel": "Cancel",
   "ui_close": "Close",
   "ui_copy_button_copy": "Copy",
-  "ui_copy_button_failed": "Copy failed. Select the text and copy it manually.",
   "ui_date_picker_choose_month": "Choose a month",
   "ui_date_picker_choose_year": "Choose a year",
   "ui_date_picker_decade": "{first}-{last}",
@@ -84,6 +83,7 @@
     }
   ],
   "ui_table_select_all": "Select all",
+  "ui_text_not_copied": "Text not copied. Select the text and copy it manually.",
   "ui_viewport_fill": "Fill frame",
   "ui_viewport_zoom": "Zoom"
 }

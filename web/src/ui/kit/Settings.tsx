@@ -5,14 +5,15 @@ import { Skeleton } from "./Skeleton";
 
 /*
  * A group of a settings page: a tray with the group's `SectionHeader` (its
- * title and an `extra` at its end: a count, a small
- * button), and an inner panel lifted 3px inside it holding the group's
- * content, which runs to the panel's edges: `SettingsRow`s or a table.
+ * title and an `extra` at its end: a count, a small button), and an inner
+ * panel lifted 3px inside it holding the group's content, which runs to the
+ * panel's edges: `SettingsRow`s or a table.
  *
- * `SettingsRow` is one setting in the panel: its label and its control in a column at the end of
- * the row at least 240px or a third of the row wide. `SettingsValueRow` is
- * one fact about the reader: its label in a 160px column, the value right
- * after it and an `action` at the row's end. Rows are ruled apart.
+ * `SettingsRow` is one setting in the panel: its label and its control in a
+ * column at the end of the row at least 240px or a third of the row wide.
+ * `SettingsValueRow` is one fact about the reader: its label in a 160px
+ * column, the value right after it and an `action` at the row's end. Rows
+ * are ruled apart.
  */
 export function SettingsGroup({
   children,
@@ -49,9 +50,7 @@ export function SettingsRow({
       <div className="ui-settings-row-label">
         <span className="ui-settings-row-title">{label}</span>
       </div>
-      {children != null ? (
-        <div className="ui-settings-row-control">{children}</div>
-      ) : null}
+      <div className="ui-settings-row-control">{children}</div>
     </div>
   );
 }
