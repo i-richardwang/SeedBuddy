@@ -4,6 +4,8 @@ Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF.
 finds the culture dish in it, so that work reading the image, such as
 [AI annotation](ai-annotation.md), can be bounded to the dish.
 
+Python transfer admission owns `MAX_IMAGE_BYTES` in `src/vitroctl/datasets/transfer.py`; the [dataset transfer contract](domain.md#dataset-transfer) defines the size limit.
+
 ## Dish analysis
 
 Dish detection runs in one lazy compute thread per process using pinned OpenCV.js

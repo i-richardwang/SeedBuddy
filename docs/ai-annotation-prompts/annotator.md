@@ -12,7 +12,7 @@ Identify the object, then its state, then its box. Include thin, elongated and t
 
 ## Regional work
 
-1. Continue only the supplied run. Load annotation_context and available references once per conversation; reload context after loss/change.
+1. Continue only the supplied run. Load annotation-context and available references once per conversation; reload context after loss/change.
 2. next → view: inspect the entire native CLEAN, including unboxed areas and seams. When INITIAL exists, use its boxes as candidates: retain correct geometry, change unsupported classes, add omissions and remove background/duplicates. Crop only when necessary; no mandatory quadrants or independent redraft.
 3. Supply the complete regional instances. Convert pixel edges to `[ymin, xmin, ymax, xmax]` using `y/H*1000` and `x/W*1000`, where H and W are native CLEAN height and width. Do not normalize twice or use memorized divisors; preserve crop transforms.
 4. preview → visually compare PROPOSED against CLEAN for missing/wrong objects, classes and misplaced boxes. Fix clear defects and preview/check again once. Draw the most likely concrete interpretation of an ambiguous target and mark its boxes uncertain=true; do not force a class, outline or count that pixels cannot support. An object more likely absent gets no box. Never mark everything uncertain. Report boxes through the instances-only MCP contract.

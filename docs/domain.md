@@ -6,7 +6,7 @@ The [reading rules](readings.md) define counts, exclusions, summaries and export
 
 A reading is a count for a unit and observation, read from a photograph by a model or a person or entered by hand; a detection is a model’s reading.
 
-A Worker is a registered machine. A Worker process is the running program that authenticates as that Worker and supervises execution.
+A Worker is a enrolled machine. A Worker process is the running program that authenticates as that Worker and supervises execution.
 
 API key scope names follow the UI: Dataset transfer, Experiment records and Image annotation.
 
@@ -16,9 +16,9 @@ An experiment has a case-insensitively unique name, plant material, explant type
 
 A unit is an independent vessel receiving one treatment. The design begins with at least one treatment and one replicate per treatment, with suggested codes `T1-1` through `T1-n`. Codes are unique within an experiment. Correcting a code or moving a unit between treatments preserves its identity and records. Treatments can gain replicates; the last treatment and the last replicate cannot be removed or moved away.
 
-An observation is one occasion on one calendar day, at most once per experiment per day, ordered by date and never before inoculation. It can be recorded before photographs arrive or together with photographs matched to units. Its initial model and counted classes follow the preceding observation. Protocol fields, treatments, unit codes and observation dates are correctable within the recorded lifetimes.
+An observation is one occasion on one calendar day, at most once per experiment per day, ordered by date and never before inoculation. It can be recorded before photographs arrive or together with photographs matched to units. Protocol fields, treatments, unit codes and observation dates are correctable within the recorded lifetimes.
 
-One standardized photograph belongs to each unit and observation. Its source filename supplies a suggested unit code for confirmation and remains traceability metadata, not identity. Replacing or removing an assignment preserves the canonical image and its readings. Objects within a unit are subsamples; the physical dish circle is an image diagnostic, not the unit's identity.
+At most one standardized photograph belongs to each unit and observation. Its source filename supplies a suggested unit code for confirmation and remains traceability metadata, not identity. Replacing or removing an assignment preserves the canonical image and its annotations. Objects within a unit are subsamples; the physical dish circle is an image diagnostic, not the unit's identity.
 
 Images, counts entered by hand and culture events prevent deletion of their unit or observation, and prevent deletion of their treatment or experiment. Deleting an eligible treatment also deletes its units. An inoculation date cannot move past an observation. Discarded, harvested and missing are terminal culture events; a unit has at most one terminal event and has no records after it. An event entered by mistake can be removed. Correcting an observation date must preserve these lifetimes. An observation with counts entered by hand keeps its model until those counts are withdrawn; its counted classes can change within that model.
 
