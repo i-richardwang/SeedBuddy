@@ -63,7 +63,7 @@ spec:
         - key: VITROFLOW_ADMIN_PASSWORD
           type: STRING
           name: Administrator Password
-          description: "Password of the first administrator account. At least 8 characters."
+          description: "Password of the first administrator account. At least 12 characters."
     services:
         - name: postgres
           icon: https://cdn.zeabur.com/marketplace/postgresql.svg
@@ -73,6 +73,7 @@ spec:
             # which is how the dashboard offers its SQL tooling for the service.
             id: postgresql
             source:
+                # Floating tags resolve at deployment; pin digests for reproducible storage images.
                 image: postgres:18
                 command:
                     - docker-entrypoint.sh

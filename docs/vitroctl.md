@@ -40,9 +40,9 @@ vitroctl worker restart mac-studio
 vitroctl worker stop mac-studio
 ```
 
-`launchd` restarts a Worker that crashes. A Worker removed from the Workers page stops and stays stopped, and `worker list` shows why; enroll it again and rerun `setup --force` with the enrollment token.
+`launchd` restarts a Worker process that crashes. Removing its Worker from the Workers page stops the process and keeps it stopped, and `worker list` shows why; enroll it again and rerun `setup --force` with the enrollment token.
 
-`stop` and `restart` return once the Worker has exited; `restart` then loads the current LaunchAgent definition. Training runs in a supervised child process, so shutdown or detection of a revoked lease stops even a trainer blocked inside a GPU operation. The server revokes ownership immediately; the Worker detects revocation on its next training request or lease renewal. Each attempt uses a private directory. Completed but undelivered bundles are retained; other attempt directories are removed when execution exits.
+`stop` and `restart` return once the Worker process has exited; `restart` then loads the current LaunchAgent definition. Training runs in a child process. On cancellation, shutdown or lease loss, the Worker process supervisor terminates the child’s process group, including data-loader children, even during a blocked GPU operation. The server revokes ownership immediately; the Worker detects revocation on its next training request or lease renewal. Each attempt uses a private directory. Completed but undelivered bundles are retained; other attempt directories are removed when execution exits.
 
 Inference execution and retry policy are described in the [Worker control planes](backend-architecture.md#worker-control-planes). Workers make outbound calls only and expose no inbound port. Web and Workers share wire contracts with no mixed-version protocol: stop Workers, deploy Web, install the matching Worker package, then start Workers with `vitroctl worker restart <profile>`.
 
@@ -50,9 +50,9 @@ Training presets pin model weights, parameters, and the framework version. The W
 
 Workers validate both training recipes and the training metadata in published model manifests. A framework version match alone does not establish application-contract compatibility; both sides validate the shared contracts.
 
-The training dialog assigns work automatically or to a specific enrolled Worker. A run's status on its page is the menu that controls it: Pause training revokes the current attempt and releases the model immediately; Cancel training… asks before it ends the task. Pausing a task frees its model for another run; a paused or failed task continues once no other run of its model is in progress, on the training Worker its dialog names, from its saved epoch or from the beginning. A pinned task waits for its selected Worker rather than silently moving elsewhere.
+The training dialog assigns work automatically or to a specific enrolled Worker. A run's status on its page is the menu that controls it: Pause training revokes the current attempt and releases the model immediately; Cancel training… asks before it ends the task. Pausing a task frees its model for another run; a paused or failed task continues once no other run of its model is in progress, on the training Worker its dialog names, from its saved epoch or with a fresh attempt. A pinned task waits for its selected Worker rather than silently moving elsewhere.
 
-Each epoch saves the latest resumable weights, best weights, and epoch journal on the Worker. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes stay on the Worker during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. The Start from the beginning command uses the restart behavior described below. Missing or invalid files fail with an explicit restart instruction; host or disk loss is not recoverable from the workbench.
+Each epoch saves the latest resumable weights, best weights, and epoch journal on the Worker. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes stay on the Worker during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. Missing or invalid files fail with an explicit restart instruction; host or disk loss is not recoverable from the workbench.
 
 Local recovery checks the run, frozen dataset snapshot, recipe, and Worker identity before atomically copying each recovery directory into the next attempt. The trainer verifies the checkpoint and epoch journal before resuming. Attempts with local weights or a finished bundle are excluded from automatic stale-run cleanup; their log identifies the retained directory. Remove retained directories explicitly when unneeded.
 
@@ -68,7 +68,7 @@ A Worker keeps the canonical images it has read in its work directory, by digest
 
 ## Datasets
 
-Dataset transfer uses `/api/transfer/` with a personal API key that holds the transfer scope:
+Dataset transfer uses `/api/transfer/` with a personal API key that holds the Dataset transfer scope:
 
 ```bash
 export VITROFLOW_SERVER_URL=https://<workbench>
@@ -149,7 +149,7 @@ vitroctl training run --local --spec training.json --data-root data \
 vitroctl training run --local --resume --spec training.json --data-root data \
   --device mps --output output/my-training
 
-# Workbench operations require an API key with the experiments scope.
+# Workbench operations require an API key with the Experiment records scope.
 vitroctl training workers
 vitroctl training run --spec managed-training.json --worker mac-studio
 vitroctl training list --model seed-detector
@@ -159,7 +159,7 @@ vitroctl training resume <run-id> --dataset <dataset-id> --attempt 1 --restart -
 vitroctl training cancel <run-id> --dataset <dataset-id> --attempt 2
 ```
 
-`training resume --restart` discards the recovery reference and starts from the beginning, allowing another Worker to claim the run. Without it, resume uses the bound Worker and its recovery files.
+`training resume --restart` discards the recovery reference and starts training afresh, allowing another Worker to claim the run. Without it, resume uses the bound Worker and its recovery files.
 
 Local outputs retain the fixed input manifest, exported data and split membership, checkpoints, epoch journal, inference summary, and `bundle/`. Resume checks the saved inputs before using a checkpoint; changing data or parameters requires another output directory. A completed training cannot be resumed from a stripped final checkpoint. Its bundle can still be imported repeatedly without training.
 

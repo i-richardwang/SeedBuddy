@@ -17,9 +17,7 @@ them, so a photograph annotated for it teaches the model both what a seed is
 and which state it is in. Seeds hidden under grown seedlings go unboxed, since
 nothing in the photograph shows them.
 
-A model defines the classes to count. It exists as soon as
-someone names it, with no version at all. Its images are then read by a
-reviewer, and those reviews are what a first version is eventually trained on.
+A model can exist without a version; its images can still carry reviews and AI proposals. Version behavior follows the [model lifecycle](domain.md#models-and-versions).
 
 ## What an observation declares
 
@@ -43,23 +41,19 @@ the usual one; a person counting the dish at the bench is another. Where the
 number came from is kept beside it, and the number enters the statistics.
 
 A cell is one unit on one day. It holds the photograph taken of the unit
-that day, if one was, and the count a person entered for it, if one was;
+that day, if one was, and the count entered by hand for it, if one was;
 it exists once it has either. One unit has at most one photograph and one
-entered count per day.
+count entered by hand per day.
 
 Every photograph yields a tally: how many instances of each class the reading
 found. An image can hold three readings, and they rank: a reviewer's
 review outranks an AI agent's proposal, which outranks the detector's
-result. A proposal counts because an agent that sees the photograph reads it
-better than the detector, but it is still an automated reading; only a review
-marks the image reviewed, and the grid shows the difference.
+result. Only a review marks the image reviewed; the grid distinguishes it from automated readings.
 
 A count entered by hand is a tally too, kept by class, for a day that was
 not photographed or a dish that was counted at the bench, such as when its
 seedlings were moved. It is entered for a whole observation at a time, a row
-per unit and a field per class the day counts. It outranks every reading of
-the day's photograph: it is a person's deliberate statement about that cell,
-and the grid marks it as entered by hand so the difference stays visible. A
+per unit and a field per class the day counts. When it supplies every counted class, it takes precedence over the photograph. The grid marks it as a count entered by hand. A
 unit removed from the bench before the observation can no more be counted
 than photographed, and counts follow the [record lifetime rules](domain.md#experimental-design). Correcting an observation date must preserve
 that lifetime: no photograph, count entered by hand or culture event may move past the
@@ -119,7 +113,7 @@ design, a cell for every unit on every observation, and the summary by
 treatment. Each cell is resolved here, by the same functions the grid and the
 spreadsheet use: the reading counted in the statistics and who stood behind it, why
 the day is out of the statistics if it is, and under them the photograph and the
-entered count the reading came from. An agent therefore never ranks readings,
+count entered by hand the reading came from. An agent therefore never ranks readings,
 applies the exclusion rules, or averages a treatment itself, and a change to
 any of them changes what every reader sees at once. The workbench grid is a
 different view: it also shows what the workbench is still doing with a
@@ -178,7 +172,7 @@ event takes out names the event. Where unclear photographs count, the number
 is used as it stands. Either way the photograph is still read and shown, and
 datasets train on it.
 
-A day with neither photograph nor entered count takes nothing out: the unit
+A day with neither photograph nor count entered by hand takes nothing out: the unit
 has no number that day, and its other days count as they are.
 
 Marking, clearing, recording an event or changing the setting reads nothing

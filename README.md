@@ -69,10 +69,10 @@ The reference-image regression suite uses the checksum manifest in `tests/fixtur
 make check-reference REFERENCE_IMAGE_DIR=/absolute/path/to/reference-images
 ```
 
-Run the constraints and contended writes that need a real PostgreSQL server:
+Run the constraints and contended writes against disposable PostgreSQL storage. Compose creates `vitroflow`, the database used by CI; `make check-postgres` connects to the supplied database and does not create it:
 
 ```bash
-export VITROFLOW_TEST_DATABASE_URL=postgres://vitroflow:vitroflow@localhost:5432/vitroflow_test
+export VITROFLOW_TEST_DATABASE_URL=postgres://vitroflow:vitroflow@localhost:5432/vitroflow
 
 make check-postgres
 ```

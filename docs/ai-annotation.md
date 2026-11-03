@@ -49,6 +49,13 @@ request URL, method and access token; a reused proof is refused. The account and
 client authorization are checked on every request, including after a valid proof.
 Initialization uses the shared, retryable auth service.
 
+Add the annotation server to a local client:
+
+```bash
+claude mcp add --transport http vitroflow-annotation https://<workbench>/api/annotation/mcp
+codex mcp add vitroflow-annotation --url https://<workbench>/api/annotation/mcp
+```
+
 ## Tool contract
 
 `annotation_find({image})` finds image references by filename or workbench page URL and lists their experiment or dataset locations. Ambiguous matches are presented for selection.
@@ -117,7 +124,7 @@ Each region is then worked through four tools:
 ## Evidence and caches
 
 Images are MCP image content containing PNG bytes, not authenticated download URLs.
-Only the service reads canonical AVIFs from the blob store. The default
+A hosted client must expose MCP image content to its visual model to inspect this evidence; a text-only tool renderer cannot perform the visual workflow. Only the service reads canonical AVIFs from the blob store. The default
 512-pixel core, 32-pixel halo and 1× display preserve native region detail; the
 shared overview is limited to a 1024-pixel longest side. Display magnification
 changes presentation, not final coordinates. Runs are limited to 4096 regions;
@@ -148,7 +155,7 @@ A dish run covers the dish its image's stored [analysis](images.md) found.
 Coverage expands the detected radius by 15%. A core is omitted only when its
 rectangle is wholly outside that coverage; crossing and tangent cores remain.
 Grid IDs, patches, halos and box ownership stay unchanged. Evidence and boxes are
-never masked or clipped to the circle. `scope` intersects coverage with the redraw regions. Progress counts assigned tasks.
+never masked or clipped to the circle. `scope` intersects coverage with the redraw regions. Progress counts assigned tasks. Cores outside dish coverage retain their input boxes in the resulting proposal and await human confirmation.
 
 Starting a run reads metadata in one transaction, freezes coverage and tasks, and
 performs no image I/O, detection or PNG preparation. Missing, obsolete,
@@ -165,9 +172,9 @@ For 20 fresh regions with one preview each, this flow delivers one overview,
 tokens.
 
 For seed annotation, use the [annotator](ai-annotation-prompts/annotator.md) and
-[parent batch dispatch](ai-annotation-prompts/coordinator.md) templates. The templates define batch limits and subagent handoff. Initial annotation and maintenance
+[coordinator](ai-annotation-prompts/coordinator.md) templates. The templates define batch limits and subagent handoff. Initial annotation and maintenance
 share this workflow, with different run inputs. Project criteria include user-confirmed
-early plump germination. Annotators inspect previews themselves. Human reviews retain precedence.
+early plump germination. Annotators inspect previews themselves. Reading precedence follows the [reading rules](readings.md#where-the-numbers-come-from).
 
 ## Persistence and failure semantics
 

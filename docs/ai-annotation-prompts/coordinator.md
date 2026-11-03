@@ -1,4 +1,4 @@
-# Parent batch dispatch
+# Seed annotation coordinator
 
 The parent dispatches annotators directly; no coordination-only or reviewer child agents.
 
