@@ -1,5 +1,6 @@
+import { useRouter } from "@tanstack/react-router";
 import { CircleCheck } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import { m } from "../paraglide/messages";
 import { Button } from "./kit/Button";
@@ -29,8 +30,19 @@ export function RevealOnceDialog<T>({
   hint: ReactNode;
   children: (revealed: T) => ReactNode;
 }) {
+  const router = useRouter();
+  const dismissed = useRef(false);
+  const close = () => {
+    if (dismissed.current || revealed === null) return;
+    dismissed.current = true;
+    onClose();
+    void router.invalidate();
+  };
   const [shown, setShown] = useState(revealed);
-  if (revealed !== null && revealed !== shown) setShown(revealed);
+  if (revealed !== null && revealed !== shown) {
+    dismissed.current = false;
+    setShown(revealed);
+  }
   if (shown === null) return null;
   return (
     <Modal
@@ -42,10 +54,10 @@ export function RevealOnceDialog<T>({
         </span>
       }
       dismissOnBackdrop={false}
-      onClose={onClose}
+      onClose={close}
       afterClose={() => setShown(null)}
       footer={
-        <Button block type="primary" onClick={onClose}>
+        <Button block type="primary" onClick={close}>
           {m.ui_done()}
         </Button>
       }

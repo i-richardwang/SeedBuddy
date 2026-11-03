@@ -1,6 +1,6 @@
-import { MIN_PASSWORD_LENGTH } from "../../domain/auth/schema";
-import { Form, type FormFieldProps } from "../../ui/kit/Form";
-import { InputPassword } from "../../ui/kit/Input";
+import { MIN_PASSWORD_LENGTH } from "../domain/auth/schema";
+import { Form, type FormFieldProps } from "../ui/kit/Form";
+import { InputPassword } from "../ui/kit/Input";
 
 export function PasswordField({
   label,

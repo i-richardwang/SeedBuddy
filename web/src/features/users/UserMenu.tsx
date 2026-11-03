@@ -19,7 +19,7 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { toast } from "../../ui/kit/Toast";
-import { PasswordField } from "./PasswordField";
+import { PasswordField } from "../../ui/PasswordField";
 
 /** Everything an administrator does to another account, in one row menu. */
 export function UserMenu({ account }: { account: UserAccount }) {
@@ -44,7 +44,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
           {
             key: "reset-password",
             icon: KeyRound,
-            label: m.user_menu_reset_password_item(),
+            label: m.user_menu_reset_password(),
             onClick: () => setResetting(true),
           },
           {
@@ -72,7 +72,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
             : {
                 key: "suspend",
                 icon: Ban,
-                label: m.user_menu_suspend_item(),
+                label: m.user_menu_suspend(),
                 onClick: () =>
                   confirmDestructive({
                     title: m.user_suspend_title({ name: account.name }),
@@ -91,7 +91,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
             key: "delete",
             icon: Trash2,
             danger: true,
-            label: m.user_menu_delete_item(),
+            label: m.user_menu_delete(),
             onClick: () =>
               confirmDestructive({
                 title: m.user_delete_title({ name: account.name }),

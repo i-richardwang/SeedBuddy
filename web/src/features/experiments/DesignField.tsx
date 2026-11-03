@@ -64,7 +64,7 @@ export function DesignField({
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2">
           <Text aria-hidden size="xs" type="secondary" className="col-start-2">
-            {m.treatment_name_label()}
+            {m.experiment_field_name()}
           </Text>
           <Text aria-hidden size="xs" type="secondary" className="col-span-2">
             {m.treatment_replicates_label()}
@@ -77,7 +77,7 @@ export function DesignField({
               <Fragment key={row.id}>
                 <TreatmentDot position={index + 1} />
                 <Input
-                  aria-label={m.treatment_name_label()}
+                  aria-label={m.experiment_field_name()}
                   disabled={disabled}
                   placeholder={m.treatment_name_placeholder()}
                   value={row.name}

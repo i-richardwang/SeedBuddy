@@ -38,7 +38,7 @@ import { ChecksLayer, EditableBoxLayer } from "./BoxLayer";
 import type { LayerKey } from "./controls";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
 import { useSaveKey, useWorkbenchKeys } from "./keys";
-import { STANDING_LABELS } from "./labels";
+import { standingLabel, standingTone } from "./labels";
 import { setEditLocked, useEditLocked } from "./lock";
 import { useImageSession } from "./session";
 import { EditTools, LayerControls } from "./tools";
@@ -113,7 +113,7 @@ export function ImageWorkbenchSkeleton({
  * They are locked until the lock leading the toolbar is opened; then the
  * editing tools show and any edit begins a draft. The primary command
  * stores the boxes as the image's review and stays: it saves edits, or
- * confirms a machine's reading taken as it is, as Mod+S does. On a reviewed image it leads
+ * confirms a Worker's reading taken as it is, as Mod+S does. On a reviewed image it leads
  * to the next one still to review. Where an AI proposal is on view, the places it
  * asks a person to check are outlined, counted and stepped through. Whether
  * the photograph is clear is said beside it and saved on its own. Mounted
@@ -170,12 +170,11 @@ export function ImageSubject({
     : onNext && { label: m.annotation_next_unreviewed(), run: onNext };
   useWorkbenchKeys({ Enter: primary && ready ? primary.run : undefined });
   useSaveKey(stores && ready ? store : undefined);
-  const badge = STANDING_LABELS[standing];
 
   return (
     <>
       <WorkbenchStatus>
-        <Status tone={badge.tone}>{badge.label()}</Status>
+        <Status tone={standingTone(standing)}>{standingLabel(standing)}</Status>
       </WorkbenchStatus>
       <ShellActions>
         {standing === "edited" ? (

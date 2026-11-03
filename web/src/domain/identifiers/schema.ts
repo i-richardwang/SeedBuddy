@@ -17,6 +17,6 @@ export const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 const GENERATED_ID = /^[a-z]+-([0-9a-f-]{32,})$/;
 
 export function identifierLabel(id: string): string {
-  const generated = GENERATED_ID.exec(id)?.[1];
+  const generated = /^[a-f0-9]{64}$/.test(id) ? id : GENERATED_ID.exec(id)?.[1];
   return generated ? generated.replaceAll("-", "").slice(0, 8) : id;
 }

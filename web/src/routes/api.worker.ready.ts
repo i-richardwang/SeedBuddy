@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-/** A token check: which enrolled worker the token belongs to. */
+/** A token check: which enrolled Worker the token belongs to. */
 export const Route = createFileRoute("/api/worker/ready")({
   server: {
     handlers: {

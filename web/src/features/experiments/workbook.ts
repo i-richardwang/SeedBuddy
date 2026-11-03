@@ -213,7 +213,7 @@ function summaryHeading(
   return [
     [
       textCell(m.experiment_column_treatment(), covering),
-      textCell(m.workbook_column_factor(), covering),
+      textCell(m.treatment_factor_label(), covering),
       ...observations.flatMap((observation) => [
         calendarCell(observation.observedOn, spanning),
         ...SUMMARY_DAY_COLUMNS.slice(1).map(() => blankCell),
@@ -305,7 +305,7 @@ function heading(days: readonly Day[]): WorkbookCell[][] {
   return [
     [
       textCell(m.experiment_column_treatment(), covering),
-      textCell(m.workbook_column_factor(), covering),
+      textCell(m.treatment_factor_label(), covering),
       textCell(m.experiment_column_unit(), covering),
       ...days.map((day) =>
         calendarCell(day.observation.observedOn, { strong: true }),

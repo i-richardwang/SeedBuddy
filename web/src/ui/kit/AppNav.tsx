@@ -101,11 +101,7 @@ export function AppNav({
         >
           <Collapsible.Trigger className="ui-app-nav-group-trigger">
             <span className="ui-app-nav-group-label">{group.label}</span>
-            {group.items.length > 0 ? (
-              <span className="ui-app-nav-group-count">
-                {group.items.length}
-              </span>
-            ) : null}
+            {group.items.length > 0 ? <span>{group.items.length}</span> : null}
             <span aria-hidden className="ui-app-nav-group-indicator">
               <Play fill="currentColor" size={7} strokeWidth={1} />
             </span>

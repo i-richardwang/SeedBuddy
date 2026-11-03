@@ -25,7 +25,6 @@ export interface EmptyProps {
 function EmptyImage() {
   return (
     <svg
-      className="ui-empty-image"
       height="41"
       viewBox="0 0 64 41"
       width="64"

@@ -2,7 +2,7 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ChangePasswordDialog } from "../../features/account/ChangePasswordDialog";
-import { USER_ROLE_LABELS } from "../../features/users/labels";
+import { userRoleLabel } from "../../features/users/labels";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
@@ -38,7 +38,7 @@ function AccountPage() {
           {user.email}
         </SettingsValueRow>
         <SettingsValueRow label={m.role_label()}>
-          {USER_ROLE_LABELS[user.role]()}
+          {userRoleLabel(user.role)}
         </SettingsValueRow>
         <SettingsValueRow
           label={m.account_password()}

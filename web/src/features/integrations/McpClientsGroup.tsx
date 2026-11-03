@@ -20,7 +20,7 @@ import {
 import { Tag } from "../../ui/kit/Tag";
 import { toast } from "../../ui/kit/Toast";
 import { Timestamp } from "../../ui/Timestamp";
-import { MCP_SERVER_LABELS } from "./labels";
+import { mcpServerLabel } from "./labels";
 
 /** Approved MCP clients; `serversHref` leads to the server addresses a first client is given. */
 export function McpClientsGroup({
@@ -44,7 +44,7 @@ export function McpClientsGroup({
         variant="borderless"
         aria-label={m.integrations_mcp_clients()}
         empty={
-          mcpClients.length === 0 && (
+          mcpClients.length === 0 ? (
             <Empty
               icon={Plug}
               title={m.mcp_empty()}
@@ -55,7 +55,7 @@ export function McpClientsGroup({
                 </Button>
               }
             />
-          )
+          ) : undefined
         }
       >
         <TableHeader>
@@ -64,7 +64,7 @@ export function McpClientsGroup({
             <TableHead>{m.mcp_column_servers()}</TableHead>
             <TableHead>{m.mcp_column_approved()}</TableHead>
             <TableHead className="w-12">
-              <span className="sr-only">{m.mcp_column_actions()}</span>
+              <span className="sr-only">{m.api_key_column_actions()}</span>
             </TableHead>
           </tr>
         </TableHeader>
@@ -88,7 +88,7 @@ function McpClientRow({ client }: { client: McpClient }) {
         <Flexbox horizontal gap={4} wrap="wrap">
           {client.servers.map((server) => (
             <Tag key={server} size="small">
-              {MCP_SERVER_LABELS[server]()}
+              {mcpServerLabel(server)}
             </Tag>
           ))}
         </Flexbox>

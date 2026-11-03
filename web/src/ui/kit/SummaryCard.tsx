@@ -23,7 +23,7 @@ export function CardGrid({
   children: ReactNode;
   empty?: ReactNode;
 }) {
-  if (empty != null && empty !== false) {
+  if (empty !== undefined) {
     return <EmptyPlace variant="outlined">{empty}</EmptyPlace>;
   }
   return (

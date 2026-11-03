@@ -1,7 +1,7 @@
 import type { ImageSize } from "../../domain/annotation/schema";
 
 /** Manual magnification limit; filling the frame always takes precedence. */
-export const MAX_SCALE = 40;
+const MAX_SCALE = 40;
 
 export interface Size {
   width: number;

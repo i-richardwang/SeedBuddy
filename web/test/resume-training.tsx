@@ -34,7 +34,7 @@ const paused: Run = {
   recipe: YOLO26N_WHOLE_RECIPE,
   state: { status: "paused" },
 };
-/** The dialog reads the run, its training set and the workers it can go to. */
+/** The dialog reads the run, its training set and the Workers it can go to. */
 const detail = (run: Run) =>
   ({
     dataset: { id: "test" },
@@ -66,7 +66,7 @@ try {
   );
   assert.ok(
     body.textContent?.includes(
-      m.training_resume_local_worker({ worker: "gpu-1" }),
+      m.training_worker_resume_local({ worker: "gpu-1" }),
     ),
   );
   await submit();

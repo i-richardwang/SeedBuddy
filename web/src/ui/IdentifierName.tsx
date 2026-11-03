@@ -15,7 +15,7 @@ export function IdentifierName({
   id: string;
   render?: ReactElement;
 }) {
-  const label = identifierLabel(/^[a-f0-9]{64}$/.test(id) ? `image-${id}` : id);
+  const label = identifierLabel(id);
   const name = cloneElement(render, undefined, label);
   return label === id ? name : <Tooltip title={id}>{name}</Tooltip>;
 }

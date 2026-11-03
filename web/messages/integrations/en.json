@@ -21,10 +21,8 @@
     }
   ],
   "api_key_dialog_create": "Create",
-  "api_key_dialog_expires_label": "Expires",
-  "api_key_dialog_name_label": "Name",
+  "api_key_dialog_expires_label": "Validity period",
   "api_key_dialog_name_placeholder": "Claude on the lab laptop",
-  "api_key_dialog_scopes_label": "Scopes",
   "api_key_dialog_secret_label": "API key",
   "api_key_dialog_shown_once": "Shown only this once. Anyone with the key can act within its scopes.",
   "api_key_dialog_title": "New API key",
@@ -64,7 +62,6 @@
       }
     }
   ],
-  "mcp_column_actions": "Actions",
   "mcp_column_approved": "Approved",
   "mcp_column_client": "Client",
   "mcp_column_servers": "Access",

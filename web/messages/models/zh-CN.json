@@ -21,7 +21,7 @@
   "model_id_label": "标识",
   "model_id_placeholder": "germination-detector",
   "model_menu_annotation": "标注说明…",
-  "model_menu_delete_item": "删除模型…",
+  "model_menu_delete": "删除模型…",
   "model_name_label": "名称",
   "model_new": "新建模型",
   "model_not_created": "模型未创建",

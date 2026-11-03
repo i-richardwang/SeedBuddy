@@ -7,7 +7,7 @@ const UTC = "UTC";
  * An instant in the locale's notation, in `timeZone`. Read in UTC it names
  * the zone; in the reader's own zone it is simply their clock.
  */
-export function formatTimestamp(value: string, timeZone: string): string {
+function formatTimestamp(value: string, timeZone: string): string {
   return new Intl.DateTimeFormat(getLocale(), {
     year: "numeric",
     month: "short",

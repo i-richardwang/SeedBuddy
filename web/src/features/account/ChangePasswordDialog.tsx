@@ -6,7 +6,7 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { toast } from "../../ui/kit/Toast";
-import { PasswordField } from "../users/PasswordField";
+import { PasswordField } from "../../ui/PasswordField";
 import { authClient } from "./client";
 
 const FORM_ID = "change-password";

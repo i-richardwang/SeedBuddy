@@ -30,26 +30,26 @@ export function TrainingRunsTable({
 }: {
   runs: TrainingRunOverview[];
   datasetColumn?: boolean;
-  empty?: ReactNode;
+  empty: ReactNode;
 }) {
   return (
     <Table
       aria-label={m.training_runs()}
       narrow="cards"
-      empty={runs.length === 0 && empty}
+      empty={runs.length === 0 ? empty : undefined}
     >
       <TableHeader>
         <tr>
           <TableHead>{m.run_column_run()}</TableHead>
           {datasetColumn && <TableHead>{m.run_column_dataset()}</TableHead>}
           <TableHead className="w-32" numeric>
-            {m.run_column_epochs()}
+            {m.parameter_epochs()}
           </TableHead>
           <TableHead className="w-28" numeric>
             {m.run_column_best_map50()}
           </TableHead>
           <TableHead className="w-28" numeric>
-            {m.run_column_map50_95()}
+            {m.epoch_series_map50_95()}
           </TableHead>
           <TableHead className="w-48">{m.run_column_version()}</TableHead>
         </tr>
@@ -84,7 +84,7 @@ export function TrainingRunsTable({
                 {dataset.name}
               </TableCell>
             )}
-            <TableCell cellLabel={m.run_column_epochs()} numeric>
+            <TableCell cellLabel={m.parameter_epochs()} numeric>
               <EpochProgress
                 completed={completed}
                 total={run.recipe.parameters.epochs}
@@ -93,7 +93,7 @@ export function TrainingRunsTable({
             <TableCell cellLabel={m.run_column_best_map50()} numeric>
               <Metric value={best?.map50 ?? null} />
             </TableCell>
-            <TableCell cellLabel={m.run_column_map50_95()} numeric>
+            <TableCell cellLabel={m.epoch_series_map50_95()} numeric>
               <Metric value={best?.map50To95 ?? null} />
             </TableCell>
             <TableCell cellLabel={m.run_column_version()}>
@@ -122,7 +122,7 @@ function EpochProgress({
     <span className="inline-flex w-24 flex-col items-stretch gap-1">
       {m.run_epochs_progress({ completed, total })}
       <Progress
-        aria-label={m.run_column_epochs()}
+        aria-label={m.parameter_epochs()}
         size="small"
         value={completed}
         max={total}

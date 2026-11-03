@@ -200,7 +200,7 @@ assert.equal(
 await act(async () =>
   button(
     m.annotation_named_count({
-      name: m.annotation_source_proposal(),
+      name: m.annotation_ai_section(),
       count: 3,
     }),
   )!.click(),
@@ -228,7 +228,7 @@ assert.ok(says(countedOnly), "an image counting fewer classes names them");
 assert.ok(
   button(
     m.annotation_named_count({
-      name: m.annotation_source_proposal(),
+      name: m.annotation_ai_section(),
       count: 0,
     }),
   ),

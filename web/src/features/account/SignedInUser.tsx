@@ -1,15 +1,16 @@
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { LogOut, Settings } from "lucide-react";
 
 import type { WorkbenchUser } from "../../domain/auth/schema";
 import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { AppShellAccount, useAppShell } from "../../ui/kit/AppShell";
 import { authClient } from "./client";
 
 /** The signed-in person atop the sidebar: settings and signing out. */
 export function SignedInUser({ user }: { user: WorkbenchUser }) {
-  const router = useRouter();
+  const navigateAfterWrite = useNavigateAfterWrite();
   const navigate = useNavigate();
   const shell = useAppShell();
   const { busy, run } = useAsyncAction();
@@ -24,8 +25,7 @@ export function SignedInUser({ user }: { user: WorkbenchUser }) {
       {
         invalidate: false,
         onSuccess: async () => {
-          await router.invalidate();
-          await navigate({ to: "/login" });
+          await navigateAfterWrite({ to: "/login" });
         },
       },
     );

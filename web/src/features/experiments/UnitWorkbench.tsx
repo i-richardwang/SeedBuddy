@@ -60,7 +60,8 @@ import {
 } from "./DayComparison";
 import {
   cultureEventLabel,
-  IMAGE_REVIEW_LABELS,
+  imageReviewLabel,
+  imageReviewTone,
   observationLabel,
 } from "./labels";
 import { CultureMenu, UnitMenu } from "./UnitMenu";
@@ -291,7 +292,7 @@ export function UnitWorkbench({
           {culture}
           <WorkbenchSection title={m.annotation_details()}>
             <Descriptions>
-              <DescriptionsItem label={m.treatment_label()}>
+              <DescriptionsItem label={m.experiment_column_treatment()}>
                 {treatment.name}
               </DescriptionsItem>
             </Descriptions>
@@ -377,7 +378,7 @@ export function UnitWorkbench({
           ) : undefined,
           sections: culture,
           facts: (
-            <DescriptionsItem label={m.treatment_label()}>
+            <DescriptionsItem label={m.experiment_column_treatment()}>
               {treatment.name}
             </DescriptionsItem>
           ),
@@ -443,8 +444,12 @@ function framedPictures(
 }
 
 function ReviewDot({ review }: { review: ImageReview }) {
-  const { tone, label } = IMAGE_REVIEW_LABELS[review];
-  return <StatusDot tone={tone} label={label()} />;
+  return (
+    <StatusDot
+      tone={imageReviewTone(review)}
+      label={imageReviewLabel(review)}
+    />
+  );
 }
 
 function RetryButton({ image }: { image: ObservationImageRef }) {
@@ -453,8 +458,8 @@ function RetryButton({ image }: { image: ObservationImageRef }) {
     <Button
       size="small"
       loading={action.busy}
-      onClick={async () => {
-        await action.run(
+      onClick={() => {
+        void action.run(
           () => retryImageAnalysis({ data: image }),
           m.unit_retry_failed(),
         );

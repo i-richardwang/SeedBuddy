@@ -65,7 +65,6 @@ function ImportArchiveForm({
     ).then((result) => {
       if (!result.ok) {
         setProgress(null);
-        return;
       }
     });
 

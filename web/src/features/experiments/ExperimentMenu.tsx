@@ -61,6 +61,8 @@ export function ExperimentMenu({
           confirmLabel: m.experiment_delete(),
           onConfirm: async () => {
             await removeExperiment({ data: { experiment: experiment.id } });
+          },
+          onSuccess: async () => {
             toast.success(m.experiment_deleted({ name: experiment.name }));
             await navigateAfterWrite({ to: "/experiments" });
           },

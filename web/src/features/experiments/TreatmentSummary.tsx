@@ -18,7 +18,7 @@ import { Absent } from "../../ui/Absent";
 import { formatDay } from "../../ui/Day";
 import { BarChart, type BarChartItem } from "../../ui/kit/BarChart";
 import { Card } from "../../ui/kit/Card";
-import { Empty } from "../../ui/kit/Empty";
+import { Empty, EmptyPlace } from "../../ui/kit/Empty";
 import { chartColor } from "../../ui/kit/Legend";
 import { Select } from "../../ui/kit/Select";
 import {
@@ -70,15 +70,12 @@ export function TreatmentSummary({
   const hasNumbers = summary.cells.some((cell) => cell.count !== null);
   if (!inView || !hasNumbers) {
     return (
-      <Table
-        aria-label={m.experiment_summary()}
-        empty={
-          <Empty
-            title={m.summary_empty()}
-            description={m.summary_empty_description()}
-          />
-        }
-      />
+      <EmptyPlace variant="outlined">
+        <Empty
+          title={m.summary_empty()}
+          description={m.summary_empty_description()}
+        />
+      </EmptyPlace>
     );
   }
   const cellOf = (treatment: Treatment, observation: ExperimentObservation) =>

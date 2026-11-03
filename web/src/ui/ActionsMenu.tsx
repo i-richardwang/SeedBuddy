@@ -8,7 +8,6 @@ type ActionsMenuProps = {
   /** Names the trigger, e.g. "Actions for A1". */
   label: string;
   items: DropdownItem[];
-  disabled?: boolean;
 };
 
 /**
@@ -18,7 +17,6 @@ type ActionsMenuProps = {
 export function RowMenu({
   label,
   items,
-  disabled,
   busy,
 }: ActionsMenuProps & { busy?: boolean }) {
   return (
@@ -26,7 +24,6 @@ export function RowMenu({
       <ActionIcon
         icon={Ellipsis}
         size="small"
-        disabled={disabled}
         loading={busy}
         aria-label={label}
       />
@@ -35,10 +32,10 @@ export function RowMenu({
 }
 
 /** The "…" menu beside a page's or workbench's primary actions. */
-export function PageMenu({ label, items, disabled }: ActionsMenuProps) {
+export function PageMenu({ label, items }: ActionsMenuProps) {
   return (
     <DropdownMenu items={items} align="end">
-      <Button icon={Ellipsis} disabled={disabled} aria-label={label} />
+      <Button icon={Ellipsis} aria-label={label} />
     </DropdownMenu>
   );
 }

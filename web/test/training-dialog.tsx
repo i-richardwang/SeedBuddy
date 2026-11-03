@@ -89,7 +89,7 @@ try {
 
   const form = body.querySelector("form")!;
   const missing = byRole("status").find((element) =>
-    element.textContent?.includes(m.training_dialog_no_worker()),
+    element.textContent?.includes(m.training_worker_unavailable()),
   );
   assert.ok(
     missing &&

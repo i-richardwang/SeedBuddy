@@ -17,7 +17,7 @@ import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
 const FORM_ID = "resume-training";
 
 /**
- * Continues a paused run or retries a failed one, on the worker it names;
+ * Continues a paused run or retries a failed one, on the Worker it names;
  * a run with saved progress picks it up there unless told to start over.
  */
 export function ResumeTrainingDialog({
@@ -101,7 +101,7 @@ function ResumeTrainingForm({
       </Form.Field>
       {from === "saved" && run.checkpoint && (
         <Text size="sm" type="secondary">
-          {m.training_resume_local_worker({ worker: run.checkpoint.workerId })}
+          {m.training_worker_resume_local({ worker: run.checkpoint.workerId })}
         </Text>
       )}
       {run.checkpoint ? (

@@ -77,13 +77,13 @@ function WorkerRow({
   worker: WorkerOverview;
   administers: boolean;
 }) {
-  const presence = PRESENCE[worker.presence];
-
   return (
     <TableRow>
       <TableCell cellSlot="title">{worker.workerId}</TableCell>
       <TableCell cellLabel={m.workers_column_presence()}>
-        <Status tone={presence.tone}>{presence.label()}</Status>
+        <Status tone={workerPresenceTone(worker.presence)}>
+          {workerPresenceLabel(worker.presence)}
+        </Status>
       </TableCell>
       <TableCell cellLabel={m.workers_column_activity()}>
         <Activity activity={worker.activity} />
@@ -113,7 +113,7 @@ function WorkerMenu({ workerId }: { workerId: string }) {
         {
           key: "remove",
           icon: Trash2,
-          label: m.worker_remove_item(),
+          label: m.worker_menu_remove(),
           danger: true,
           onClick: () =>
             confirmDestructive({
@@ -161,4 +161,12 @@ function formatAge(seconds: number) {
     return m.worker_age_hours({ count: Math.floor(seconds / 3600) });
   }
   return m.worker_age_days({ count: Math.floor(seconds / 86400) });
+}
+
+export function workerPresenceLabel(value: WorkerPresence): string {
+  return PRESENCE[value].label();
+}
+
+export function workerPresenceTone(value: WorkerPresence): StatusTone {
+  return PRESENCE[value].tone;
 }

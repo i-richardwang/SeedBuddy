@@ -51,7 +51,7 @@ export function VersionsTable({
     <Table
       aria-label={m.model_versions()}
       narrow="cards"
-      empty={versions.length === 0 && empty}
+      empty={versions.length === 0 ? empty : undefined}
     >
       <TableHeader>
         <tr>

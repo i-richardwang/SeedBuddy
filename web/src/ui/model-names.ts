@@ -25,6 +25,6 @@ export function classLabel(name: string): string {
 }
 
 /** The classes a count sums, each named as the reader knows it, in a list of the reader's language. */
-export function countedClassesName(names: readonly string[]): string {
+export function countedClassesLabel(names: readonly string[]): string {
   return formatList(names.map(classLabel));
 }

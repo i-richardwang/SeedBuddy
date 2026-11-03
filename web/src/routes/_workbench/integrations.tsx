@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { MCP_SERVERS } from "../../domain/auth/integrations";
 import { ApiKeysGroup } from "../../features/integrations/ApiKeysGroup";
-import { MCP_SERVER_LABELS } from "../../features/integrations/labels";
+import { mcpServerLabel } from "../../features/integrations/labels";
 import { McpClientsGroup } from "../../features/integrations/McpClientsGroup";
 import { getIntegrations } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
@@ -49,7 +49,7 @@ function IntegrationsPage() {
         {MCP_SERVERS.map((server) => (
           <SettingsValueRow
             key={server}
-            label={MCP_SERVER_LABELS[server]()}
+            label={mcpServerLabel(server)}
             action={<CopyButton content={mcpUrls[server]} />}
           >
             <Text as="code" size="xs" title={mcpUrls[server]}>

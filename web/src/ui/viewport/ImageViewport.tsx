@@ -42,7 +42,7 @@ interface ScreenPoint {
 }
 
 /** What a layer drawn over the image needs from the viewport around it. */
-export interface ViewportHandle {
+interface ViewportHandle {
   /** Screen pixels per image pixel. */
   scale: number;
   toImagePoint: (event: ScreenPoint) => Point;
