@@ -3,7 +3,7 @@ import { McpClientNotFoundError } from "../../../domain/auth/errors";
 import { experimentsMcpHandler, serveExperimentsMcp } from "./experiments";
 import { agentOperations } from "../../agent/operations";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
-import { authorizeMcpClient, signInAs } from "../../testing/fixtures";
+import { authorizeMcpClient, signInAs } from "../../testing/auth";
 import { banUser, revokeUserSessions } from "../../auth/users";
 import {
   legacyRequest,

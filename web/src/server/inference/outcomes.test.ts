@@ -29,7 +29,7 @@ import {
   observeImages,
   resultFor,
   traditionalVersion,
-  uploadTexts,
+  observeTextsIntoDataset,
 } from "../testing/fixtures";
 
 const worker: Worker = {
@@ -217,7 +217,7 @@ describe("detections", () => {
       version: next,
       digests,
       dataset,
-    } = await uploadTexts(
+    } = await observeTextsIntoDataset(
       "shown",
       ["shown"],
       await outcomeVersion("shown-v2", "2026-08-27T02:00:00.000Z"),
@@ -264,7 +264,7 @@ describe("detections", () => {
       digests,
       images,
       dataset: one,
-    } = await uploadTexts("ctx-one", ["ctx"]);
+    } = await observeTextsIntoDataset("ctx-one", ["ctx"]);
     const { dataset: two } = await addExperimentObservationImagesToNewDataset({
       name: "ctx-two",
       images,

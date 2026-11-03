@@ -11,3 +11,17 @@ export function isUniqueViolation(error: unknown, constraint: string): boolean {
     (cause.constraint ?? cause.constraint_name) === constraint
   );
 }
+
+/** Translate only the named uniqueness constraint; preserve other failures. */
+export async function refusingUnique<T>(
+  constraint: string,
+  refusal: () => Error,
+  write: () => PromiseLike<T>,
+): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (!isUniqueViolation(error, constraint)) throw error;
+    throw refusal();
+  }
+}

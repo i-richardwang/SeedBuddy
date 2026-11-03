@@ -26,11 +26,11 @@ export const DATASET_IMAGE_STATES: readonly DatasetImageState[] = [
 ];
 
 export function datasetImageState(image: {
-  instanceCount: number | null;
+  reviewCount: number | null;
   proposalCount: number | null;
   detectionCount: number | null;
 }): DatasetImageState {
-  if (image.instanceCount !== null) return "reviewed";
+  if (image.reviewCount !== null) return "reviewed";
   if (image.proposalCount !== null) return "proposed";
   if (image.detectionCount !== null) return "detected";
   return "unread";

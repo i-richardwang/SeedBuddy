@@ -8,16 +8,17 @@ export {
   failTrainingRun,
   latestTrainingRun,
   listTrainingEpochs,
-  listTrainingRunSummaries,
   readTrainingRun,
   recordTrainingEpoch,
   renewTrainingLease,
   snapshotForRun,
   trainingLeaseHeld,
 } from "./runs";
-export { readDatasetSnapshot, snapshotSummaries } from "./snapshots";
+export { readDatasetSnapshot, datasetSnapshotSummaries } from "./snapshots";
 
 export { saveTrainingArtifactPart } from "./artifacts";
 
 export { controlTrainingRun } from "./control";
 export { listTrainingAttempts } from "./attempts";
+
+export { toTrainingRun } from "./records";

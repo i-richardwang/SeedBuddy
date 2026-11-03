@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { UserRejectedError } from "../../domain/auth/errors";
 import { readSession } from "../transport/http/session";
-import { TEST_PASSWORD, sessionHeaders, signInAs } from "../testing/fixtures";
+import { TEST_PASSWORD, sessionHeaders, signInAs } from "../testing/auth";
 import {
   banUser,
   createUser,

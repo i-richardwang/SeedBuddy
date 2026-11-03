@@ -17,7 +17,7 @@ import {
   resultFor,
   testHeartbeat,
   ULTRALYTICS_RUNTIME,
-  uploadTexts,
+  observeTextsIntoDataset,
 } from "../testing/fixtures";
 
 /** This test's clock; workers heartbeating at wall-clock time are offline here. */
@@ -26,7 +26,7 @@ const OVERVIEW_AT = new Date(HEARTBEAT_AT.getTime() + 10_000);
 
 test("the overview derives review progress and training readiness", async () => {
   const at = OVERVIEW_AT;
-  const { version, dataset } = await uploadTexts("overview", [
+  const { version, dataset } = await observeTextsIntoDataset("overview", [
     "ov-a",
     "ov-b",
     "ov-c",

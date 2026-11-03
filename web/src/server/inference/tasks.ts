@@ -90,7 +90,7 @@ export async function finishFailedAttempt(
 }
 
 /** Claims and maintenance reclaim expired ownership without worker cooperation. */
-export async function expireInferenceAttempts(
+async function expireInferenceAttempts(
   tx: Executor,
   suppliedAt?: Date,
 ): Promise<number> {
@@ -133,16 +133,16 @@ export async function expireInferenceAttempts(
       .from(inferenceAttempts)
       .where(attemptKey(target, task.attempt));
     if (attempt?.status !== "running") continue;
-    const at = await inferenceTime(tx, suppliedAt);
+    const checkedAt = await inferenceTime(tx, suppliedAt);
     const [live] = await tx
       .select({ attempt: inferenceAttempts.attempt })
       .from(inferenceAttempts)
-      .where(and(attemptKey(target, task.attempt), attemptIsActive(at)));
+      .where(and(attemptKey(target, task.attempt), attemptIsActive(checkedAt)));
     if (live) continue;
     const code =
-      attempt.deadlineAt <= at
+      attempt.deadlineAt <= checkedAt
         ? "timeout"
-        : attempt.leaseExpiresAt <= at
+        : attempt.leaseExpiresAt <= checkedAt
           ? "lease_expired"
           : "session_replaced";
     await finishFailedAttempt(
@@ -158,7 +158,7 @@ export async function expireInferenceAttempts(
               ? "Worker did not renew its inference lease"
               : "Worker session ended",
       },
-      at,
+      checkedAt,
     );
     expired += 1;
   }

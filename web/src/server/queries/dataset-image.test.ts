@@ -6,11 +6,11 @@ import {
   imageDigest,
   resultFor,
   testHeartbeat,
-  uploadTexts,
+  observeTextsIntoDataset,
 } from "../testing/fixtures";
 
 test("a dataset image page steps through the dataset in its order", async () => {
-  const { version, dataset } = await uploadTexts("di", [
+  const { version, dataset } = await observeTextsIntoDataset("di", [
     "di-a",
     "di-b",
     "di-c",

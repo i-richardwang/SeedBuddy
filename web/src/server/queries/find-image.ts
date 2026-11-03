@@ -19,11 +19,11 @@ import {
 } from "../infra/db/schema";
 
 /** Where a person sees an image: a unit's photograph of a day, or a dataset's. */
-export type ImagePlace =
+type ImagePlace =
   | { experiment: string; unit: string; observedOn: string }
   | { dataset: string };
 
-export interface FoundImage {
+interface FoundImage {
   ref: AnnotationRef;
   filename: string;
   places: ImagePlace[];

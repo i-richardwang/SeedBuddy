@@ -16,10 +16,12 @@ import {
   readTrainingRun,
   readDatasetSnapshot,
   controlTrainingRun,
-  listTrainingRunSummaries,
   listTrainingEpochs,
 } from "../training/public";
-import { trainingWorkerOptions } from "../queries/public";
+import {
+  listTrainingRunSummaries,
+  trainingWorkerOptions,
+} from "../queries/public";
 
 export const trainingOperations = [
   query({

@@ -5,7 +5,7 @@ import { contentDigest } from "../infra/digest";
 const { coverageMargin: _coverageMargin, ...detection } = DISH_GEOMETRY;
 
 /** Change the implementation revision when detection semantics change. */
-export const DISH_RECIPE = {
+const DISH_RECIPE = {
   ...detection,
   implementation: "opencv-hough-gradient/v1",
   interpolation: "sharp/lanczos3",

@@ -16,7 +16,6 @@ import {
 import { MIN_PASSWORD_LENGTH } from "../../domain/auth/schema";
 import { database, type Executor } from "../infra/db/client";
 import * as schema from "../infra/db/schema";
-import { users } from "../infra/db/schema";
 import { deploymentEndpoint } from "../infra/deployment";
 
 /**
@@ -97,7 +96,7 @@ type Auth = ReturnType<typeof build>;
  * variables are inert and administrators maintain the directory themselves.
  */
 async function installFirstAdmin(instance: Auth, db: Executor): Promise<void> {
-  const [{ total }] = await db.select({ total: count() }).from(users);
+  const [{ total }] = await db.select({ total: count() }).from(schema.users);
   if (total !== 0) return;
   const email = process.env.VITROFLOW_ADMIN_EMAIL;
   const password = process.env.VITROFLOW_ADMIN_PASSWORD;

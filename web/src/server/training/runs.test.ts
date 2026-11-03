@@ -10,6 +10,8 @@ import { artifactPartKey } from "./keys";
 import { TRAINING_ARTIFACT_PART_BYTES } from "../../domain/training/artifact";
 import { collectTrainingArtifactParts } from "./collection";
 import { expect, test } from "bun:test";
+import { TrainingRunConflictError } from "../../domain/training/errors";
+import { listTrainingRunSummaries } from "../queries/training-runs";
 
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { requireBlob } from "../infra/blobs/store";
@@ -25,7 +27,6 @@ import {
   enterTrainingPhase,
   failTrainingRun,
   listTrainingEpochs,
-  listTrainingRunSummaries,
   recordTrainingEpoch,
   renewTrainingLease,
 } from "./runs";
@@ -729,4 +730,20 @@ test("pausing and model publication serialize to one consistent outcome", async 
     current.state.status,
   );
   expect(await activeTrainingRun(run.modelId)).toBeNull();
+});
+
+test("owned writes refuse a missing run as an ownership conflict", async () => {
+  const worker = await trainer("missing-run-worker");
+  await expect(
+    enterTrainingPhase("missing-run", worker, "training"),
+  ).rejects.toThrow(TrainingRunConflictError);
+  await expect(
+    recordTrainingEpoch("missing-run", worker, epochReport(1)),
+  ).rejects.toThrow(TrainingRunConflictError);
+  await expect(
+    failTrainingRun("missing-run", worker, "failed"),
+  ).rejects.toThrow(TrainingRunConflictError);
+  await expect(renewTrainingLease("missing-run", worker)).rejects.toThrow(
+    TrainingRunConflictError,
+  );
 });

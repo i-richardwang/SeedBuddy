@@ -1,22 +1,10 @@
-import { inferenceAttempts } from "../infra/db/schema";
 import { randomUUID } from "node:crypto";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gt,
-  inArray,
-  isNull,
-  not,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, not, or } from "drizzle-orm";
 
 import { database, transaction, type Executor } from "../infra/db/client";
 import {
+  inferenceAttempts,
   datasetSnapshots,
-  datasets,
   trainingEpochs,
   trainingRuns,
   trainingAttempts,
@@ -26,7 +14,6 @@ import {
   trainingEpochSchema,
   trainingRecipeSchema,
   trainingRunId,
-  trainingRunSchema,
   type TrainingEpoch,
   type TrainingEpochReport,
   type TrainingPhase,
@@ -34,7 +21,6 @@ import {
   type TrainingRun,
   type TrainingAttemptOwner,
 } from "../../domain/training/schema";
-import type { TrainingRunSummary } from "../../domain/training/read-model";
 import { canTrain, type WorkerIdentity } from "../../domain/workers/schema";
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
 import {
@@ -43,6 +29,7 @@ import {
 } from "../../domain/training/errors";
 import { createDatasetSnapshot, readDatasetSnapshot } from "./snapshots";
 import { finishAttempt } from "./attempts";
+import { toTrainingRun } from "./records";
 import { readDataset } from "../datasets/public";
 import {
   currentWorkerSession,
@@ -67,59 +54,19 @@ const NEXT_PHASE: Record<TrainingPhase, TrainingPhase | null> = {
   validating: null,
 };
 
-/** A workbench page stays bounded while exact totals remain separate. */
-const TRAINING_RUN_LIST_LIMIT = 100;
-
 type Row = typeof trainingRuns.$inferSelect;
 type EpochRow = typeof trainingEpochs.$inferSelect;
 type RunningTrainingRun = TrainingRun & {
   state: Extract<TrainingRun["state"], { status: "running" }>;
 };
 
-export function requireTrainingRunRow(
+function requireTrainingRunRow(
   row: Row | undefined,
   runId: string,
 ): TrainingRun {
   if (!row)
     throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
-  return toRun(row);
-}
-
-function toRun(row: Row): TrainingRun {
-  const state = (() => {
-    switch (row.status) {
-      case "paused":
-      case "cancelled":
-      case "queued":
-        return { status: row.status };
-      case "running":
-        return {
-          status: row.status,
-          workerId: row.workerId,
-          sessionId: row.sessionId,
-          leaseExpiresAt: row.leaseExpiresAt?.toISOString(),
-          phase: row.phase,
-          progress: row.progress,
-        };
-      case "succeeded":
-        return { status: row.status, modelVersionId: row.modelVersionId };
-      case "failed":
-        return { status: row.status, error: row.error };
-    }
-  })();
-  return trainingRunSchema.parse({
-    schemaVersion: 1,
-    id: row.id,
-    modelId: row.modelId,
-    datasetSnapshotId: row.datasetSnapshotId,
-    createdAt: row.createdAt.toISOString(),
-    attempt: row.attempt,
-    targetWorkerId: row.targetWorkerId,
-    lastProgressAt: row.lastProgressAt?.toISOString() ?? null,
-    checkpoint: row.checkpoint,
-    recipe: row.recipe,
-    state,
-  });
+  return toTrainingRun(row);
 }
 
 function toEpoch(row: EpochRow): TrainingEpoch {
@@ -236,38 +183,37 @@ export async function validateTrainingTarget(targetWorkerId: string | null) {
   }
 }
 
-/**
- * Applies a worker's transition only while the run is still leased to it; the
- * predicate is evaluated by the update, so a lease missing meanwhile cannot be
- * overwritten.
- */
+function ownedBy(owner: TrainingAttemptOwner, at: Date) {
+  return and(
+    eq(trainingRuns.status, "running"),
+    eq(trainingRuns.workerId, owner.workerId),
+    eq(trainingRuns.sessionId, owner.sessionId),
+    eq(trainingRuns.attempt, owner.attempt),
+    gt(trainingRuns.leaseExpiresAt, at),
+    sessionIsCurrent(owner),
+  );
+}
+
+function ownershipConflict(runId: string, owner: TrainingAttemptOwner) {
+  return new TrainingRunConflictError(
+    `Training run ${runId} is not owned by ${owner.workerId}/${owner.sessionId}`,
+  );
+}
+
+/** The update itself fences writes from expired or replaced owners. */
 async function ownedTransition(
   runId: string,
   owner: TrainingAttemptOwner,
-  state: TrainingRun["state"],
+  changes: Partial<Pick<Row, keyof ReturnType<typeof stateColumns>>>,
   db: Executor,
 ): Promise<TrainingRun> {
   const [row] = await db
     .update(trainingRuns)
-    .set(stateColumns(state))
-    .where(
-      and(
-        eq(trainingRuns.id, runId),
-        eq(trainingRuns.status, "running"),
-        eq(trainingRuns.workerId, owner.workerId),
-        eq(trainingRuns.sessionId, owner.sessionId),
-        eq(trainingRuns.attempt, owner.attempt),
-        gt(trainingRuns.leaseExpiresAt, new Date()),
-        sessionIsCurrent(owner),
-      ),
-    )
+    .set(changes)
+    .where(and(eq(trainingRuns.id, runId), ownedBy(owner, new Date())))
     .returning();
-  if (!row) {
-    throw new TrainingRunConflictError(
-      `Training run ${runId} is not owned by ${owner.workerId}/${owner.sessionId}`,
-    );
-  }
-  return toRun(row);
+  if (!row) throw ownershipConflict(runId, owner);
+  return toTrainingRun(row);
 }
 
 function leaseUntil(at: Date): Date {
@@ -286,7 +232,7 @@ export async function readTrainingRun(
     .select()
     .from(trainingRuns)
     .where(eq(trainingRuns.id, runId));
-  return row ? toRun(row) : null;
+  return row ? toTrainingRun(row) : null;
 }
 
 /**
@@ -306,72 +252,6 @@ export async function trainingLeaseHeld(
   return row?.held === true;
 }
 
-/** The newest runs, of one training set or of every set training one model. */
-export async function listTrainingRunSummaries(
-  of: { datasetId: string } | { modelId: string },
-  limit = TRAINING_RUN_LIST_LIMIT,
-): Promise<TrainingRunSummary[]> {
-  if (
-    !Number.isSafeInteger(limit) ||
-    limit < 1 ||
-    limit > TRAINING_RUN_LIST_LIMIT
-  ) {
-    throw new Error(
-      `Training run list limit must be between 1 and ${TRAINING_RUN_LIST_LIMIT}`,
-    );
-  }
-  const db = await database();
-  const rows = await db
-    .select({
-      dataset: { id: datasets.id, name: datasets.name },
-      run: trainingRuns,
-      completed: sql<number>`(
-        select count(*)::integer
-        from ${trainingEpochs}
-        where ${trainingEpochs.runId} = ${trainingRuns.id}
-          and ${trainingEpochs.attempt} = ${trainingRuns.attempt}
-      )`,
-      bestMap50: sql<number | null>`(
-        select ${trainingEpochs.map50}
-        from ${trainingEpochs}
-        where ${trainingEpochs.runId} = ${trainingRuns.id}
-          and ${trainingEpochs.attempt} = ${trainingRuns.attempt}
-        order by ${trainingEpochs.fitness} desc, ${trainingEpochs.epoch} asc
-        limit 1
-      )`,
-      bestMap50To95: sql<number | null>`(
-        select ${trainingEpochs.map50To95}
-        from ${trainingEpochs}
-        where ${trainingEpochs.runId} = ${trainingRuns.id}
-          and ${trainingEpochs.attempt} = ${trainingRuns.attempt}
-        order by ${trainingEpochs.fitness} desc, ${trainingEpochs.epoch} asc
-        limit 1
-      )`,
-    })
-    .from(trainingRuns)
-    .innerJoin(
-      datasetSnapshots,
-      eq(datasetSnapshots.id, trainingRuns.datasetSnapshotId),
-    )
-    .innerJoin(datasets, eq(datasets.id, datasetSnapshots.datasetId))
-    .where(
-      "datasetId" in of
-        ? eq(datasetSnapshots.datasetId, of.datasetId)
-        : eq(datasetSnapshots.modelId, of.modelId),
-    )
-    .orderBy(desc(trainingRuns.createdAt), desc(trainingRuns.id))
-    .limit(limit);
-  return rows.map((row) => ({
-    dataset: row.dataset,
-    run: toRun(row.run),
-    completed: row.completed,
-    best:
-      row.bestMap50 == null || row.bestMap50To95 == null
-        ? null
-        : { map50: row.bestMap50, map50To95: row.bestMap50To95 },
-  }));
-}
-
 export async function latestTrainingRun(
   datasetId: string,
 ): Promise<TrainingRun | null> {
@@ -386,7 +266,7 @@ export async function latestTrainingRun(
     .where(eq(datasetSnapshots.datasetId, datasetId))
     .orderBy(desc(trainingRuns.createdAt), desc(trainingRuns.id))
     .limit(1);
-  return row ? toRun(row.run) : null;
+  return row ? toTrainingRun(row.run) : null;
 }
 
 export async function activeTrainingRun(
@@ -402,7 +282,7 @@ export async function activeTrainingRun(
         inArray(trainingRuns.status, [...ACTIVE_TRAINING_RUN_STATUSES]),
       ),
     );
-  return row ? toRun(row) : null;
+  return row ? toTrainingRun(row) : null;
 }
 
 export async function createTrainingRun(
@@ -422,10 +302,11 @@ export async function createTrainingRun(
       );
     }
     const snapshot = await createDatasetSnapshot(datasetId, tx);
+    const runId = trainingRunId(randomUUID());
     const [row] = await tx
       .insert(trainingRuns)
       .values({
-        id: trainingRunId(randomUUID()),
+        id: runId,
         modelId: snapshot.modelId,
         datasetSnapshotId: snapshot.id,
         createdAt: new Date(),
@@ -435,7 +316,7 @@ export async function createTrainingRun(
         ...stateColumns({ status: "queued" }),
       })
       .returning();
-    return requireTrainingRunRow(row, snapshot.id);
+    return requireTrainingRunRow(row, runId);
   });
 }
 
@@ -475,7 +356,7 @@ export async function claimTrainingRun(
           gt(trainingRuns.leaseExpiresAt, at),
         ),
       );
-    if (owned) return toRun(owned);
+    if (owned) return toTrainingRun(owned);
     const [candidate] = await tx
       .select()
       .from(trainingRuns)
@@ -499,7 +380,7 @@ export async function claimTrainingRun(
       .for("update", { skipLocked: true });
     if (!candidate) return null;
     if (candidate.status === "running")
-      await finishAttempt(toRun(candidate), "expired", tx);
+      await finishAttempt(toTrainingRun(candidate), "expired", tx);
     await tx.insert(trainingAttempts).values({
       runId: candidate.id,
       attempt: candidate.attempt + 1,
@@ -527,18 +408,29 @@ export async function claimTrainingRun(
   });
 }
 
-/** The run as its leaseholder sees it; any other caller gets a conflict. */
-export async function lockOwnedTrainingRun(
+export async function lockTrainingRun(
   runId: string,
-  owner: TrainingAttemptOwner,
-  db: Executor,
-): Promise<RunningTrainingRun> {
-  const [row] = await db
+  tx: Executor,
+): Promise<TrainingRun> {
+  const [row] = await tx
     .select()
     .from(trainingRuns)
     .where(eq(trainingRuns.id, runId))
     .for("update");
-  return requireOwnedRunningRun(runId, row ? toRun(row) : null, owner, db);
+  return requireTrainingRunRow(row, runId);
+}
+
+/** The run as its leaseholder sees it; any other caller gets a conflict. */
+async function lockOwnedTrainingRun(
+  runId: string,
+  owner: TrainingAttemptOwner,
+  db: Executor,
+): Promise<RunningTrainingRun> {
+  const run = await lockTrainingRun(runId, db).catch((error: unknown) => {
+    if (error instanceof TrainingRunNotFoundError) return null;
+    throw error;
+  });
+  return requireOwnedRunningRun(runId, run, owner, db);
 }
 
 export async function requireOwnedRunningRun(
@@ -548,17 +440,11 @@ export async function requireOwnedRunningRun(
   db: Executor,
 ): Promise<RunningTrainingRun> {
   await currentWorkerSession(owner, db);
-  if (
-    run?.state.status !== "running" ||
-    run.state.workerId !== owner.workerId ||
-    run.state.sessionId !== owner.sessionId ||
-    run.attempt !== owner.attempt ||
-    new Date(run.state.leaseExpiresAt) <= new Date()
-  ) {
-    throw new TrainingRunConflictError(
-      `Training run ${runId} is not owned by ${owner.workerId}/${owner.sessionId}`,
-    );
-  }
+  const [owned] = await db
+    .select({ id: trainingRuns.id })
+    .from(trainingRuns)
+    .where(and(eq(trainingRuns.id, runId), ownedBy(owner, new Date())));
+  if (!run || !owned) throw ownershipConflict(runId, owner);
   return run as RunningTrainingRun;
 }
 
@@ -568,28 +454,12 @@ export async function renewTrainingLease(
   owner: TrainingAttemptOwner,
   at: Date = new Date(),
 ): Promise<TrainingRun> {
-  const db = await database();
-  const [row] = await db
-    .update(trainingRuns)
-    .set({ leaseExpiresAt: leaseUntil(at) })
-    .where(
-      and(
-        eq(trainingRuns.id, runId),
-        eq(trainingRuns.status, "running"),
-        eq(trainingRuns.workerId, owner.workerId),
-        eq(trainingRuns.sessionId, owner.sessionId),
-        eq(trainingRuns.attempt, owner.attempt),
-        gt(trainingRuns.leaseExpiresAt, new Date()),
-        sessionIsCurrent(owner),
-      ),
-    )
-    .returning();
-  if (!row) {
-    throw new TrainingRunConflictError(
-      `Training run ${runId} is not owned by ${owner.workerId}/${owner.sessionId}`,
-    );
-  }
-  return toRun(row);
+  return ownedTransition(
+    runId,
+    owner,
+    { leaseExpiresAt: leaseUntil(at) },
+    await database(),
+  );
 }
 
 /** Advance through the ordered execution phases; retries are idempotent. */
@@ -617,14 +487,14 @@ export async function enterTrainingPhase(
     return ownedTransition(
       runId,
       owner,
-      {
+      stateColumns({
         status: "running",
         workerId: owner.workerId,
         sessionId: owner.sessionId,
         leaseExpiresAt: leaseFrom(at),
         phase,
         progress: Math.max(current.state.progress, PHASE_PROGRESS[phase]),
-      },
+      }),
       db,
     );
   });
@@ -724,7 +594,7 @@ export async function recordTrainingEpoch(
     return ownedTransition(
       runId,
       owner,
-      {
+      stateColumns({
         status: "running",
         workerId: owner.workerId,
         sessionId: owner.sessionId,
@@ -735,7 +605,7 @@ export async function recordTrainingEpoch(
           PHASE_PROGRESS.training +
             TRAINING_PROGRESS_RANGE * (report.epoch / total),
         ),
-      },
+      }),
       tx,
     );
   });

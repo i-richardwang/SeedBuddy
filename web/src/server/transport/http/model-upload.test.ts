@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { serveModelWeightsUpload } from "./model-upload";
 import { serveAgentOperationCall } from "./agent";
 import { issueApiKey } from "../../auth/api-keys";
-import { apiKeyHeaders, signInAs } from "../../testing/fixtures";
+import { apiKeyHeaders, signInAs } from "../../testing/auth";
 import { createModel, readCurrentVersionId } from "../../models/public";
 import { trainingBundle } from "../../testing/model-bundle";
 import { YOLO26N_WHOLE_RECIPE } from "../../../domain/training/recipes";

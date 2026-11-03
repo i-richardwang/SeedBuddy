@@ -9,7 +9,7 @@ import {
 import type { Dataset } from "../../domain/datasets/schema";
 import { sameClasses } from "../../domain/models/classes";
 import { transaction } from "../infra/db/client";
-import { isUniqueViolation } from "../infra/db/errors";
+import { refusingUnique } from "../infra/db/errors";
 import {
   annotations,
   datasetImages,
@@ -100,14 +100,12 @@ export async function importDataset(
       name: manifest.dataset,
       modelId: model.id,
     };
-    try {
-      await tx.insert(datasets).values({ ...dataset, createdAt: addedAt });
-    } catch (error) {
-      if (!isUniqueViolation(error, "datasets_name")) throw error;
-      throw new DatasetImportError(
-        `Dataset ${manifest.dataset} already exists`,
-      );
-    }
+    await refusingUnique(
+      "datasets_name",
+      () =>
+        new DatasetImportError(`Dataset ${manifest.dataset} already exists`),
+      () => tx.insert(datasets).values({ ...dataset, createdAt: addedAt }),
+    );
     const digests = manifest.images.map((image) => image.digest).sort();
     for (const digest of digests) await lockImage(digest, tx);
     const stored = new Map(

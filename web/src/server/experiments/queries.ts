@@ -41,6 +41,7 @@ import type {
 } from "../../domain/experiments/schema";
 import {
   listManualReadings,
+  atObservationImage,
   listObservations,
   listTreatments,
   listUnits,
@@ -49,55 +50,51 @@ import {
   toExperiment,
 } from "./records";
 import { toModel } from "../models/public";
-import {
-  documentTally,
-  readReview,
-  proposalRunId,
-  proposalRuns,
-} from "../readings/public";
+import { documentTally, readReview, readingsJoin } from "../readings/public";
 import { currentVersion } from "../inference/public";
 import { markedUnclear } from "../images/public";
 
 function observationImageGridQuery(db: Executor) {
-  return db
-    .select({
-      observationImage: experimentObservationImages,
-      outcomeStatus: sql<
-        "succeeded" | "failed" | null
-      >`case when ${inferenceTasks.status} = 'failed' then 'failed' when ${inferenceOutcomes.imageId} is not null then 'succeeded' else null end`,
-      detectionTally: documentTally(inferenceOutcomes.document),
-      proposalTally: documentTally(sql`${proposalRuns.result}->'document'`),
-      annotationTally: documentTally(annotations.document),
-      proposed: sql<boolean>`${proposalRuns.id} is not null`,
-      reviewed: sql<boolean>`${annotations.imageId} is not null`,
-      reader: modelVersions.id,
-      error: sql<
-        string | null
-      >`case when ${inferenceTasks.status} = 'failed' then ${inferenceTasks.error} else null end`,
-      unclear: markedUnclear(experimentObservationImages.imageId),
-    })
-    .from(experimentObservationImages)
-    .innerJoin(experimentObservations, atImageObservation())
-    .leftJoin(
-      modelVersions,
-      eq(modelVersions.id, currentVersion(experimentObservations.modelId)),
+  const readings = readingsJoin({
+    imageId: experimentObservationImages.imageId,
+    modelId: experimentObservations.modelId,
+    version: currentVersion(experimentObservations.modelId),
+  });
+  const { proposal: proposalRuns } = readings;
+  return readings
+    .apply(
+      db
+        .select({
+          observationImage: experimentObservationImages,
+          outcomeStatus: sql<
+            "succeeded" | "failed" | null
+          >`case when ${inferenceTasks.status} = 'failed' then 'failed' when ${inferenceOutcomes.imageId} is not null then 'succeeded' else null end`,
+          detectionTally: documentTally(inferenceOutcomes.document),
+          proposalTally: documentTally(sql`${proposalRuns.result}->'document'`),
+          annotationTally: documentTally(annotations.document),
+          proposed: sql<boolean>`${proposalRuns.id} is not null`,
+          reviewed: sql<boolean>`${annotations.imageId} is not null`,
+          reader: modelVersions.id,
+          error: sql<
+            string | null
+          >`case when ${inferenceTasks.status} = 'failed' then ${inferenceTasks.error} else null end`,
+          unclear: markedUnclear(experimentObservationImages.imageId),
+        })
+        .from(experimentObservationImages)
+        .innerJoin(experimentObservations, atImageObservation())
+        .leftJoin(
+          modelVersions,
+          eq(modelVersions.id, currentVersion(experimentObservations.modelId)),
+        )
+        .$dynamic(),
     )
-    .leftJoin(
-      annotations,
-      and(
-        eq(annotations.imageId, experimentObservationImages.imageId),
-        eq(annotations.modelId, experimentObservations.modelId),
-      ),
-    )
-    .leftJoin(inferenceOutcomes, atImageOutcome())
     .leftJoin(
       inferenceTasks,
       and(
         eq(inferenceTasks.imageId, experimentObservationImages.imageId),
         eq(inferenceTasks.modelVersionId, modelVersions.id),
       ),
-    )
-    .leftJoin(proposalRuns, atImageProposal());
+    );
 }
 
 /** The observation an image was taken at. */
@@ -108,25 +105,6 @@ function atImageObservation() {
       experimentObservationImages.experimentId,
     ),
     eq(experimentObservations.id, experimentObservationImages.observationId),
-  );
-}
-
-/** The newest agent proposal for the image under the observation's model. */
-function atImageProposal() {
-  return eq(
-    proposalRuns.id,
-    proposalRunId(
-      experimentObservationImages.imageId,
-      experimentObservations.modelId,
-    ),
-  );
-}
-
-/** The image's outcome under the version that currently reads for its model. */
-function atImageOutcome() {
-  return and(
-    eq(inferenceOutcomes.imageId, experimentObservationImages.imageId),
-    eq(inferenceOutcomes.modelVersionId, modelVersions.id),
   );
 }
 
@@ -235,16 +213,9 @@ async function readUnitSeries(
 ): Promise<UnitSeries | null> {
   const experiment = await readExperimentRecord(ref.experiment, db);
   if (!experiment) return null;
-  const [treatments, units, observations, images, manualReadings] =
-    await Promise.all([
-      listTreatments(ref.experiment, db),
-      listUnits(ref.experiment, db),
-      listObservations(ref.experiment, db),
-      listObservationImageCells(ref.experiment, db),
-      listManualReadings(ref.experiment, db),
-    ]);
-  const ordered = unitOrder(units, treatments);
-  const unit = ordered.find((item) => item.id === ref.unit);
+  const { treatments, units, observations, images, manualReadings } =
+    await readGrid(experiment, db);
+  const unit = units.find((item) => item.id === ref.unit);
   if (!unit) return null;
   const cells = observationCells(images, manualReadings);
   const own = observations.map((observation) => ({
@@ -280,7 +251,7 @@ async function readUnitSeries(
     experiment,
     unit,
     treatments,
-    navigation: ordered.map(({ id, code, treatment }) => {
+    navigation: units.map(({ id, code, treatment }) => {
       const image =
         viewing && cells.get(cellKey(id, viewing.observation.id))?.image;
       return { id, code, treatment, image: image ? imageReview(image) : null };
@@ -371,13 +342,6 @@ async function listExperimentSummaries(
   }));
 }
 
-function atObservationImage(experimentId: string, observationImageId: string) {
-  return and(
-    eq(experimentObservationImages.experimentId, experimentId),
-    eq(experimentObservationImages.id, observationImageId),
-  );
-}
-
 export function readExperimentObservationImage(
   ref: ObservationImageRef,
   executor?: Executor,
@@ -421,7 +385,6 @@ async function readObservationImage(
         eq(experimentUnits.id, experimentObservationImages.unitId),
       ),
     )
-    .leftJoin(inferenceOutcomes, atImageOutcome())
     .leftJoin(
       inferenceTasks,
       and(

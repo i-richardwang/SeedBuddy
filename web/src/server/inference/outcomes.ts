@@ -129,11 +129,11 @@ export async function storeInferenceOutcome(
     }
     return existing;
   }
-  const row = { document: outcome, recordedAt: new Date() };
   await tx.insert(inferenceOutcomes).values({
     imageId: target.digest,
     modelVersionId: target.versionId,
-    ...row,
+    document: outcome,
+    recordedAt: new Date(),
   });
   return outcome;
 }

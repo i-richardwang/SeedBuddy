@@ -10,7 +10,7 @@ import {
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 
 import { database, inTransaction, type Executor } from "../infra/db/client";
-import { isUniqueViolation } from "../infra/db/errors";
+import { refusingUnique } from "../infra/db/errors";
 import {
   datasetImages,
   datasets,
@@ -127,12 +127,11 @@ async function refuseTakenDatasetName<T>(
   name: string,
   write: () => Promise<T>,
 ): Promise<T> {
-  try {
-    return await write();
-  } catch (error) {
-    if (!isUniqueViolation(error, "datasets_name")) throw error;
-    throw new DatasetNameTakenError(`A dataset named ${name} already exists`);
-  }
+  return refusingUnique(
+    "datasets_name",
+    () => new DatasetNameTakenError(`A dataset named ${name} already exists`),
+    write,
+  );
 }
 
 export async function createDataset(

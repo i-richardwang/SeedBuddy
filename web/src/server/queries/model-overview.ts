@@ -1,16 +1,14 @@
 import type { ModelCatalogueEntry } from "../../domain/models/contracts";
 import type { ModelVersion } from "../../domain/models/schema";
 import type {
-  TrainingRunSummary,
+  TrainingRunListing,
   VersionOverview,
 } from "../../domain/training/read-model";
 import type { DatasetSummary } from "../../domain/datasets/schema";
 import { listDatasetSummaries } from "../datasets/public";
 import { listAllModelVersions, readCurrentVersionId } from "../models/public";
-import {
-  listTrainingRunSummaries,
-  snapshotSummaries,
-} from "../training/public";
+import { datasetSnapshotSummaries } from "../training/public";
+import { listTrainingRunSummaries } from "./training-runs";
 import { modelCatalogue } from "./model-catalogue";
 import { versionComparisons } from "./version-comparison";
 import type {
@@ -24,7 +22,7 @@ interface ModelOverview extends ModelCatalogueEntry {
   /** The training sets of the model. */
   datasets: DatasetSummary[];
   /** The newest runs across those sets. */
-  runs: TrainingRunSummary[];
+  runs: TrainingRunListing[];
 }
 
 /**
@@ -56,7 +54,7 @@ async function listVersionOverviews(
   const [currentVersionId, comparisons, snapshots] = await Promise.all([
     readCurrentVersionId(modelId),
     versionComparisons(modelId),
-    snapshotSummaries(
+    datasetSnapshotSummaries(
       versions.flatMap((version) =>
         version.source.kind === "training_run"
           ? [version.source.datasetSnapshotId]

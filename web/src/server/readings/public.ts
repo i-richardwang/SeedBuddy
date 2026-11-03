@@ -3,8 +3,7 @@ export {
   readReview,
   readAnnotationReading,
   proposalRunId,
-  proposalRuns,
-  activeRuns,
-  atActiveRun,
+  readingsJoin,
+  activeReadingJoin,
 } from "./images";
 export { documentTally } from "./tally";

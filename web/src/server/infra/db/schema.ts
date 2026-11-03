@@ -634,7 +634,7 @@ export const datasetImages = pgTable(
 
 /**
  * What a model version found in an image, addressed by its canonical business
- * key. Experiments read the row under the version they were created with;
+ * key. Experiment grids read the current version of each observation's model;
  * reviews may show one as a reference but never own it. A row is written once:
  * an identical resubmission is accepted and a different one refused, so the
  * result stays a record and never a cache.
@@ -819,10 +819,6 @@ export const experimentObservations = pgTable(
       .onUpdate("cascade"),
     /** An experiment observes its units once a day at most. */
     unique("experiment_observations_day").on(
-      table.experimentId,
-      table.observedOn,
-    ),
-    index("experiment_observations_observed_idx").on(
       table.experimentId,
       table.observedOn,
     ),
@@ -1018,7 +1014,7 @@ export const workers = pgTable("workers", {
 
 /**
  * The process currently serving as a worker, by what it can execute and how
- * much memory it offers a job. What it is doing follows from the lease it
+ * much memory it offers a task. What it is doing follows from the lease it
  * holds.
  */
 export const workerSessions = pgTable(

@@ -6,7 +6,7 @@ import { startTrainingRun } from "../../functions/training";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { m } from "../../paraglide/messages";
-import type { TrainingSummary } from "../../domain/training/read-model";
+import type { DatasetTrainingReadiness } from "../../domain/training/read-model";
 import type {
   TrainingPreset,
   TrainingPresetId,
@@ -32,7 +32,7 @@ interface TrainingSet {
   reviewed: number;
   trainingPresets: readonly TrainingPreset[];
   defaultTrainingPresetId: TrainingPresetId;
-  training: TrainingSummary;
+  training: DatasetTrainingReadiness;
 }
 
 /** Why a new run cannot start now, or null when it can. */
