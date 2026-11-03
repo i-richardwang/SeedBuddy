@@ -4,6 +4,7 @@ import pytest
 from conftest import (
     SEED_CLASSES,
     annotation_document,
+    decode_annotation,
     encoded_image,
     manifest_entry,
     write_blob,
@@ -11,13 +12,12 @@ from conftest import (
 )
 
 from vitroctl.contracts.annotation import (
-    AnnotationDocument,
     AnnotationInstance,
     BoundingBox,
 )
 from vitroctl.datasets.manifest import (
+    AnnotatedImage,
     BlobError,
-    ManifestImage,
     blob_path,
     load_dataset_manifest,
 )
@@ -30,8 +30,8 @@ from vitroctl.detectors.ultralytics.dataset import assign_splits
 from vitroctl.io.image_io import CANONICAL_EXTENSION
 
 
-def _annotated(digest: str, split: str | None = None) -> ManifestImage:
-    return ManifestImage(
+def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
+    return AnnotatedImage(
         digest=digest,
         width=100,
         height=80,
@@ -39,7 +39,7 @@ def _annotated(digest: str, split: str | None = None) -> ManifestImage:
         bytes=1,
         split=split,
         detection=None,
-        annotation=AnnotationDocument.from_document(
+        annotation=decode_annotation(
             annotation_document(digest, [{"x": 10, "y": 20, "width": 20, "height": 10}])
         ),
         unclear=False,
@@ -48,7 +48,7 @@ def _annotated(digest: str, split: str | None = None) -> ManifestImage:
 
 def _annotated_blobs(
     data_root: Path, count: int, splits: tuple[str | None, ...] = ()
-) -> list[ManifestImage]:
+) -> list[AnnotatedImage]:
     """Annotated images whose blobs are written in variant order."""
     return [
         _annotated(
@@ -103,6 +103,7 @@ def test_yolo_export_preserves_the_model_class_order(tmp_path: Path) -> None:
         images.append(
             DatasetImage(
                 digest=digest,
+                split=None,
                 file_path=blob_path(data_root, digest),
                 width=100,
                 height=80,

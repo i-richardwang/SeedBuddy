@@ -56,10 +56,6 @@ def file_digest(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-#: Maximum encoded image size accepted by image transfers.
-MAX_IMAGE_BYTES = 64 * 1024 * 1024
-
-
 def content_digest(data: bytes) -> str:
     """SHA-256 of bytes."""
     return hashlib.sha256(data).hexdigest()

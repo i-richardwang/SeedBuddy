@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
-
-from vitroctl.contracts.validation import validate_wire_contract
+from typing import Any, Protocol
 
 ANNOTATION_SCHEMA_VERSION = 1
 
@@ -42,28 +41,14 @@ class AnnotationDocument:
     instances: tuple[AnnotationInstance, ...]
 
     @classmethod
-    def from_document(
-        cls, payload: dict[str, Any], context: str = "annotation"
-    ) -> AnnotationDocument:
-        validate_wire_contract("annotation", payload, context)
-        return cls.decode(payload)
-
-    @classmethod
-    def decode(cls, payload: dict[str, Any]) -> AnnotationDocument:
-        context = "annotation"
+    def decode(cls, payload: dict[str, Any], context: str) -> AnnotationDocument:
         image = payload["image"]
-        digest = image["digest"]
-        image_width = image["width"]
-        image_height = image["height"]
-
-        return cls(
-            digest=digest,
-            width=image_width,
-            height=image_height,
-            instances=_parse_instances(
-                payload["instances"], image_width, image_height, f"{context}.instances"
-            ),
+        instances = tuple(
+            AnnotationInstance(raw["id"], raw["class"], BoundingBox(**raw["bbox"]))
+            for raw in payload["instances"]
         )
+        validate_instances(instances, image["width"], image["height"], context)
+        return cls(image["digest"], image["width"], image["height"], instances)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -89,47 +74,29 @@ class AnnotationDocument:
         }
 
 
-def _parse_box(
-    value: dict[str, Any], image_width: int, image_height: int, context: str
-) -> BoundingBox:
-    parsed = BoundingBox(
-        x=value["x"],
-        y=value["y"],
-        width=value["width"],
-        height=value["height"],
-    )
-    if (
-        parsed.x < 0
-        or parsed.y < 0
-        or parsed.x + parsed.width > image_width
-        or parsed.y + parsed.height > image_height
-    ):
-        raise ValueError(f"{context} exceeds image bounds")
-    return parsed
+class BoxInstance(Protocol):
+    @property
+    def instance_id(self) -> str: ...
+
+    @property
+    def bbox(self) -> BoundingBox: ...
 
 
-def _parse_instances(
-    value: Any, image_width: int, image_height: int, context: str
-) -> tuple[AnnotationInstance, ...]:
+def validate_instances(
+    instances: Sequence[BoxInstance], width: int, height: int, context: str
+) -> None:
+    """Check instance identities and pixel bounds after wire decoding."""
     identifiers: set[str] = set()
-    instances: list[AnnotationInstance] = []
-    for index, instance in enumerate(value):
-        instance_context = f"{context}[{index}]"
-        identifier = instance["id"]
-        if identifier in identifiers:
-            raise ValueError(f"{instance_context}.id is a duplicate: {identifier}")
-        identifiers.add(identifier)
-        class_name = instance["class"]
-        instances.append(
-            AnnotationInstance(
-                instance_id=identifier,
-                class_name=class_name,
-                bbox=_parse_box(
-                    instance["bbox"],
-                    image_width,
-                    image_height,
-                    f"{instance_context}.bbox",
-                ),
-            )
-        )
-    return tuple(instances)
+    for index, instance in enumerate(instances):
+        location = f"{context}.instances[{index}]"
+        if instance.instance_id in identifiers:
+            raise ValueError(f"{location}.id is a duplicate: {instance.instance_id}")
+        identifiers.add(instance.instance_id)
+        box = instance.bbox
+        if (
+            box.x < 0
+            or box.y < 0
+            or box.x + box.width > width
+            or box.y + box.height > height
+        ):
+            raise ValueError(f"{location}.bbox exceeds image bounds")

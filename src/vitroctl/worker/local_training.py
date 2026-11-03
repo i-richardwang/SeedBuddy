@@ -13,6 +13,10 @@ from vitroctl.training.documents import TrainingClaim
 LOCAL_TRAINING_IDENTITY = "training-identity.json"
 
 
+def attempt_directory(runs: Path, run_id: str, attempt: int) -> Path:
+    return runs / f"{run_id}-{attempt}"
+
+
 def prepare_local_training(claim: TrainingClaim, root: Path) -> None:
     identity = {
         "runId": claim.run_id,
@@ -26,7 +30,7 @@ def prepare_local_training(claim: TrainingClaim, root: Path) -> None:
             raise ValueError(
                 "Local checkpoint belongs to another worker; restart training"
             )
-        source = root.parent / f"{claim.run_id}-{checkpoint.attempt}"
+        source = attempt_directory(root.parent, claim.run_id, checkpoint.attempt)
         try:
             saved = json.loads((source / LOCAL_TRAINING_IDENTITY).read_text())
             if saved != identity:

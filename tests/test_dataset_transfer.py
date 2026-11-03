@@ -17,13 +17,13 @@ from vitroctl.datasets.manifest import (
     verified_blob,
 )
 from vitroctl.datasets.transfer import (
+    MAX_IMAGE_BYTES,
     DatasetTransferError,
     PullReport,
     PushReport,
     pull_dataset,
     push_dataset,
 )
-from vitroctl.io.files import MAX_IMAGE_BYTES
 
 IMAGE_A = b"image a"
 IMAGE_B = b"image b"
@@ -217,7 +217,7 @@ def test_verified_blob_rejects_mismatched_bytes(tmp_path: Path) -> None:
 
 def test_pull_rejects_corrupted_images(tmp_path: Path) -> None:
     handle, _ = _server(blobs={DIGEST_A: IMAGE_A, DIGEST_B: b"tampered"})
-    with pytest.raises(DatasetTransferError, match="digest verification"):
+    with pytest.raises(ValueError, match="digest verification"):
         _pull(tmp_path, handle)
 
     assert blob_path(tmp_path, DIGEST_A).read_bytes() == IMAGE_A
@@ -278,7 +278,7 @@ def test_failed_pull_leaves_the_previous_manifest_untouched(tmp_path: Path) -> N
     manifest.write_text("previous")
     handle, _ = _server(blobs={DIGEST_A: IMAGE_A, DIGEST_B: b"tampered"})
 
-    with pytest.raises(DatasetTransferError, match="digest verification"):
+    with pytest.raises(ValueError, match="digest verification"):
         _pull(tmp_path, handle)
 
     assert manifest.read_text() == "previous"
@@ -377,7 +377,7 @@ def test_push_verifies_blobs_before_sending_anything(tmp_path: Path) -> None:
     blob_path(tmp_path, DIGEST_B).write_bytes(b"bit rot")
     handle, received = _receiver()
 
-    with pytest.raises(DatasetTransferError, match="digest verification"):
+    with pytest.raises(BlobError, match="digest verification"):
         _push(tmp_path, handle)
 
     assert received == []

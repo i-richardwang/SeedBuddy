@@ -49,6 +49,6 @@ def validate_wire_contract(name: str, value: Any, context: str) -> None:
 
 
 def outbound(name: str, document: dict[str, Any]) -> dict[str, Any]:
-    """Validate a document at the send boundary."""
+    """Validate at the send boundary, using the schema name as the error context."""
     validate_wire_contract(name, document, name)
     return document

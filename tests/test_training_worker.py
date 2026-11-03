@@ -510,14 +510,11 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
         output = Path(output_dir)
         (output / "weights").mkdir(parents=True)
         (output / "weights" / "best.pt").write_bytes(b"weights")
-        (output / "training-context.json").write_text(
-            json.dumps(
-                {
-                    "codeRevision": "sha256:" + "a" * 64,
-                    "effectiveParameters": parameters,
-                }
-            )
-        )
+        context = {
+            "codeRevision": "sha256:" + "a" * 64,
+            "effectiveParameters": parameters,
+        }
+
         summary = output / "inference.json"
         summary.write_text(
             json.dumps(
@@ -560,7 +557,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
         return SimpleNamespace(
             best_weights=output / "weights" / "best.pt",
             summary=summary,
-            metrics={},
+            context=context,
         )
 
     monkeypatch.setattr(training_worker, "materialize_snapshot", materialize)

@@ -9,8 +9,10 @@ from typing import Any
 
 import numpy as np
 
+from vitroctl.contracts import annotation
 from vitroctl.contracts.annotation import BoundingBox
 from vitroctl.contracts.inference import YOLO_IOU
+from vitroctl.detectors import contract
 from vitroctl.detectors.contract import (
     DetectionInstance,
     DetectionProducer,
@@ -30,7 +32,7 @@ class YoloInferenceSettings:
     end_to_end: bool
 
     @classmethod
-    def decode(cls, document: dict[str, Any]) -> YoloInferenceSettings:
+    def decode(cls, document: dict[str, Any], context: str) -> YoloInferenceSettings:
         return cls(
             document["confidence"],
             document["imageSize"],
@@ -52,14 +54,19 @@ def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
     return RuntimeDescriptor(
         adapter="ultralytics",
         fingerprint=adapter_fingerprint(
-            b"\0ultralytics\0" + version("ultralytics").encode(), Path(__file__)
+            b"\0ultralytics\0" + version("ultralytics").encode(),
+            {
+                "contract.py": Path(contract.__file__),
+                "annotation.py": Path(annotation.__file__),
+                "detector.py": Path(__file__),
+            },
         ),
     )
 
 
 @dataclass
 class UltralyticsDetector:
-    """Run whole-image inference with the model document’s calibrated settings."""
+    """Run whole-image inference with the model document's calibrated settings."""
 
     weights: Path
     settings: YoloInferenceSettings

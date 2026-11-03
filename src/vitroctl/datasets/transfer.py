@@ -31,8 +31,10 @@ from vitroctl.datasets.manifest import (
     manifest_path,
     verified_blob,
 )
-from vitroctl.io.files import MAX_IMAGE_BYTES, atomic_file, verify_digest
+from vitroctl.io.files import atomic_file, verify_digest
 from vitroctl.io.http import authorized_client
+
+MAX_IMAGE_BYTES = 64 * 1024 * 1024
 
 TRANSFER_TIMEOUT = httpx.Timeout(120.0, read=None, write=None)
 
@@ -108,10 +110,7 @@ def _download_blob(client: httpx.Client, image: ManifestImage, target: Path) -> 
                 received += len(chunk)
                 checksum.update(chunk)
                 handle.write(chunk)
-            try:
-                verify_digest(checksum.hexdigest(), digest)
-            except ValueError as error:
-                raise DatasetTransferError(str(error)) from error
+            verify_digest(checksum.hexdigest(), digest)
             if received != image.bytes:
                 raise DatasetTransferError(
                     f"Blob size differs from the manifest: {digest}"
@@ -125,21 +124,12 @@ def _download_blob(client: httpx.Client, image: ManifestImage, target: Path) -> 
 
 
 def _manifest_blob(data_root: Path, image: ManifestImage) -> Path:
-    path = blob_path(data_root, image.digest)
-    try:
-        size = path.stat().st_size
-    except FileNotFoundError as error:
-        raise DatasetTransferError(
-            f"Blob is missing from the data root: {image.digest}"
-        ) from error
-    if size != image.bytes:
+    path = verified_blob(data_root, image.digest)
+    if path.stat().st_size != image.bytes:
         raise DatasetTransferError(
             f"Blob size differs from the manifest: {image.digest}"
         )
-    try:
-        return verified_blob(data_root, image.digest)
-    except BlobError as error:
-        raise DatasetTransferError(str(error)) from error
+    return path
 
 
 def _fetch_manifest(client: httpx.Client, dataset: str) -> DatasetManifest:
@@ -150,7 +140,7 @@ def _fetch_manifest(client: httpx.Client, dataset: str) -> DatasetManifest:
         f"Manifest exceeds {MAX_DATASET_MANIFEST_BYTES} bytes",
     )
     try:
-        manifest = DatasetManifest.from_document(json.loads(contents), "manifest")
+        manifest = DatasetManifest.from_document(json.loads(contents))
     except (TypeError, ValueError) as error:
         raise DatasetTransferError(str(error)) from error
     if manifest.dataset != dataset:
@@ -185,7 +175,7 @@ def pull_dataset(
             target = blob_path(root, image.digest)
             try:
                 _manifest_blob(root, image)
-            except DatasetTransferError:
+            except (DatasetTransferError, BlobError):
                 present = target.is_file()
                 _download_blob(client, image, target)
                 if present:
@@ -225,7 +215,7 @@ def push_dataset(
     source = manifest_path(root, dataset)
     try:
         document = outbound("dataset-manifest", json.loads(source.read_text()))
-        manifest = DatasetManifest.decode(document)
+        manifest = DatasetManifest.decode(document, "manifest")
         manifest_bytes = encode_dataset_manifest(document)
     except FileNotFoundError as error:
         raise DatasetTransferError(f"No manifest for {dataset} in {root}") from error

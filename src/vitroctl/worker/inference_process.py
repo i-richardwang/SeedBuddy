@@ -6,13 +6,13 @@ import multiprocessing
 import os
 import queue
 from collections.abc import Callable
+from functools import partial
 from multiprocessing.connection import Connection
 from typing import Any
 
 import httpx
 
 from vitroctl.detectors.contract import DetectionProducer
-from vitroctl.io.image_io import read_image
 from vitroctl.worker.images import ImageCache
 from vitroctl.worker.inference_protocol import Assignment, InferenceClient
 from vitroctl.worker.model_store import ModelStore
@@ -37,18 +37,18 @@ def _execute(
     try:
         while True:
             assignment, deadline = connection.recv()
-            client.deadline = deadline
             try:
                 # All potentially blocking loading, transfers and GPU calls live here.
-                image = images.fetch(assignment.image, client.download)
-                detector = models.load(assignment.manifest)
+                image = images.fetch(
+                    assignment.image, partial(client.download, deadline=deadline)
+                )
+                detector = models.load(assignment.manifest, deadline)
                 producer = DetectionProducer(
                     assignment.version_id, detector.artifact_digest, detector.runtime
                 )
                 image_path = image.result()
-                height, width = read_image(image_path).shape[:2]
                 result = detector.predict(image_path, assignment.image, producer)
-                result.require_image(assignment.image, width, height)
+                result.require_image(assignment.image)
                 connection.send(("result", result.to_dict()))
             except Exception as error:  # noqa: BLE001 - errors cross the process boundary
                 code = (
@@ -61,7 +61,7 @@ def _execute(
                         "error",
                         {
                             "code": code,
-                            "message": str(error)[:2000] or type(error).__name__,
+                            "message": str(error) or type(error).__name__,
                         },
                     )
                 )

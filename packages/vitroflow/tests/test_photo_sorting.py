@@ -77,7 +77,7 @@ def _defocus_seeds(
 
 
 def _shots(folder: Path) -> dict[str, Shot]:
-    result = sort_photographs(folder)
+    result = sort_photographs(folder, progress=lambda _: None)
     return {shot.path.name: shot for dish in result.dishes for shot in dish.shots}
 
 
@@ -96,7 +96,7 @@ def folder(tmp_path: Path) -> Path:
 def test_photographs_of_one_dish_are_grouped_and_the_sharp_seeds_come_first(
     folder: Path,
 ) -> None:
-    result = sort_photographs(folder)
+    result = sort_photographs(folder, progress=lambda _: None)
 
     assert [[shot.path.name for shot in dish.shots] for dish in result.dishes] == [
         ["a-sharp.png", "a-label.png"],
@@ -109,7 +109,7 @@ def test_photographs_of_one_dish_are_grouped_and_the_sharp_seeds_come_first(
 
 
 def test_each_photograph_is_carried_onto_the_first_of_its_dish(folder: Path) -> None:
-    sharp, label = sort_photographs(folder).dishes[0].shots
+    sharp, label = sort_photographs(folder, progress=lambda _: None).dishes[0].shots
 
     assert sharp.alignment == ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0))
     # The dish's centre lies at CENTRE + (-30, 10) in one and CENTRE + (20, -15)
@@ -148,7 +148,7 @@ def test_files_without_a_dish_are_skipped(tmp_path: Path) -> None:
     cv2.imwrite(str(tmp_path / "blank.png"), np.full((600, 900), 90, np.uint8))
     (tmp_path / "notes.txt").write_text("ignored")
 
-    result = sort_photographs(tmp_path)
+    result = sort_photographs(tmp_path, progress=lambda _: None)
 
     assert result.dishes == ()
     assert sorted((item.path.name, item.reason) for item in result.skipped) == [

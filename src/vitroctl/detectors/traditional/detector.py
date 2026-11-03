@@ -5,7 +5,9 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from vitroctl.contracts import annotation
 from vitroctl.contracts.annotation import BoundingBox
+from vitroctl.detectors import contract
 from vitroctl.detectors.contract import (
     DetectionDiagnostics,
     DetectionInstance,
@@ -72,7 +74,12 @@ class TraditionalDetector:
         return RuntimeDescriptor(
             adapter="traditional",
             fingerprint=adapter_fingerprint(
-                execution.pipeline_fingerprint.encode(), Path(__file__)
+                execution.pipeline_fingerprint.encode(),
+                {
+                    "contract.py": Path(contract.__file__),
+                    "annotation.py": Path(annotation.__file__),
+                    "detector.py": Path(__file__),
+                },
             ),
         )
 

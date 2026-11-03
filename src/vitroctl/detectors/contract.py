@@ -6,9 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-from vitroctl.contracts.annotation import BoundingBox
-from vitroctl.contracts.annotation_set import ImageDocuments, validate_annotation_set
-from vitroctl.contracts.validation import validate_wire_contract
+from vitroctl.contracts.annotation import BoundingBox, validate_instances
 
 DETECTION_SCHEMA_VERSION = 1
 
@@ -111,40 +109,16 @@ class DetectionResult:
     quality: DetectionQuality
     diagnostics: DetectionDiagnostics = field(default_factory=DetectionDiagnostics)
 
-    def __post_init__(self) -> None:
-        identifiers: set[str] = set()
-        for instance in self.instances:
-            if instance.instance_id in identifiers:
-                raise ValueError(
-                    f"Duplicate detection instance id: {instance.instance_id}"
-                )
-            identifiers.add(instance.instance_id)
-            if (
-                instance.bbox.x < 0
-                or instance.bbox.y < 0
-                or instance.bbox.x + instance.bbox.width > self.width
-                or instance.bbox.y + instance.bbox.height > self.height
-            ):
-                raise ValueError("Detection bounding box exceeds image bounds")
-
-    def require_image(self, digest: str, width: int, height: int) -> None:
-        validate_annotation_set(
-            (ImageDocuments(digest, width, height, {"detection": self}),),
-            None,
-            "detection",
-        )
+    def require_image(self, digest: str) -> None:
+        if self.digest != digest:
+            raise ValueError("detection describes another image")
 
     @classmethod
-    def from_document(
-        cls, payload: dict[str, Any], context: str = "detection-result"
-    ) -> DetectionResult:
-        validate_wire_contract("detection-result", payload, context)
-        return cls.decode(payload)
-
-    @classmethod
-    def decode(cls, payload: dict[str, Any]) -> DetectionResult:
+    def decode(cls, payload: dict[str, Any], context: str) -> DetectionResult:
         image = payload["image"]
         producer = _producer(payload["producer"])
+        instances = tuple(_instance(raw) for raw in payload["instances"])
+        validate_instances(instances, image["width"], image["height"], context)
 
         quality = payload["quality"]
         warnings = quality["warnings"]
@@ -154,7 +128,7 @@ class DetectionResult:
             width=image["width"],
             height=image["height"],
             producer=producer,
-            instances=tuple(_instance(raw) for raw in payload["instances"]),
+            instances=instances,
             quality=DetectionQuality(
                 status=quality["status"],
                 warnings=tuple(warnings),
@@ -198,13 +172,13 @@ class Detector(Protocol):
     ) -> DetectionResult: ...
 
 
-def adapter_fingerprint(seed: bytes, adapter_file: Path) -> str:
+def adapter_fingerprint(seed: bytes, paths: Mapping[str, Path]) -> str:
     digest = hashlib.sha256(seed)
-    for name in ("../contract.py", "detector.py"):
+    for name, path in paths.items():
         digest.update(b"\0")
         digest.update(name.encode())
         digest.update(b"\0")
-        digest.update((adapter_file.parent / name).read_bytes())
+        digest.update(path.read_bytes())
     return digest.hexdigest()
 
 

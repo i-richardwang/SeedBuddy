@@ -18,14 +18,19 @@ from vitroctl.training.recipe import TrainingRecipe
 
 
 def _run(args: argparse.Namespace) -> int:
+    if args.local:
+        if args.worker:
+            raise ValueError("--worker cannot be combined with --local")
+        if not args.output:
+            raise ValueError("Local training requires --output")
+    elif args.resume or args.output or args.device or args.data_root:
+        raise ValueError(
+            "--resume, --output, --device and --data-root apply only to --local; use training resume for managed tasks"
+        )
     spec = json.loads(Path(args.spec).read_text())
     if not isinstance(spec, dict) or set(spec) != {"dataset", "recipe"}:
         raise ValueError("Training spec must contain dataset and recipe")
     if not args.local:
-        if args.resume or args.output or args.device:
-            raise ValueError(
-                "--resume, --output and --device apply only to --local; use training resume for managed tasks"
-            )
         json_output(
             client(args).call(
                 "start-training-run",
@@ -38,12 +43,9 @@ def _run(args: argparse.Namespace) -> int:
         )
         return 0
     recipe = TrainingRecipe.from_document(spec["recipe"])
-    if args.worker:
-        raise ValueError("--worker cannot be combined with --local")
-    if not args.output:
-        raise ValueError("Local training requires --output")
     output = Path(args.output).resolve()
-    source = manifest_path(Path(args.data_root), spec["dataset"])
+    data_root = args.data_root or Path("data")
+    source = manifest_path(data_root, spec["dataset"])
     manifest = load_dataset_manifest(source)
     identity = {"spec": spec, "dataset": manifest.to_dict()}
     identity_text = json.dumps(identity, sort_keys=True, separators=(",", ":"))
@@ -65,7 +67,7 @@ def _run(args: argparse.Namespace) -> int:
         export_yolo_dataset(
             manifest.annotated,
             manifest.classes,
-            args.data_root,
+            data_root,
             exported_path,
             seed=recipe.parameters["seed"],
         )
@@ -93,11 +95,8 @@ def _run(args: argparse.Namespace) -> int:
         snapshot_id=None,
         dataset_description=f"Pulled dataset {manifest.dataset}; exact input and exported splits in input.json and dataset/manifest.json",
         evaluation_description="Exported validation split",
-        metrics=result.metrics,
     )
-    document = training_bundle(
-        result.best_weights, result.summary, list(manifest.classes), provenance
-    )
+    document = training_bundle(result, list(manifest.classes), provenance)
     print(write_bundle(result.best_weights, document, output / "bundle"))
     return 0
 
@@ -140,7 +139,7 @@ def add_training_commands(commands: Any) -> None:
     start.add_argument("--local", action="store_true")
     start.add_argument("--worker")
     start.add_argument("--output")
-    start.add_argument("--data-root", default="data")
+    start.add_argument("--data-root", type=Path)
     start.add_argument("--device")
     start.add_argument("--resume", action="store_true")
     connection_options(start, "experiments")

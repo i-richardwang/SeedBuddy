@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 import pytest
-from conftest import detection_document
+from conftest import decode_model_manifest, detection_document
 
 from vitroctl.detectors.contract import RuntimeDescriptor
 from vitroctl.worker import inference
@@ -16,7 +16,7 @@ from vitroctl.worker.connection import WorkerConnection
 from vitroctl.worker.inference import InferenceRunner
 from vitroctl.worker.inference_process import InferenceExecutionError
 from vitroctl.worker.inference_protocol import Assignment, InferenceClient
-from vitroctl.worker.model_store import ModelManifest, ModelStore
+from vitroctl.worker.model_store import ModelStore
 from vitroctl.worker.session import LeaseLostError, WorkerClient, WorkerSession
 
 RUNTIME = RuntimeDescriptor(adapter="traditional", fingerprint="b" * 64)
@@ -259,12 +259,14 @@ def test_inference_network_deadline_bounds_a_streaming_response():
 
 def test_traditional_detector_requires_its_class(tmp_path: Path):
     class NoWeights:
-        def weights(self, version_id: str) -> bytes:
+        def weights(self, version_id: str, deadline: float) -> bytes:
             raise AssertionError(version_id)
 
     store = ModelStore(NoWeights(), tmp_path, None)
     with pytest.raises(ValueError, match="declares ungerminated"):
-        store.load(ModelManifest.from_document({**MANIFEST, "classes": ["germinated"]}))
+        store.load(
+            decode_model_manifest({**MANIFEST, "classes": ["germinated"]}), 123.0
+        )
 
 
 def test_bounded_http_decodes_compressed_responses_once():
@@ -349,5 +351,28 @@ def test_outbound_detection_is_validated_before_any_network_request(change, reas
                 time.monotonic() + 10,
             )
         assert server.calls == []
+    finally:
+        client.worker.close()
+
+
+def test_each_download_uses_its_call_deadline(monkeypatch):
+    server = Workbench()
+    client = server.client()
+    deadlines = []
+
+    def request(method, url, *, deadline):
+        deadlines.append(deadline)
+        return httpx.Response(
+            200,
+            content=b"bytes",
+            request=httpx.Request(method, "https://example.test/" + url),
+        )
+
+    monkeypatch.setattr(client.worker, "request", request)
+    try:
+        assert client.download("c" * 64, 100.0) == b"bytes"
+        assert client.weights("model-one", 200.0) == b"bytes"
+        assert client.download("d" * 64, 300.0) == b"bytes"
+        assert deadlines == [100.0, 200.0, 300.0]
     finally:
         client.worker.close()

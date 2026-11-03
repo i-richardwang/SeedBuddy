@@ -13,7 +13,6 @@ from vitroctl.image_geometry.dish import detect_dish_circle
 class DishRegions:
     center: tuple[float, float]
     radius: float
-    dish_mask: np.ndarray
     reference_mask: np.ndarray
     search_mask: np.ndarray
     used_fallback: bool
@@ -43,7 +42,6 @@ def estimate_geometry(image: np.ndarray, config: PipelineConfig) -> DishRegions:
     return DishRegions(
         center=center,
         radius=radius,
-        dish_mask=circle_mask(shape, center, radius),
         reference_mask=circle_mask(
             shape,
             center,

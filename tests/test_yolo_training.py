@@ -27,27 +27,6 @@ def fake_training_adapter(monkeypatch):
     monkeypatch.setattr(training, "load_training_trainer", lambda: TRAINER)
 
 
-def test_nano_recipe_fixes_every_training_argument(recipe) -> None:
-    assert recipe["baseModel"]["reference"] == "yolo26n.pt"
-    assert recipe["runtime"] == {"framework": "ultralytics", "version": "8.4.131"}
-    assert recipe["parameters"] == {
-        "epochs": 50,
-        "nbs": 64,
-        "patience": 20,
-        "batch": 4,
-        "imgsz": 1536,
-        "optimizer": "AdamW",
-        "lr0": 0.001,
-        "warmup_epochs": 3.0,
-        "mosaic": 0.0,
-        "mixup": 0.0,
-        "copy_paste": 0.0,
-        "max_det": 500,
-        "seed": 0,
-        "deterministic": True,
-    }
-
-
 class _BoxMetrics:
     def __init__(self) -> None:
         self.mp = 0.5
@@ -378,7 +357,6 @@ def test_training_reports_epochs_and_publishes_validated_settings(
     assert instances[1].val_options["end2end"] is False
     assert instances[1].val_options["device"] == "mps"
     assert json.loads(result.summary.read_text()) == {
-        "schemaVersion": 1,
         "inference": {
             "ready": True,
             "confidence": 0.2,

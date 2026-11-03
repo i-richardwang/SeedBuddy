@@ -67,7 +67,7 @@ class _Member:
     reason: str | None
 
 
-def sort_photographs(folder: Path, progress: Progress = lambda _: None) -> Sorted:
+def sort_photographs(folder: Path, progress: Progress) -> Sorted:
     paths = photographs_in(folder)
     with ThreadPoolExecutor() as pool:
         progress(f"Surveying {len(paths)} photographs")

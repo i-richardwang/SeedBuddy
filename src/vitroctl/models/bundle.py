@@ -4,15 +4,25 @@ from __future__ import annotations
 
 import json
 import shutil
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from vitroctl.contracts.inference import YOLO_IOU
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.io.files import atomic_directory, file_digest
 
 BUNDLE_SCHEMA_VERSION = 1
+
+
+class TrainingPublication(Protocol):
+    @property
+    def best_weights(self) -> Path: ...
+
+    @property
+    def summary(self) -> Path: ...
+
+    @property
+    def context(self) -> dict[str, Any]: ...
 
 
 def weights_descriptor(weights: Path) -> dict[str, Any]:
@@ -36,12 +46,8 @@ def write_bundle(
     weights: Path,
     document: dict[str, Any],
     output: Path,
-    *,
-    verify_runtime: Callable[[dict[str, Any], Path], None] | None = None,
 ) -> Path:
-    validate_bundle(document, weights)
-    if verify_runtime is not None:
-        verify_runtime(document, weights)
+    """Write an already validated bundle atomically."""
     with atomic_directory(output) as temporary:
         shutil.copyfile(weights, temporary / "weights.pt")
         (temporary / "bundle.json").write_text(json.dumps(document, indent=2) + "\n")
@@ -49,23 +55,30 @@ def write_bundle(
 
 
 def training_bundle(
-    weights: Path, summary: Path, classes: list[str], provenance: dict[str, Any]
+    result: TrainingPublication, classes: list[str], provenance: dict[str, Any]
 ) -> dict[str, Any]:
-    publication = json.loads(summary.read_text())
-    context = summary.parent / "training-context.json"
-    provenance = {**provenance, **json.loads(context.read_text())}
+    """Derive both schema-required metric fields from the publication's validation."""
+    publication = json.loads(result.summary.read_text())
     inference = dict(publication["inference"])
     if inference.pop("ready") is not True:
         raise ValueError("Training produced no usable validation signal")
-    return {
+    document = {
         "schemaVersion": BUNDLE_SCHEMA_VERSION,
         "classes": classes,
-        "weights": weights_descriptor(weights),
+        "weights": weights_descriptor(result.best_weights),
         "inference": {**inference, "mode": "whole_image", "iou": YOLO_IOU},
         "training": publication["training"],
         "validation": publication["validation"],
-        "provenance": provenance,
+        "provenance": {
+            **provenance,
+            **result.context,
+            "evaluation": {
+                **provenance["evaluation"],
+                "metrics": publication["validation"],
+            },
+        },
     }
+    return validate_bundle(document, result.best_weights)
 
 
 def training_provenance(
@@ -74,7 +87,6 @@ def training_provenance(
     snapshot_id: str | None,
     dataset_description: str,
     evaluation_description: str,
-    metrics: dict[str, float],
 ) -> dict[str, Any]:
     return {
         "dataset": {
@@ -86,6 +98,5 @@ def training_provenance(
         "evaluation": {
             "description": evaluation_description,
             "calibration": "Best F1 confidence on validation split",
-            "metrics": metrics,
         },
     }

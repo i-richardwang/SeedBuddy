@@ -67,6 +67,10 @@ markers = [
 [tool.ruff.lint]
 extend-select = ["I"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/vitroctl/detectors/traditional/config.py" = ["TRY004"]
+"src/vitroctl/detectors/traditional/scoring.py" = ["TRY004"]
+
 [tool.pyright]
 include = ["src", "scripts", "packages/vitroflow/src", "tests", "packages/vitroflow/tests"]
 pythonVersion = "3.11"
@@ -84,6 +88,3 @@ include = [
   "/src/vitroctl",
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"src/vitroctl/detectors/traditional/config.py" = ["TRY004"]
-"src/vitroctl/detectors/traditional/scoring.py" = ["TRY004"]
