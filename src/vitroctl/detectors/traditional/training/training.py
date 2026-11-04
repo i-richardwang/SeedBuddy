@@ -284,26 +284,16 @@ def train_candidate_model(
     images: Sequence[PreparedImage],
     prior: CandidateModel,
     config: PipelineConfig,
-    grid: SelectionGrid = _DEFAULT_GRID,
 ) -> CandidateModelTraining:
     bandwidths, regularizations, thresholds = (
-        grid.bandwidths,
-        grid.regularizations,
-        grid.thresholds,
+        _DEFAULT_GRID.bandwidths,
+        _DEFAULT_GRID.regularizations,
+        _DEFAULT_GRID.thresholds,
     )
     if len(images) < 2:
         raise ValueError(
             "Candidate model selection requires at least two complete images"
         )
-    if not bandwidths or not regularizations or not thresholds:
-        raise ValueError("Candidate model selection requires parameter values")
-    if any(value is not None and value <= 0 for value in bandwidths):
-        raise ValueError("Calibration bandwidths must be positive")
-    if any(value <= 0 for value in regularizations):
-        raise ValueError("Regularization values must be positive")
-    if any(not 0 <= value <= 1 for value in thresholds):
-        raise ValueError("Confidence thresholds must be between 0 and 1")
-
     selections = tuple(
         _cross_validate(
             images,

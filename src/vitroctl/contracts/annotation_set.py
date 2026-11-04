@@ -36,10 +36,10 @@ class ImageDocuments:
 
 def validate_annotation_set(
     images: Iterable[ImageDocuments],
-    classes: Iterable[str] | None,
+    classes: Iterable[str],
     context: str,
 ) -> None:
-    known = None if classes is None else set(classes)
+    known = set(classes)
     digests: set[str] = set()
     for index, image in enumerate(images):
         if image.digest in digests:
@@ -53,12 +53,11 @@ def validate_annotation_set(
                 raise ValueError(f"{location} describes another image")
             if (document.width, document.height) != (image.width, image.height):
                 raise ValueError(f"{location} dimensions differ from the image")
-            if known is not None:
-                unknown = sorted(
-                    {instance.class_name for instance in document.instances} - known
+            unknown = sorted(
+                {instance.class_name for instance in document.instances} - known
+            )
+            if unknown:
+                raise ValueError(
+                    f"{location} uses unknown class"
+                    f"{'es' if len(unknown) > 1 else ''}: {', '.join(unknown)}"
                 )
-                if unknown:
-                    raise ValueError(
-                        f"{location} uses unknown class"
-                        f"{'es' if len(unknown) > 1 else ''}: {', '.join(unknown)}"
-                    )
