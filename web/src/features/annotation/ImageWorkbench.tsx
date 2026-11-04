@@ -256,7 +256,6 @@ export function ImageSubject({
           counted={context.counted ?? model.classes}
           counts={tally(instances)}
           review={review}
-          sources={sources}
           shown={shown}
           onShowChange={onShowChange}
         />

@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 
 import type { Review } from "../../domain/annotation/readings";
-import { sourceInstances } from "../../domain/annotation/readings";
+import {
+  availableSources,
+  sourceInstances,
+} from "../../domain/annotation/readings";
 import type { ReviewSource } from "../../domain/annotation/schema";
 import {
   classCount,
@@ -39,7 +42,6 @@ export function CountsSection({
   counted,
   counts,
   review,
-  sources,
   shown,
   onShowChange,
 }: {
@@ -47,10 +49,10 @@ export function CountsSection({
   counted: readonly string[];
   counts: Tally;
   review: Review;
-  sources: ReviewSource[];
   shown: ReviewSource | null;
   onShowChange: (source: ReviewSource) => void;
 }) {
+  const sources = availableSources(review);
   return (
     <WorkbenchSection>
       <StatisticHero

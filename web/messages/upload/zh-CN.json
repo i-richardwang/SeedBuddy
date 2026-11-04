@@ -10,18 +10,5 @@
     }
   ],
   "image_file_unsupported": "请选择 JPEG、PNG 或 TIFF 图片",
-  "photos_not_added": "照片未加入：{files}",
-  "ui_step_position": [
-    {
-      "declarations": [
-        "input index",
-        "input total",
-        "local formattedIndex = index: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "index=*": "{formattedIndex} / {formattedTotal}"
-      }
-    }
-  ]
+  "photos_not_added": "照片未加入：{files}"
 }

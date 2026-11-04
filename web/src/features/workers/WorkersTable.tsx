@@ -74,7 +74,6 @@ function WorkerRow({
   worker: WorkerOverview;
   administers: boolean;
 }) {
-  useRouteRefresh(5000);
   return (
     <TableRow>
       <TableCell cellSlot="title">{worker.workerId}</TableCell>

@@ -13,7 +13,6 @@
   "culture_event_record": "记录培养状态",
   "culture_event_record_action": "记录",
   "culture_event_remove": "移除培养状态",
-  "culture_event_remove_title": "移除{event}？",
   "culture_event_removed": "已移除{event}",
   "dataset_add_menu": "加入训练集…",
   "experiment_cell_excluded_event": "本次观测不计入统计",

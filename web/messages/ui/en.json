@@ -77,6 +77,19 @@
   "ui_shell_open_navigation": "Open navigation",
   "ui_shell_sidebar": "Sidebar",
   "ui_shell_skip_to_content": "Skip to content",
+  "ui_step_position": [
+    {
+      "declarations": [
+        "input index",
+        "input total",
+        "local formattedIndex = index: number",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "index=*": "{formattedIndex} / {formattedTotal}"
+      }
+    }
+  ],
   "ui_table_select_all": "Select all",
   "ui_text_not_copied": "Text not copied. Select the text and copy it manually.",
   "ui_viewport_fill": "Fill frame",

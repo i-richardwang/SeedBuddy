@@ -13,7 +13,6 @@
   "culture_event_record": "Record culture status",
   "culture_event_record_action": "Record",
   "culture_event_remove": "Remove culture status",
-  "culture_event_remove_title": "Remove {event}?",
   "culture_event_removed": "{event} removed",
   "dataset_add_menu": "Add to dataset…",
   "experiment_cell_excluded_event": "Excluded from analysis at this observation",

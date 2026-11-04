@@ -9,7 +9,6 @@ import type { Unit } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { removeCultureEvent } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
-import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -143,7 +142,6 @@ function RemoveCultureEventForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const confirmDestructive = useConfirmDestructive();
   const { events } = unit;
   const [event, setEvent] = useState(events.at(-1)?.id ?? "");
   const describe = (item: (typeof events)[number]) => {
@@ -165,20 +163,18 @@ function RemoveCultureEventForm({
         formEvent.preventDefault();
         const removed = events.find((item) => item.id === event);
         if (!removed) return;
-        confirmDestructive({
-          title: m.culture_event_remove_title({ event: describe(removed) }),
-          confirmLabel: m.remove_action(),
-          failure: m.culture_event_not_removed(),
-          onConfirm: async () => {
-            await removeCultureEvent({ data: { experiment, event } });
+        action.run(
+          () => removeCultureEvent({ data: { experiment, event } }),
+          m.culture_event_not_removed(),
+          {
+            onSuccess: () => {
+              toast.success(
+                m.culture_event_removed({ event: describe(removed) }),
+              );
+              onDone();
+            },
           },
-          onSuccess: () => {
-            toast.success(
-              m.culture_event_removed({ event: describe(removed) }),
-            );
-            onDone();
-          },
-        });
+        );
       }}
     >
       <Form.Field label={m.status_label()} required>
