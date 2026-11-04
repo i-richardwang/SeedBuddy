@@ -44,7 +44,7 @@ A cell is one unit on one observation. It holds the photograph taken of the unit
 
 An annotated photograph yields a tally: how many instances of each class its boxes contain. An image can hold three annotation layers, and they rank: a reviewer's
 review outranks an AI agent's proposal, which outranks the model’s
-detection. Only a review marks the image reviewed; the grid distinguishes it from automated annotations. The grid and resolved sheet use detections from the current model version. The image review workbench can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
+detection. Only a review marks the image reviewed; the grid distinguishes it from automated annotations. The grid and resolved sheet use detections from the current model version. The image review page can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
 
 A count entered by hand is a tally too, kept by class, for a day that was
 not photographed or a dish that was counted at the bench, such as when its
@@ -57,9 +57,7 @@ never gave is unanswered, not zero, so the count must give every class the
 day counts, and if the day later comes to count a class the count did not
 give, the cell reads from its photograph instead, or has no number.
 
-A count is how many instances of the classes its day counts a unit's
-reading found. The tally keeps every class whatever the day counts, so changing
-the classes recounts the same readings, and nothing is read again.
+A count is how many instances of the classes its day counts a unit's tally holds. The tally keeps every class whatever the day counts; changing the classes recounts the same tallies and reads nothing again.
 
 ## What the grid shows
 
@@ -84,9 +82,7 @@ observation heads the column of counts it read, one row per unit. Under its date
 a day names its model, and the classes it counts when they are fewer than the
 model recognizes.
 
-Quantities stay quantities and days stay days. A count is a number whoever
-stood behind it, and a day is the day a spreadsheet counts rather than the
-text of one, so whatever opens the file can sort, chart and compute on it.
+Quantities stay quantities and days stay days. A count is a number cell whoever stood behind it, and a day is a date cell, not text.
 The sheet records what the dish did rather than what the workbench is doing:
 a reading still to come, or a day with neither photograph nor count, leaves
 its cell empty, and a day out of the statistics carries why in place of its
