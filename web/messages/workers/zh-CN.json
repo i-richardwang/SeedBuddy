@@ -18,7 +18,7 @@
   "worker_menu_remove": "移除…",
   "worker_never_seen": "从未连接",
   "worker_not_enrolled": "计算节点未登记",
-  "worker_not_removed": "Worker 未移除",
+  "worker_not_removed": "计算节点未移除",
   "worker_presence_offline": "离线",
   "worker_presence_online": "在线",
   "worker_presence_stale": "失联",
