@@ -56,12 +56,14 @@ test("failures larger than a batch cannot starve later images, even with a new r
   ) => (failures.has(image.digest) ? null : completed);
   for (let i = 0; i < 2; i++)
     expect(await createImageAnalysisRefresher(analyze)({ limit: 2 })).toEqual({
+      attemptedBefore: expect.any(Date),
       examined: 2,
       completed: 0,
       failed: 2,
       skipped: 0,
     });
   expect(await createImageAnalysisRefresher(analyze)({ limit: 2 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 2,
     completed: 1,
     failed: 1,
@@ -71,6 +73,7 @@ test("failures larger than a batch cannot starve later images, even with a new r
   for (const id of failures)
     expect((await row(id)).dishAnalysisAttemptedAt).toBeInstanceOf(Date);
   expect(await createImageAnalysisRefresher(analyze)({ limit: 1 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 0,
     completed: 0,
     failed: 0,
@@ -118,6 +121,7 @@ test("missing and corrupt images fail individually without aborting later work",
     return completed;
   });
   expect(await refresh({ limit: 3 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 3,
     completed: 1,
     failed: 2,
@@ -147,6 +151,7 @@ test("concurrent refreshers claim different images and do not hold locks during 
   try {
     await entered.promise;
     expect(await createImageAnalysisRefresher(analyze)({ limit: 1 })).toEqual({
+      attemptedBefore: expect.any(Date),
       examined: 1,
       completed: 1,
       failed: 0,
@@ -208,6 +213,7 @@ test("a late refresh preserves newer ingestion and reports the result as skipped
     return completed;
   });
   expect(await refresh({ limit: 1 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 1,
     completed: 0,
     failed: 0,
@@ -225,7 +231,13 @@ test("deletion during analysis is skipped while later results are persisted", as
     return completed;
   });
   const result = await refresh({ limit: 2 });
-  expect(result).toEqual({ examined: 2, completed: 1, failed: 0, skipped: 1 });
+  expect(result).toEqual({
+    attemptedBefore: expect.any(Date),
+    examined: 2,
+    completed: 1,
+    failed: 0,
+    skipped: 1,
+  });
   expect(result.examined).toBe(
     result.completed + result.failed + result.skipped,
   );
@@ -238,6 +250,7 @@ test("a fixed sweep cutoff excludes failures even after their cooldown expires",
   const attemptedBefore = new Date(Date.now() - 3 * IMAGE_ANALYSIS_RETRY_MS);
   const refresh = createImageAnalysisRefresher(async () => null);
   expect(await refresh({ limit: 1, attemptedBefore })).toEqual({
+    attemptedBefore,
     examined: 1,
     completed: 0,
     failed: 1,
@@ -253,6 +266,7 @@ test("a fixed sweep cutoff excludes failures even after their cooldown expires",
     })
     .where(eq(images.id, id));
   expect(await refresh({ limit: 1, attemptedBefore })).toEqual({
+    attemptedBefore,
     examined: 0,
     completed: 0,
     failed: 0,
@@ -269,6 +283,7 @@ test("shutdown finishes the current image and leaves the next one unclaimed", as
     return completed;
   });
   expect(await refresh({ limit: 2, signal: stop.signal })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 1,
     completed: 1,
     failed: 0,

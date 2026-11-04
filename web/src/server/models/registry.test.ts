@@ -38,14 +38,17 @@ import {
 } from "./registry";
 
 test("a version is registered once and its contents may not change", async () => {
-  const model = await registerModel({
-    schemaVersion: 1,
-    id: "registry-detector",
-    name: "Registry detector",
-    task: "object_detection",
-    classes: ["seed"],
-    annotation: DEFAULT_MODEL_ANNOTATION,
-  });
+  const model = await registerModel(
+    {
+      schemaVersion: 1,
+      id: "registry-detector",
+      name: "Registry detector",
+      task: "object_detection",
+      classes: ["seed"],
+      annotation: DEFAULT_MODEL_ANNOTATION,
+    },
+    await database(),
+  );
   const candidate = {
     schemaVersion: 1 as const,
     id: "registry-detector-v1",
@@ -60,10 +63,10 @@ test("a version is registered once and its contents may not change", async () =>
       digest: "d".repeat(64),
     },
   };
-  const version = await registerModelVersion(candidate);
+  const version = await registerModelVersion(candidate, await database());
 
   expect(await listModels()).toContainEqual(model);
-  expect(await readModelVersion(version.id)).toEqual(version);
+  expect(await readModelVersion(version.id, await database())).toEqual(version);
   expect(
     sameModelVersion(version, {
       artifact: candidate.artifact,
@@ -85,22 +88,28 @@ test("a version is registered once and its contents may not change", async () =>
     }).success,
   ).toBeFalse();
   await expect(
-    registerModelVersion({
-      ...candidate,
-      artifact: { ...candidate.artifact, digest: "e".repeat(64) },
-    }),
+    registerModelVersion(
+      {
+        ...candidate,
+        artifact: { ...candidate.artifact, digest: "e".repeat(64) },
+      },
+      await database(),
+    ),
   ).rejects.toThrow(/already registered with different contents/);
 });
 
 test("every registered version is listed newest first", async () => {
-  const model = await registerModel({
-    schemaVersion: 1,
-    id: "listing-detector",
-    name: "Listing detector",
-    task: "object_detection",
-    classes: ["seed"],
-    annotation: DEFAULT_MODEL_ANNOTATION,
-  });
+  const model = await registerModel(
+    {
+      schemaVersion: 1,
+      id: "listing-detector",
+      name: "Listing detector",
+      task: "object_detection",
+      classes: ["seed"],
+      annotation: DEFAULT_MODEL_ANNOTATION,
+    },
+    await database(),
+  );
   const version = (createdAt: string, suffix: string) => ({
     schemaVersion: 1 as const,
     id: `listing-detector-${suffix}`,
@@ -111,9 +120,11 @@ test("every registered version is listed newest first", async () => {
   });
   const older = await registerModelVersion(
     version("2026-08-27T00:00:00.000Z", "v1"),
+    await database(),
   );
   const newer = await registerModelVersion(
     version("2026-08-28T00:00:00.000Z", "v2"),
+    await database(),
   );
 
   const listed = (await listModelVersions(model.id)).map(({ id }) => id);
@@ -223,14 +234,17 @@ async function waitForLockContention(url: string): Promise<void> {
 contendedTest(
   "a version recorded while a withdrawal waits still holds the model",
   async () => {
-    const model = await registerModel({
-      schemaVersion: 1,
-      id: "contended-detector",
-      name: "Contended detector",
-      task: "object_detection",
-      classes: ["seed"],
-      annotation: DEFAULT_MODEL_ANNOTATION,
-    });
+    const model = await registerModel(
+      {
+        schemaVersion: 1,
+        id: "contended-detector",
+        name: "Contended detector",
+        task: "object_detection",
+        classes: ["seed"],
+        annotation: DEFAULT_MODEL_ANNOTATION,
+      },
+      await database(),
+    );
     const other = await connect(testDatabaseUrl!);
     let record = (): void => {};
     let commit = (): void => {};
@@ -285,7 +299,9 @@ test("the current version is one of the model's own, and a restart keeps the one
   });
   try {
     await installBuiltinModels(await database());
-    expect(await readCurrentVersionId(SEED_DETECTOR_MODEL_ID)).toBe(trained.id);
+    expect(
+      await readCurrentVersionId(SEED_DETECTOR_MODEL_ID, await database()),
+    ).toBe(trained.id);
   } finally {
     await setCurrentVersion({
       model: SEED_DETECTOR_MODEL_ID,

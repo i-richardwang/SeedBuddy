@@ -575,7 +575,10 @@ test.each([...TRAINING_PRESETS])(
         runtime: recipe.runtime,
       },
     };
-    const frozen = await readDatasetSnapshot(created.datasetSnapshotId);
+    const frozen = await readDatasetSnapshot(
+      created.datasetSnapshotId,
+      await database(),
+    );
     const bundle = trainingBundle(
       new TextEncoder().encode("weights"),
       publication,

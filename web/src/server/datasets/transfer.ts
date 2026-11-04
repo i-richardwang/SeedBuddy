@@ -4,10 +4,7 @@ import {
   DatasetImportInvalidError,
   DatasetNameTakenError,
 } from "../../domain/datasets/errors";
-import {
-  type DatasetManifest,
-  datasetManifestSchema,
-} from "../../domain/datasets/manifest";
+import type { DatasetManifest } from "../../domain/datasets/manifest";
 import type { Dataset } from "../../domain/datasets/schema";
 import { sameClasses } from "../../domain/models/classes";
 import { insertImportedAnnotations } from "../annotations/public";
@@ -43,10 +40,10 @@ export async function datasetManifest(
   dataset: Dataset,
   db?: Executor,
 ): Promise<DatasetManifest> {
-  return inSnapshot(db, async (db) => {
+  return inSnapshot(db, async (db): Promise<DatasetManifest> => {
     const model = await requireModel(dataset.modelId, db);
     const records = await listImageRecords(dataset.id, db);
-    return datasetManifestSchema.parse({
+    return {
       schemaVersion: 1,
       dataset: dataset.name,
       model: { id: model.id, classes: model.classes },
@@ -61,7 +58,7 @@ export async function datasetManifest(
         annotation,
         unclear,
       })),
-    });
+    };
   });
 }
 

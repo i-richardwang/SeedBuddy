@@ -22,7 +22,6 @@ import {
 } from "../../domain/workers/schema";
 import { readDataset } from "../datasets/public";
 import {
-  database,
   type Executor,
   operationTime,
   single,
@@ -192,9 +191,8 @@ export async function trainingLeaseIsHeld(
 
 export async function latestTrainingRun(
   datasetId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<TrainingRun | null> {
-  db ??= await database();
   const [row] = await db
     .select({ run: trainingRuns })
     .from(trainingRuns)
@@ -210,9 +208,9 @@ export async function latestTrainingRun(
 
 export async function activeTrainingRun(
   modelId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<TrainingRun | null> {
-  const [row] = await (db ?? (await database()))
+  const [row] = await db
     .select()
     .from(trainingRuns)
     .where(

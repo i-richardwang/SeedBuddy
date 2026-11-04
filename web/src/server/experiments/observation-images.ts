@@ -115,11 +115,8 @@ export async function assignObservationImages(
       );
     }
 
-    const filled = await db
-      .select({
-        id: experimentObservationImages.id,
-      })
-      .from(experimentObservationImages)
+    await db
+      .delete(experimentObservationImages)
       .where(
         and(
           eq(experimentObservationImages.experimentId, experimentId),
@@ -127,17 +124,6 @@ export async function assignObservationImages(
           inArray(experimentObservationImages.unitId, unitIds),
         ),
       );
-    if (filled.length > 0) {
-      await db.delete(experimentObservationImages).where(
-        and(
-          eq(experimentObservationImages.experimentId, experimentId),
-          inArray(
-            experimentObservationImages.id,
-            filled.map((row) => row.id),
-          ),
-        ),
-      );
-    }
 
     const used = await db
       .select({

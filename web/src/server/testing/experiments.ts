@@ -45,7 +45,7 @@ export async function observeImagesForModel(
   contents: string[],
   modelId: string,
 ): Promise<ObservedExperiment> {
-  const model = await readModel(modelId);
+  const model = await readModel(modelId, await database());
   if (!model) throw new Error(`Unknown model: ${modelId}`);
   const experiment = await createExperimentRecord({
     name: experimentName,

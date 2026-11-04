@@ -125,7 +125,7 @@ interface SessionRef {
  * ends when a newer process of its worker heartbeats or the worker is
  * removed.
  */
-export function sessionIsCurrent(session: SessionRef) {
+function sessionIsCurrent(session: SessionRef) {
   return sql`exists (
     select 1 from ${workerSessions}
     where ${workerSessions.workerId} = ${session.workerId}

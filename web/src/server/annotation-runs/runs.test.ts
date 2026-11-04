@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
 import type { StartAnnotationRun } from "../../domain/annotation-runs/schema";
+import { modelAnnotationRequestSchema } from "../../domain/models/schema";
 import { database } from "../infra/db/client";
 import { annotationRuns } from "../infra/db/schema";
 import { createModel, setModelAnnotation } from "../models/public";
@@ -48,12 +49,12 @@ test("the model's instructions and region are frozen into the run definition", a
     displayScale: 4,
   };
   await setModelAnnotation({ model: model.id, annotation });
-  await expect(
-    setModelAnnotation({
+  expect(() =>
+    modelAnnotationRequestSchema.parse({
       model: model.id,
       annotation: { ...annotation, halo: 17 },
     }),
-  ).rejects.toThrow("Context cannot exceed core size");
+  ).toThrow("Context cannot exceed core size");
   const run = await createAnnotationRun({ ...request, ref });
   const { definition } = await stored(run.id);
   expect(definition.config).toEqual({

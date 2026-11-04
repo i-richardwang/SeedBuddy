@@ -69,7 +69,8 @@ test("an observation reads for a model the registry holds", async () => {
     observedOn: observation.observedOn,
     note: observation.note,
     modelId: traditional.modelId,
-    countedClasses: (await readModel(traditional.modelId))!.classes,
+    countedClasses: (await readModel(traditional.modelId, await database()))!
+      .classes,
   });
   expect(reread.modelId).toBe(traditional.modelId);
 
@@ -182,7 +183,7 @@ test("observations of one experiment read with different models", async () => {
       observedOn: day14.observedOn,
       note: day14.note,
       modelId,
-      countedClasses: (await readModel(modelId))!.classes,
+      countedClasses: (await readModel(modelId, await database()))!.classes,
     });
 
   const found = countedImageResult(seeds, digest, 2);

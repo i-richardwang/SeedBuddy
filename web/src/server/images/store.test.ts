@@ -79,7 +79,13 @@ test("maintenance refreshes only unavailable or obsolete analysis, including suc
   expect(result.failed).toBe(0);
   expect((await row(image.digest)).dishAnalysis).toEqual(original);
   const warm = await refreshImageAnalysis({ limit: 1000 });
-  expect(warm).toEqual({ examined: 0, completed: 0, failed: 0, skipped: 0 });
+  expect(warm).toEqual({
+    attemptedBefore: expect.any(Date),
+    examined: 0,
+    completed: 0,
+    failed: 0,
+    skipped: 0,
+  });
 });
 
 test("database analysis constraints distinguish unavailable metadata from completed no-candidate results", async () => {

@@ -1,4 +1,3 @@
-/** Composes experiment grids, unit series, and overview listings. */
 import { asc, desc } from "drizzle-orm";
 
 import { snapshot } from "../infra/db/client";

@@ -37,11 +37,6 @@ export function replicateCodes(
   return codes;
 }
 
-/** Names and codes are identified the way the database compares them. */
-export function sameName(left: string, right: string): boolean {
-  return left.toLowerCase() === right.toLowerCase();
-}
-
 /** The filename without its extension, as the camera or the operator wrote it. */
 export function filenameStem(filename: string): string {
   const normalized = filename.normalize("NFC").trim();

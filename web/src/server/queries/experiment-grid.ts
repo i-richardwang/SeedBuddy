@@ -1,4 +1,4 @@
-/** Composes experiment grids, unit series, and overview listings. */
+/** Reads an experiment’s units, observations, and image cells. */
 import { and, eq, sql } from "drizzle-orm";
 
 import { unitOrder } from "../../domain/experiments/naming";

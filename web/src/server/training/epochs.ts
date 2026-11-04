@@ -5,7 +5,7 @@ import {
   type TrainingEpochReport,
   trainingEpochSchema,
 } from "../../domain/training/schema";
-import { database, type Executor } from "../infra/db/client";
+import type { Executor } from "../infra/db/client";
 import { trainingEpochs, trainingRuns } from "../infra/db/schema";
 
 type EpochRow = typeof trainingEpochs.$inferSelect;
@@ -79,9 +79,8 @@ export async function saveTrainingEpoch(
  */
 export async function listTrainingEpochs(
   runId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<TrainingEpoch[]> {
-  db ??= await database();
   const rows = await db
     .select({ epoch: trainingEpochs })
     .from(trainingEpochs)

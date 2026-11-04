@@ -25,10 +25,7 @@ import {
   type ModelRequest,
   type ModelVersion,
   type ModelVersionRef,
-  modelAnnotationRequestSchema,
-  modelRequestSchema,
   modelSchema,
-  modelVersionRefSchema,
   modelVersionSchema,
   sameModel,
   sameModelVersion,
@@ -70,9 +67,8 @@ export function toModelVersion(
 
 export async function readModel(
   modelId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<Model | null> {
-  db ??= await database();
   const [row] = await db.select().from(models).where(eq(models.id, modelId));
   return row ? toModel(row) : null;
 }
@@ -103,9 +99,8 @@ export async function listModelVersions(
 
 export async function readModelVersion(
   versionId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<ModelVersion | null> {
-  db ??= await database();
   const [row] = await db
     .select()
     .from(modelVersions)
@@ -129,11 +124,9 @@ async function insertModel(model: Model, db: Executor): Promise<Model | null> {
  * supplies a starting point and never overrides what was changed since.
  */
 export async function registerModel(
-  value: Model,
-  db?: Executor,
+  model: Model,
+  db: Executor,
 ): Promise<Model> {
-  db ??= await database();
-  const model = modelSchema.parse(value);
   const inserted = await insertModel(model, db);
   if (inserted) return inserted;
   const existing = await readModel(model.id, db);
@@ -157,10 +150,9 @@ export async function registerModel(
  * once get one model and one refusal.
  */
 export async function createModel(
-  value: ModelRequest,
+  request: ModelRequest,
   db?: Executor,
 ): Promise<Model> {
-  const request = modelRequestSchema.parse(value);
   const model = modelSchema.parse({
     schemaVersion: 1,
     task: "object_detection",
@@ -181,10 +173,9 @@ export async function createModel(
 
 /** Changes how agents annotate the task. Its classes and records are untouched. */
 export async function setModelAnnotation(
-  value: ModelAnnotationRequest,
+  request: ModelAnnotationRequest,
   db?: Executor,
 ): Promise<Model> {
-  const request = modelAnnotationRequestSchema.parse(value);
   db ??= await database();
   const [row] = await db
     .update(models)
@@ -219,11 +210,9 @@ export async function deleteModel(ref: ModelRef, db?: Executor): Promise<void> {
 }
 
 export async function registerModelVersion(
-  value: ModelVersion,
-  db?: Executor,
+  version: ModelVersion,
+  db: Executor,
 ): Promise<ModelVersion> {
-  db ??= await database();
-  const version = modelVersionSchema.parse(value);
   await requireModel(version.modelId, db);
   const [inserted] = await db
     .insert(modelVersions)
@@ -249,9 +238,8 @@ export async function registerModelVersion(
 /** The version that reads for the model, or null while none has been chosen. */
 export async function readCurrentVersionId(
   modelId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<string | null> {
-  db ??= await database();
   const [row] = await db
     .select({ currentVersionId: models.currentVersionId })
     .from(models)
@@ -268,9 +256,8 @@ export async function readCurrentVersionId(
  * are untouched.
  */
 export async function setCurrentVersion(
-  value: ModelVersionRef,
+  ref: ModelVersionRef,
 ): Promise<ModelVersion> {
-  const ref = modelVersionRefSchema.parse(value);
   return transaction(async (db) => {
     const version = await readModelVersion(ref.version, db);
     if (!version || version.modelId !== ref.model) {

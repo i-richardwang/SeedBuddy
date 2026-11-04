@@ -15,7 +15,7 @@ function stringClaim(claims: JWTPayload, name: string): string | null {
 }
 
 /** The MCP client a verified JWT was issued to. */
-export function mcpClientId(claims: JWTPayload): string | null {
+function mcpClientId(claims: JWTPayload): string | null {
   return stringClaim(claims, "client_id") ?? stringClaim(claims, "azp");
 }
 

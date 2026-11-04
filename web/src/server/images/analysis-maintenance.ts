@@ -109,7 +109,7 @@ export function createImageAnalysisRefresher(analyze = analyzeImage) {
       result.completed += updated.length;
       result.skipped += 1 - updated.length;
     }
-    return result;
+    return { ...result, attemptedBefore };
   };
 }
 

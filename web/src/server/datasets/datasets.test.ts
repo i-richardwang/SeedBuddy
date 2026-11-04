@@ -165,14 +165,17 @@ describe("datasets", () => {
         name: "one-model",
         images: seed.images,
       });
-    await registerModel({
-      schemaVersion: 1,
-      id: "other-task",
-      name: "Other task",
-      task: "object_detection",
-      classes: ["seed"],
-      annotation: DEFAULT_MODEL_ANNOTATION,
-    });
+    await registerModel(
+      {
+        schemaVersion: 1,
+        id: "other-task",
+        name: "Other task",
+        task: "object_detection",
+        classes: ["seed"],
+        annotation: DEFAULT_MODEL_ANNOTATION,
+      },
+      await database(),
+    );
     const otherVersion = await registerTrainedVersion("other-task");
     const other = await observeImages(
       "other images",

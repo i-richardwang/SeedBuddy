@@ -4,7 +4,7 @@ import type {
   TrainingAttempt,
   TrainingRun,
 } from "../../domain/training/schema";
-import { database, type Executor } from "../infra/db/client";
+import type { Executor } from "../infra/db/client";
 import { trainingAttempts } from "../infra/db/schema";
 
 export async function finishAttempt(
@@ -28,9 +28,9 @@ export async function finishAttempt(
 
 export async function listTrainingAttempts(
   runId: string,
-  db?: Executor,
+  db: Executor,
 ): Promise<TrainingAttempt[]> {
-  const rows = await (db ?? (await database()))
+  const rows = await db
     .select()
     .from(trainingAttempts)
     .where(eq(trainingAttempts.runId, runId))

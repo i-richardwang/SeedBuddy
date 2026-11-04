@@ -1,8 +1,5 @@
 export { resolveDishCoverage } from "./analysis";
-export {
-  IMAGE_ANALYSIS_RETRY_MS,
-  refreshImageAnalysis,
-} from "./analysis-maintenance";
+export { refreshImageAnalysis } from "./analysis-maintenance";
 export { collectImages } from "./collection";
 export { assertDocumentImage } from "./documents";
 export { imageBlobKey } from "./keys";

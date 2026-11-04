@@ -44,7 +44,10 @@ async function completeTrainingRun(
   publication: Parameters<typeof trainingBundle>[1],
 ) {
   const run = await readTrainingRun(runId, await database());
-  const snapshot = await readDatasetSnapshot(run!.datasetSnapshotId);
+  const snapshot = await readDatasetSnapshot(
+    run!.datasetSnapshotId,
+    await database(),
+  );
   const bundle = trainingBundle(
     weights,
     publication,
@@ -90,7 +93,9 @@ import { trainingHeartbeat } from "../testing/workers";
 test("a model has at most one active training run", async () => {
   const dataset = await trainingDataset("exclusive-run");
   const run = await createTrainingRun(dataset.id, recipe, null);
-  expect((await activeTrainingRun(run.modelId))?.id).toBe(run.id);
+  expect((await activeTrainingRun(run.modelId, await database()))?.id).toBe(
+    run.id,
+  );
   await expect(createTrainingRun(dataset.id, recipe, null)).rejects.toThrow(
     /still active/,
   );
@@ -100,7 +105,7 @@ test("a model has at most one active training run", async () => {
     /still active/,
   );
   await failTrainingRun(run.id, "stopped", trainerOwner);
-  expect(await activeTrainingRun(run.modelId)).toBeNull();
+  expect(await activeTrainingRun(run.modelId, await database())).toBeNull();
   const next = await createTrainingRun(dataset.id, recipe, null);
   expect(next.id).not.toBe(run.id);
   expect((await claimTrainingRun(trainerOwner))?.id).toBe(next.id);
@@ -136,7 +141,10 @@ test("a training run owns an immutable self-contained snapshot", async () => {
   expect(await claimTrainingRun(owner("snapshot-trainer"))).toEqual(claimed);
   if (!claimed) throw new Error("run was not claimed");
 
-  const snapshot = await readDatasetSnapshot(claimed.datasetSnapshotId);
+  const snapshot = await readDatasetSnapshot(
+    claimed.datasetSnapshotId,
+    await database(),
+  );
   if (!snapshot) throw new Error("missing snapshot");
   expect(snapshot.images.map((image) => image.digest)).toEqual(
     (await Promise.all(CONTENTS.map(imageDigest))).sort(),
@@ -170,7 +178,10 @@ test("a snapshot takes an unclear photograph like any other", async () => {
   await trainer("unclear-trainer");
   const claimed = await claimTrainingRun(owner("unclear-trainer"));
   if (!claimed) throw new Error("run was not claimed");
-  const snapshot = await readDatasetSnapshot(claimed.datasetSnapshotId);
+  const snapshot = await readDatasetSnapshot(
+    claimed.datasetSnapshotId,
+    await database(),
+  );
   expect(snapshot?.images.map((image) => image.digest)).toEqual(
     [clear!, fogged!].sort(),
   );
@@ -225,7 +236,10 @@ test("publication registers one immutable version per training run", async () =>
   expect(completed.state.status).toBe("succeeded");
   if (completed.state.status !== "succeeded") throw new Error("not succeeded");
 
-  const version = await readModelVersion(completed.state.modelVersionId);
+  const version = await readModelVersion(
+    completed.state.modelVersionId,
+    await database(),
+  );
   expect(version?.id).not.toBe(run.id);
   expect(version?.source).toEqual({
     kind: "training_run",
@@ -331,7 +345,7 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
     expired,
   );
 
-  const history = await listTrainingEpochs(run.id);
+  const history = await listTrainingEpochs(run.id, await database());
   expect(history.map(({ epoch, fitness }) => [epoch, fitness])).toEqual([
     [1, 0.12],
   ]);
@@ -485,7 +499,7 @@ test("pause releases the model and fences the previous attempt even on the same 
     "running",
   );
   await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
-  expect(await activeTrainingRun(run.modelId)).toBeNull();
+  expect(await activeTrainingRun(run.modelId, await database())).toBeNull();
   expect(await claimTrainingRun(b)).toBeNull();
   await expect(recordTrainingEpoch(run.id, epochReport(2), a)).rejects.toThrow(
     /not owned/,
@@ -507,7 +521,7 @@ test("pause releases the model and fences the previous attempt even on the same 
     controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" }),
   ).rejects.toThrow(/refresh/);
   await controlTrainingRun(dataset.id, run.id, 2, { action: "cancel" });
-  expect(await listTrainingAttempts(run.id)).toMatchObject([
+  expect(await listTrainingAttempts(run.id, await database())).toMatchObject([
     { attempt: 2, workerId: a.workerId, outcome: "cancelled" },
     { attempt: 1, workerId: a.workerId, outcome: "paused" },
   ]);
@@ -629,10 +643,10 @@ test("pausing and model publication serialize to one consistent outcome", async 
     (current.state.status !== "paused" && current.state.status !== "succeeded")
   )
     throw new Error("Unexpected training outcome");
-  expect((await listTrainingAttempts(run.id))[0]?.outcome).toBe(
-    current.state.status,
-  );
-  expect(await activeTrainingRun(run.modelId)).toBeNull();
+  expect(
+    (await listTrainingAttempts(run.id, await database()))[0]?.outcome,
+  ).toBe(current.state.status);
+  expect(await activeTrainingRun(run.modelId, await database())).toBeNull();
 });
 
 test("owned writes refuse a missing run as not found", async () => {
@@ -686,7 +700,9 @@ test.each([-1, 1])(
       await expect(
         recordTrainingEpoch(run.id, epochReport(2), worker, expiresAt),
       ).rejects.toThrow(/not owned/);
-      expect(await listTrainingEpochs(run.id)).toHaveLength(1);
+      expect(await listTrainingEpochs(run.id, await database())).toHaveLength(
+        1,
+      );
     } finally {
       await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
     }
