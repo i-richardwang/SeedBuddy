@@ -28,8 +28,7 @@ Codex, finds the images waiting for it and annotates them from its own
 conversation, many regions per conversation. Pages show its run's progress and
 the AI proposal it leaves; only a person writes an accepted review.
 
-An image and model have at most one run in progress, so the image is the run's
-address. Accepted regions are durable, and the run stays open until every region
+An image and model have at most one run in progress; the `ref` `{digest, modelId}` addresses that run. Accepted regions are durable, and the run stays open until every region
 is accepted or an agent cancels it to start again differently. Any connected
 agent, in any conversation, continues it from the first region still waiting.
 
