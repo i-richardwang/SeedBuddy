@@ -10,21 +10,15 @@ import {
 import { assertInstanceClasses } from "../../domain/models/classes";
 import { canonicalJson } from "../../lib/json/canonical";
 import { lockImage, requireStoredImage } from "../images/public";
-import {
-  database,
-  type Executor,
-  operationTime,
-  transaction,
-} from "../infra/db/client";
+import { type Executor, operationTime, transaction } from "../infra/db/client";
 import { annotations } from "../infra/db/schema";
 import { requireModel } from "../models/public";
 
 /** The image's stored review for the model, if a person has made one. */
 async function readAnnotation(
   ref: AnnotationRef,
-  db?: Executor,
+  db: Executor,
 ): Promise<AnnotationDocument | null> {
-  db ??= await database();
   const [row] = await db
     .select({ document: annotations.document })
     .from(annotations)

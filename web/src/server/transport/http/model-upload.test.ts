@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 
 import { YOLO26N_WHOLE_RECIPE } from "../../../domain/training/recipes";
 import { issueApiKey } from "../../auth/api-keys";
+import { database } from "../../infra/db/client";
 import { createModel, readCurrentVersionId } from "../../models/public";
 import { apiKeyHeaders, signInAs } from "../../testing/auth";
 import { modernRequest, rpcMessage } from "../../testing/mcp";
@@ -93,7 +94,7 @@ test("HTTP uploads and MCP registration share a candidate without creating train
   };
   expect(result.isError).toBeFalsy();
   expect(result.structuredContent.source.kind).toBe("import");
-  expect(await readCurrentVersionId(model.id)).toBeNull();
+  expect(await readCurrentVersionId(model.id, await database())).toBeNull();
   const selected = await serveAgentOperationCall(
     "use-model-version",
     new Request("http://workbench/api/agent/use-model-version", {
@@ -106,7 +107,7 @@ test("HTTP uploads and MCP registration share a candidate without creating train
     }),
   );
   expect(selected.status).toBe(200);
-  expect(await readCurrentVersionId(model.id)).toBe(
+  expect(await readCurrentVersionId(model.id, await database())).toBe(
     result.structuredContent.id,
   );
 });

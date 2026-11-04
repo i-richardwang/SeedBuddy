@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import nanoManifest from "../../../../configs/yolo26/yolo26n-whole-v1.recipe.json";
 import smallManifest from "../../../../configs/yolo26/yolo26s-whole-2048-v1.recipe.json";
-import { trainingOverridesSchema } from "./parameters";
+import type { TrainingOverrides } from "./parameters";
 import { type TrainingRecipe, trainingRecipeSchema } from "./schema";
 
 export const YOLO26N_WHOLE_RECIPE = trainingRecipeSchema.parse(nanoManifest);
@@ -27,15 +27,15 @@ export const trainingPresetIdSchema = z.enum(
 
 /** Resolve on the server; clients may only override the documented numeric fields. */
 export function resolveTrainingRecipe(
-  presetId: string,
-  overrides: unknown,
+  presetId: TrainingPresetId,
+  overrides: TrainingOverrides,
 ): TrainingRecipe {
-  const id = trainingPresetIdSchema.parse(presetId);
-  const preset = TRAINING_PRESETS.find((candidate) => candidate.id === id)!;
-  const changes = trainingOverridesSchema.parse(overrides);
+  const preset = TRAINING_PRESETS.find(
+    (candidate) => candidate.id === presetId,
+  )!;
   // Treat an explicit undefined like an omitted field, never erase a preset default.
   const defined = Object.fromEntries(
-    Object.entries(changes).filter(([, value]) => value !== undefined),
+    Object.entries(overrides).filter(([, value]) => value !== undefined),
   );
   return trainingRecipeSchema.parse({
     ...preset.recipe,

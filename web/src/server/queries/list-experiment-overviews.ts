@@ -1,4 +1,3 @@
-/** Composes experiment grids, unit series, and overview listings. */
 import { asc, desc, sql } from "drizzle-orm";
 
 import type { ExperimentOverview } from "../../domain/experiments/read-model";

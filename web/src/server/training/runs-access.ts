@@ -11,7 +11,7 @@ import { trainingRuns } from "../infra/db/schema";
 import { currentWorkerSession } from "../workers/public";
 import { toTrainingRun } from "./records";
 
-export type RunningTrainingRun = TrainingRun & {
+type RunningTrainingRun = TrainingRun & {
   state: Extract<TrainingRun["state"], { status: "running" }>;
 };
 

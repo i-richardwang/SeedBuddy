@@ -246,8 +246,8 @@ test("model commands roll back writes when their output contract fails", async (
         failure(await executeWithRegistry(name, input, registry)).code,
       ).toBe("internal_error");
       expect(validatedOutput).toBe(true);
-      expect(await readModel(`${id}-new`)).toBeNull();
-      expect(await readModel(id)).toEqual(original);
+      expect(await readModel(`${id}-new`, await database())).toBeNull();
+      expect(await readModel(id, await database())).toEqual(original);
     }
   } finally {
     log.mockRestore();

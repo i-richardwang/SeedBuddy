@@ -10,7 +10,7 @@ import type { ModelVersion } from "../../domain/models/schema";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { createDataset, readDatasetByName } from "../datasets/datasets";
-import { operationTime, transaction } from "../infra/db/client";
+import { database, operationTime, transaction } from "../infra/db/client";
 import { datasetSnapshots, trainingRuns } from "../infra/db/schema";
 import {
   readCurrentVersionId,
@@ -22,7 +22,10 @@ import {
 
 /** The builtin seed germination model every deployment starts with. */
 export async function baselineVersion(): Promise<ModelVersion> {
-  const version = await readModelVersion(SEED_DETECTOR_BASELINE_VERSION_ID);
+  const version = await readModelVersion(
+    SEED_DETECTOR_BASELINE_VERSION_ID,
+    await database(),
+  );
   if (!version) throw new Error("builtin models are not registered");
   return version;
 }
@@ -38,23 +41,30 @@ export async function traditionalVersion(
   slug: string,
   createdAt = "2026-08-26T01:00:00.000Z",
 ): Promise<ModelVersion> {
-  await registerModel({
-    schemaVersion: 1,
-    id: modelId,
-    name: `${modelId} detector`,
-    task: "object_detection",
-    classes: SEED_DETECTOR.classes,
-    annotation: DEFAULT_MODEL_ANNOTATION,
-  });
-  const version = await registerModelVersion({
-    schemaVersion: 1,
-    id: `${modelId}.${slug}`,
-    modelId,
-    createdAt,
-    source: { kind: "builtin", definition: slug },
-    artifact: { kind: "traditional", digest: "c".repeat(64) },
-  });
-  if ((await readCurrentVersionId(modelId)) === null) {
+  const db = await database();
+  await registerModel(
+    {
+      schemaVersion: 1,
+      id: modelId,
+      name: `${modelId} detector`,
+      task: "object_detection",
+      classes: SEED_DETECTOR.classes,
+      annotation: DEFAULT_MODEL_ANNOTATION,
+    },
+    db,
+  );
+  const version = await registerModelVersion(
+    {
+      schemaVersion: 1,
+      id: `${modelId}.${slug}`,
+      modelId,
+      createdAt,
+      source: { kind: "builtin", definition: slug },
+      artifact: { kind: "traditional", digest: "c".repeat(64) },
+    },
+    db,
+  );
+  if ((await readCurrentVersionId(modelId, db)) === null) {
     await setCurrentVersion({ model: modelId, version: version.id });
   }
   return version;
@@ -140,14 +150,18 @@ export async function trainedVersion(
   modelId: string,
   classes: string[] = SEED_DETECTOR.classes,
 ): Promise<ModelVersion> {
-  await registerModel({
-    schemaVersion: 1,
-    id: modelId,
-    name: `${modelId} detector`,
-    task: "object_detection",
-    classes,
-    annotation: DEFAULT_MODEL_ANNOTATION,
-  });
+  const db = await database();
+  await registerModel(
+    {
+      schemaVersion: 1,
+      id: modelId,
+      name: `${modelId} detector`,
+      task: "object_detection",
+      classes,
+      annotation: DEFAULT_MODEL_ANNOTATION,
+    },
+    db,
+  );
   const version = await registerTrainedVersion(modelId);
   await setCurrentVersion({ model: modelId, version: version.id });
   return version;

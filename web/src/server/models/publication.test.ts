@@ -80,7 +80,7 @@ test("local artifacts register idempotently without a training run or changing t
   await uploadModelWeights(reservation.uploadId, weights);
   const v = await importModelUpload(reservation.uploadId);
   expect(v.source.kind).toBe("import");
-  expect(await readCurrentVersionId(m.id)).toBeNull();
+  expect(await readCurrentVersionId(m.id, await database())).toBeNull();
   expect(await importModelUpload(reservation.uploadId)).toEqual(v);
   const again = await prepareModelUpload(m.id, manifest);
   expect(again.uploadId).toBe(reservation.uploadId);
@@ -89,17 +89,17 @@ test("local artifacts register idempotently without a training run or changing t
   );
   expect(downloaded).toEqual(weights);
   await setCurrentVersion({ model: m.id, version: v.id });
-  expect(await readCurrentVersionId(m.id)).toBe(v.id);
+  expect(await readCurrentVersionId(m.id, await database())).toBe(v.id);
   const revised = bundle();
   revised.inference.confidence = 0.4;
   const other = await prepareModelUpload(m.id, revised);
   await uploadModelWeights(other.uploadId, weights);
   const v2 = await importModelUpload(other.uploadId);
   expect(v2.id).not.toBe(v.id);
-  expect(await readCurrentVersionId(m.id)).toBe(v.id);
+  expect(await readCurrentVersionId(m.id, await database())).toBe(v.id);
   await setCurrentVersion({ model: m.id, version: v2.id });
   await setCurrentVersion({ model: m.id, version: v.id });
-  expect(await readCurrentVersionId(m.id)).toBe(v.id);
+  expect(await readCurrentVersionId(m.id, await database())).toBe(v.id);
 });
 
 test("bundle validation rejects mismatched classes and unsupported inference pipelines", async () => {
