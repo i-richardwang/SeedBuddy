@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FlaskConical, Plus } from "lucide-react";
+import { Beaker, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { ExperimentsTable } from "../../features/experiments/ExperimentsTable";
 import { NewExperimentDialog } from "../../features/experiments/NewExperimentDialog";
 import { getExperiments } from "../../functions/experiments";
-import { documentTitle } from "../../ui/documentTitle";
 import { m } from "../../paraglide/messages";
+import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
@@ -14,9 +14,9 @@ import { Page, PageColumnSkeleton } from "../../ui/Page";
 
 export const Route = createFileRoute("/_workbench/experiments/")({
   loader: () => getExperiments(),
-  staticData: { crumbs: () => [{ label: m.experiments_title() }] },
+  staticData: { crumbs: () => [{ label: m.experiments_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.experiments_title()) }],
+    meta: [{ title: documentTitle(m.experiments_label()) }],
   }),
   pendingComponent: () => (
     <PageColumnSkeleton>
@@ -38,15 +38,15 @@ function ExperimentsPage() {
 
   return (
     <Page
-      title={m.experiments_title()}
+      title={m.experiments_label()}
       description={m.experiments_description()}
-      action={experiments.length > 0 ? create : undefined}
+      actions={experiments.length > 0 ? create : undefined}
     >
       <ExperimentsTable
         experiments={experiments}
         empty={
           <Empty
-            icon={FlaskConical}
+            icon={Beaker}
             title={m.experiments_empty()}
             description={m.experiments_empty_description()}
             action={create}

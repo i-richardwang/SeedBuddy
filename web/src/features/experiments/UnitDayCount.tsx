@@ -1,8 +1,11 @@
 import { EyeOff, ImageIcon, PencilLine } from "lucide-react";
 import type { ReactElement } from "react";
 
-import type { Exclusion } from "../../domain/experiments/analysis";
-import { cellReading, type UnitCell } from "../../domain/experiments/readings";
+import {
+  cellReading,
+  type UnitCell,
+} from "../../domain/experiments/cell-reading";
+import type { Exclusion } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
@@ -12,6 +15,8 @@ import { Status } from "../../ui/kit/Status";
 import { Text } from "../../ui/kit/Text";
 import { Tooltip } from "../../ui/kit/Tooltip";
 import { formatCount } from "../../ui/numbers";
+import { datasetImageStateLabel } from "../datasets/labels";
+import { exclusionNote } from "./labels";
 
 /**
  * A unit's count on one day, or why there is none, read alike wherever the
@@ -43,7 +48,7 @@ export function UnitDayCount({
   // A count entered by hand that leaves out a class the day has since come
   // to count answers another question than the day asks, and says so.
   const notes: string[] = [
-    ...(image?.unclear ? [m.unclear_section()] : []),
+    ...(image?.unclear ? [m.unclear_photo()] : []),
     ...(manual && reading?.source !== "manual"
       ? [m.experiment_cell_manual_unanswered()]
       : []),
@@ -53,7 +58,7 @@ export function UnitDayCount({
     const byPerson = reading.source === "review" || reading.source === "manual";
     if (reading.source === "manual") notes.push(m.experiment_cell_manual());
     else if (reading.source !== "review") {
-      notes.push(m.experiment_cell_unreviewed());
+      notes.push(m.to_review_label());
     }
     if (exclusion) notes.push(exclusionNote(exclusion));
     return explain(
@@ -101,12 +106,12 @@ export function UnitDayCount({
   if (image.state === "failed") {
     return explain(
       [...notes, ...(image.error ? [image.error] : [])],
-      link(<Status tone="error">{m.experiment_cell_failed()}</Status>),
+      link(<Status tone="error">{m.failed_label()}</Status>),
     );
   }
   const waiting =
     image.state === "unread"
-      ? m.experiment_cell_unread()
+      ? datasetImageStateLabel("unread")
       : m.experiment_cell_waiting();
   return explain(
     [...notes, waiting],
@@ -121,12 +126,6 @@ export function UnitDayCount({
       </Text>,
     ),
   );
-}
-
-function exclusionNote(exclusion: Exclusion): string {
-  return exclusion.reason === "unclear"
-    ? m.experiment_cell_excluded_unclear()
-    : m.experiment_cell_excluded_event();
 }
 
 /** A count's notes, one per line, in a tooltip over it. */

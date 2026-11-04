@@ -1,9 +1,9 @@
 import type { DetectionResult } from "../detection/schema";
+import type { ImageRectangle } from "../images/geometry";
 import {
-  newInstanceId,
-  type BoundingBox,
   type AnnotationInstance,
   type ImageSize,
+  newInstanceId,
 } from "./schema";
 
 /**
@@ -12,7 +12,7 @@ import {
  * with none.
  */
 export function initialBoxSide(
-  instances: readonly { bbox: BoundingBox }[],
+  instances: readonly { bbox: ImageRectangle }[],
   image: ImageSize,
 ): number {
   const sides = instances
@@ -29,7 +29,7 @@ export function initialBoxSide(
 
 export function instanceFromBox(
   className: string,
-  bbox: BoundingBox,
+  bbox: ImageRectangle,
 ): AnnotationInstance {
   return { id: newInstanceId(), class: className, bbox };
 }

@@ -1,8 +1,8 @@
 # Images
 
-Every image is stored once, as a canonical AVIF under its digest. Ingestion also
-finds the culture dish in it, so that work reading the image, such as
-[AI annotation](ai-annotation.md), can be bounded to the dish.
+Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF. Those bytes determine the digest, dimensions, browser view, inference input and training input. Every image is stored once under its digest. Ingestion also finds the culture dish in it; [AI annotation](ai-annotation.md) in `dish` mode is bounded to that dish.
+
+Python transfer admission owns `MAX_IMAGE_BYTES` in `src/vitroctl/datasets/transfer.py`; the [dataset transfer contract](domain.md#dataset-transfer) defines the size limit.
 
 ## Dish analysis
 
@@ -18,7 +18,7 @@ Completed analysis stores its recipe identity and circle. A null circle means
 successful analysis with no candidate; null analysis means unavailable. Repeated
 uploads reuse current completed results.
 
-One shared `image_geometry/dish-recipe.json` supplies Hough parameters and coverage
+One shared `src/vitroctl/image_geometry/dish-recipe.json` supplies Hough parameters and coverage
 policy to both runtimes, validated against the generated `dish-recipe` contract.
 The server uses Sharp Lanczos3 and OpenCV.js; native Python uses OpenCV INTER_AREA.
 They share parameters and half-up thumbnail dimensions, but can produce slightly
@@ -28,26 +28,11 @@ around the integer Hough bounds.
 The server's analysis identity contains detection parameters, preprocessing and
 one explicit implementation revision. The shared JSON stores parameters without a
 separate version number, so parameter changes alter the identity automatically.
-Dependency version inventories and the coverage margin are excluded. Advance the
-implementation revision for behavior changes not represented by detection
-parameters, including relevant changes found when reviewing dependency upgrades.
-Ordinary library upgrades alone do not invalidate the corpus.
+Dependency version inventories and the coverage margin are excluded. Behavior changes outside detection parameters change the implementation revision; dependency versions alone do not change the analysis identity.
 
 ## Maintenance
 
-The maintenance process automatically refreshes unavailable or obsolete analysis.
-It analyzes up to two images serially, then waits 30 seconds. Blob collection runs
-on its own hourly cadence; infrastructure failures back off for one minute without
-stopping the other responsibility. Maintenance uses one Sharp processing thread
-and its own compute runtime, so its resource budget is separate from the
-workbench's. Compose and the Zeabur template include this process as an
-application service, using `bun dist/maintenance.js` and the shared database and
-blob-store environment.
-
-Deploy workbench and maintenance from the same source commit; image-based
-deployments use the same image digest for both roles. Maintenance has no public
-port or browser authentication settings. Existing Zeabur projects must add this
-service explicitly: updating a template does not modify deployed projects.
+`web/scripts/maintenance.ts` runs three independent loops: inference reconciliation every 10 seconds, blob collection every hour, and image analysis every 30 seconds. Analysis refreshes unavailable or obsolete results, processing up to two images serially per pass. Each loop waits its interval after completing a pass; infrastructure failures back off for one minute without stopping the other loops. Maintenance has its own compute runtime. Deployment roles and built command entry points are described in the [deployment guide](../README.md#deployment).
 
 `images.dish_analysis_attempted_at` durably records each analysis attempt.
 Maintenance prioritizes never-attempted images, then the oldest eligible attempts,
@@ -59,8 +44,7 @@ individually and do not block later images. Database and object-store transport
 failures reach infrastructure backoff. Completed no-candidate results are not
 retried. Shutdown finishes the current image before stopping.
 
-From the built Web application, `bun run images:analyze [batch-size]` performs one
-finite sweep of eligible images, using batches of 100 by default (maximum 1000).
+The finite analysis sweep uses the [built analysis command](../README.md#deployment). The optional positional batch size defaults to 100 (maximum 1000).
 A fixed attempt cutoff excludes every image tried during the sweep, even if a
 long sweep outlasts its retry interval. Recent attempts remain in cooldown. The
 command reports examined, completed, failed and skipped counts. Completed means
@@ -70,3 +54,7 @@ write unnecessary. Every attempt satisfies
 a nonzero exit status; skipped results do not. It uses the same canonical pixels
 and detector as ingestion. Maintenance keeps the corpus current on its own; a
 manual sweep is for refreshing it at once.
+
+## Previews and processing
+
+`images/preview.ts` derives a small rendition after ingestion or on a read that finds it missing. Collection removes it with the source image. `images/processing.ts` sets Sharp concurrency to 2 and admits one large-image operation per process across ingestion, analysis and regional preparation, acquiring the slot before loading an original. Encoded caches are bounded and contain no annotation or model state. `web/scripts/image-analysis-runtime.ts` sets the default `VITROFLOW_IMAGE_ANALYSIS_URL` for bundled entry points to their adjacent `dish-thread.js`.

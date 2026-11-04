@@ -5,6 +5,7 @@ import type {
   ReactNode,
   Ref,
 } from "react";
+
 import { cn } from "./cn";
 
 /*
@@ -31,7 +32,6 @@ export interface FlexboxProps extends HTMLAttributes<HTMLElement> {
   horizontal?: boolean;
   justify?: CSSProperties["justifyContent"];
   padding?: number | string;
-  paddingBlock?: number | string;
   ref?: Ref<HTMLElement>;
   wrap?: CSSProperties["flexWrap"];
 }
@@ -46,7 +46,6 @@ export function Flexbox({
   justify,
   height,
   padding,
-  paddingBlock,
   as: Container = "div",
   className,
   style,
@@ -62,8 +61,6 @@ export function Flexbox({
   if (align !== undefined) vars["--ui-flex-align"] = align;
   if (height !== undefined) vars["--ui-flex-height"] = cssValue(height);
   if (padding !== undefined) vars["--ui-flex-padding"] = cssValue(padding);
-  if (paddingBlock !== undefined)
-    vars["--ui-flex-padding-block"] = cssValue(paddingBlock);
   if (gap !== undefined) vars["--ui-flex-gap"] = cssValue(gap);
 
   return (

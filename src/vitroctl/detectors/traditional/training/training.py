@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from vitroctl.detectors.traditional.config import PipelineConfig
-from vitroctl.detectors.traditional.scoring import CandidateModel
+from vitroctl.detectors.traditional.scoring import CandidateModel, radial_kernel
 from vitroctl.detectors.traditional.training.data import PreparedImage
 from vitroctl.detectors.traditional.training.evaluation import (
     DetectionMetrics,
@@ -15,9 +15,19 @@ from vitroctl.detectors.traditional.training.evaluation import (
     evaluate_proposals,
 )
 
-_BANDWIDTHS: tuple[float | None, ...] = (None, 1.0, 2.0, 3.0)
-_REGULARIZATIONS = (0.3, 1.0, 3.0, 10.0, 30.0)
-_THRESHOLDS = tuple(float(value) for value in np.linspace(0.30, 0.95, 27))
+
+@dataclass(frozen=True)
+class SelectionGrid:
+    bandwidths: tuple[float | None, ...]
+    regularizations: tuple[float, ...]
+    thresholds: tuple[float, ...]
+
+
+_DEFAULT_GRID = SelectionGrid(
+    (None, 1.0, 2.0, 3.0),
+    (0.3, 1.0, 3.0, 10.0, 30.0),
+    tuple(float(value) for value in np.linspace(0.30, 0.95, 27)),
+)
 _MAXIMUM_CALIBRATION_CENTERS = 128
 _CALIBRATION_TARGET_LOGIT = 2.0
 
@@ -45,9 +55,7 @@ class TrainingReport:
     baseline: DetectionMetrics
     cross_validation: DetectionMetrics
     training: DetectionMetrics
-    bandwidth: float | None
-    regularization: float
-    threshold: float
+    selection: ModelSelection
     selections: tuple[ModelSelection, ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -58,9 +66,9 @@ class TrainingReport:
             "cross_validation": self.cross_validation.to_dict(),
             "training": self.training.to_dict(),
             "selected": {
-                "calibration_bandwidth": self.bandwidth,
-                "regularization": self.regularization,
-                "confidence_threshold": self.threshold,
+                "calibration_bandwidth": self.selection.bandwidth,
+                "regularization": self.selection.regularization,
+                "confidence_threshold": self.selection.threshold,
             },
             "selections": [selection.to_dict() for selection in self.selections],
         }
@@ -175,13 +183,7 @@ def _fit_candidate_model(
         min(_MAXIMUM_CALIBRATION_CENTERS, len(labels)),
     )
     centers = normalized[center_indices]
-    squared_distance = np.maximum(
-        np.sum(np.square(normalized), axis=1)[:, None]
-        + np.sum(np.square(centers), axis=1)[None, :]
-        - 2.0 * normalized @ centers.T,
-        0.0,
-    )
-    kernel = np.exp(-squared_distance / (2.0 * bandwidth**2))
+    kernel = radial_kernel(normalized, centers, bandwidth)
     system = (kernel.T * sample_weights) @ kernel + regularization * np.eye(
         len(centers)
     )
@@ -282,23 +284,16 @@ def train_candidate_model(
     images: Sequence[PreparedImage],
     prior: CandidateModel,
     config: PipelineConfig,
-    bandwidths: Sequence[float | None] = _BANDWIDTHS,
-    regularizations: Sequence[float] = _REGULARIZATIONS,
-    thresholds: Sequence[float] = _THRESHOLDS,
 ) -> CandidateModelTraining:
+    bandwidths, regularizations, thresholds = (
+        _DEFAULT_GRID.bandwidths,
+        _DEFAULT_GRID.regularizations,
+        _DEFAULT_GRID.thresholds,
+    )
     if len(images) < 2:
         raise ValueError(
             "Candidate model selection requires at least two complete images"
         )
-    if not bandwidths or not regularizations or not thresholds:
-        raise ValueError("Candidate model selection requires parameter values")
-    if any(value is not None and value <= 0 for value in bandwidths):
-        raise ValueError("Calibration bandwidths must be positive")
-    if any(value <= 0 for value in regularizations):
-        raise ValueError("Regularization values must be positive")
-    if any(not 0 <= value <= 1 for value in thresholds):
-        raise ValueError("Confidence thresholds must be between 0 and 1")
-
     selections = tuple(
         _cross_validate(
             images,
@@ -325,9 +320,7 @@ def train_candidate_model(
         baseline=evaluate_candidate_model(prior, images, config),
         cross_validation=selected.metrics,
         training=evaluate_candidate_model(model, images, selected_config),
-        bandwidth=selected.bandwidth,
-        regularization=selected.regularization,
-        threshold=selected.threshold,
+        selection=selected,
         selections=selections,
     )
     return CandidateModelTraining(

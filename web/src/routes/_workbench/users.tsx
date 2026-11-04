@@ -1,33 +1,16 @@
-import {
-  createFileRoute,
-  getRouteApi,
-  notFound,
-  useRouter,
-} from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, notFound } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
+import { isAdmin } from "../../domain/auth/schema";
 import { NewUserDialog } from "../../features/users/NewUserDialog";
-import { RoleSelect } from "../../features/users/RoleSelect";
-import { UserMenu } from "../../features/users/UserMenu";
-import { isAdmin, type UserAccount } from "../../domain/auth/schema";
-import { changeUserRole, getUsers } from "../../functions/users";
-import { documentTitle } from "../../ui/documentTitle";
+import { UsersTable } from "../../features/users/UsersTable";
+import { getUsers } from "../../functions/users";
 import { m } from "../../paraglide/messages";
-import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
-import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
-import { Flexbox } from "../../ui/kit/Flex";
 import { TableSkeleton } from "../../ui/kit/PageSkeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../ui/kit/Table";
-import { Tag } from "../../ui/kit/Tag";
+import { SettingsPage, SettingsPageSkeleton } from "../../ui/Page";
 
 const workbench = getRouteApi("/_workbench");
 
@@ -37,9 +20,9 @@ export const Route = createFileRoute("/_workbench/users")({
     if (!loaderData || !isAdmin(loaderData.user)) throw notFound();
     return getUsers();
   },
-  staticData: { crumbs: () => [{ label: m.users_title() }] },
+  staticData: { crumbs: () => [{ label: m.users_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.users_title()) }],
+    meta: [{ title: documentTitle(m.users_label()) }],
   }),
   pendingComponent: () => (
     <SettingsPageSkeleton>
@@ -56,78 +39,15 @@ function UsersPage() {
 
   return (
     <SettingsPage
-      title={m.users_title()}
-      action={
+      title={m.users_label()}
+      actions={
         <Button type="primary" icon={Plus} onClick={() => setCreating(true)}>
           {m.users_new()}
         </Button>
       }
     >
-      <Table narrow="cards" aria-label={m.users_title()}>
-        <TableHeader>
-          <tr>
-            <TableHead>{m.users_column_name()}</TableHead>
-            <TableHead>{m.users_column_email()}</TableHead>
-            <TableHead className="w-40">{m.users_column_role()}</TableHead>
-            <TableHead className="w-12">
-              <span className="sr-only">{m.users_column_actions()}</span>
-            </TableHead>
-          </tr>
-        </TableHeader>
-        <TableBody>
-          {accounts.map((account) => (
-            <UserRow
-              key={account.id}
-              account={account}
-              self={account.id === me.id}
-            />
-          ))}
-        </TableBody>
-      </Table>
+      <UsersTable accounts={accounts} currentUserId={me.id} />
       <NewUserDialog open={creating} onClose={() => setCreating(false)} />
     </SettingsPage>
-  );
-}
-
-function UserRow({ account, self }: { account: UserAccount; self: boolean }) {
-  const router = useRouter();
-  const { busy, run } = useAsyncAction();
-
-  return (
-    <TableRow>
-      <TableCell cellSlot="title">
-        <Flexbox horizontal align="center" gap={8}>
-          {account.name}
-          {self ? <Tag size="small">{m.users_you()}</Tag> : null}
-          {account.banned ? (
-            <Tag size="small" color="warning">
-              {m.user_status_suspended()}
-            </Tag>
-          ) : null}
-        </Flexbox>
-      </TableCell>
-      <TableCell cellLabel={m.users_column_email()}>{account.email}</TableCell>
-      <TableCell cellLabel={m.users_column_role()}>
-        <RoleSelect
-          aria-label={m.user_role_of({ name: account.name })}
-          value={account.role}
-          size="small"
-          variant="borderless"
-          disabled={self || busy}
-          onChange={(role) => {
-            if (role === account.role) return;
-            void run(
-              () => changeUserRole({ data: { user: account.id, role } }),
-              m.user_role_not_changed(),
-            ).then(async (result) => {
-              if (result.ok) await router.invalidate();
-            });
-          }}
-        />
-      </TableCell>
-      <TableCell cellSlot="actions" className="text-end">
-        {self ? null : <UserMenu account={account} />}
-      </TableCell>
-    </TableRow>
   );
 }

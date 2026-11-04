@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { renewTrainingLease } from "../server/training/public";
+
+import { attemptClaimSchema } from "../domain/workers/schema";
+import { renewTrainingRun } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
 export const Route = createFileRoute("/api/worker/training/runs/$runId/lease")({
   server: {
@@ -13,10 +14,10 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/lease")({
         try {
           const owner = await parseWorkerSessionJson(
             request,
-            trainingAttemptOwnerSchema,
+            attemptClaimSchema,
             context.workerId,
           );
-          return Response.json(await renewTrainingLease(params.runId, owner));
+          return Response.json(await renewTrainingRun(params.runId, owner));
         } catch (error) {
           return workerErrorResponse(error, "Training lease renewal failed");
         }

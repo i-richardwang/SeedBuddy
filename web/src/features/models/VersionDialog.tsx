@@ -1,23 +1,28 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
+import { classCount, type Tally } from "../../domain/models/classes";
 import {
   countError,
   isCounted,
   isReading,
-  type ComparedImage,
-  type ComparedReading,
-  type CountAccuracy,
-  type VersionComparisonDetail,
 } from "../../domain/models/comparison";
-import { classCount, type Tally } from "../../domain/models/classes";
+import type {
+  ComparedImage,
+  ComparedReading,
+  CountAccuracy,
+  VersionComparisonDetail,
+} from "../../domain/models/read-model";
 import type { Model, ModelVersion } from "../../domain/models/schema";
-import { chooseCurrentVersion } from "../../functions/models";
+import { updateCurrentVersion } from "../../functions/models";
 import { m } from "../../paraglide/messages";
-import { DialogSession, FormDialog } from "../../ui/FormDialog";
+import { FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { IdentifierName } from "../../ui/IdentifierName";
+import { CopyButton } from "../../ui/kit/CopyButton";
 import { Flexbox } from "../../ui/kit/Flex";
+import { Form } from "../../ui/kit/Form";
 import {
   Table,
   TableBody,
@@ -28,16 +33,15 @@ import {
 } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
-import { toast } from "../../ui/kit/Toast";
-import { className } from "../../ui/model-names";
+import { classLabel } from "../../ui/model-names";
 import { formatCount, formatCountChange } from "../../ui/numbers";
 import {
   formatError,
   formatErrorChange,
   movement,
-  movementTone,
   totalError,
 } from "./comparison";
+import { movementTone } from "./labels";
 
 const FORM_ID = "make-version-current";
 
@@ -63,22 +67,15 @@ export function VersionDialog({
   if (open && (shown.version !== version || shown.comparison !== comparison)) {
     setShown({ version, comparison });
   }
-  return (
-    <DialogSession open={open}>
-      {(afterClose) =>
-        shown.version ? (
-          <VersionSession
-            model={model}
-            version={shown.version}
-            comparison={shown.comparison}
-            open={open}
-            onClose={onClose}
-            afterClose={afterClose}
-          />
-        ) : null
-      }
-    </DialogSession>
-  );
+  return shown.version ? (
+    <VersionSession
+      model={model}
+      version={shown.version}
+      comparison={shown.comparison}
+      open={open}
+      onClose={onClose}
+    />
+  ) : null;
 }
 
 function VersionSession({
@@ -87,32 +84,27 @@ function VersionSession({
   comparison,
   open,
   onClose,
-  afterClose,
 }: {
   model: Model;
   version: ModelVersion;
   comparison: VersionComparisonDetail | null;
   open: boolean;
   onClose: () => void;
-  afterClose: () => void;
 }) {
-  const router = useRouter();
   const { busy, run } = useAsyncAction();
   const label = identifierLabel(version.id);
 
   const submit = () => {
     void run(
       () =>
-        chooseCurrentVersion({
+        updateCurrentVersion({
           data: { model: model.id, version: version.id },
         }),
       m.version_not_made_current(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      toast.success(m.version_made_current({ version: label }));
-      onClose();
-      await router.invalidate();
-    });
+      {
+        onSuccess: onClose,
+      },
+    );
   };
 
   return (
@@ -124,9 +116,8 @@ function VersionSession({
       formId={FORM_ID}
       busy={busy}
       width="wide"
-      afterClose={afterClose}
     >
-      <form
+      <Form
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
@@ -148,7 +139,7 @@ function VersionSession({
           )}
           <Text type="tertiary">{m.version_dialog_effect()}</Text>
         </Flexbox>
-      </form>
+      </Form>
     </FormDialog>
   );
 }
@@ -162,7 +153,7 @@ function Comparison({
 }) {
   const { heldOut, candidate, current, accuracy, currentVersionId } =
     comparison;
-  const total = formatCount(heldOut);
+  const total = heldOut;
   const failed = comparison.images.filter(
     (image) => image.candidate === "failed" || image.current === "failed",
   ).length;
@@ -175,27 +166,27 @@ function Comparison({
   return (
     <Flexbox gap={12}>
       <Text type="secondary">
-        {m.version_dialog_held_out({ count: total })}
-        {currentVersionId === null ? ` ${m.version_dialog_no_current()}` : ""}
+        {m.version_dialog_held_out({
+          count: heldOut,
+          hasCurrent: currentVersionId === null ? "no" : "yes",
+        })}
       </Text>
       {isReading(comparison) ? (
         <Text type="tertiary">
           {current
             ? m.version_dialog_reading({
-                candidate: formatCount(candidate.read),
-                current: formatCount(current.read),
+                candidate: candidate.read,
+                current: current.read,
                 total,
               })
             : m.version_dialog_reading_alone({
-                candidate: formatCount(candidate.read),
+                candidate: candidate.read,
                 total,
               })}
         </Text>
       ) : null}
       {failed > 0 ? (
-        <Text type="warning">
-          {m.version_dialog_failed({ count: formatCount(failed) })}
-        </Text>
+        <Text type="warning">{m.version_dialog_failed({ count: failed })}</Text>
       ) : null}
       {accuracy ? (
         <AccuracyTable
@@ -235,7 +226,7 @@ function AccuracyTable({
   const rows = [
     ...classes.map((name) => ({
       key: name,
-      label: m.version_dialog_mean_error({ class: className(name) }),
+      label: m.version_dialog_mean_error({ class: classLabel(name) }),
       error: (accuracy: CountAccuracy) => accuracy.meanError[name] ?? 0,
     })),
     {
@@ -251,9 +242,7 @@ function AccuracyTable({
           <TableHead>{m.version_dialog_metric()}</TableHead>
           {current ? <TableHead numeric>{current.label}</TableHead> : null}
           <TableHead numeric>{m.version_dialog_column_candidate()}</TableHead>
-          {current ? (
-            <TableHead numeric>{m.version_dialog_column_change()}</TableHead>
-          ) : null}
+          {current ? <TableHead numeric>{m.change_label()}</TableHead> : null}
         </tr>
       </TableHeader>
       <TableBody>
@@ -285,7 +274,7 @@ function AccuracyTable({
 function ErrorChange({ from, to }: { from: number; to: number }) {
   const moved = movement(from, to);
   return (
-    <Text as="span" type={movementTone(moved) ?? "quaternary"}>
+    <Text as="span" type={movementTone(moved)}>
       {formatErrorChange(moved === "none" ? 0 : to - from)}
     </Text>
   );
@@ -324,32 +313,32 @@ function ImageTable({
         errorOf(classes, left, left.current),
       ),
   );
-  const reviewedLabel = m.version_dialog_column_reviewed();
+  const reviewedLabel = m.reviewed_label();
   const candidateLabel = m.version_dialog_column_candidate();
   const groups = currentLabel
     ? [reviewedLabel, currentLabel, candidateLabel]
     : [reviewedLabel, candidateLabel];
   return (
-    <Flexbox gap={8}>
-      <Flexbox gap={2}>
-        <Text weight="medium">{m.version_dialog_images()}</Text>
-        <Text type="tertiary">{m.version_dialog_images_description()}</Text>
-      </Flexbox>
+    <Form.Group title={m.version_dialog_images()}>
+      <Text type="tertiary">{m.version_dialog_images_description()}</Text>
       <Table aria-label={m.version_dialog_images()} size="small" narrow="cards">
         <TableHeader>
           <tr>
-            <TableHead rowSpan={2}>{m.version_dialog_column_image()}</TableHead>
+            <TableHead rowSpan={2}>{m.image_label()}</TableHead>
             {groups.map((group) => (
               <TableHead key={group} colSpan={classes.length}>
                 {group}
               </TableHead>
             ))}
+            <TableHead rowSpan={2} className="w-12">
+              <span className="sr-only">{m.column_actions()}</span>
+            </TableHead>
           </tr>
           <tr>
             {groups.flatMap((group) =>
               classes.map((name) => (
                 <TableHead key={`${group}:${name}`} numeric>
-                  {className(name)}
+                  {classLabel(name)}
                 </TableHead>
               )),
             )}
@@ -366,7 +355,7 @@ function ImageTable({
                   key={name}
                   cellLabel={m.version_dialog_cell_label({
                     column: reviewedLabel,
-                    class: className(name),
+                    class: classLabel(name),
                   })}
                   numeric
                 >
@@ -387,11 +376,14 @@ function ImageTable({
                 reviewed={image.reviewed}
                 reading={image.candidate}
               />
+              <TableCell cellSlot="actions" className="text-end">
+                <CopyButton content={image.digest} title={m.image_copy_id()} />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </Flexbox>
+    </Form.Group>
   );
 }
 
@@ -399,7 +391,7 @@ function ImageName({ image }: { image: ComparedImage }) {
   if (!image.dataset) {
     return (
       <Text as="span" type="tertiary">
-        {image.digest.slice(0, 12)}
+        <IdentifierName id={image.digest} />
       </Text>
     );
   }
@@ -455,7 +447,7 @@ function ReadingCells({
         key={name}
         cellLabel={m.version_dialog_cell_label({
           column,
-          class: className(name),
+          class: classLabel(name),
         })}
         numeric
       >

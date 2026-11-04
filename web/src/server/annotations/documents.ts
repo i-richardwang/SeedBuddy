@@ -1,30 +1,24 @@
 import { and, eq } from "drizzle-orm";
 
+import { AnnotationConflictError } from "../../domain/annotation/errors";
 import {
-  annotationSchema,
   type AnnotationDocument,
   type AnnotationInstance,
   type AnnotationRef,
+  annotationSchema,
 } from "../../domain/annotation/schema";
-import { database, transaction, type Executor } from "../infra/db/client";
-import { annotations, images } from "../infra/db/schema";
-import { canonicalJson } from "../../lib/json/canonical";
 import { assertInstanceClasses } from "../../domain/models/classes";
-import { lockImage } from "../images/public";
-import { readModel } from "../models/public";
-
-export class AnnotationConflictError extends Error {
-  constructor() {
-    super("The annotation changed after this draft was opened");
-  }
-}
+import { canonicalJson } from "../../lib/json/canonical";
+import { lockImage, requireStoredImage } from "../images/public";
+import { type Executor, operationTime, transaction } from "../infra/db/client";
+import { annotations } from "../infra/db/schema";
+import { requireModel } from "../models/public";
 
 /** The image's stored review for the model, if a person has made one. */
-export async function readAnnotation(
+async function readAnnotation(
   ref: AnnotationRef,
-  executor?: Executor,
+  db: Executor,
 ): Promise<AnnotationDocument | null> {
-  const db = executor ?? (await database());
   const [row] = await db
     .select({ document: annotations.document })
     .from(annotations)
@@ -48,27 +42,22 @@ export async function storeAnnotation(
   instances: AnnotationInstance[],
   base: AnnotationInstance[] | null,
 ): Promise<AnnotationDocument> {
-  return transaction(async (tx) => {
-    await lockImage(ref.digest, tx);
-    const current = await readAnnotation(ref, tx);
+  return transaction(async (db) => {
+    await lockImage(ref.digest, db);
+    const current = await readAnnotation(ref, db);
     if (canonicalJson(current?.instances ?? null) !== canonicalJson(base)) {
       throw new AnnotationConflictError();
     }
-    const [image] = await tx
-      .select({ width: images.width, height: images.height })
-      .from(images)
-      .where(eq(images.id, ref.digest));
-    if (!image) throw new Error(`Image ${ref.digest} is not stored`);
-    const model = await readModel(ref.modelId, tx);
-    if (!model) throw new Error(`Unknown model: ${ref.modelId}`);
+    const image = await requireStoredImage(ref.digest, db);
+    const model = await requireModel(ref.modelId, db);
     const document = annotationSchema.parse({
       schemaVersion: 1,
-      image: { digest: ref.digest, ...image },
+      image: { digest: ref.digest, width: image.width, height: image.height },
       instances,
     });
     assertInstanceClasses(model.classes, document.instances, "Annotation");
-    const updatedAt = new Date();
-    await tx
+    const updatedAt = await operationTime(db);
+    await db
       .insert(annotations)
       .values({
         imageId: ref.digest,
@@ -82,4 +71,22 @@ export async function storeAnnotation(
       });
     return document;
   });
+}
+
+/** Insert prevalidated reviews while the caller holds each image lock and has refused existing reviews. */
+export async function insertImportedAnnotations(
+  modelId: string,
+  documents: readonly AnnotationDocument[],
+  at: Date,
+  db: Executor,
+): Promise<void> {
+  if (!documents.length) return;
+  await db.insert(annotations).values(
+    documents.map((document) => ({
+      imageId: document.image.digest,
+      modelId,
+      document,
+      updatedAt: at,
+    })),
+  );
 }

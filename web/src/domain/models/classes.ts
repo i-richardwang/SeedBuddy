@@ -1,11 +1,10 @@
 import { z } from "zod";
-import { UnknownClassError } from "./errors";
 
-const identifierSchema = z
+import { ClassInvalidError } from "./errors";
+
+export const classNameSchema = z
   .string()
   .regex(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/, "Use lower_snake_case");
-
-export const classNameSchema = identifierSchema;
 
 export const classListSchema = z
   .array(classNameSchema)
@@ -76,7 +75,7 @@ const CLASS_COLORS = [
   { name: "green", hex: "#22c55e" },
 ] as const;
 
-export type ClassColor = (typeof CLASS_COLORS)[number];
+type ClassColor = (typeof CLASS_COLORS)[number];
 
 export function classColor(
   classes: readonly string[],
@@ -95,7 +94,7 @@ export function assertInstanceClasses(
     ...new Set(instances.map((instance) => instance.class)),
   ].filter((name) => !known.has(name));
   if (unknown.length > 0) {
-    throw new UnknownClassError(
+    throw new ClassInvalidError(
       `${context} uses unknown ${unknown.length === 1 ? "class" : "classes"}: ${unknown.join(", ")}`,
     );
   }

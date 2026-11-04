@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+
 import { ByteCache } from "./bytes";
 
 test("retained bytes are bounded and access determines eviction", () => {

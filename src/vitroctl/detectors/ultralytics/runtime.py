@@ -42,3 +42,9 @@ def load_training_trainer() -> type:
     from vitroctl.detectors.ultralytics.trainer import MemoryBoundedDetectionTrainer
 
     return MemoryBoundedDetectionTrainer
+
+
+def require_ultralytics_version(required: str) -> None:
+    installed = version("ultralytics")
+    if installed != required:
+        raise ValueError(f"Requires ultralytics {required}; installed {installed}")

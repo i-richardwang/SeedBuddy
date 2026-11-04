@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { claimInferenceAssignment } from "../server/inference/public";
+import { workerSessionSchema } from "../domain/workers/schema";
+import { claimInferenceTask } from "../server/inference/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { workerSessionSchema } from "../domain/workers/schema";
 
 export const Route = createFileRoute("/api/worker/inference/claim")({
   server: {
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/worker/inference/claim")({
             context.workerId,
           );
           return Response.json({
-            assignment: await claimInferenceAssignment(owner),
+            assignment: await claimInferenceTask(owner),
           });
         } catch (error) {
           return workerErrorResponse(error, "Could not claim inference work");

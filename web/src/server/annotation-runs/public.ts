@@ -1,8 +1,8 @@
-export { createAnnotationRun, cancelAnnotationRun } from "./runs";
+export type { AnnotationPanel } from "./rendering";
+export { cancelAnnotationRun, createAnnotationRun } from "./runs";
 export { nextAnnotationTask, submitProposal } from "./tasks";
 export {
+  previewAnnotationTask,
   readAnnotationContext,
   viewAnnotationTask,
-  previewAnnotationTask,
 } from "./views";
-export type { AnnotationPanel } from "./rendering";

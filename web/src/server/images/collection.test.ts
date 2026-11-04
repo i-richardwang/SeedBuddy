@@ -1,16 +1,27 @@
 import { describe, expect, test } from "bun:test";
 
-import { blobExists, putImmutableBlob, listBlobs } from "../infra/blobs/store";
-import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
-
+import { createObservation } from "../experiments/observations";
+import { blobExists, listBlobs, putImmutableBlob } from "../infra/blobs/store";
+import {
+  assignImages,
+  createExperiment,
+  INOCULATED,
+  observeImages,
+  reading,
+  unitsOf,
+} from "../testing/experiments";
+import { imageBytes, imageDigest, storeTexts } from "../testing/images";
+import { trainedVersion } from "../testing/models";
 import { collectImages } from "./collection";
 import { canonicalize } from "./ingest";
-import { storeImage } from "./store";
+import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
 import { readImageRegion } from "./regions";
-import { imageBytes, observeImages } from "../testing/fixtures";
+import { storeImage } from "./store";
+import { markImageUnclear } from "./unclear";
 
 describe("collection", () => {
   /** A moment past the period an unclaimed image is kept for. */
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const later = () => new Date(Date.now() + 25 * 60 * 60 * 1000);
 
   test("keeps unclaimed bytes while an observation is still being submitted", async () => {
@@ -26,6 +37,8 @@ describe("collection", () => {
       image,
       { coreSize: 512, halo: 32, displayScale: 1 },
       "tile-000-000",
+      null,
+      null,
     );
     expect(
       (await listBlobs(imageRegionsPrefix(digest))).length,
@@ -43,6 +56,8 @@ describe("collection", () => {
       frame,
       { coreSize: 512, halo: 32, displayScale: 1 },
       "tile-000-000",
+      null,
+      null,
     );
     expect(await collectImages(later())).not.toContain(digests[0]);
     expect(await blobExists(imageBlobKey(digests[0]!))).toBe(true);
@@ -56,10 +71,48 @@ describe("collection", () => {
       orphan,
       { coreSize: 512, halo: 32, displayScale: 1 },
       "tile-000-000",
+      null,
+      null,
     );
 
     expect(await collectImages()).toContain(orphan.digest);
     expect(await blobExists(imageBlobKey(orphan.digest))).toBe(false);
     expect(await blobExists(evidence.key)).toBe(false);
   });
+});
+
+test("an unclear mark keeps no image alive", async () => {
+  const [loose] = await storeTexts(["unclear-loose"]);
+  await markImageUnclear({ digest: loose! });
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
+  const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  expect(await collectImages(later)).toContain(loose!);
+});
+
+test("an experiment observation image is a garbage-collection root", async () => {
+  const version = await trainedVersion("exp-gc");
+  const experiment = await createExperiment({
+    name: "GC",
+    inoculatedOn: INOCULATED,
+    treatments: [{ name: "E", replicates: 1 }],
+  });
+  const units = await unitsOf(experiment.id);
+  const observation = await createObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-08",
+    note: "",
+    ...reading(version),
+  });
+  await assignImages(experiment.id, observation.id, units, {
+    "E-1": "gc-e1",
+  });
+  const kept = await imageDigest("gc-e1");
+  const [loose] = await storeTexts(["gc-loose"]);
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
+  const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+  const collected = await collectImages(later);
+
+  expect(collected).toContain(loose!);
+  expect(collected).not.toContain(kept);
+  expect(await blobExists(imageBlobKey(kept))).toBeTrue();
 });

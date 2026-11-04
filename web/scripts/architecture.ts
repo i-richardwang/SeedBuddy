@@ -1,6 +1,9 @@
-import traverse from "@babel/traverse";
 import { posix as path } from "node:path";
+
 import { parse } from "@babel/parser";
+import traverse from "@babel/traverse";
+
+import { PROCESS_ENTRIES } from "./process-entries";
 
 /** Allowed server dependencies. Public entry points are the only cross-module API. */
 const dependencies: Record<string, readonly string[]> = {
@@ -11,7 +14,14 @@ const dependencies: Record<string, readonly string[]> = {
   inference: ["images", "models", "workers", "infra"],
   "annotation-runs": ["readings", "images", "models", "infra"],
   annotations: ["images", "models", "infra"],
-  datasets: ["readings", "images", "inference", "models", "infra"],
+  datasets: [
+    "annotations",
+    "readings",
+    "images",
+    "inference",
+    "models",
+    "infra",
+  ],
   readings: ["inference", "infra"],
   experiments: [
     "readings",
@@ -163,7 +173,7 @@ function serverModule(file: string): string | null {
     : null;
 }
 
-function testCode(file: string): boolean {
+export function testCode(file: string): boolean {
   return (
     /\.test\.[cm]?[jt]sx?$/.test(file) ||
     file.startsWith("test/") ||
@@ -181,17 +191,11 @@ function adapter(file: string): boolean {
 }
 
 function processEntry(file: string): boolean {
-  return (
-    file === "src/server.ts" ||
-    file === "server.ts" ||
-    file === "scripts/maintenance.ts" ||
-    file === "scripts/analyze-images.ts" ||
-    file === "scripts/collect-blobs.ts"
-  );
+  return PROCESS_ENTRIES.some((entry) => entry.path === file);
 }
 
 /** Parse actual syntax, including type imports, re-exports and dynamic imports. */
-export function importSpecifiers(source: string): string[] {
+function importSpecifiers(source: string): string[] {
   const result: string[] = [];
   const tree = parse(source, {
     sourceType: "module",

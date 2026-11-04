@@ -1,12 +1,7 @@
-import type { AnnotationInstance, BoundingBox } from "../annotation/schema";
-import { annotationContentSchema, type AnnotationDefinition } from "./schema";
-import {
-  owns,
-  regionBoxes,
-  tiles,
-  type Region,
-  type RegionProposal,
-} from "./tasks";
+import type { AnnotationInstance } from "../annotation/schema";
+import type { ImageRectangle, ImageRegion } from "../images/geometry";
+import { type AnnotationDefinition, annotationContentSchema } from "./schema";
+import { owns, type RegionProposal, regionBoxes, tiles } from "./tasks";
 
 /** Overlap at which two regions' boxes are read as one object. */
 const SAME_OBJECT_IOU = 0.5;
@@ -22,11 +17,11 @@ type Standing = (typeof STANDINGS)[number];
 /** One reading of an object by one region of the image. */
 interface Sighting {
   region: string;
-  bbox: BoundingBox;
+  bbox: ImageRectangle;
   standing: Standing;
 }
 
-function iou(a: BoundingBox, b: BoundingBox): number {
+function iou(a: ImageRectangle, b: ImageRectangle): number {
   const width = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
   const height = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
   if (width <= 0 || height <= 0) return 0;
@@ -108,7 +103,7 @@ function representative<T extends Sighting>(object: T[]): T | null {
  */
 export function collectRegions(
   definition: AnnotationDefinition,
-  tasks: { taskId: string; region: Region; response: RegionProposal }[],
+  tasks: { taskId: string; region: ImageRegion; response: RegionProposal }[],
 ) {
   const boxes: (Sighting & AnnotationInstance & { uncertain: boolean })[] = [];
   for (const { taskId, region, response } of tasks) {

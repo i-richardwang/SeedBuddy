@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+
 import type { Connection, Executor } from "./connection";
 
 export type { Executor } from "./connection";
@@ -50,26 +52,26 @@ export async function closeDatabase(): Promise<void> {
 
 /** Run work inside one transaction on the application database. */
 export async function transaction<T>(
-  work: (tx: Executor) => Promise<T>,
+  work: (db: Executor) => Promise<T>,
 ): Promise<T> {
   const db = await database();
-  return db.transaction((tx) => work(tx));
+  return db.transaction((db) => work(db));
 }
 
 /** Join an existing unit of work or open one for a standalone domain call. */
 export function inTransaction<T>(
-  executor: Executor | undefined,
-  work: (tx: Executor) => Promise<T>,
+  db: Executor | undefined,
+  work: (db: Executor) => Promise<T>,
 ): Promise<T> {
-  return executor ? work(executor) : transaction(work);
+  return db ? work(db) : transaction(work);
 }
 
 /** Run several reads against one snapshot of the application database. */
 export async function snapshot<T>(
-  work: (tx: Executor) => Promise<T>,
+  work: (db: Executor) => Promise<T>,
 ): Promise<T> {
   const db = await database();
-  return db.transaction((tx) => work(tx), {
+  return db.transaction((db) => work(db), {
     isolationLevel: "repeatable read",
     accessMode: "read only",
   });
@@ -77,8 +79,30 @@ export async function snapshot<T>(
 
 /** Read within an existing unit of work or open a snapshot for a standalone read. */
 export function inSnapshot<T>(
-  executor: Executor | undefined,
-  work: (tx: Executor) => Promise<T>,
+  db: Executor | undefined,
+  work: (db: Executor) => Promise<T>,
 ): Promise<T> {
-  return executor ? work(executor) : snapshot(work);
+  return db ? work(db) : snapshot(work);
+}
+
+/** Sample the database wall clock once per operation after acquiring its ownership lock;
+ * reuse that instant for predicates, fences and lease expiry. Tests may supply the instant.
+ */
+export async function operationTime(
+  db: Executor,
+  suppliedAt?: Date,
+): Promise<Date> {
+  if (suppliedAt) return suppliedAt;
+  const [row] = await db
+    .select({ at: sql<string>`clock_timestamp()::text` })
+    .from(sql`(select 1) as clock`);
+  if (!row) throw new Error("Database clock returned no instant");
+  return new Date(row.at);
+}
+
+/** A row guaranteed by an insert or a locked foreign key; absence is a storage invariant failure. */
+export function single<T>(rows: readonly T[], table: string): T {
+  const [row] = rows;
+  if (!row) throw new Error(`Expected a row from ${table}`);
+  return row;
 }

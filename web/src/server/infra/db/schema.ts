@@ -1,24 +1,17 @@
-import type { InferenceFailure } from "../../../domain/inference/tasks";
-import type { ModelBundle } from "../../../domain/models/bundle";
-import type { DishAnalysis } from "../../../domain/images/coverage";
-import type {
-  Region,
-  RegionProposal,
-} from "../../../domain/annotation-runs/tasks";
 import { sql } from "drizzle-orm";
 import {
-  check,
-  foreignKey,
   type AnyPgColumn,
   bigint,
   boolean,
+  check,
+  date,
+  doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
   pgTable,
   primaryKey,
-  date,
-  doublePrecision,
   real,
   text,
   timestamp,
@@ -33,14 +26,17 @@ import {
   type AnnotationContent,
   type AnnotationDefinition,
 } from "../../../domain/annotation-runs/schema";
+import type { RegionProposal } from "../../../domain/annotation-runs/tasks";
 import { USER_ROLES } from "../../../domain/auth/schema";
-import {
-  CULTURE_EVENT_TYPES,
-  type TreatmentFactor,
-} from "../../../domain/experiments/schema";
 import type { DetectionResult } from "../../../domain/detection/schema";
-import type { Tally } from "../../../domain/models/classes";
+import { CULTURE_EVENT_TYPES } from "../../../domain/experiments/culture-events";
+import type { TreatmentFactor } from "../../../domain/experiments/schema";
+import type { DishAnalysis } from "../../../domain/images/coverage";
+import type { ImageRegion } from "../../../domain/images/geometry";
 import type { RuntimeDescriptor } from "../../../domain/inference/schema";
+import type { InferenceFailure } from "../../../domain/inference/tasks";
+import type { ModelBundle } from "../../../domain/models/bundle";
+import type { Tally } from "../../../domain/models/classes";
 import type {
   ModelAnnotation,
   ModelArtifact,
@@ -48,11 +44,11 @@ import type {
 } from "../../../domain/models/schema";
 import {
   IMAGE_SPLITS,
-  TRAINING_PHASES,
   TRAINING_ATTEMPT_OUTCOMES,
+  TRAINING_PHASES,
   TRAINING_RUN_STATUSES,
-  type TrainingRecipe,
   type TrainingCheckpoint,
+  type TrainingRecipe,
 } from "../../../domain/training/schema";
 
 /**
@@ -634,7 +630,7 @@ export const datasetImages = pgTable(
 
 /**
  * What a model version found in an image, addressed by its canonical business
- * key. Experiments read the row under the version they were created with;
+ * key. Experiment grids read the current version of each observation's model;
  * reviews may show one as a reference but never own it. A row is written once:
  * an identical resubmission is accepted and a different one refused, so the
  * result stays a record and never a cache.
@@ -819,10 +815,6 @@ export const experimentObservations = pgTable(
       .onUpdate("cascade"),
     /** An experiment observes its units once a day at most. */
     unique("experiment_observations_day").on(
-      table.experimentId,
-      table.observedOn,
-    ),
-    index("experiment_observations_observed_idx").on(
       table.experimentId,
       table.observedOn,
     ),
@@ -1018,7 +1010,7 @@ export const workers = pgTable("workers", {
 
 /**
  * The process currently serving as a worker, by what it can execute and how
- * much memory it offers a job. What it is doing follows from the lease it
+ * much memory it offers a task. What it is doing follows from the lease it
  * holds.
  */
 export const workerSessions = pgTable(
@@ -1382,7 +1374,7 @@ export const annotationTasks = pgTable(
       .notNull()
       .references(() => annotationRuns.id, { onDelete: "cascade" }),
     taskId: text("task_id").notNull(),
-    region: jsonb("region").$type<Region>().notNull(),
+    region: jsonb("region").$type<ImageRegion>().notNull(),
     response: jsonb("response").$type<RegionProposal>(),
     acceptedProposalId: text("accepted_proposal_id"),
   },

@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { ReferenceLine } from "recharts";
 
-import { m } from "../../paraglide/messages";
 import type { TrainingEpoch } from "../../domain/training/schema";
+import { m } from "../../paraglide/messages";
 import { LineChart } from "../../ui/kit/LineChart";
 import { Skeleton } from "../../ui/kit/Skeleton";
-import { formatDecimal } from "../../ui/numbers";
 import { Text } from "../../ui/kit/Text";
+import { formatDecimal } from "../../ui/numbers";
 
 interface Series {
   key: string;
@@ -45,12 +45,12 @@ const CHARTS: Chart[] = [
     series: [
       {
         key: "map50",
-        label: m.epoch_series_map50,
+        label: m.metric_map50,
         value: (epoch) => epoch.map50,
       },
       {
         key: "map50To95",
-        label: m.epoch_series_map50_95,
+        label: m.metric_map50_95,
         value: (epoch) => epoch.map50To95,
       },
     ],
@@ -168,7 +168,7 @@ function EpochChart({
       xAxisDomain={[1, Math.max(total, 2)]}
       yAxisDomain={chart.unit ? [0, 1] : ["auto", "auto"]}
       valueFormatter={(value) => formatDecimal(value, 2)}
-      tooltipLabelFormatter={(epoch) => m.epoch_tooltip_epoch({ epoch })}
+      tooltipLabelFormatter={(epoch) => m.epoch_label({ epoch })}
       tooltipValueFormatter={(value) => formatDecimal(value, 4)}
     >
       {best && (

@@ -11,5 +11,4 @@ export {
   listWorkers,
   lockWorkerSession,
   recordWorkerHeartbeat,
-  sessionIsCurrent,
 } from "./sessions";

@@ -1,7 +1,7 @@
 from vitroctl.detectors.ultralytics.dataset import (
+    DEFAULT_SEED,
+    DEFAULT_VALIDATION_FRACTION,
     DatasetImage,
-    YoloDatasetManifest,
-    assign_splits,
     export_dataset_images,
     export_yolo_dataset,
 )
@@ -14,13 +14,13 @@ from vitroctl.detectors.ultralytics.training import (
 )
 
 __all__ = [
+    "DEFAULT_SEED",
+    "DEFAULT_VALIDATION_FRACTION",
     "DatasetImage",
     "DetectionLosses",
     "EpochReport",
-    "YoloDatasetManifest",
     "YoloTrainingInterruptedError",
     "YoloTrainingResult",
-    "assign_splits",
     "export_dataset_images",
     "export_yolo_dataset",
     "train_yolo_detector",

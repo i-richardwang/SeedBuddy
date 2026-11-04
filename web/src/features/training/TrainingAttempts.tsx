@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Server } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
 import type { TrainingRunDetail } from "../../domain/training/read-model";
@@ -11,7 +11,6 @@ import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
-import { Empty } from "../../ui/kit/Empty";
 import {
   Table,
   TableBody,
@@ -27,8 +26,8 @@ import type { TrainingRunControl } from "./run-control";
 import { TrainingAttemptState } from "./TrainingRunState";
 
 /**
- * Each time a worker took the run up, the latest first, with how it ended
- * and why; the attempt under way has lost contact once its worker no longer
+ * Each time a Worker took the run up, the latest first, with how it ended
+ * and why; the attempt under way has lost contact once its Worker no longer
  * holds the run, before the next claim records it so. What keeps the run
  * from moving stands over the table: a failure or a stall with the command
  * that moves it again when it will not move on its own, and another run of
@@ -37,7 +36,9 @@ import { TrainingAttemptState } from "./TrainingRunState";
 export function TrainingAttempts({
   detail: { run, stall, blockedBy, attempts },
   control,
+  empty,
 }: {
+  empty: ReactNode;
   detail: TrainingRunDetail;
   control: TrainingRunControl;
 }) {
@@ -54,7 +55,7 @@ export function TrainingAttempts({
               disabled={blockedBy !== null}
               onClick={control.resume}
             >
-              {m.training_retry()}
+              {m.retry_action()}
             </Button>
           }
         />
@@ -95,18 +96,14 @@ export function TrainingAttempts({
       <Table
         aria-label={m.training_attempts()}
         size="small"
-        empty={
-          attempts.length === 0 && (
-            <Empty icon={Server} title={m.attempt_empty_title()} />
-          )
-        }
+        empty={attempts.length === 0 ? empty : undefined}
       >
         <TableHeader>
           <tr>
             <TableHead>{m.attempt_column_number()}</TableHead>
-            <TableHead>{m.attempt_column_worker()}</TableHead>
+            <TableHead>{m.worker_label()}</TableHead>
             <TableHead>{m.attempt_column_started()}</TableHead>
-            <TableHead>{m.attempt_column_result()}</TableHead>
+            <TableHead>{m.status_label()}</TableHead>
             <TableHead className="w-full">
               {m.attempt_column_reason()}
             </TableHead>
@@ -154,8 +151,8 @@ export function TrainingAttempts({
 
 /**
  * Why a running run has stopped moving, and what moves it again. A lost
- * worker hands an unpinned run to the next free one on its own; a pinned run
- * waits for its worker, and one whose worker holds it without progress waits
+ * Worker hands an unpinned run to the next free one on its own; a pinned run
+ * waits for its Worker, and one whose Worker holds it without progress waits
  * for no one, so both offer the pause that frees it for another.
  */
 function StallAlert({
@@ -175,7 +172,7 @@ function StallAlert({
       type="warning"
       title={
         stall === "worker-lost"
-          ? m.training_stall_worker_lost({ worker })
+          ? m.training_worker_lost({ worker })
           : m.training_stall_no_progress({ minutes: TRAINING_STALL_MINUTES })
       }
       description={

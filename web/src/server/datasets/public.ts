@@ -3,22 +3,21 @@ export {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
   createDataset,
-  updateDataset,
+  datasetMembershipOrder,
   listDatasets,
   listDatasetsForModel,
-  membershipOrder,
   readDataset,
   removeDatasetImages,
-} from "./memberships";
+  updateDataset,
+} from "./datasets";
 export {
-  countReviewed,
-  listDatasetSummaries,
+  countReviewedDatasetImages,
+  type ImageRecord,
+  listDatasetOverviews,
   listImageRecords,
   listReviewedRecords,
-  readDatasetContents,
-  summarize,
-  type ImageRecord,
-  type ImageSummary,
   type ReviewedRecord,
+  readDatasetContents,
+  summarizeDatasetImage,
 } from "./records";
 export { importDataset, readDatasetManifest } from "./transfer";

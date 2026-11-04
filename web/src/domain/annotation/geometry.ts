@@ -1,4 +1,5 @@
-import type { BoundingBox, ImageSize } from "./schema";
+import type { ImageRectangle } from "../images/geometry";
+import type { ImageSize } from "./schema";
 
 export interface Point {
   x: number;
@@ -15,18 +16,18 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
-/** Intersects a box with the image; returns null when nothing usable remains. */
 /** Two boxes cover exactly the same pixels. */
-export function sameBox(a: BoundingBox, b: BoundingBox): boolean {
+export function sameBox(a: ImageRectangle, b: ImageRectangle): boolean {
   return (
     a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
   );
 }
 
+/** Intersects a box with the image; returns null when nothing usable remains. */
 export function clipToImage(
-  box: BoundingBox,
+  box: ImageRectangle,
   image: ImageSize,
-): BoundingBox | null {
+): ImageRectangle | null {
   const left = clamp(box.x, 0, image.width);
   const top = clamp(box.y, 0, image.height);
   const right = clamp(box.x + box.width, 0, image.width);
@@ -44,7 +45,7 @@ export function boxAround(
   center: Point,
   side: number,
   image: ImageSize,
-): BoundingBox | null {
+): ImageRectangle | null {
   return clipToImage(
     {
       x: center.x - side / 2,
@@ -58,10 +59,10 @@ export function boxAround(
 
 /** Translates a box, keeping its size and holding it inside the image. */
 export function moveBox(
-  box: BoundingBox,
+  box: ImageRectangle,
   delta: Point,
   image: ImageSize,
-): BoundingBox {
+): ImageRectangle {
   return {
     ...box,
     x: clamp(box.x + delta.x, 0, image.width - box.width),
@@ -71,11 +72,11 @@ export function moveBox(
 
 /** Drags one handle of a box by a delta; opposite edges stay fixed. */
 export function resizeBox(
-  box: BoundingBox,
+  box: ImageRectangle,
   handle: Handle,
   delta: Point,
   image: ImageSize,
-): BoundingBox {
+): ImageRectangle {
   let left = box.x;
   let top = box.y;
   let right = box.x + box.width;
@@ -97,7 +98,7 @@ export function resizeBox(
 }
 
 /** Positions of the eight resize handles in image pixels. */
-export function handlePositions(box: BoundingBox): Record<Handle, Point> {
+export function handlePositions(box: ImageRectangle): Record<Handle, Point> {
   const midX = box.x + box.width / 2;
   const midY = box.y + box.height / 2;
   const right = box.x + box.width;

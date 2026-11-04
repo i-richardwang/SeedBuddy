@@ -7,10 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { m } from "../../paraglide/messages";
 import { Checkbox } from "./Checkbox";
 import { cn } from "./cn";
-import { DropdownMenu, type DropdownItem } from "./DropdownMenu";
+import { type DropdownItem, DropdownMenu } from "./DropdownMenu";
 import { EmptyPlace } from "./Empty";
 import { Icon } from "./Icon";
 
@@ -82,7 +83,7 @@ export function Table({
   ...props
 }: TableProps) {
   const { contentRef, onScroll, shadow, tableRef } = useFixedColumns();
-  const isEmpty = empty != null && empty !== false;
+  const isEmpty = empty !== undefined;
   if (isEmpty && toolbar == null) {
     return <EmptyPlace variant={variant}>{empty}</EmptyPlace>;
   }

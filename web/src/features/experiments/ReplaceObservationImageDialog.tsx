@@ -1,18 +1,17 @@
-import { useRouter } from "@tanstack/react-router";
-
-import type { ExperimentObservationImage } from "../../domain/experiments/contracts";
-import { assignImagesToObservation } from "../../functions/experiments";
+import type { ExperimentObservationImageDetail } from "../../domain/experiments/read-model";
+import { updateObservationImages } from "../../functions/experiments";
+import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
-import { m } from "../../paraglide/messages";
 import { ImageDropZone } from "../upload/ImageDropZone";
 import { useUploads } from "../upload/useUploads";
+import { storedPhotos } from "./observation-photos";
 
 const FORM_ID = "replace-image";
 
 interface ReplaceObservationImageDialogProps {
-  image: ExperimentObservationImage;
+  image: ExperimentObservationImageDetail;
   open: boolean;
   onClose: () => void;
 }
@@ -36,20 +35,12 @@ function ReplaceObservationImageSession({
   onClose,
   afterClose,
 }: ReplaceObservationImageDialogProps & { afterClose: () => void }) {
-  const router = useRouter();
   const uploads = useUploads();
   const action = useAsyncAction();
-  const [replacement] = uploads.images.flatMap((item) =>
-    item.state.status === "stored"
-      ? [
-          {
-            unit: image.unit.id,
-            digest: item.state.digest,
-            filename: item.file.name,
-          },
-        ]
-      : [],
-  );
+  const [photo] = storedPhotos(uploads.images);
+  const replacement = photo
+    ? { unit: image.unit.id, digest: photo.digest, filename: photo.filename }
+    : undefined;
 
   return (
     <FormDialog
@@ -58,7 +49,7 @@ function ReplaceObservationImageSession({
       afterClose={afterClose}
       title={m.unit_replace_heading({ file: image.review.filename })}
       okText={
-        uploads.storing ? m.observation_images_uploading() : m.unit_replace()
+        uploads.storing ? m.observation_photos_uploading() : m.unit_replace()
       }
       formId={FORM_ID}
       busy={action.busy}
@@ -69,23 +60,20 @@ function ReplaceObservationImageSession({
         onSubmit={(event) => {
           event.preventDefault();
           if (!replacement) return;
-          void action
-            .run(
-              () =>
-                assignImagesToObservation({
-                  data: {
-                    experiment: image.ref.experiment,
-                    observation: image.observation.id,
-                    images: [replacement],
-                  },
-                }),
-              m.unit_image_not_replaced(),
-            )
-            .then(async (result) => {
-              if (!result.ok) return;
-              onClose();
-              await router.invalidate();
-            });
+          void action.run(
+            () =>
+              updateObservationImages({
+                data: {
+                  experiment: image.ref.experiment,
+                  observation: image.observation.id,
+                  images: [replacement],
+                },
+              }),
+            m.unit_image_not_replaced(),
+            {
+              onSuccess: onClose,
+            },
+          );
         }}
       >
         <ImageDropZone

@@ -4,17 +4,25 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from vitroctl.annotations import AnnotationDocument, AnnotationInstance, BoundingBox
+from vitroctl.contracts.annotation import (
+    AnnotationDocument,
+    AnnotationInstance,
+    BoundingBox,
+)
 from vitroctl.detectors.traditional.candidates import FEATURE_NAMES, CandidateEvidence
 from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
 from vitroctl.detectors.traditional.proposals import SeedProposal
 from vitroctl.detectors.traditional.scoring import CandidateModel
-from vitroctl.detectors.traditional.training import (
+from vitroctl.detectors.traditional.training import training
+from vitroctl.detectors.traditional.training.data import (
     PreparedImage,
-    evaluate_candidate_model,
     label_candidates,
     match_boxes,
     prepare_images,
+)
+from vitroctl.detectors.traditional.training.evaluation import evaluate_candidate_model
+from vitroctl.detectors.traditional.training.training import (
+    SelectionGrid,
     train_candidate_model,
 )
 
@@ -118,7 +126,9 @@ def test_every_annotated_class_is_a_seed_body(monkeypatch: pytest.MonkeyPatch) -
     assert prepared.matched_boxes == 2
 
 
-def test_training_selects_a_model_that_reduces_traditional_corrections() -> None:
+def test_training_selects_a_model_that_reduces_traditional_corrections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     images = [_image(index) for index in range(3)]
     config = PipelineConfig(
         decision=DecisionConfig(
@@ -128,13 +138,15 @@ def test_training_selects_a_model_that_reduces_traditional_corrections() -> None
     )
     baseline = evaluate_candidate_model(_prior(), images, config)
 
+    monkeypatch.setattr(
+        training,
+        "_DEFAULT_GRID",
+        SelectionGrid((None, 1.0), (0.3, 3.0), (0.3, 0.5, 0.7)),
+    )
     trained = train_candidate_model(
         images,
         _prior(),
         config,
-        bandwidths=(None, 1.0),
-        regularizations=(0.3, 3.0),
-        thresholds=(0.3, 0.5, 0.7),
     )
 
     assert baseline.false_positive == 3
@@ -142,7 +154,10 @@ def test_training_selects_a_model_that_reduces_traditional_corrections() -> None
     assert trained.report.cross_validation.false_negative == 0
     assert trained.report.training.corrections_per_instance == 0
     assert trained.config.decision.confidence_threshold == 0.5
-    assert trained.report.threshold == trained.config.decision.confidence_threshold
-    assert trained.report.bandwidth is None
+    assert (
+        trained.report.selection.threshold
+        == trained.config.decision.confidence_threshold
+    )
+    assert trained.report.selection.bandwidth is None
     assert not trained.model.calibration_centers
     assert trained.model.fingerprint != _prior().fingerprint

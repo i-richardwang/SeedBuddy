@@ -13,7 +13,7 @@ import { Tooltip, type TooltipProps } from "./Tooltip";
  * command.
  */
 
-export type ActionIconSize = "small" | "middle" | "header" | "bar";
+type ActionIconSize = "small" | "middle" | "header" | "bar";
 
 export interface ActionIconProps extends Omit<
   ButtonProps,
@@ -59,7 +59,7 @@ export function ActionIcon({
         <Icon
           icon={icon}
           size={preset.glyph}
-          style={{ pointerEvents: "none" }}
+          className="ui-action-icon-glyph"
         />
       }
       size={preset.button}

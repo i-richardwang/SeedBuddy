@@ -1,23 +1,24 @@
 import { eq } from "drizzle-orm";
+
+import {
+  TrainingRunConflictError,
+  TrainingRunNotFoundError,
+} from "../../domain/training/errors";
 import {
   isTrainingRunResumable,
   type TrainingControl,
   type TrainingRun,
 } from "../../domain/training/schema";
-import {
-  TrainingRunConflictError,
-  TrainingRunNotFoundError,
-} from "../../domain/training/errors";
 import { readDataset } from "../datasets/public";
-import { transaction } from "../infra/db/client";
+import { operationTime, transaction } from "../infra/db/client";
 import { trainingRuns } from "../infra/db/schema";
 import {
   activeTrainingRun,
-  requireTrainingRunRow,
+  lockTrainingRun,
   transitionTrainingRun,
-  validateTrainingTarget,
 } from "./runs";
 import { readDatasetSnapshot } from "./snapshots";
+import { validateTrainingTarget } from "./targets";
 
 /** Control and worker writes serialize on the task, making revocation immediate. */
 export async function controlTrainingRun(
@@ -28,15 +29,11 @@ export async function controlTrainingRun(
 ): Promise<TrainingRun> {
   if (control.action === "resume")
     await validateTrainingTarget(control.targetWorkerId);
-  return transaction(async (tx) => {
-    const [row] = await tx
-      .select()
-      .from(trainingRuns)
-      .where(eq(trainingRuns.id, runId))
-      .for("update");
-    const run = requireTrainingRunRow(row, runId);
-    const dataset = await readDataset(datasetId, tx);
-    const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, tx);
+  return transaction(async (db) => {
+    const run = await lockTrainingRun(runId, db);
+    const at = await operationTime(db);
+    const dataset = await readDataset(datasetId, db);
+    const snapshot = await readDatasetSnapshot(run.datasetSnapshotId, db);
     if (!dataset || snapshot?.datasetId !== dataset.id)
       throw new TrainingRunNotFoundError(`Training run not found: ${runId}`);
     if (run.attempt !== expectedAttempt)
@@ -59,12 +56,12 @@ export async function controlTrainingRun(
         throw new TrainingRunConflictError(
           "Resume requires the original worker; restart training to use another worker",
         );
-      const active = await activeTrainingRun(run.modelId, tx);
+      const active = await activeTrainingRun(run.modelId, db);
       if (active)
         throw new TrainingRunConflictError(
           `Training run ${active.id} is still active for ${run.modelId}`,
         );
-      await tx
+      await db
         .update(trainingRuns)
         .set({
           targetWorkerId: control.restart
@@ -74,7 +71,7 @@ export async function controlTrainingRun(
           lastProgressAt: null,
         })
         .where(eq(trainingRuns.id, runId));
-      return transitionTrainingRun(runId, { status: "queued" }, tx);
+      return transitionTrainingRun(runId, { status: "queued" }, at, db);
     }
     const next = control.action === "pause" ? "paused" : "cancelled";
     if (status === next) return run;
@@ -87,6 +84,6 @@ export async function controlTrainingRun(
         `Cannot ${control.action} ${status} training`,
       );
     }
-    return transitionTrainingRun(runId, { status: next }, tx);
+    return transitionTrainingRun(runId, { status: next }, at, db);
   });
 }

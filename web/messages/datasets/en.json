@@ -1,29 +1,9 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "datasets_empty": "No datasets yet",
-  "dataset_download": "Download",
-  "dataset_rename": "Rename…",
-  "dataset_rename_title": "Rename {dataset}",
-  "dataset_rename_save": "Rename",
-  "dataset_rename_failed": "The dataset was not renamed",
-  "dataset_reviewed_since_last_run": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount} reviewed since the last run"
-      }
-    }
-  ],
-  "dataset_images_table": "Images in {dataset}",
-  "dataset_column_image": "Image",
-  "dataset_column_boxes": "Marks",
-  "dataset_column_quality": "Quality",
-  "dataset_column_actions": "Actions",
-  "dataset_empty_images": "No images yet",
-  "dataset_remove": "Remove",
   "dataset_add_heading": "Add to dataset",
-  "dataset_add_menu": "Add to dataset…",
-  "dataset_add_nothing_added": "Nothing was added",
+  "dataset_add_name_placeholder": "seeds-2026-09",
+  "dataset_add_new": "New dataset",
+  "dataset_add_nothing_added": "Images not added",
   "dataset_add_result": [
     {
       "declarations": ["input added", "local formattedAdded = added: number"],
@@ -45,32 +25,12 @@
       }
     }
   ],
-  "dataset_add_dataset_label": "Dataset",
-  "dataset_add_new": "New dataset",
-  "dataset_name_label": "Name",
-  "dataset_add_name_placeholder": "seeds-2026-09",
-  "dataset_add_submit": "Add",
-  "dataset_import": "Import",
-  "dataset_import_heading": "Import dataset",
-  "dataset_import_failed": "Import failed",
-  "dataset_import_drop_label": "Drop a dataset archive here",
-  "dataset_import_drop_description": "A ZIP downloaded from a workbench dataset",
-  "dataset_import_select": "Select archive",
-  "dataset_import_progress": "Import progress",
-  "dataset_import_reading": "Reading archive",
-  "dataset_archive_unexpected_entry": "Unexpected archive entry: {entry}",
-  "dataset_archive_multiple_datasets": "The archive holds more than one dataset",
-  "dataset_archive_manifest_too_large": "The manifest exceeds 16 MiB",
-  "dataset_archive_manifest_not_json": "The archive's manifest is not JSON",
-  "dataset_archive_manifest_invalid": "The archive's manifest is not valid",
-  "dataset_archive_exists": "Dataset {dataset} already exists",
   "dataset_archive_destination_unchecked": "Could not check the destination workbench",
-  "dataset_archive_manifest_first": "The archive does not start with a manifest",
-  "dataset_archive_image_unnamed": "The manifest does not name image {digest}",
+  "dataset_archive_exists": "Dataset {dataset} already exists",
   "dataset_archive_image_duplicate": "The archive contains image {digest} more than once",
-  "dataset_archive_image_size": "Image {digest} has another size than the manifest declares",
   "dataset_archive_image_mismatch": "The workbench stored another image",
-  "dataset_archive_no_dataset": "The archive holds no dataset",
+  "dataset_archive_image_size": "Image {digest} has another size than the manifest declares",
+  "dataset_archive_image_unnamed": "The manifest does not name image {digest}",
   "dataset_archive_images_missing": [
     {
       "declarations": ["input count", "local formattedCount = count: number"],
@@ -79,17 +39,50 @@
       }
     }
   ],
-  "image_title": "{file} in {dataset}",
-  "image_previous": "Previous image",
-  "image_next": "Next image",
-  "image_split": "Training split",
-  "image_split_train": "Training",
-  "image_split_val": "Validation",
-  "image_file_unsupported": "Choose a JPEG, PNG, or TIFF image",
-  "image_file_empty": "The file is empty",
-  "image_file_too_large": "The file exceeds 64 MiB",
-  "datasets_empty_description": "Add photos to a dataset from an observation day of an experiment, or import an archive.",
+  "dataset_archive_manifest_first": "The archive does not start with a manifest",
+  "dataset_archive_manifest_invalid": "The archive's manifest is not valid",
+  "dataset_archive_manifest_not_json": "The archive's manifest is not JSON",
+  "dataset_archive_manifest_too_large": [
+    {
+      "declarations": ["input megabytes", "local size = megabytes: number"],
+      "match": {
+        "megabytes=*": "The manifest exceeds {size} MiB"
+      }
+    }
+  ],
+  "dataset_archive_multiple_datasets": "The archive holds more than one dataset",
+  "dataset_archive_no_dataset": "The archive holds no dataset",
+  "dataset_archive_unexpected_entry": "Unexpected archive entry: {entry}",
+  "dataset_column_quality": "Quality",
+  "dataset_download": "Download",
+  "dataset_empty_images": "No images yet",
   "dataset_empty_images_description": "Add photos from an experiment's units.",
+  "dataset_hero_images": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCount = count: number",
+        "local countPlural = count: plural"
+      ],
+      "match": {
+        "countPlural=one": "{formattedCount} image in all",
+        "countPlural=other": "{formattedCount} images in all"
+      },
+      "selectors": ["countPlural"]
+    }
+  ],
+  "dataset_hero_reviewed": "Reviewed images ready to train",
+  "dataset_image_not_removed": "Image not removed",
+  "dataset_image_removed": "{file} removed from {dataset}",
+  "dataset_images": "Images",
+  "dataset_images_table": "Images in {dataset}",
+  "dataset_import": "Import",
+  "dataset_import_drop_description": "A ZIP downloaded from a workbench dataset",
+  "dataset_import_drop_label": "Drop a dataset archive here",
+  "dataset_import_heading": "Import dataset",
+  "dataset_import_progress": "Import progress",
+  "dataset_import_reading": "Reading archive",
+  "dataset_import_select": "Select archive",
   "dataset_import_storing": "Storing {dataset}",
   "dataset_import_storing_count": [
     {
@@ -104,32 +97,36 @@
       }
     }
   ],
-  "dataset_remove_title": "Remove {file} from {dataset}?",
-  "dataset_image_removed": "{file} removed from {dataset}",
+  "dataset_no_matches": "No images match",
+  "dataset_no_matches_description": "Try another search or status.",
+  "dataset_not_imported": "Dataset not imported",
+  "dataset_not_renamed": "Dataset not renamed",
   "dataset_open_experiments": "Open experiments",
-  "dataset_actions": "Actions for {dataset}",
-  "dataset_hero_images": [
+  "dataset_page_title": "{dataset} of {model}",
+  "dataset_preview_open": "Open to annotate",
+  "dataset_preview_quality": "Detection quality",
+  "dataset_remove_title": "Remove {file} from {dataset}?",
+  "dataset_rename": "Rename…",
+  "dataset_rename_save": "Rename",
+  "dataset_rename_title": "Rename {dataset}",
+  "dataset_reviewed_since_last_run": [
     {
       "declarations": ["input count", "local formattedCount = count: number"],
       "match": {
-        "count=*": "{formattedCount} images in all"
+        "count=*": "{formattedCount} reviewed since the last run"
       }
     }
   ],
-  "dataset_state_all": "All",
-  "dataset_state_reviewed": "Reviewed",
-  "dataset_state_proposed": "AI proposal",
-  "dataset_state_detected": "To review",
-  "dataset_state_unread": "Not counted",
-  "dataset_state_filter": "Filter by state",
+  "dataset_runs_empty_description": "Train a version from this dataset’s reviewed images.",
   "dataset_search": "Search file names",
-  "dataset_column_state": "State",
-  "dataset_no_matches": "No images match",
-  "dataset_no_matches_description": "Try another search or state.",
-  "dataset_preview_boxes": "Boxes",
-  "dataset_preview_quality": "Detection quality",
-  "dataset_preview_open": "Open to annotate",
-  "image_steps": "Images",
-  "dataset_hero_reviewed": "reviewed, ready to train",
-  "dataset_images": "Images"
+  "dataset_state_all": "All",
+  "dataset_state_filter": "Filter by status",
+  "datasets_empty": "No datasets yet",
+  "datasets_empty_description": "Add photos to a dataset from an observation day of an experiment, or import an archive.",
+  "image_next": "Next image",
+  "image_previous": "Previous image",
+  "image_split": "Training split",
+  "image_split_train": "Training subset",
+  "image_split_val": "Validation",
+  "image_title": "{file} in {dataset}"
 }

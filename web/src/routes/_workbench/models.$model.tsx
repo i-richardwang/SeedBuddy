@@ -1,30 +1,25 @@
-import {
-  createFileRoute,
-  Link,
-  notFound,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ChartLine, Images, Network, Upload } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
+import type { ModelDetail } from "../../domain/models/read-model";
+import { DatasetsGrid } from "../../features/datasets/DatasetsGrid";
 import { ImportDatasetDialog } from "../../features/datasets/ImportDatasetDialog";
-import { DatasetCard } from "../../features/datasets/DatasetCard";
+import { modelCrumbs } from "../../features/models/crumbs";
 import { ModelMenu } from "../../features/models/ModelMenu";
-import { modelIsFree } from "../../features/models/records";
 import { VersionDialog } from "../../features/models/VersionDialog";
 import { VersionsTable } from "../../features/models/VersionsTable";
 import { TrainingRunsTable } from "../../features/training/TrainingRunsTable";
-import { getModelOverview, getVersionComparison } from "../../functions/models";
+import { getModelDetail, getVersionComparison } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
-import { CardGrid, CardGridSkeleton } from "../../ui/kit/SummaryCard";
+import { CardGridSkeleton } from "../../ui/kit/SummaryCard";
 import { formatList } from "../../ui/lists";
-import { className, modelName } from "../../ui/model-names";
+import { classLabel, modelName } from "../../ui/model-names";
 import {
   Page,
   PageColumnSkeleton,
@@ -32,22 +27,20 @@ import {
   PageSectionSkeleton,
 } from "../../ui/Page";
 
-type ModelOverview = NonNullable<Awaited<ReturnType<typeof getModelOverview>>>;
-
-/** `compare` names the version whose comparison with the current one is open. */
+/** `version` names the version whose comparison with the current one is open. */
 const modelSearchSchema = z.object({
-  compare: z.string().optional().catch(undefined),
+  version: z.string().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_workbench/models/$model")({
   validateSearch: modelSearchSchema,
-  loaderDeps: ({ search }) => ({ compare: search.compare }),
+  loaderDeps: ({ search }) => ({ version: search.version }),
   loader: async ({ params, deps }) => {
     const [overview, comparison] = await Promise.all([
-      getModelOverview({ data: { model: params.model } }),
-      deps.compare
+      getModelDetail({ data: { model: params.model } }),
+      deps.version
         ? getVersionComparison({
-            data: { model: params.model, version: deps.compare },
+            data: { model: params.model, version: deps.version },
           })
         : null,
     ]);
@@ -55,10 +48,7 @@ export const Route = createFileRoute("/_workbench/models/$model")({
     return { ...overview, comparison };
   },
   staticData: {
-    crumbs: ({ loaderData }) => [
-      { label: m.models_title(), href: "/models" },
-      { label: modelName((loaderData as ModelOverview).model) },
-    ],
+    crumbs: ({ loaderData }) => modelCrumbs((loaderData as ModelDetail).model),
   },
   head: ({ loaderData }) => ({
     meta: [{ title: documentTitle(loaderData && modelName(loaderData.model)) }],
@@ -88,21 +78,35 @@ export const Route = createFileRoute("/_workbench/models/$model")({
 function ModelPage() {
   const { model, records, versions, datasets, runs, comparison } =
     Route.useLoaderData();
-  const { compare } = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
+  const { version: selectedVersion } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [importing, setImporting] = useState(false);
   const compared = versions.find(
-    ({ version, current }) => version.id === compare && !current,
+    ({ version, current }) => version.id === selectedVersion && !current,
   );
 
-  useRouteRefresh(10_000);
-
+  const train = datasets[0] ? (
+    <Button
+      render={
+        <Link
+          to="/datasets/$dataset"
+          params={{ dataset: datasets[0].dataset.id }}
+        />
+      }
+    >
+      {m.model_open_training_dataset()}
+    </Button>
+  ) : (
+    <Button render={<Link to="/experiments" />}>
+      {m.dataset_open_experiments()}
+    </Button>
+  );
   return (
     <Page
       title={modelName(model)}
       icon={Network}
-      meta={[model.id, formatList(model.classes.map(className))]}
-      action={<ModelMenu model={model} deletable={modelIsFree(records)} />}
+      meta={[model.id, formatList(model.classes.map(classLabel))]}
+      actions={<ModelMenu model={model} records={records} />}
     >
       <PageSection title={m.model_versions()}>
         <VersionsTable
@@ -112,6 +116,7 @@ function ModelPage() {
               icon={Network}
               title={m.versions_empty()}
               description={m.versions_empty_description()}
+              action={train}
             />
           }
         />
@@ -125,32 +130,21 @@ function ModelPage() {
           </Button>
         }
       >
-        <CardGrid
-          aria-label={m.model_datasets()}
+        <DatasetsGrid
+          datasets={datasets}
           empty={
-            datasets.length === 0 && (
-              <Empty
-                icon={Images}
-                title={m.datasets_empty()}
-                description={m.datasets_empty_description()}
-                action={
-                  <Button render={<Link to="/experiments" />}>
-                    {m.dataset_open_experiments()}
-                  </Button>
-                }
-              />
-            )
-          }
-        >
-          {datasets.map((dataset) => (
-            <DatasetCard
-              key={dataset.dataset.id}
-              dataset={dataset.dataset}
-              images={dataset.imageCount}
-              reviewed={dataset.reviewedCount}
+            <Empty
+              icon={Images}
+              title={m.datasets_empty()}
+              description={m.datasets_empty_description()}
+              action={
+                <Button render={<Link to="/experiments" />}>
+                  {m.dataset_open_experiments()}
+                </Button>
+              }
             />
-          ))}
-        </CardGrid>
+          }
+        />
       </PageSection>
 
       <PageSection title={m.training_runs()}>
@@ -162,6 +156,7 @@ function ModelPage() {
               icon={ChartLine}
               title={m.run_empty_title()}
               description={m.run_empty_description()}
+              action={train}
             />
           }
         />

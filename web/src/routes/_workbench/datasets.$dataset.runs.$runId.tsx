@@ -1,14 +1,13 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ChartLine } from "lucide-react";
+import { ChartLine, Server } from "lucide-react";
 
-import { Metric } from "../../ui/Metric";
+import { identifierLabel } from "../../domain/identifiers/schema";
+import type { TrainingRunDetail } from "../../domain/training/read-model";
 import {
-  Page,
-  PageColumnSkeleton,
-  PageSection,
-  PageSectionSkeleton,
-} from "../../ui/Page";
-import { Timestamp } from "../../ui/Timestamp";
+  isTrainingRunActive,
+  isTrainingRunResumable,
+} from "../../domain/training/schema";
+import { datasetCrumbs } from "../../features/models/crumbs";
 import {
   EpochCharts,
   EpochChartsSkeleton,
@@ -17,35 +16,34 @@ import {
   ParametersList,
   ParametersListSkeleton,
 } from "../../features/training/ParametersList";
+import { trainingRunPresentation } from "../../features/training/presentation";
 import { ResumeTrainingDialog } from "../../features/training/ResumeTrainingDialog";
+import { useTrainingRunControl } from "../../features/training/run-control";
 import { TrainingAttempts } from "../../features/training/TrainingAttempts";
 import { TrainingRunMenu } from "../../features/training/TrainingRunMenu";
-import { useTrainingRunControl } from "../../features/training/run-control";
-import { getTrainingRun } from "../../functions/training";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
+import { getTrainingRunDetail } from "../../functions/training";
+import { m } from "../../paraglide/messages";
+import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
 import { Card } from "../../ui/kit/Card";
 import { Empty, EmptyPlace } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton, TableSkeleton } from "../../ui/kit/PageSkeleton";
 import { ProgressMeter } from "../../ui/kit/Progress";
 import { StatisticHero, StatisticHeroSkeleton } from "../../ui/kit/Statistic";
-import { documentTitle } from "../../ui/documentTitle";
-import { m } from "../../paraglide/messages";
-import type { TrainingRunDetail } from "../../domain/training/read-model";
-import { datasetCrumbs } from "../../features/models/crumbs";
-import { bestEpoch } from "../../domain/training/metrics";
-import { identifierLabel } from "../../domain/identifiers/schema";
+import { Metric } from "../../ui/Metric";
 import {
-  isTrainingRunActive,
-  isTrainingRunResumable,
-  type TrainingRun,
-} from "../../domain/training/schema";
+  Page,
+  PageColumnSkeleton,
+  PageSection,
+  PageSectionSkeleton,
+} from "../../ui/Page";
+import { Timestamp } from "../../ui/Timestamp";
 
 export const Route = createFileRoute(
   "/_workbench/datasets/$dataset/runs/$runId",
 )({
   loader: async ({ params }) => {
-    const detail = await getTrainingRun({
+    const detail = await getTrainingRunDetail({
       data: { dataset: params.dataset, runId: params.runId },
     });
     if (!detail) throw notFound();
@@ -96,28 +94,18 @@ export const Route = createFileRoute(
 
 function TrainingRunPage() {
   const detail = Route.useLoaderData();
-  const { run, epochs, version, model, current } = detail;
+  const { run, epochs, model, current } = detail;
   const live = isTrainingRunActive(run);
   const control = useTrainingRunControl(detail);
 
-  // A run waiting for another of its model reads again as that one moves.
-  useRouteRefresh(10_000, live || detail.blockedBy !== null);
+  const { best, total, published, placement, facts } =
+    trainingRunPresentation(detail);
 
-  const best = bestEpoch(epochs);
-  const total = run.recipe.parameters.epochs;
-  const published =
-    version && version.artifact.kind === "ultralytics" ? version : null;
-  const placement = runPlacement(run);
-  const lead = published
-    ? m.training_kpi_published({ version: identifierLabel(published.id) })
-    : best
-      ? m.training_kpi_best_epoch({ epoch: best.epoch })
-      : null;
-  const saved =
-    run.checkpoint && (live || isTrainingRunResumable(run))
-      ? m.training_kpi_saved({ epoch: run.checkpoint.epoch })
-      : null;
-
+  const openModel = (
+    <Button render={<Link to="/models/$model" params={{ model: model.id }} />}>
+      {m.model_open()}
+    </Button>
+  );
   return (
     <Page
       title={identifierLabel(run.id)}
@@ -129,14 +117,14 @@ function TrainingRunPage() {
           control={control}
         />
       }
-      action={
+      actions={
         published && !current ? (
           <Button
             render={
               <Link
                 to="/models/$model"
                 params={{ model: model.id }}
-                search={{ compare: published.id }}
+                search={{ version: published.id }}
               />
             }
           >
@@ -155,13 +143,13 @@ function TrainingRunPage() {
       ]}
     >
       <StatisticHero
-        title={m.training_kpi_best_map()}
+        title={m.metric_best_map50_95()}
         value={<Metric value={best?.map50To95 ?? null} />}
-        facts={[lead, saved].filter((fact) => fact !== null)}
+        facts={facts}
         aside={
           <ProgressMeter
-            label={m.training_kpi_epochs()}
-            count={m.run_epochs_progress({ completed: epochs.length, total })}
+            label={m.parameter_epochs()}
+            count={m.progress_count({ completed: epochs.length, total })}
             value={epochs.length}
             max={total}
           />
@@ -177,6 +165,7 @@ function TrainingRunPage() {
           <EmptyPlace variant="outlined">
             <Empty
               icon={ChartLine}
+              action={openModel}
               title={
                 live
                   ? m.training_waiting_first_epoch()
@@ -188,10 +177,20 @@ function TrainingRunPage() {
       </PageSection>
 
       <PageSection title={m.training_attempts()}>
-        <TrainingAttempts detail={detail} control={control} />
+        <TrainingAttempts
+          detail={detail}
+          control={control}
+          empty={
+            <Empty
+              icon={Server}
+              title={m.attempt_empty_title()}
+              action={openModel}
+            />
+          }
+        />
       </PageSection>
 
-      <PageSection title={m.training_parameters()}>
+      <PageSection title={m.training_parameters_heading()}>
         <Card>
           <ParametersList parameters={run.recipe.parameters} />
         </Card>
@@ -205,14 +204,4 @@ function TrainingRunPage() {
       ) : null}
     </Page>
   );
-}
-
-/** Where a queued or running run runs, or will. */
-function runPlacement({ state, targetWorkerId }: TrainingRun) {
-  if (state.status === "running")
-    return m.training_running_worker({ worker: state.workerId });
-  if (state.status !== "queued") return null;
-  return targetWorkerId
-    ? m.training_waiting_worker({ worker: targetWorkerId })
-    : m.training_waiting_auto();
 }

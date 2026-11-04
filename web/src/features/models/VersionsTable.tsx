@@ -2,17 +2,19 @@ import { Link } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { identifierLabel } from "../../domain/identifiers/schema";
+import { isReading } from "../../domain/models/comparison";
+import type {
+  VersionComparison,
+  VersionOverview,
+} from "../../domain/models/read-model";
 import {
-  isReading,
-  type VersionComparison,
-} from "../../domain/models/comparison";
-import {
-  validationMetric,
   type ModelVersion,
+  validationMetric,
 } from "../../domain/models/schema";
-import type { VersionOverview } from "../../domain/training/read-model";
 import { m } from "../../paraglide/messages";
+import { Absent } from "../../ui/Absent";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
+import { IdentifierName } from "../../ui/IdentifierName";
 import { CopyButton } from "../../ui/kit/CopyButton";
 import { Flexbox } from "../../ui/kit/Flex";
 import { Status } from "../../ui/kit/Status";
@@ -26,12 +28,10 @@ import {
 } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
-import { Timestamp } from "../../ui/Timestamp";
-import { Absent } from "../../ui/Absent";
-import { IdentifierName } from "../../ui/IdentifierName";
 import { Metric } from "../../ui/Metric";
-import { formatCount } from "../../ui/numbers";
-import { formatError, movement, movementTone, totalError } from "./comparison";
+import { Timestamp } from "../../ui/Timestamp";
+import { formatError, movement, totalError } from "./comparison";
+import { movementTone, versionSourceLabel } from "./labels";
 
 /**
  * A model's published versions: which one reads and which are still being
@@ -47,30 +47,31 @@ export function VersionsTable({
   versions: VersionOverview[];
   empty: ReactNode;
 }) {
+  useRouteRefresh(10_000);
   return (
     <Table
       aria-label={m.model_versions()}
       narrow="cards"
-      empty={versions.length === 0 && empty}
+      empty={versions.length === 0 ? empty : undefined}
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.versions_column_version()}</TableHead>
-          <TableHead>{m.versions_column_status()}</TableHead>
-          <TableHead>{m.versions_column_source()}</TableHead>
-          <TableHead>{m.versions_column_published()}</TableHead>
+          <TableHead>{m.version_label()}</TableHead>
+          <TableHead>{m.status_label()}</TableHead>
+          <TableHead>{m.version_column_source()}</TableHead>
+          <TableHead>{m.version_column_published()}</TableHead>
           <TableHead className="w-28" numeric>
-            {m.versions_column_trained_on()}
+            {m.version_column_trained_on()}
           </TableHead>
           <TableHead className="w-28" numeric>
-            {m.epoch_series_map50()}
+            {m.metric_map50()}
           </TableHead>
           <TableHead className="w-28" numeric>
-            {m.epoch_series_map50_95()}
+            {m.metric_map50_95()}
           </TableHead>
-          <TableHead>{m.versions_column_comparison()}</TableHead>
+          <TableHead>{m.version_column_comparison()}</TableHead>
           <TableHead className="w-12">
-            <span className="sr-only">{m.versions_column_actions()}</span>
+            <span className="sr-only">{m.column_actions()}</span>
           </TableHead>
         </tr>
       </TableHeader>
@@ -87,7 +88,7 @@ export function VersionsTable({
                         <Link
                           to="/models/$model"
                           params={{ model: version.modelId }}
-                          search={{ compare: version.id }}
+                          search={{ version: version.id }}
                           resetScroll={false}
                         />
                       }
@@ -97,38 +98,38 @@ export function VersionsTable({
               />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_status()}
+              cellLabel={m.status_label()}
               className="whitespace-nowrap"
             >
               <VersionStatus current={current} comparison={comparison} />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_source()}
+              cellLabel={m.version_column_source()}
               className="whitespace-nowrap"
             >
               <VersionSource version={version} training={training} />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_published()}
+              cellLabel={m.version_column_published()}
               className="whitespace-nowrap"
             >
               <Timestamp value={version.createdAt} />
             </TableCell>
-            <TableCell cellLabel={m.versions_column_trained_on()} numeric>
+            <TableCell cellLabel={m.version_column_trained_on()} numeric>
               {training ? (
-                m.versions_trained_images({ count: training.images })
+                m.versions_image_count({ count: training.images })
               ) : (
                 <Absent />
               )}
             </TableCell>
-            <TableCell cellLabel={m.epoch_series_map50()} numeric>
+            <TableCell cellLabel={m.metric_map50()} numeric>
               <Metric value={validationMetric(version.artifact, "map50")} />
             </TableCell>
-            <TableCell cellLabel={m.epoch_series_map50_95()} numeric>
+            <TableCell cellLabel={m.metric_map50_95()} numeric>
               <Metric value={validationMetric(version.artifact, "map50To95")} />
             </TableCell>
             <TableCell
-              cellLabel={m.versions_column_comparison()}
+              cellLabel={m.version_column_comparison()}
               className="whitespace-nowrap"
             >
               {current ? null : <CountError comparison={comparison} />}
@@ -156,8 +157,8 @@ function VersionStatus({
   return (
     <Status tone="info" icon={LoaderCircle} spin>
       {m.versions_comparing({
-        read: formatCount(comparison.candidate.read),
-        total: formatCount(comparison.heldOut),
+        read: comparison.candidate.read,
+        total: comparison.heldOut,
       })}
     </Status>
   );
@@ -171,12 +172,7 @@ function VersionSource({
   version: ModelVersion;
   training: VersionOverview["training"];
 }) {
-  const { source } = version;
-  if (source.kind === "builtin") return m.version_source_builtin();
-  if (source.kind === "import") return m.version_source_import();
-  const label = m.version_source_training({
-    run: identifierLabel(source.trainingRunId),
-  });
+  const label = versionSourceLabel(version.source);
   if (!training) return label;
   return (
     <TextLink
@@ -214,8 +210,8 @@ function CountError({ comparison }: { comparison: VersionComparison | null }) {
             })}
       </Text>
       <Text as="span" type="tertiary">
-        {m.versions_comparison_images({
-          count: formatCount(comparison.scored),
+        {m.versions_image_count({
+          count: comparison.scored,
         })}
       </Text>
     </Flexbox>

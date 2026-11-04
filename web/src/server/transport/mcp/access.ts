@@ -18,7 +18,6 @@ import {
   authorizeApiKey,
   bearerToken,
   mcpAuthorizationIsLive,
-  mcpClientId,
 } from "../../auth/public";
 import { deploymentEndpoint } from "../../infra/deployment";
 
@@ -92,8 +91,6 @@ export async function serveAuthorized(
   return requireMcpAuth(
     await auth(),
     async (accepted, claims) =>
-      mcpClientId(claims) &&
-      claims.sub &&
       (await mcpAuthorizationIsLive(claims))
         ? admit(accepted)
         : refuse("The account or MCP authorization is no longer active"),

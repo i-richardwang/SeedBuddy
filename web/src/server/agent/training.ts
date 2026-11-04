@@ -1,25 +1,21 @@
 import { z } from "zod";
 
-import { command, query } from "./definition";
+import { datasetRefSchema } from "../../domain/datasets/schema";
 import { resourceIdSchema } from "../../domain/identifiers/schema";
 import { modelRefSchema } from "../../domain/models/schema";
-import { datasetRefSchema } from "../../domain/datasets/schema";
 import {
-  trainingRunSchema,
-  trainingRecipeSchema,
   trainingControlSchema,
   trainingEpochSchema,
+  trainingRecipeSchema,
+  trainingRunSchema,
 } from "../../domain/training/schema";
-import { TrainingRunNotFoundError } from "../../domain/training/errors";
 import {
-  createTrainingRun,
-  readTrainingRun,
-  readDatasetSnapshot,
-  controlTrainingRun,
-  listTrainingRunSummaries,
-  listTrainingEpochs,
-} from "../training/public";
-import { trainingWorkerOptions } from "../queries/public";
+  agentTrainingRunDetail,
+  listTrainingRunOverviews,
+  listTrainingWorkerOverviews,
+} from "../queries/public";
+import { controlTrainingRun, createTrainingRun } from "../training/public";
+import { command, query } from "./definition";
 
 export const trainingOperations = [
   query({
@@ -29,7 +25,7 @@ export const trainingOperations = [
     output: z.array(
       z.strictObject({ workerId: resourceIdSchema, online: z.boolean() }),
     ),
-    handler: () => trainingWorkerOptions(),
+    handler: () => listTrainingWorkerOverviews(),
   }),
   command({
     transaction: "service",
@@ -55,19 +51,7 @@ export const trainingOperations = [
       datasetId: resourceIdSchema,
       epochs: z.array(trainingEpochSchema),
     }),
-    handler: async ({ runId }) => {
-      const run = await readTrainingRun(runId);
-      if (!run)
-        throw new TrainingRunNotFoundError(`Unknown training run: ${runId}`);
-      const snapshot = await readDatasetSnapshot(run.datasetSnapshotId);
-      if (!snapshot)
-        throw new TrainingRunNotFoundError("Training snapshot is missing");
-      return {
-        run,
-        datasetId: snapshot.datasetId,
-        epochs: await listTrainingEpochs(runId),
-      };
-    },
+    handler: ({ runId }) => agentTrainingRunDetail(runId),
   }),
   query({
     name: "list-training-runs",
@@ -75,7 +59,7 @@ export const trainingOperations = [
     input: modelRefSchema,
     output: z.array(trainingRunSchema),
     handler: async ({ model }) =>
-      (await listTrainingRunSummaries({ modelId: model })).map(
+      (await listTrainingRunOverviews({ modelId: model })).map(
         (summary) => summary.run,
       ),
   }),

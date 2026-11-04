@@ -3,11 +3,10 @@ import { describe, expect, test } from "bun:test";
 import {
   FILL,
   focusedOn,
-  MAX_SCALE,
   pannedTo,
   placedView,
-  resolveView,
   relativeView,
+  resolveView,
   zoomedAbout,
 } from "./viewport";
 
@@ -50,7 +49,7 @@ describe("resolveView", () => {
     expect(
       resolveView({ kind: "manual", scale: 1000, x: 0, y: 0 }, frame, image)
         .scale,
-    ).toBe(MAX_SCALE);
+    ).toBe(40);
   });
   test("panning at the filling scale slides the overflowing side", () => {
     const frame = { width: 200, height: 300 };
@@ -113,7 +112,7 @@ test("wheel zoom at the limit keeps both anchor coordinates fixed", () => {
     frame,
     image,
   );
-  expect(crossing.scale).toBe(MAX_SCALE);
+  expect(crossing.scale).toBe(40);
   expect((anchor.x - crossing.x) / crossing.scale).toBeCloseTo(
     (anchor.x - below.x) / below.scale,
   );

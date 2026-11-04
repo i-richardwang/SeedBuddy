@@ -1,24 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
 import { unitExclusions } from "./analysis";
-import type { ObservationImageCell } from "./contracts";
+import type { UnitDay } from "./cell-reading";
 import { observationOrdinals } from "./culture-events";
-import type { UnitDay } from "./readings";
-import type { CultureEvent, ExperimentObservation } from "./schema";
+import type { ExperimentObservation } from "./schema";
+import { event, observation, photograph } from "./testing";
 
-function observation(ordinal: number): ExperimentObservation {
-  return {
-    id: `observation-${ordinal}`,
-    ordinal,
-    observedOn: `2026-09-0${ordinal}`,
-    note: "",
-    modelId: "seed-detector",
-    countedClasses: ["germinated"],
-    hasRecords: true,
-  };
-}
-
-const days = [observation(1), observation(2), observation(3)];
+const days = [1, 2, 3].map((n) => observation(n, ["germinated"]));
 const [day1, day2, day3] = days as [
   ExperimentObservation,
   ExperimentObservation,
@@ -27,44 +15,16 @@ const [day1, day2, day3] = days as [
 const ordinals = observationOrdinals(days);
 const notCounted = { countsUnclear: false };
 
-function event(
-  type: CultureEvent["type"],
-  on: ExperimentObservation,
-): CultureEvent {
-  return {
-    id: `${type}-${on.id}`,
-    type,
-    observation: on.id,
-    recordedAt: "2026-09-01T00:00:00.000Z",
-  };
-}
-
-function photograph(
-  observation: ExperimentObservation,
-  unclear: boolean,
-): ObservationImageCell {
-  return {
-    id: `dish-${observation.id}`,
-    unit: "dish",
-    observation: observation.id,
-    digest: "a".repeat(64),
-    filename: "IMG_0001.JPG",
-    state: "analyzed",
-    detectionTally: { germinated: 4 },
-    proposalTally: null,
-    annotationTally: null,
-    error: null,
-    unclear,
-  };
-}
-
 /** The unit photographed on every day, unclear on the days named. */
 function photographed(
   unclearOn: readonly ExperimentObservation[] = [],
 ): UnitDay[] {
   return days.map((observation) => ({
     observation,
-    image: photograph(observation, unclearOn.includes(observation)),
+    image: photograph("dish", observation, {
+      detectionTally: { germinated: 4 },
+      unclear: unclearOn.includes(observation),
+    }),
     manual: null,
   }));
 }

@@ -1,18 +1,18 @@
 import { FileArchive, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 
-import { importDatasetArchive, type ImportProgress } from "./import-archive";
+import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
   useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
+import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { DropZone } from "../../ui/kit/DropZone";
 import { Icon } from "../../ui/kit/Icon";
 import { Progress } from "../../ui/kit/Progress";
-import { m } from "../../paraglide/messages";
-import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { Text } from "../../ui/kit/Text";
+import { type ImportProgress, importDatasetArchive } from "./import-archive";
 
 export function ImportDatasetDialog({
   open,
@@ -51,17 +51,21 @@ function ImportArchiveForm({
   const importArchive = (file: File) =>
     void run(
       () => importDatasetArchive(file, setProgress),
-      m.dataset_import_failed(),
-    ).then(async (result) => {
+      m.dataset_not_imported(),
+      {
+        invalidate: false,
+        onSuccess: async (dataset) => {
+          onDone();
+          await navigateAfterWrite({
+            to: "/datasets/$dataset",
+            params: { dataset: dataset.id },
+          });
+        },
+      },
+    ).then((result) => {
       if (!result.ok) {
         setProgress(null);
-        return;
       }
-      onDone();
-      await navigateAfterWrite({
-        to: "/datasets/$dataset",
-        params: { dataset: result.value.id },
-      });
     });
 
   return progress ? (

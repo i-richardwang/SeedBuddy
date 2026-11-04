@@ -15,3 +15,9 @@ export const imageRefSchema = z.strictObject({
 });
 
 export type ImageRef = z.infer<typeof imageRefSchema>;
+
+/** The pixel coordinate frame of one canonical image. */
+export const imageFrameSchema = imageRefSchema.extend({
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});

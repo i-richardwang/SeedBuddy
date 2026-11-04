@@ -1,9 +1,7 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 
-import { m } from "../paraglide/messages";
-import { errorMessage } from "./errors";
+import { type ActionSuccess, useAsyncAction } from "./hooks/useAsyncAction";
 import { confirmModal } from "./kit/Modal";
-import { toast } from "./kit/Toast";
 
 /**
  * Asks before an irreversible action. The dialog stays open while the action
@@ -11,32 +9,44 @@ import { toast } from "./kit/Toast";
  * hears every way of dismissing it. The returned function withdraws the
  * question unanswered.
  */
-export function confirmDestructive({
-  title,
-  content,
-  confirmLabel,
-  onConfirm,
-  onCancel,
-}: {
-  title: string;
-  content?: ReactNode;
-  confirmLabel: string;
-  onConfirm: () => void | Promise<void>;
-  onCancel?: () => void;
-}): () => void {
-  return confirmModal({
-    title,
-    content,
-    okText: confirmLabel,
-    danger: true,
-    onOk: () =>
-      onConfirm()?.catch((error: unknown) => {
-        toast.error({
-          title: m.action_failed({ action: confirmLabel }),
-          description: errorMessage(error),
-        });
-        throw error;
-      }),
-    onCancel,
-  });
+export function useConfirmDestructive() {
+  const { run } = useAsyncAction();
+  return useCallback(
+    function confirmDestructive({
+      title,
+      content,
+      confirmLabel,
+      failure,
+      onConfirm,
+      onCancel,
+      onSuccess,
+      invalidate,
+    }: {
+      title: string;
+      content?: ReactNode;
+      confirmLabel: string;
+      failure: string;
+      onConfirm: () => void | Promise<void>;
+      onCancel?: () => void;
+    } & ActionSuccess<void>): () => void {
+      return confirmModal({
+        title,
+        content,
+        okText: confirmLabel,
+        danger: true,
+        onOk: async () => {
+          const result = await run(
+            async () => {
+              await onConfirm();
+            },
+            failure,
+            { onSuccess, invalidate },
+          );
+          if (!result.ok) throw result.error;
+        },
+        onCancel,
+      });
+    },
+    [run],
+  );
 }

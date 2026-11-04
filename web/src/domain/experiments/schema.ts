@@ -3,6 +3,7 @@ import { z } from "zod";
 import { resourceIdSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema, tallySchema } from "../models/classes";
+import { timestampSchema } from "../time";
 
 export const experimentIdSchema = z.uuid();
 export const observationIdSchema = z.uuid();
@@ -108,18 +109,6 @@ const observationNoteSchema = z
   .trim()
   .max(500, "Observation note must be at most 500 characters");
 
-export const CULTURE_EVENT_TYPES = [
-  "contaminated",
-  "nonviable",
-  "discarded",
-  "harvested",
-  "missing",
-] as const;
-
-export type CultureEventType = (typeof CULTURE_EVENT_TYPES)[number];
-
-const cultureEventTypeSchema = z.enum(CULTURE_EVENT_TYPES);
-
 export const experimentSchema = z.strictObject({
   id: experimentIdSchema,
   name: experimentNameSchema,
@@ -133,7 +122,7 @@ export const experimentSchema = z.strictObject({
    * Unless it does, the unit is out of it on every day.
    */
   countsUnclear: z.boolean(),
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: timestampSchema,
 });
 
 export type Experiment = z.infer<typeof experimentSchema>;
@@ -267,44 +256,6 @@ export const unitsTreatmentUpdateSchema = z.strictObject({
 
 export type UnitsTreatmentUpdate = z.infer<typeof unitsTreatmentUpdateSchema>;
 
-const cultureEventIdSchema = z.uuid();
-
-export const cultureEventSchema = z.strictObject({
-  id: cultureEventIdSchema,
-  type: cultureEventTypeSchema,
-  observation: observationIdSchema,
-  recordedAt: z.string().datetime({ offset: true }),
-});
-
-export type CultureEvent = z.infer<typeof cultureEventSchema>;
-
-export const cultureEventRequestSchema = unitRefSchema.extend({
-  type: cultureEventTypeSchema,
-  observation: observationIdSchema,
-});
-
-export type CultureEventRequest = z.infer<typeof cultureEventRequestSchema>;
-
-export const cultureEventsRequestSchema = z.strictObject({
-  experiment: experimentIdSchema,
-  units: z
-    .array(unitIdSchema)
-    .min(1)
-    .max(200)
-    .refine(distinctIds, "Units must be distinct"),
-  type: cultureEventTypeSchema,
-  observation: observationIdSchema,
-});
-
-export type CultureEventsRequest = z.infer<typeof cultureEventsRequestSchema>;
-
-export const cultureEventRefSchema = z.strictObject({
-  experiment: experimentIdSchema,
-  event: cultureEventIdSchema,
-});
-
-export type CultureEventRef = z.infer<typeof cultureEventRefSchema>;
-
 /**
  * A count a person entered for a unit on a day: what they counted at the
  * bench, such as at transplanting, whether or not the dish was photographed.
@@ -316,7 +267,7 @@ export const manualReadingSchema = z.strictObject({
   unit: unitIdSchema,
   observation: observationIdSchema,
   tally: tallySchema,
-  recordedAt: z.string().datetime({ offset: true }),
+  recordedAt: timestampSchema,
 });
 
 export type ManualReading = z.infer<typeof manualReadingSchema>;
@@ -373,7 +324,7 @@ export const observationRefSchema = z.strictObject({
 
 export type ObservationRef = z.infer<typeof observationRefSchema>;
 
-export const observationRequestSchema = z.strictObject({
+const observationRequestSchema = z.strictObject({
   experiment: experimentIdSchema,
   observedOn: calendarDaySchema,
   note: observationNoteSchema.default(""),

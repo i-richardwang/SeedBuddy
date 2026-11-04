@@ -1,35 +1,24 @@
-import { z } from "zod";
-
 import { unitExclusions } from "./analysis";
 import {
-  type ExperimentGrid,
-  observationImageCellSchema,
-  type ObservationImageCell,
-  unitSchema,
-  type Unit,
-} from "./contracts";
-import {
-  observationOrdinals,
-  type ObservationOrdinals,
-} from "./culture-events";
-import {
   cellReading,
-  observationCells,
-  READING_SOURCES,
-  unitDays,
   type ObservationCells,
-} from "./readings";
+  observationCells,
+  unitDays,
+} from "./cell-reading";
 import {
-  cultureEventSchema,
-  experimentObservationSchema,
-  experimentSchema,
-  manualReadingSchema,
-  observationIdSchema,
-  treatmentSchema,
-  unitIdSchema,
-  type ManualReading,
-} from "./schema";
-import { experimentSummary, experimentSummarySchema } from "./summary";
+  type ObservationOrdinals,
+  observationOrdinals,
+} from "./culture-events";
+import type {
+  ExperimentGridDetail,
+  ExperimentSheetDetail,
+  ObservationImageCell,
+  SheetCell,
+  Unit,
+  UnitRowOverview,
+} from "./read-model";
+import type { ManualReading } from "./schema";
+import { experimentSummary } from "./summary";
 
 /**
  * The sheet is the experiment as its numbers: every unit's cell on every
@@ -41,85 +30,21 @@ import { experimentSummary, experimentSummarySchema } from "./summary";
  * is a different view.
  */
 
-/** What a cell reads: the count, and who stood behind it. */
-export const readingSchema = z.strictObject({
-  count: z.number().int().min(0),
-  source: z.enum(READING_SOURCES),
-});
-
-/** Why a cell's day stays out of the analysis. */
-export const exclusionSchema = z.discriminatedUnion("reason", [
-  z.strictObject({ reason: z.literal("event"), event: cultureEventSchema }),
-  z.strictObject({ reason: z.literal("unclear") }),
-]);
-
-/** The cell's photograph, named so datasets and marks can find it. */
-const cellImageSchema = observationImageCellSchema.omit({
-  unit: true,
-  observation: true,
-});
-
-/** The cell's count entered by hand. */
-const cellManualSchema = manualReadingSchema.omit({
-  unit: true,
-  observation: true,
-});
-
-/**
- * One unit on one observation. `reading` is what the analysis counts and
- * `exclusion` why it would not; both are null for a day with nothing yet.
- * The photograph and the entered count are what the reading came from.
- */
-export const sheetCellSchema = z.strictObject({
-  unit: unitIdSchema,
-  observation: observationIdSchema,
-  reading: readingSchema.nullable(),
-  exclusion: exclusionSchema.nullable(),
-  image: cellImageSchema.nullable(),
-  manual: cellManualSchema.nullable(),
-});
-
-export type SheetCell = z.infer<typeof sheetCellSchema>;
-
-export const experimentSheetSchema = z.strictObject({
-  experiment: experimentSchema,
-  treatments: z.array(treatmentSchema),
-  units: z.array(unitSchema),
-  observations: z.array(experimentObservationSchema),
-  /** A cell for every unit on every observation, units in the grid's order. */
-  cells: z.array(sheetCellSchema),
-  /** The cells summarised by treatment on each observation. */
-  summary: experimentSummarySchema,
-});
-
-export type ExperimentSheet = z.infer<typeof experimentSheetSchema>;
-
-/** One unit's row of the sheet, with the treatment it belongs to. */
-export const unitRowSchema = z.strictObject({
-  experiment: experimentSchema,
-  treatment: treatmentSchema,
-  unit: unitSchema,
-  observations: z.array(experimentObservationSchema),
-  cells: z.array(sheetCellSchema),
-});
-
-export type UnitRow = z.infer<typeof unitRowSchema>;
-
 /** The evidence a cell carries, without the cell's own address. */
 function cellImage(
   image: ObservationImageCell,
-): z.infer<typeof cellImageSchema> {
+): NonNullable<SheetCell["image"]> {
   const { unit: _unit, observation: _observation, ...evidence } = image;
   return evidence;
 }
 
-function cellManual(manual: ManualReading): z.infer<typeof cellManualSchema> {
+function cellManual(manual: ManualReading): NonNullable<SheetCell["manual"]> {
   const { unit: _unit, observation: _observation, ...evidence } = manual;
   return evidence;
 }
 
 function unitCells(
-  grid: ExperimentGrid,
+  grid: ExperimentGridDetail,
   unit: Unit,
   cells: ObservationCells,
   ordinals: ObservationOrdinals,
@@ -141,21 +66,29 @@ function unitCells(
   }));
 }
 
-export function experimentSheet(grid: ExperimentGrid): ExperimentSheet {
+export function experimentSheet(
+  grid: ExperimentGridDetail,
+): ExperimentSheetDetail {
   const cells = observationCells(grid.images, grid.manualReadings);
   const ordinals = observationOrdinals(grid.observations);
+  const parsed = grid.units.flatMap((unit) =>
+    unitCells(grid, unit, cells, ordinals),
+  );
   return {
     experiment: grid.experiment,
     treatments: grid.treatments,
     units: grid.units,
     observations: grid.observations,
-    cells: grid.units.flatMap((unit) => unitCells(grid, unit, cells, ordinals)),
-    summary: experimentSummary(grid),
+    cells: parsed,
+    summary: experimentSummary(grid, parsed),
   };
 }
 
 /** The named unit's row, or nothing when the experiment has no such unit. */
-export function unitRow(grid: ExperimentGrid, unitId: string): UnitRow | null {
+export function unitRow(
+  grid: ExperimentGridDetail,
+  unitId: string,
+): UnitRowOverview | null {
   const unit = grid.units.find((item) => item.id === unitId);
   const treatment = grid.treatments.find((item) => item.id === unit?.treatment);
   if (!unit || !treatment) return null;
@@ -167,4 +100,9 @@ export function unitRow(grid: ExperimentGrid, unitId: string): UnitRow | null {
     observations: grid.observations,
     cells: unitCells(grid, unit, cells, observationOrdinals(grid.observations)),
   };
+}
+
+/** Resolve a grid to the summary its sheet carries. */
+export function gridSummary(grid: ExperimentGridDetail) {
+  return experimentSheet(grid).summary;
 }

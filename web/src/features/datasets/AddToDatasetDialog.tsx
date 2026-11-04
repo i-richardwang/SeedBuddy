@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
@@ -6,7 +5,11 @@ import {
   type NamedDataset,
 } from "../../domain/datasets/schema";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
-import { addToDataset, addToNewDataset } from "../../functions/datasets";
+import {
+  createDatasetFromImages,
+  createDatasetMemberships,
+} from "../../functions/datasets";
+import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -16,9 +19,9 @@ import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
 import { Select } from "../../ui/kit/Select";
 import { toast } from "../../ui/kit/Toast";
-import { m } from "../../paraglide/messages";
 
 const NEW_DATASET = "\0new";
+
 const FORM_ID = "add-to-dataset";
 
 export function AddToDatasetDialog({
@@ -40,7 +43,7 @@ export function AddToDatasetDialog({
       open={open}
       onClose={onClose}
       title={heading}
-      okText={m.dataset_add_submit()}
+      okText={m.add_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -65,7 +68,6 @@ function AddToDatasetForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [choice, setChoice] = useState(datasets[0]?.id ?? NEW_DATASET);
   const [name, setName] = useState("");
 
@@ -73,21 +75,22 @@ function AddToDatasetForm({
     void run(
       () =>
         choice === NEW_DATASET
-          ? addToNewDataset({ data: { name, images } })
-          : addToDataset({ data: { dataset: choice, images } }),
+          ? createDatasetFromImages({ data: { name, images } })
+          : createDatasetMemberships({ data: { dataset: choice, images } }),
       m.dataset_add_nothing_added(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      const { added, existing } = result.value;
-      const dataset = result.value.dataset.name;
-      onDone();
-      toast.success(
-        existing > 0
-          ? m.dataset_add_result_existing({ added, dataset, existing })
-          : m.dataset_add_result({ added, dataset }),
-      );
-      await router.invalidate();
-    });
+      {
+        onSuccess: (value) => {
+          const { added, existing } = value;
+          const dataset = value.dataset.name;
+          onDone();
+          toast.success(
+            existing > 0
+              ? m.dataset_add_result_existing({ added, dataset, existing })
+              : m.dataset_add_result({ added, dataset }),
+          );
+        },
+      },
+    );
   };
 
   return (
@@ -98,7 +101,7 @@ function AddToDatasetForm({
         submit();
       }}
     >
-      <Form.Field label={m.dataset_add_dataset_label()}>
+      <Form.Field label={m.dataset_label()}>
         <Select
           value={choice}
           disabled={busy}
@@ -113,7 +116,7 @@ function AddToDatasetForm({
         />
       </Form.Field>
       {choice === NEW_DATASET ? (
-        <Form.Field label={m.dataset_name_label()} required>
+        <Form.Field label={m.name_label({ kind: "thing" })} required>
           <Input
             value={name}
             onValueChange={setName}

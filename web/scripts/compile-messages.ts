@@ -2,4 +2,6 @@ import { compile } from "@inlang/paraglide-js";
 
 import { paraglideOptions } from "../paraglide.config";
 
-await compile(paraglideOptions);
+export async function compileMessages(): Promise<void> {
+  await compile(paraglideOptions);
+}

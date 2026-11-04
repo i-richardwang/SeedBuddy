@@ -34,3 +34,9 @@ export function businessFailure(error: DomainError): BusinessFailure {
     details: error.details,
   };
 }
+
+export function failureCategory(
+  error: unknown,
+): BusinessFailure["category"] | null {
+  return error instanceof DomainError ? error.category : null;
+}

@@ -1,50 +1,40 @@
 import { describe, expect, test } from "bun:test";
 
 import type { Dataset } from "../../domain/datasets/schema";
-import type { Unit } from "../../domain/experiments/contracts";
+import type { CultureEvent } from "../../domain/experiments/culture-events";
 import type {
-  CultureEvent,
+  ExperimentSheetDetail,
+  SheetCell,
+  Unit,
+  UnitRowOverview,
+} from "../../domain/experiments/read-model";
+import type {
   Experiment,
   ExperimentObservation,
   ManualReading,
 } from "../../domain/experiments/schema";
-import type {
-  ExperimentSheet,
-  SheetCell,
-  UnitRow,
-} from "../../domain/experiments/sheet";
-import { type AgentCallResult, executeAgentOperation } from "./execution";
-import { agentOperations, describeAgentOperations } from "./operations";
 import { storeAnnotation } from "../annotations/documents";
 import { createModel } from "../models/public";
-import {
-  baselineVersion,
-  imageDigest,
-  observeImagesForModel,
-  storeTexts,
-} from "../testing/fixtures";
+import { observeImagesForModel } from "../testing/experiments";
+import { imageDigest, storeTexts } from "../testing/images";
+import { baselineVersion } from "../testing/models";
+import { type AgentCallResult, executeAgentOperation } from "./execution";
+import { agentOperations, describeAgentOperations } from "./operations";
+import { failure } from "./testing";
 
 function output(result: AgentCallResult): unknown {
   if (!result.ok) throw new Error(`Operation failed: ${result.message}`);
   return result.output;
 }
 
-function failure(result: AgentCallResult): {
-  code: string;
-  message: string;
-} {
-  if (result.ok) throw new Error("Operation unexpectedly succeeded");
-  return { code: result.code, message: result.message };
-}
-
-async function readSheet(experiment: string): Promise<ExperimentSheet> {
+async function readSheet(experiment: string): Promise<ExperimentSheetDetail> {
   return output(
     await executeAgentOperation("get-experiment", { experiment }),
-  ) as ExperimentSheet;
+  ) as ExperimentSheetDetail;
 }
 
 function cellOf(
-  sheet: Pick<ExperimentSheet, "cells">,
+  sheet: Pick<ExperimentSheetDetail, "cells">,
   unit: string,
   observation: string,
 ): SheetCell {
@@ -343,7 +333,7 @@ describe("agent operations", () => {
         experiment: experiment.id,
         unit: counted!.id,
       }),
-    ) as UnitRow;
+    ) as UnitRowOverview;
     expect(row.unit.id).toBe(counted!.id);
     expect(row.treatment.name).toBe("T1");
     expect(row.cells).toHaveLength(1);
@@ -358,7 +348,7 @@ describe("agent operations", () => {
           readings: [{ unit: counted!.id, tally: { shoots: 1 } }],
         }),
       ).code,
-    ).toBe("conflict");
+    ).toBe("invalid_request");
 
     output(
       await executeAgentOperation("enter-manual-readings", {
@@ -653,6 +643,6 @@ describe("agent operations", () => {
         )
       ).images,
     });
-    expect(failure(mismatch).code).toBe("conflict");
+    expect(failure(mismatch).code).toBe("invalid_request");
   });
 });

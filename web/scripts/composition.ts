@@ -1,5 +1,5 @@
-import traverse from "@babel/traverse";
 import { parse } from "@babel/parser";
+import traverse from "@babel/traverse";
 
 const RULES = "docs/interface.md";
 
@@ -9,7 +9,7 @@ const RULES = "docs/interface.md";
  * marks are drawn on the image, not set in the page's type.
  */
 const DRAWING_FILES = new Set([
-  "src/features/annotation/BoxLayer.tsx",
+  "src/features/annotation/box-layers.tsx",
   "src/ui/viewport/ImageViewport.tsx",
 ]);
 

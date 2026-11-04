@@ -33,8 +33,19 @@ def _serve_ready(monkeypatch, respond) -> list[httpx.Request]:
     return requests
 
 
+@pytest.mark.parametrize(
+    "adapters, device, expected",
+    [
+        (
+            ("traditional", "ultralytics"),
+            "cpu",
+            ("runtimes: traditional, ultralytics (cpu)", "device: cpu"),
+        ),
+        (("traditional",), None, ("runtimes: traditional",)),
+    ],
+)
 def test_preflight_checks_the_authenticated_server_and_runtimes(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, adapters, device, expected
 ) -> None:
     monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
     requests = _serve_ready(
@@ -43,15 +54,12 @@ def test_preflight_checks_the_authenticated_server_and_runtimes(
     monkeypatch.setattr(
         worker_host,
         "available_runtimes",
-        lambda: (
-            SimpleNamespace(adapter="traditional"),
-            SimpleNamespace(adapter="ultralytics"),
-        ),
+        lambda: tuple(SimpleNamespace(adapter=adapter) for adapter in adapters),
     )
     profile = WorkerProfile(
         server_url="https://example.test",
         token="training-secret",
-        device="cpu",
+        device=device,
     )
 
     checks = worker_host.preflight_profile("trainer", profile)
@@ -59,31 +67,7 @@ def test_preflight_checks_the_authenticated_server_and_runtimes(
     assert requests[0].url.path == "/api/worker/ready"
     assert requests[0].headers["authorization"] == "Bearer training-secret"
     assert "worker: trainer" in checks
-    assert checks[-2:] == ("runtimes: traditional, ultralytics (cpu)", "device: cpu")
-
-
-def test_preflight_reports_the_runtimes_it_will_advertise(
-    tmp_path, monkeypatch
-) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
-    requests = _serve_ready(
-        monkeypatch, lambda _: httpx.Response(200, json={"workerId": "trainer"})
-    )
-    monkeypatch.setattr(
-        worker_host,
-        "available_runtimes",
-        lambda: (SimpleNamespace(adapter="traditional"),),
-    )
-    profile = WorkerProfile(
-        server_url="https://example.test",
-        token="inference-secret",
-    )
-
-    checks = worker_host.preflight_profile("mac-mps", profile)
-
-    assert requests[0].url.path == "/api/worker/ready"
-    assert requests[0].headers["authorization"] == "Bearer inference-secret"
-    assert "runtimes: traditional" in checks
+    assert checks[4:] == expected
 
 
 def test_preflight_surfaces_an_installed_but_broken_runtime(
@@ -132,10 +116,9 @@ def test_profile_host_passes_typed_settings_and_marks_readiness(
     )
     received: list[WorkerSettings] = []
 
-    def run(settings: WorkerSettings, *, on_ready):
+    def run(settings: WorkerSettings, *, on_ready) -> None:
         received.append(settings)
         on_ready()
-        return 0
 
     monkeypatch.setattr(worker_host, "run_worker", run)
 
@@ -162,7 +145,7 @@ def test_profile_host_records_startup_failures_in_status_and_log(
         ),
     )
 
-    def fail(_settings, *, on_ready):
+    def fail(_settings, *, on_ready) -> None:
         raise RuntimeError("startup failed")
 
     monkeypatch.setattr(worker_host, "run_worker", fail)
@@ -183,7 +166,7 @@ def test_an_unenrolled_worker_stops_cleanly_and_says_why(tmp_path, monkeypatch) 
         WorkerProfile(server_url="https://example.test", token="removed"),
     )
 
-    def refused(_settings, *, on_ready):
+    def refused(_settings, *, on_ready) -> None:
         raise WorkerNotEnrolledError
 
     monkeypatch.setattr(worker_host, "run_worker", refused)

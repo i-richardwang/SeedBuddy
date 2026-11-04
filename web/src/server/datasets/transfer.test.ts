@@ -1,29 +1,24 @@
-import { DatasetImportError } from "../../domain/datasets/errors";
 import { describe, expect, test } from "bun:test";
 import sharp from "sharp";
 
-import { contentDigest } from "../infra/digest";
+import { DatasetImportInvalidError } from "../../domain/datasets/errors";
+import { ImageSourceInvalidError } from "../../domain/images/errors";
 import { imageBlobKey } from "../images/keys";
-import { requireBlob } from "../infra/blobs/store";
-import { importDataset, readDatasetManifest } from "./transfer";
-import { readDatasetByName } from "./memberships";
-import { readAnnotation } from "../annotations/documents";
-import { ImageSourceError } from "../images/ingest";
 import { storeCanonicalImage } from "../images/store";
-import { handleCanonicalImageUpload } from "../transport/http/image-upload";
-import { listImageRecords } from "./records";
 import {
   clearImageUnclear,
   markImageUnclear,
   readUnclearImages,
 } from "../images/unclear";
-import {
-  imageBytes,
-  imageDigest,
-  reviewedDataset,
-  storeTexts,
-  uploadTexts,
-} from "../testing/fixtures";
+import { requireBlob } from "../infra/blobs/store";
+import { contentDigest } from "../infra/digest";
+import { observeTextsIntoDataset, reviewedDataset } from "../testing/datasets";
+import { imageBytes, imageDigest, storeTexts } from "../testing/images";
+import { readAnnotation } from "../testing/records";
+import { handleCanonicalImageUpload } from "../transport/http/image-upload";
+import { readDatasetByName } from "./datasets";
+import { listImageRecords } from "./records";
+import { importDataset, readDatasetManifest } from "./transfer";
 
 async function canonicalBytes(content: string) {
   return requireBlob(imageBlobKey((await storeTexts([content]))[0]!));
@@ -42,7 +37,7 @@ describe("canonical images entering by digest", () => {
   test("are refused when the bytes disagree with the digest or the encoding", async () => {
     const bytes = await canonicalBytes("transfer-mismatch");
     await expect(storeCanonicalImage("0".repeat(64), bytes)).rejects.toThrow(
-      ImageSourceError,
+      ImageSourceInvalidError,
     );
     const png = await imageBytes("transfer-png");
     await expect(storeCanonicalImage(contentDigest(png), png)).rejects.toThrow(
@@ -93,7 +88,7 @@ describe("dataset transfer", () => {
     expect(manifest.images).toHaveLength(2);
     expect(manifest.images.every((image) => image.annotation)).toBe(true);
 
-    const other = await uploadTexts("transfer-fresh", ["ts-c"]);
+    const other = await observeTextsIntoDataset("transfer-fresh", ["ts-c"]);
     const [otherRecord] = await listImageRecords(other.dataset.id);
     if (!otherRecord) throw new Error("no fresh image");
     const fresh = {
@@ -142,7 +137,7 @@ describe("dataset transfer", () => {
   });
 
   test("a manifest says which photographs are unclear, and an import never clears a mark made here", async () => {
-    const source = await uploadTexts("transfer-unclear-source", [
+    const source = await observeTextsIntoDataset("transfer-unclear-source", [
       "tu-fogged",
       "tu-clear",
       "tu-local",
@@ -228,7 +223,7 @@ describe("dataset transfer", () => {
     ).rejects.toThrow(/other metadata/);
     await expect(
       attempt({ dataset: "transfer-held-2" }),
-    ).rejects.toBeInstanceOf(DatasetImportError);
+    ).rejects.toBeInstanceOf(DatasetImportInvalidError);
     expect(await readDatasetByName("transfer-held-2")).toBeNull();
 
     expect(
@@ -268,7 +263,7 @@ describe("dataset transfer", () => {
       results.filter((result) => result.status === "fulfilled"),
     ).toHaveLength(1);
     const rejected = results.find((result) => result.status === "rejected");
-    expect(rejected?.reason).toBeInstanceOf(DatasetImportError);
+    expect(rejected?.reason).toBeInstanceOf(DatasetImportInvalidError);
     expect(await readDatasetByName("transfer-race")).toEqual({
       id: expect.any(String),
       name: "transfer-race",

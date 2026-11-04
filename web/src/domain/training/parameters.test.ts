@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 
-import { YOLO26N_WHOLE_RECIPE, YOLO26S_WHOLE_RECIPE } from "./recipes";
 import {
   PARAMETER_FIELDS,
   PARAMETER_GROUPS,
@@ -10,6 +9,7 @@ import {
   trainingOverridesSchema,
   trainingParametersSchema,
 } from "./parameters";
+import { TRAINING_PRESETS, YOLO26N_WHOLE_RECIPE } from "./recipes";
 
 test("editable fields accept preset values without exposing model identity", () => {
   const parameters = trainingParametersSchema.parse(
@@ -67,7 +67,7 @@ test("adjustments carried to another preset drop those it already makes", () => 
   expect(
     effectiveOverrides(
       { batch: 1, epochs: 80, nbs: 8 },
-      YOLO26S_WHOLE_RECIPE.parameters,
+      TRAINING_PRESETS[1].recipe.parameters,
     ),
   ).toEqual({ epochs: 80 });
 });

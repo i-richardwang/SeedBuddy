@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { attemptClaimSchema } from "../domain/workers/schema";
 import { failTrainingRun } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
-const bodySchema = trainingAttemptOwnerSchema.extend({
+const bodySchema = attemptClaimSchema.extend({
   error: z.string().min(1).max(2000),
 });
 
@@ -17,21 +17,13 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/fail")({
     handlers: {
       POST: async ({ params, request, context }) => {
         try {
-          const body = await parseWorkerSessionJson(
+          const { error, ...owner } = await parseWorkerSessionJson(
             request,
             bodySchema,
             context.workerId,
           );
           return Response.json(
-            await failTrainingRun(
-              params.runId,
-              {
-                workerId: body.workerId,
-                sessionId: body.sessionId,
-                attempt: body.attempt,
-              },
-              body.error,
-            ),
+            await failTrainingRun(params.runId, error, owner),
           );
         } catch (error) {
           return workerErrorResponse(

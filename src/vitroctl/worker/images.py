@@ -22,12 +22,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
-from vitroctl.io.image_io import CANONICAL_EXTENSION, verify_digest
+from vitroctl.io.files import content_digest, verify_digest
+from vitroctl.io.image_io import CANONICAL_EXTENSION
 
 LOGGER = logging.getLogger(__name__)
 
 BUDGET_BYTES = 20 * 1024**3
 DOWNLOADS = 4
+POLL_SECONDS = 0.5
 _PARTIAL = ".partial"
 
 Download = Callable[[str], bytes]
@@ -99,7 +101,8 @@ class ImageCache:
     def _download(self, digest: str, download: Download) -> Path:
         try:
             started = time.monotonic()
-            data = verify_digest(download(digest), digest)
+            data = download(digest)
+            verify_digest(content_digest(data), digest)
             target = self.path(digest)
             target.parent.mkdir(parents=True, exist_ok=True)
             partial = self.root / _PARTIAL / f"{digest}.{uuid4().hex}"
@@ -147,15 +150,13 @@ class ImageCache:
 
 def wait_for(
     future: Future[Path],
-    cancelled: Callable[[], bool] | None = None,
-    *,
-    poll_seconds: float = 0.5,
+    cancelled: Callable[[], bool],
 ) -> Path:
     """The fetched file, or `CancelledError` once the caller stops waiting."""
     while True:
-        if cancelled and cancelled():
+        if cancelled():
             raise CancelledError
         try:
-            return future.result(timeout=poll_seconds)
+            return future.result(timeout=POLL_SECONDS)
         except FutureTimeoutError:
             continue

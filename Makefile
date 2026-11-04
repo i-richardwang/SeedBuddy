@@ -29,7 +29,7 @@ check-reference:
 
 check-postgres:
 	@test -n "$(VITROFLOW_TEST_DATABASE_URL)" || (echo "Set VITROFLOW_TEST_DATABASE_URL" >&2; exit 2)
-	cd web && bun test src/server/infra/db/invariants.test.ts src/server/models/registry.test.ts src/server/images/analysis-maintenance.test.ts
+	cd web && bun test src/server/infra/db/schema.test.ts src/server/models/registry.test.ts src/server/images/analysis-maintenance.test.ts
 
 check-s3:
 	@test -n "$(VITROFLOW_TEST_S3_ENDPOINT)" || (echo "Set VITROFLOW_TEST_S3_ENDPOINT" >&2; exit 2)

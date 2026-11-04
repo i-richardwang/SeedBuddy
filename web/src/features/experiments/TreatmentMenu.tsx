@@ -1,15 +1,15 @@
-import { useRouter } from "@tanstack/react-router";
 import { CopyPlus, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { Treatment } from "../../domain/experiments/schema";
 import { removeTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { RowMenu } from "../../ui/ActionsMenu";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { toast } from "../../ui/kit/Toast";
-import { RowMenu } from "../../ui/ActionsMenu";
-import { ReplicatesDialog, TreatmentDialog } from "./TreatmentDialog";
+import { ReplicatesDialog } from "./ReplicatesDialog";
+import { TreatmentDialog } from "./TreatmentDialog";
 
 type Action = "edit" | "replicates";
 
@@ -24,7 +24,7 @@ export function TreatmentMenu({
   /** The last treatment of an experiment is not offered for deletion. */
   deletable: boolean;
 }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const [open, setOpen] = useState<Action | null>(null);
   const close = () => setOpen(null);
 
@@ -49,18 +49,20 @@ export function TreatmentMenu({
         key: "delete",
         icon: Trash2,
         danger: true,
-        label: m.treatment_menu_remove(),
+        label: m.treatment_menu_delete(),
         onClick: () =>
           confirmDestructive({
-            title: m.treatment_delete_title({ name: treatment.name }),
+            title: m.item_delete_title({ name: treatment.name }),
             content: m.treatment_delete_note(),
             confirmLabel: m.treatment_delete(),
+            failure: m.treatment_not_deleted(),
             onConfirm: async () => {
               await removeTreatment({
                 data: { experiment, treatment: treatment.id },
               });
-              toast.success(m.treatment_deleted({ name: treatment.name }));
-              await router.invalidate();
+            },
+            onSuccess: () => {
+              toast.success(m.item_deleted({ name: treatment.name }));
             },
           }),
       },
@@ -69,10 +71,7 @@ export function TreatmentMenu({
 
   return (
     <>
-      <RowMenu
-        label={m.treatment_actions({ name: treatment.name })}
-        items={items}
-      />
+      <RowMenu label={m.item_actions({ name: treatment.name })} items={items} />
       <TreatmentDialog
         experiment={experiment}
         treatment={treatment}

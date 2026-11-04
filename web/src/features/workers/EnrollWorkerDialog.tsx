@@ -1,8 +1,7 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { RESOURCE_ID_PATTERN } from "../../domain/identifiers/schema";
-import { addWorker } from "../../functions/status";
+import { createWorker } from "../../functions/workers";
 import { m } from "../../paraglide/messages";
 import { CopyableCode } from "../../ui/CopyableCode";
 import { FormDialog } from "../../ui/FormDialog";
@@ -16,16 +15,16 @@ import { RevealOnceDialog } from "../../ui/RevealOnceDialog";
 
 const FORM_ID = "enroll-worker";
 
-/** What the machine needs: its setup command and the token it connects with. */
+/** What the Worker needs: its setup command and the token it connects with. */
 interface Enrollment {
   command: string;
   token: string;
 }
 
 /**
- * An administrator names a machine. Once enrolled, the form closes and the
+ * An administrator names a Worker. Once enrolled, the form closes and the
  * setup command and token are shown, the only time the token is visible; the
- * worker list refreshes when that closes.
+ * Worker list refreshes when that closes.
  */
 export function EnrollWorkerDialog({
   open,
@@ -34,7 +33,6 @@ export function EnrollWorkerDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const action = useAsyncAction();
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
 
@@ -43,7 +41,7 @@ export function EnrollWorkerDialog({
       <FormDialog
         open={open}
         onClose={onClose}
-        title={m.worker_enroll_title()}
+        title={m.worker_enroll()}
         okText={m.worker_enroll_create()}
         formId={FORM_ID}
         busy={action.busy}
@@ -62,7 +60,6 @@ export function EnrollWorkerDialog({
         hint={m.worker_enroll_shown_once()}
         onClose={() => {
           setEnrollment(null);
-          void router.invalidate();
         }}
       >
         {({ command, token }) => (
@@ -95,22 +92,24 @@ function EnrollWorkerForm({
         const form = new FormData(event.currentTarget);
         void run(
           () =>
-            addWorker({
+            createWorker({
               data: { workerId: String(form.get("workerId") ?? "") },
             }),
-          m.worker_enroll_failed(),
-        ).then((result) => {
-          if (!result.ok) return;
-          const { workerId, token } = result.value;
-          onEnrolled({
-            command: `vitroctl worker setup ${workerId} --server ${window.location.origin}`,
-            token,
-          });
-        });
+          m.worker_not_enrolled(),
+          {
+            invalidate: false,
+            onSuccess: ({ workerId, token }) => {
+              onEnrolled({
+                command: `vitroctl worker setup ${workerId} --server ${window.location.origin}`,
+                token,
+              });
+            },
+          },
+        );
       }}
     >
       <Form.Field
-        label={m.worker_enroll_name_label()}
+        label={m.name_label({ kind: "thing" })}
         desc={m.worker_enroll_name_description()}
         name="workerId"
         required

@@ -8,13 +8,15 @@ from typing import Any
 
 import httpx
 import pytest
+from conftest import decode_model_manifest, detection_document
 
 from vitroctl.detectors.contract import RuntimeDescriptor
 from vitroctl.worker import inference
+from vitroctl.worker.connection import WorkerConnection
 from vitroctl.worker.inference import InferenceRunner
 from vitroctl.worker.inference_process import InferenceExecutionError
 from vitroctl.worker.inference_protocol import Assignment, InferenceClient
-from vitroctl.worker.model_store import ModelManifest, ModelStore
+from vitroctl.worker.model_store import ModelStore
 from vitroctl.worker.session import LeaseLostError, WorkerClient, WorkerSession
 
 RUNTIME = RuntimeDescriptor(adapter="traditional", fingerprint="b" * 64)
@@ -70,8 +72,7 @@ class Workbench:
     def client(self) -> InferenceClient:
         return InferenceClient(
             WorkerClient(
-                "https://example.test",
-                "secret",
+                WorkerConnection(server_url="https://example.test", token="secret"),
                 SESSION,
                 transport=httpx.MockTransport(self),
             )
@@ -87,7 +88,7 @@ class Process:
         check()
         if self.action:
             self.action(check)
-        return {"image": assignment.image}
+        return detection_document(assignment.image)
 
     def close(self):
         self.closed += 1
@@ -97,7 +98,7 @@ class Process:
     "filename", ["inference-assignment.json", "inference-assignment-yolo.json"]
 )
 def test_shared_assignment_contract(filename: str):
-    a = Assignment.parse(
+    a = Assignment.from_document(
         json.loads(
             (Path(__file__).parent / "fixtures/contracts" / filename).read_text()
         )
@@ -107,10 +108,10 @@ def test_shared_assignment_contract(filename: str):
 
 
 def test_assignment_requires_an_attempt_and_valid_deadlines():
-    with pytest.raises(ValueError):
-        Assignment.parse({"manifest": MANIFEST, "image": "c" * 64})
+    with pytest.raises(ValueError, match="assignment.*required property"):
+        Assignment.from_document({"manifest": MANIFEST, "image": "c" * 64})
     with pytest.raises(ValueError, match="deadlines"):
-        Assignment.parse({**DOCUMENT, "deadlineAt": DOCUMENT["serverTime"]})
+        Assignment.from_document({**DOCUMENT, "deadlineAt": DOCUMENT["serverTime"]})
 
 
 def test_worker_claims_only_one_task_and_fences_its_result():
@@ -119,7 +120,7 @@ def test_worker_claims_only_one_task_and_fences_its_result():
     process = Process()
     runner = InferenceRunner(client, process)  # type: ignore[arg-type]
     try:
-        assert runner.run_once()
+        assert runner.run_once(threading.Event())
         assert len(server.assignments) == 1
         assert [r.method for r in server.calls] == ["POST", "PUT"]
         assert dict(server.calls[-1].url.params) == {
@@ -127,7 +128,7 @@ def test_worker_claims_only_one_task_and_fences_its_result():
             "attempt": "3",
         }
         assert process.closed == 0
-        assert runner.run_once()
+        assert runner.run_once(threading.Event())
         assert len(server.assignments) == 0
     finally:
         runner.close()
@@ -143,7 +144,7 @@ def test_execution_errors_are_attempt_failures_not_detection_results():
 
     process = Process(fail)
     try:
-        assert InferenceRunner(client, process).run_once()  # type: ignore[arg-type]
+        assert InferenceRunner(client, process).run_once(threading.Event())  # type: ignore[arg-type]
         assert not any(r.method == "PUT" for r in server.calls)
         request = server.calls[-1]
         assert request.url.path.endswith("/fail")
@@ -164,7 +165,7 @@ def test_lost_lease_stops_execution_and_prevents_late_result(monkeypatch):
     process = Process()
     try:
         with pytest.raises(LeaseLostError):
-            InferenceRunner(client, process).run_once()  # type: ignore[arg-type]
+            InferenceRunner(client, process).run_once(threading.Event())  # type: ignore[arg-type]
         assert process.closed == 1
         assert not any(r.method == "PUT" for r in server.calls)
     finally:
@@ -183,7 +184,7 @@ def test_execution_deadline_stops_a_live_worker_even_when_renewal_succeeds(monke
 
     process = Process(hang)
     try:
-        assert InferenceRunner(client, process).run_once()  # type: ignore[arg-type]
+        assert InferenceRunner(client, process).run_once(threading.Event())  # type: ignore[arg-type]
         assert process.closed == 1
         assert not any(r.method == "PUT" for r in server.calls)
     finally:
@@ -220,13 +221,14 @@ def test_result_transport_retries_keep_the_same_attempt_and_payload():
         return original(request)
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         SESSION,
         transport=httpx.MockTransport(transport),
     )
     try:
-        assert InferenceRunner(InferenceClient(worker), Process()).run_once()  # type: ignore[arg-type]
+        assert InferenceRunner(InferenceClient(worker), Process()).run_once(  # type: ignore[arg-type]
+            threading.Event()
+        )
         assert len(results) == 2 and results[0] == results[1]
     finally:
         worker.close()
@@ -240,8 +242,7 @@ def test_inference_network_deadline_bounds_a_streaming_response():
                 yield b"x"
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         SESSION,
         transport=httpx.MockTransport(
             lambda request: httpx.Response(200, stream=SlowStream())
@@ -258,20 +259,21 @@ def test_inference_network_deadline_bounds_a_streaming_response():
 
 def test_traditional_detector_requires_its_class(tmp_path: Path):
     class NoWeights:
-        def weights(self, version_id: str) -> bytes:
+        def weights(self, version_id: str, deadline: float) -> bytes:
             raise AssertionError(version_id)
 
     store = ModelStore(NoWeights(), tmp_path, None)
     with pytest.raises(ValueError, match="declares ungerminated"):
-        store.load(ModelManifest.parse({**MANIFEST, "classes": ["germinated"]}))
+        store.load(
+            decode_model_manifest({**MANIFEST, "classes": ["germinated"]}), 123.0
+        )
 
 
 def test_bounded_http_decodes_compressed_responses_once():
     import gzip
 
     worker = WorkerClient(
-        "https://example.test",
-        "secret",
+        WorkerConnection(server_url="https://example.test", token="secret"),
         SESSION,
         transport=httpx.MockTransport(
             lambda request: httpx.Response(
@@ -288,3 +290,89 @@ def test_bounded_http_decodes_compressed_responses_once():
         )
     finally:
         worker.close()
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        (
+            {"quality": {"status": "ok", "warnings": ["Not A Code"]}},
+            r"quality.warnings\[0\]",
+        ),
+        (
+            {
+                "instances": [
+                    {
+                        "id": "1",
+                        "class": "seed",
+                        "score": float("nan"),
+                        "bbox": {"x": 0, "y": 0, "width": 1, "height": 1},
+                    }
+                ]
+            },
+            r"instances\[0\].score must be finite",
+        ),
+        (
+            {
+                "instances": [
+                    {
+                        "id": "1",
+                        "class": "seed",
+                        "score": 1.1,
+                        "bbox": {"x": 0, "y": 0, "width": 1, "height": 1},
+                    }
+                ]
+            },
+            r"instances\[0\].score.*shared contract",
+        ),
+        (
+            {
+                "instances": [
+                    {
+                        "id": "1",
+                        "class": "seed",
+                        "score": 0.5,
+                        "bbox": {"x": 0, "y": 0, "width": 0, "height": 1},
+                    }
+                ]
+            },
+            r"instances\[0\].bbox.width.*shared contract",
+        ),
+    ],
+)
+def test_outbound_detection_is_validated_before_any_network_request(change, reason):
+    server = Workbench()
+    client = server.client()
+    try:
+        with pytest.raises(ValueError, match=reason):
+            client.put_result(
+                Assignment.from_document(DOCUMENT),
+                {**detection_document("c" * 64), **change},
+                time.monotonic() + 10,
+            )
+        assert server.calls == []
+    finally:
+        client.worker.close()
+
+
+def test_each_download_uses_its_call_deadline(monkeypatch):
+    server = Workbench()
+    client = server.client()
+    deadlines = []
+
+    def request(method, url, *, deadline):
+        deadlines.append(deadline)
+        return httpx.Response(
+            200,
+            content=b"bytes",
+            request=httpx.Request(method, "https://example.test/" + url),
+        )
+
+    monkeypatch.setattr(client.worker, "request", request)
+    try:
+        assert client.download("c" * 64, 100.0) == b"bytes"
+        assert client.weights("model-one", 200.0) == b"bytes"
+        assert client.download("d" * 64, 300.0) == b"bytes"
+        assert deadlines == [100.0, 200.0, 300.0]
+    finally:
+        client.worker.close()

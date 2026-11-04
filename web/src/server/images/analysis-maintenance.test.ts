@@ -1,13 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
 import { eq, inArray } from "drizzle-orm";
+
+import { putImmutableBlob, removeBlob } from "../infra/blobs/store";
+import { database, transaction } from "../infra/db/client";
+import { images } from "../infra/db/schema";
 import {
   createImageAnalysisRefresher,
   IMAGE_ANALYSIS_RETRY_MS,
 } from "./analysis-maintenance";
 import { DISH_RECIPE_ID } from "./dish-recipe";
-import { database, transaction } from "../infra/db/client";
-import { images } from "../infra/db/schema";
-import { putImmutableBlob, removeBlob } from "../infra/blobs/store";
 import { imageBlobKey } from "./keys";
 
 const inserted: string[] = [];
@@ -24,6 +25,7 @@ async function fixture(
     width: 1000,
     height: 1000,
     bytes: 1,
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     receivedAt: new Date(),
     dishAnalysisAttemptedAt: options.attemptedAt ?? null,
   });
@@ -54,12 +56,14 @@ test("failures larger than a batch cannot starve later images, even with a new r
   ) => (failures.has(image.digest) ? null : completed);
   for (let i = 0; i < 2; i++)
     expect(await createImageAnalysisRefresher(analyze)({ limit: 2 })).toEqual({
+      attemptedBefore: expect.any(Date),
       examined: 2,
       completed: 0,
       failed: 2,
       skipped: 0,
     });
   expect(await createImageAnalysisRefresher(analyze)({ limit: 2 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 2,
     completed: 1,
     failed: 1,
@@ -69,6 +73,7 @@ test("failures larger than a batch cannot starve later images, even with a new r
   for (const id of failures)
     expect((await row(id)).dishAnalysisAttemptedAt).toBeInstanceOf(Date);
   expect(await createImageAnalysisRefresher(analyze)({ limit: 1 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 0,
     completed: 0,
     failed: 0,
@@ -78,8 +83,10 @@ test("failures larger than a batch cannot starve later images, even with a new r
 
 test("untried images precede eligible retries, and recent failures stay in cooldown", async () => {
   const old = await fixture({
+    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     attemptedAt: new Date(Date.now() - 2 * IMAGE_ANALYSIS_RETRY_MS),
   });
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const fresh = await fixture({ attemptedAt: new Date() });
   const untried = await fixture();
   const calls: string[] = [];
@@ -96,6 +103,7 @@ test("untried images precede eligible retries, and recent failures stay in coold
     .update(images)
     .set({
       dishAnalysisAttemptedAt: new Date(
+        /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
         Date.now() - 2 * IMAGE_ANALYSIS_RETRY_MS,
       ),
     })
@@ -113,6 +121,7 @@ test("missing and corrupt images fail individually without aborting later work",
     return completed;
   });
   expect(await refresh({ limit: 3 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 3,
     completed: 1,
     failed: 2,
@@ -142,6 +151,7 @@ test("concurrent refreshers claim different images and do not hold locks during 
   try {
     await entered.promise;
     expect(await createImageAnalysisRefresher(analyze)({ limit: 1 })).toEqual({
+      attemptedBefore: expect.any(Date),
       examined: 1,
       completed: 1,
       failed: 0,
@@ -162,8 +172,8 @@ test.skipIf(process.env.DATABASE_URL?.startsWith("pglite://") ?? false)(
     const second = await fixture();
     const entered = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
-    const locked = transaction(async (tx) => {
-      await tx.select().from(images).where(eq(images.id, first)).for("update");
+    const locked = transaction(async (db) => {
+      await db.select().from(images).where(eq(images.id, first)).for("update");
       entered.resolve();
       await release.promise;
     });
@@ -196,12 +206,14 @@ test("a late refresh preserves newer ingestion and reports the result as skipped
       .update(images)
       .set({
         dishAnalysis: newer,
+        /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
         dishAnalysisAttemptedAt: new Date(Date.now() + 1),
       })
       .where(eq(images.id, id));
     return completed;
   });
   expect(await refresh({ limit: 1 })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 1,
     completed: 0,
     failed: 0,
@@ -219,7 +231,13 @@ test("deletion during analysis is skipped while later results are persisted", as
     return completed;
   });
   const result = await refresh({ limit: 2 });
-  expect(result).toEqual({ examined: 2, completed: 1, failed: 0, skipped: 1 });
+  expect(result).toEqual({
+    attemptedBefore: expect.any(Date),
+    examined: 2,
+    completed: 1,
+    failed: 0,
+    skipped: 1,
+  });
   expect(result.examined).toBe(
     result.completed + result.failed + result.skipped,
   );
@@ -228,9 +246,11 @@ test("deletion during analysis is skipped while later results are persisted", as
 
 test("a fixed sweep cutoff excludes failures even after their cooldown expires", async () => {
   const id = await fixture();
+  /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const attemptedBefore = new Date(Date.now() - 3 * IMAGE_ANALYSIS_RETRY_MS);
   const refresh = createImageAnalysisRefresher(async () => null);
   expect(await refresh({ limit: 1, attemptedBefore })).toEqual({
+    attemptedBefore,
     examined: 1,
     completed: 0,
     failed: 1,
@@ -246,6 +266,7 @@ test("a fixed sweep cutoff excludes failures even after their cooldown expires",
     })
     .where(eq(images.id, id));
   expect(await refresh({ limit: 1, attemptedBefore })).toEqual({
+    attemptedBefore,
     examined: 0,
     completed: 0,
     failed: 0,
@@ -262,6 +283,7 @@ test("shutdown finishes the current image and leaves the next one unclaimed", as
     return completed;
   });
   expect(await refresh({ limit: 2, signal: stop.signal })).toEqual({
+    attemptedBefore: expect.any(Date),
     examined: 1,
     completed: 1,
     failed: 0,

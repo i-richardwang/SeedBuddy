@@ -1,4 +1,8 @@
 .ui-avatar {
+  block-size: 28px;
+  inline-size: 28px;
+  border-radius: calc(28px / 6);
+  font-size: var(--text-base);
   user-select: none;
 
   overflow: hidden;

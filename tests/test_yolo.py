@@ -4,26 +4,34 @@ import pytest
 from conftest import (
     SEED_CLASSES,
     annotation_document,
+    decode_annotation,
     encoded_image,
     manifest_entry,
     write_blob,
     write_manifest,
 )
 
-from vitroctl.annotations import AnnotationInstance, BoundingBox, parse_annotation
-from vitroctl.datasets.annotations import AnnotatedImage, load_annotations
-from vitroctl.datasets.manifest import BlobError, ManifestImage, blob_path
+from vitroctl.contracts.annotation import (
+    AnnotationInstance,
+    BoundingBox,
+)
+from vitroctl.datasets.manifest import (
+    AnnotatedImage,
+    BlobError,
+    blob_path,
+    load_dataset_manifest,
+)
 from vitroctl.detectors.ultralytics import (
     DatasetImage,
-    assign_splits,
     export_dataset_images,
     export_yolo_dataset,
 )
+from vitroctl.detectors.ultralytics.dataset import assign_splits
 from vitroctl.io.image_io import CANONICAL_EXTENSION
 
 
 def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
-    entry = ManifestImage(
+    return AnnotatedImage(
         digest=digest,
         width=100,
         height=80,
@@ -31,12 +39,11 @@ def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
         bytes=1,
         split=split,
         detection=None,
-        annotation=None,
+        annotation=decode_annotation(
+            annotation_document(digest, [{"x": 10, "y": 20, "width": 20, "height": 10}])
+        ),
+        unclear=False,
     )
-    annotation = annotation_document(
-        digest, [{"x": 10, "y": 20, "width": 20, "height": 10}]
-    )
-    return AnnotatedImage(entry, parse_annotation(annotation))
 
 
 def _annotated_blobs(
@@ -61,7 +68,7 @@ def test_yolo_export_is_deterministic_and_self_contained(tmp_path: Path) -> None
 
     entries = manifest["images"]
     assert [entry["digest"] for entry in entries] == sorted(
-        image.entry.digest for image in annotated
+        image.digest for image in annotated
     )
     assert {entry["split"] for entry in entries} == {"train", "val"}
     for entry in entries:
@@ -96,6 +103,8 @@ def test_yolo_export_preserves_the_model_class_order(tmp_path: Path) -> None:
         images.append(
             DatasetImage(
                 digest=digest,
+                split=None,
+                file_path=blob_path(data_root, digest),
                 width=100,
                 height=80,
                 instances=(
@@ -112,7 +121,6 @@ def test_yolo_export_preserves_the_model_class_order(tmp_path: Path) -> None:
     manifest = export_dataset_images(
         images,
         ("seed", "germinated"),
-        data_root,
         output,
         seed=7,
     )
@@ -146,23 +154,15 @@ def test_yolo_validation_split_is_stable_per_digest(tmp_path: Path) -> None:
     assert sum(entry["split"] == "val" for entry in first["images"]) == 1
 
 
-def test_yolo_export_honours_recorded_splits(tmp_path: Path) -> None:
-    data_root = tmp_path / "data"
-    annotated = _annotated_blobs(data_root, 2, ("val", "train"))
-
-    manifest = export_yolo_dataset(
-        annotated, SEED_CLASSES, data_root, tmp_path / "yolo", seed=3
-    )
-
-    assert {entry["digest"]: entry["split"] for entry in manifest["images"]} == {
-        image.entry.digest: image.entry.split for image in annotated
-    }
-
-
 def test_split_assignment_fills_the_quota_around_recorded_splits() -> None:
     def image(digest: str, split: str | None = None) -> DatasetImage:
         return DatasetImage(
-            digest=digest, width=100, height=80, instances=(), split=split
+            digest=digest,
+            width=100,
+            height=80,
+            instances=(),
+            split=split,
+            file_path=Path(digest),
         )
 
     recorded = [image("1" * 64, "val"), image("2" * 64, "train")]
@@ -178,17 +178,6 @@ def test_split_assignment_fills_the_quota_around_recorded_splits() -> None:
     assert assign_splits(only_val, 0.9, seed=1)["2" * 64] == "train"
     only_train = [image("1" * 64, "train"), image("2" * 64)]
     assert assign_splits(only_train, 0.1, seed=1)["2" * 64] == "val"
-    with pytest.raises(ValueError, match="both train and val"):
-        assign_splits([image("1" * 64, "train"), image("2" * 64, "train")], 0.2, 1)
-
-
-def test_yolo_export_requires_unique_digests(tmp_path: Path) -> None:
-    data_root = tmp_path / "data"
-    digest = write_blob(data_root, encoded_image())
-    image = DatasetImage(digest=digest, width=100, height=80, instances=())
-
-    with pytest.raises(ValueError, match="unique image digests"):
-        export_dataset_images([image, image], SEED_CLASSES, data_root, tmp_path / "dup")
 
 
 def test_yolo_export_discards_an_invalid_dataset(tmp_path: Path) -> None:
@@ -209,9 +198,7 @@ def test_yolo_export_discards_an_invalid_dataset(tmp_path: Path) -> None:
 def test_yolo_export_refuses_a_corrupted_blob(tmp_path: Path) -> None:
     data_root = tmp_path / "data"
     annotated = _annotated_blobs(data_root, 2)
-    blob_path(data_root, annotated[1].entry.digest).write_bytes(
-        encoded_image(variant=9)
-    )
+    blob_path(data_root, annotated[1].digest).write_bytes(encoded_image(variant=9))
     output = tmp_path / "yolo"
 
     with pytest.raises(BlobError, match="digest verification"):
@@ -223,7 +210,7 @@ def test_yolo_export_refuses_a_corrupted_blob(tmp_path: Path) -> None:
 def test_yolo_export_refuses_a_missing_blob(tmp_path: Path) -> None:
     data_root = tmp_path / "data"
     annotated = _annotated_blobs(data_root, 2)
-    blob_path(data_root, annotated[0].entry.digest).unlink()
+    blob_path(data_root, annotated[0].digest).unlink()
 
     with pytest.raises(BlobError, match="missing"):
         export_yolo_dataset(annotated, SEED_CLASSES, data_root, tmp_path / "yolo")
@@ -241,10 +228,36 @@ def test_export_reads_recorded_splits_from_the_manifest(tmp_path: Path) -> None:
         )
     manifest_path = write_manifest(data_root, "batch", entries)
 
-    annotated = load_annotations(manifest_path)
+    annotated = load_dataset_manifest(manifest_path).annotated
     manifest = export_yolo_dataset(
         annotated, SEED_CLASSES, data_root, tmp_path / "yolo"
     )
 
     recorded = {entry["digest"]: entry["split"] for entry in entries}
     assert {entry["digest"]: entry["split"] for entry in manifest["images"]} == recorded
+
+
+def test_yolo_export_honours_recorded_splits(tmp_path: Path) -> None:
+    data_root = tmp_path / "data"
+    annotated = _annotated_blobs(data_root, 3, splits=("val", "train", "train"))
+    output = tmp_path / "yolo"
+    manifest = export_yolo_dataset(annotated, SEED_CLASSES, data_root, output)
+    assert {entry["digest"]: entry["split"] for entry in manifest["images"]} == {
+        image.digest: image.split for image in annotated
+    }
+    for entry in manifest["images"]:
+        assert (output / entry["image"]).is_file()
+        assert (output / entry["label"]).is_file()
+
+
+@pytest.mark.parametrize("splits", [(), (None,), ("train", "train"), ("val", "val")])
+def test_export_requires_training_and_validation_images(tmp_path, splits):
+    from vitroctl.detectors.ultralytics.dataset import DatasetSplitError
+
+    images = [
+        DatasetImage(str(index), 100, 80, (), tmp_path / str(index), split)
+        for index, split in enumerate(splits)
+    ]
+    with pytest.raises(DatasetSplitError, match="both train and val"):
+        export_dataset_images(images, SEED_CLASSES, tmp_path / "export")
+    assert not (tmp_path / "export").exists()

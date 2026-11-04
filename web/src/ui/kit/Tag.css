@@ -31,7 +31,3 @@
   background: var(--color-warning-fill);
 }
 
-.ui-tag-info {
-  color: var(--color-info);
-  background: var(--color-info-fill);
-}

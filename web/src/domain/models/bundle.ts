@@ -1,15 +1,17 @@
-import { inferenceSettingsSchema } from "./inference";
-import { MAX_MODEL_WEIGHTS_BYTES } from "./transfer";
 import { z } from "zod";
-import { sha256Schema, resourceIdSchema } from "../identifiers/schema";
-import { classListSchema } from "./classes";
+
+import { resourceIdSchema, sha256Schema } from "../identifiers/schema";
+import { timestampSchema } from "../time";
 import {
   detectionValidationSchema,
   trainingRecipeSchema,
 } from "../training/schema";
+import { classListSchema } from "./classes";
+import { inferenceSettingsSchema } from "./inference";
+import { MAX_MODEL_WEIGHTS_BYTES } from "./transfer";
 
 /** Executable settings supported by the whole-image adapter. Unsupported pipelines fail closed. */
-export const bundleInferenceSchema = inferenceSettingsSchema.extend({
+const bundleInferenceSchema = inferenceSettingsSchema.extend({
   mode: z.literal("whole_image"),
   imageSize: z.number().int().positive().max(8192),
   maxDetections: z.number().int().positive().max(10000),
@@ -60,5 +62,5 @@ export const modelUploadRefSchema = z.strictObject({
 export const modelUploadSchema = z.strictObject({
   uploadId: resourceIdSchema,
   uploadPath: z.string(),
-  expiresAt: z.string().datetime({ offset: true }),
+  expiresAt: timestampSchema,
 });

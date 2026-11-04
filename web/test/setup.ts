@@ -1,9 +1,30 @@
+import { statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const webRoot = fileURLToPath(new URL("../", import.meta.url));
+const messagesOutput = new URL("../src/paraglide/messages.js", import.meta.url);
+const compiledAt =
+  statSync(messagesOutput, { throwIfNoEntry: false })?.mtimeMs ?? 0;
+const messageInputs = new Bun.Glob(
+  "{messages/**/*.json,project.inlang/settings.json,paraglide.config.ts,scripts/compile-messages.ts,package.json,bun.lock}",
+);
+if (
+  !compiledAt ||
+  [...messageInputs.scanSync({ cwd: webRoot, absolute: true })].some(
+    (path) => statSync(path).mtimeMs > compiledAt,
+  )
+) {
+  const { compileMessages } = await import("../scripts/compile-messages");
+  await compileMessages();
+}
+
 process.env.VITROFLOW_IMAGE_ANALYSIS_URL = new URL(
   "../src/server/images/dish-thread.ts",
   import.meta.url,
 ).href;
-import { bootstrap } from "../src/server/bootstrap";
+
 import { auth } from "../src/server/auth/public";
+import { bootstrap } from "../src/server/bootstrap";
 
 process.env.DATABASE_URL =
   process.env.VITROFLOW_TEST_DATABASE_URL ?? "pglite://";

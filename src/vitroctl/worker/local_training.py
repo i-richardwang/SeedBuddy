@@ -4,30 +4,33 @@ from __future__ import annotations
 
 import json
 import shutil
-from dataclasses import asdict
 from pathlib import Path
 
 from vitroctl.detectors.ultralytics.checkpoints import CHECKPOINT_FILES, EPOCH_JOURNAL
 from vitroctl.io.files import atomic_directory, write_text_atomically
-from vitroctl.training.documents import TrainingJob
+from vitroctl.training.documents import TrainingClaim
 
 LOCAL_TRAINING_IDENTITY = "training-identity.json"
 
 
-def prepare_local_training(job: TrainingJob, root: Path) -> None:
+def attempt_directory(runs: Path, run_id: str, attempt: int) -> Path:
+    return runs / f"{run_id}-{attempt}"
+
+
+def prepare_local_training(claim: TrainingClaim, root: Path) -> None:
     identity = {
-        "runId": job.run_id,
-        "snapshotId": job.dataset_snapshot_id,
-        "workerId": job.worker_id,
-        "recipe": asdict(job.recipe),
+        "runId": claim.run_id,
+        "snapshotId": claim.dataset_snapshot_id,
+        "workerId": claim.worker_id,
+        "recipe": claim.recipe.to_dict(),
     }
-    checkpoint = job.checkpoint
+    checkpoint = claim.checkpoint
     if checkpoint:
-        if checkpoint.worker_id != job.worker_id:
+        if checkpoint.worker_id != claim.worker_id:
             raise ValueError(
                 "Local checkpoint belongs to another worker; restart training"
             )
-        source = root.parent / f"{job.run_id}-{checkpoint.attempt}"
+        source = attempt_directory(root.parent, claim.run_id, checkpoint.attempt)
         try:
             saved = json.loads((source / LOCAL_TRAINING_IDENTITY).read_text())
             if saved != identity:

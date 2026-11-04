@@ -5,12 +5,9 @@ import {
   annotationInstanceSchema,
   annotationRefSchema,
 } from "../domain/annotation/schema";
-import {
-  AnnotationConflictError,
-  storeAnnotation,
-} from "../server/annotations/public";
+import { storeAnnotation } from "../server/annotations/public";
 
-export const saveAnnotation = createServerFn({ method: "POST" })
+export const updateAnnotation = createServerFn({ method: "POST" })
   .validator(
     z.strictObject({
       ref: annotationRefSchema,
@@ -19,13 +16,6 @@ export const saveAnnotation = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    try {
-      await storeAnnotation(data.ref, data.instances, data.base);
-      return { status: "saved" } as const;
-    } catch (error) {
-      if (error instanceof AnnotationConflictError) {
-        return { status: "conflict" } as const;
-      }
-      throw error;
-    }
+    await storeAnnotation(data.ref, data.instances, data.base);
+    return { status: "saved" } as const;
   });

@@ -1,7 +1,7 @@
 import type { JWTPayload } from "better-auth";
 import { and, eq, gt } from "drizzle-orm";
 
-import { database } from "../infra/db/client";
+import { database, operationTime } from "../infra/db/client";
 import {
   oauthClients,
   oauthConsents,
@@ -15,7 +15,7 @@ function stringClaim(claims: JWTPayload, name: string): string | null {
 }
 
 /** The MCP client a verified JWT was issued to. */
-export function mcpClientId(claims: JWTPayload): string | null {
+function mcpClientId(claims: JWTPayload): string | null {
   return stringClaim(claims, "client_id") ?? stringClaim(claims, "azp");
 }
 
@@ -59,7 +59,7 @@ export async function mcpAuthorizationIsLive(
       and(
         eq(sessions.id, sessionId),
         eq(sessions.userId, userId),
-        gt(sessions.expiresAt, new Date()),
+        gt(sessions.expiresAt, await operationTime(db)),
       ),
     );
   return session !== undefined;

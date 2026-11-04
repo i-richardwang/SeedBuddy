@@ -1,17 +1,17 @@
 import { useState } from "react";
 
 import { today } from "../../domain/experiments/schema";
-import { startExperiment } from "../../functions/experiments";
+import { createExperiment } from "../../functions/experiments";
+import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { Form } from "../../ui/kit/Form";
-import { m } from "../../paraglide/messages";
 import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
+import { Form } from "../../ui/kit/Form";
 import {
   DesignField,
+  type DesignRow,
   initialDesign,
   submittedDesign,
-  type DesignRow,
 } from "./DesignField";
 import { ExperimentFields, readExperimentFields } from "./ExperimentFields";
 
@@ -63,27 +63,28 @@ function NewExperimentSession({
           event.preventDefault();
           if (treatments.length === 0) return;
           const form = new FormData(event.currentTarget);
-          void action
-            .run(
-              () =>
-                startExperiment({
-                  data: {
-                    ...readExperimentFields(form),
-                    inoculatedOn,
-                    countsUnclear,
-                    treatments,
-                  },
-                }),
-              m.experiment_not_started(),
-            )
-            .then(async (result) => {
-              if (!result.ok) return;
-              onClose();
-              await navigateAfterWrite({
-                to: "/experiments/$experiment",
-                params: { experiment: result.value.id },
-              });
-            });
+          void action.run(
+            () =>
+              createExperiment({
+                data: {
+                  ...readExperimentFields(form),
+                  inoculatedOn,
+                  countsUnclear,
+                  treatments,
+                },
+              }),
+            m.experiment_not_started(),
+            {
+              invalidate: false,
+              onSuccess: async (experiment) => {
+                onClose();
+                await navigateAfterWrite({
+                  to: "/experiments/$experiment",
+                  params: { experiment: experiment.id },
+                });
+              },
+            },
+          );
         }}
       >
         <ExperimentFields

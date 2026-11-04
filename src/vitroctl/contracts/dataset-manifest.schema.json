@@ -377,7 +377,6 @@
             ]
           },
           "unclear": {
-            "default": false,
             "type": "boolean"
           }
         },
@@ -389,7 +388,8 @@
           "bytes",
           "split",
           "detection",
-          "annotation"
+          "annotation",
+          "unclear"
         ],
         "additionalProperties": false
       }

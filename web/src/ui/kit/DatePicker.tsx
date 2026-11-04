@@ -22,6 +22,7 @@ import {
   useRef,
   useState,
 } from "react";
+
 import type { CalendarDay } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { getLocale } from "../../paraglide/runtime";
@@ -52,7 +53,7 @@ import { shellClass } from "./Input";
  * only in the browser.
  */
 
-export interface DatePickerProps {
+interface DatePickerProps {
   disabled?: boolean;
   /** The earliest day that can be picked. */
   earliest?: CalendarDay;

@@ -1,19 +1,21 @@
 import { z } from "zod";
 
+import { canonicalJson } from "../../lib/json/canonical";
 import { resourceIdSchema, sha256Schema } from "../identifiers/schema";
 import type { RuntimeDescriptor } from "../inference/schema";
+import { timestampSchema } from "../time";
 import {
   detectionValidationSchema,
   trainingRecipeSchema,
 } from "../training/schema";
-import { inferenceSettingsSchema } from "./inference";
-import { bundleProvenanceSchema } from "./bundle";
-import { classListSchema } from "./classes";
 import {
-  annotationRegionSchema,
   annotationAreaSchema,
+  annotationRegionSchema,
   DEFAULT_ANNOTATION_REGION,
 } from "./annotation";
+import { bundleProvenanceSchema } from "./bundle";
+import { classListSchema } from "./classes";
+import { inferenceSettingsSchema } from "./inference";
 
 /**
  * How an agent annotates the task: the instructions that describe the bodies
@@ -102,7 +104,7 @@ const modelVersionIdentity = {
   schemaVersion: z.literal(1),
   id: resourceIdSchema,
   modelId: resourceIdSchema,
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: timestampSchema,
 };
 
 export const modelVersionSchema = z.union([
@@ -147,20 +149,14 @@ export type ModelVersion = z.infer<typeof modelVersionSchema>;
 export type ModelArtifact = z.infer<typeof modelArtifactSchema>;
 
 export function sameModel(left: Model, right: Model): boolean {
-  return (
-    JSON.stringify(modelSchema.parse(left)) ===
-    JSON.stringify(modelSchema.parse(right))
-  );
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 export function sameModelVersion(
   left: ModelVersion,
   right: ModelVersion,
 ): boolean {
-  return (
-    JSON.stringify(modelVersionSchema.parse(left)) ===
-    JSON.stringify(modelVersionSchema.parse(right))
-  );
+  return canonicalJson(left) === canonicalJson(right);
 }
 
 export function supportsRuntime(

@@ -1,11 +1,9 @@
 import { z } from "zod";
 
-import { modelSchema } from "./schema";
-
 const count = z.number().int().min(0);
 
 /**
- * Everything that can name a model: its versions, the observations read for it,
+ * Everything that can name a model: its versions and uploads, the observations read for it,
  * the reviews stored against it, the datasets that train it, and the runs that
  * produced its versions. A model none of these name is a question nobody has
  * answered yet, and can be withdrawn.
@@ -26,10 +24,3 @@ export type ModelRecordKind = keyof ModelRecords;
 export const MODEL_RECORD_KINDS = Object.keys(
   modelRecordsSchema.shape,
 ) as ModelRecordKind[];
-
-const modelCatalogueEntrySchema = z.strictObject({
-  model: modelSchema,
-  records: modelRecordsSchema,
-});
-
-export type ModelCatalogueEntry = z.infer<typeof modelCatalogueEntrySchema>;

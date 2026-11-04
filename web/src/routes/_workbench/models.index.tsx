@@ -2,22 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Network, Plus } from "lucide-react";
 import { useState } from "react";
 
-import { ModelCard } from "../../features/models/ModelCard";
-import { ModelDialog } from "../../features/models/ModelDialog";
-import { getModelCatalogue } from "../../functions/models";
+import { ModelsGrid } from "../../features/models/ModelsGrid";
+import { NewModelDialog } from "../../features/models/NewModelDialog";
+import { getModels } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { documentTitle } from "../../ui/documentTitle";
 import { Button } from "../../ui/kit/Button";
 import { Empty } from "../../ui/kit/Empty";
 import { PageHeaderSkeleton } from "../../ui/kit/PageSkeleton";
-import { CardGrid, CardGridSkeleton } from "../../ui/kit/SummaryCard";
+import { CardGridSkeleton } from "../../ui/kit/SummaryCard";
 import { Page, PageColumnSkeleton } from "../../ui/Page";
 
 export const Route = createFileRoute("/_workbench/models/")({
-  loader: () => getModelCatalogue(),
-  staticData: { crumbs: () => [{ label: m.models_title() }] },
+  loader: () => getModels(),
+  staticData: { crumbs: () => [{ label: m.models_label() }] },
   head: () => ({
-    meta: [{ title: documentTitle(m.models_title()) }],
+    meta: [{ title: documentTitle(m.models_label()) }],
   }),
   pendingComponent: () => (
     <PageColumnSkeleton>
@@ -39,32 +39,22 @@ function ModelsPage() {
 
   return (
     <Page
-      title={m.models_title()}
+      title={m.models_label()}
       description={m.models_description()}
-      action={entries.length > 0 ? create : undefined}
+      actions={entries.length > 0 ? create : undefined}
     >
-      <CardGrid
-        aria-label={m.models_title()}
+      <ModelsGrid
+        models={entries}
         empty={
-          entries.length === 0 && (
-            <Empty
-              icon={Network}
-              title={m.models_empty()}
-              description={m.models_empty_description()}
-              action={create}
-            />
-          )
-        }
-      >
-        {entries.map((entry) => (
-          <ModelCard
-            key={entry.model.id}
-            model={entry.model}
-            records={entry.records}
+          <Empty
+            icon={Network}
+            title={m.models_empty()}
+            description={m.models_empty_description()}
+            action={create}
           />
-        ))}
-      </CardGrid>
-      <ModelDialog open={creating} onClose={() => setCreating(false)} />
+        }
+      />
+      <NewModelDialog open={creating} onClose={() => setCreating(false)} />
     </Page>
   );
 }

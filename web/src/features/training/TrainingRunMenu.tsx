@@ -7,13 +7,13 @@ import {
 } from "../../domain/training/schema";
 import { m } from "../../paraglide/messages";
 import { Button } from "../../ui/kit/Button";
-import { DropdownMenu, type DropdownItem } from "../../ui/kit/DropdownMenu";
+import { type DropdownItem, DropdownMenu } from "../../ui/kit/DropdownMenu";
 import type { TrainingRunControl } from "./run-control";
 import { TrainingRunState } from "./TrainingRunState";
 
 /**
  * The run's status, as a menu of what changes it: a queued or running run
- * pauses, a paused one continues and a failed one retries, both on a worker
+ * pauses, a paused one continues and a failed one retries, both on a Worker
  * chosen in a dialog, and any of them cancels. Neither continues while
  * another run of the model is in progress (`blocked`). A finished run's
  * status is plain.

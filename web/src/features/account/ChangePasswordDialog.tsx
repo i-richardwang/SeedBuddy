@@ -1,5 +1,3 @@
-import { authClient } from "./client";
-import { PasswordField } from "../users/PasswordField";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -8,6 +6,8 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { toast } from "../../ui/kit/Toast";
+import { PasswordField } from "../../ui/PasswordField";
+import { authClient } from "./client";
 
 const FORM_ID = "change-password";
 
@@ -49,18 +49,23 @@ function ChangePasswordForm({
         const values = new FormData(event.currentTarget);
         const currentPassword = String(values.get("currentPassword") ?? "");
         const newPassword = String(values.get("newPassword") ?? "");
-        void run(async () => {
-          const { error } = await authClient.changePassword({
-            currentPassword,
-            newPassword,
-            revokeOtherSessions: true,
-          });
-          if (error) throw new Error(error.message);
-        }, m.account_password_not_changed()).then((result) => {
-          if (!result.ok) return;
-          toast.success(m.account_password_changed());
-          onDone();
-        });
+        void run(
+          async () => {
+            const { error } = await authClient.changePassword({
+              currentPassword,
+              newPassword,
+              revokeOtherSessions: true,
+            });
+            if (error) throw new Error(error.message);
+          },
+          m.password_not_changed(),
+          {
+            onSuccess: () => {
+              toast.success(m.password_changed());
+              onDone();
+            },
+          },
+        );
       }}
     >
       <PasswordField
@@ -71,7 +76,7 @@ function ChangePasswordForm({
         disabled={busy}
       />
       <PasswordField
-        label={m.account_new_password()}
+        label={m.new_password_label()}
         name="newPassword"
         disabled={busy}
       />

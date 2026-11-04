@@ -1,17 +1,18 @@
-import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import { expect, test } from "bun:test";
 
+import { WorkerSessionConflictError } from "../../domain/workers/errors";
 import {
   WORKER_ONLINE_SECONDS,
   WORKER_STALE_SECONDS,
   workerPresence,
 } from "../../domain/workers/presence";
+import { database } from "../infra/db/client";
 import {
-  TEST_RUNTIME,
-  ULTRALYTICS_RUNTIME,
   recordTestHeartbeat,
+  TEST_RUNTIME,
   testHeartbeat,
-} from "../testing/fixtures";
+  ULTRALYTICS_RUNTIME,
+} from "../testing/workers";
 import { currentWorkerSession, listOnlineTrainers } from "./sessions";
 
 function later(from: Date, seconds: number): Date {
@@ -42,7 +43,7 @@ test("a worker trains only with the ultralytics runtime", async () => {
     },
     seen,
   );
-  const trainers = (await listOnlineTrainers(seen)).map(
+  const trainers = (await listOnlineTrainers(seen, await database())).map(
     (worker) => worker.workerId,
   );
   expect(trainers).toContain("trainer");
@@ -63,8 +64,10 @@ test("an older session cannot replace a newer process with the same worker id", 
   await expect(recordTestHeartbeat(heartbeat)).rejects.toBeInstanceOf(
     WorkerSessionConflictError,
   );
-  await expect(currentWorkerSession(heartbeat)).rejects.toBeInstanceOf(
-    WorkerSessionConflictError,
+  await expect(
+    currentWorkerSession(heartbeat, await database()),
+  ).rejects.toBeInstanceOf(WorkerSessionConflictError);
+  expect((await currentWorkerSession(newer, await database())).sessionId).toBe(
+    "newer-session",
   );
-  expect((await currentWorkerSession(newer)).sessionId).toBe("newer-session");
 });

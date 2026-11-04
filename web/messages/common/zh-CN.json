@@ -1,22 +1,20 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "account_label": "账户",
+  "active_label": "正常",
+  "add_action": "添加",
+  "ai_proposal_label": "AI 建议",
   "app_name": "VitroFlow",
+  "base_medium_label": "基础培养基",
+  "boxes_label": "标注框",
+  "change_label": "变化",
+  "column_actions": "操作",
+  "counts_label": "计数",
+  "create_action": "创建",
+  "dataset_label": "训练集",
+  "delete_action": "删除",
   "document_title": "{page} · {app}",
-  "nav_experiments": "实验",
-  "nav_models": "模型",
-  "nav_account": "账户",
-  "nav_integrations": "集成",
-  "nav_users": "用户",
-  "nav_settings": "设置",
-  "nav_workers": "计算节点",
-  "nav_home": "首页",
-  "nav_account_menu": "账户菜单",
-  "sign_out": "退出登录",
-  "not_found": "未找到",
-  "something_went_wrong": "出了点问题",
-  "return_to_experiments": "返回实验列表",
-  "action_failed": "{action}失败",
-  "dropzone_label": "将图片拖到此处，或从文件夹选择",
+  "dropzone_label": "将照片拖到此处或从文件夹选择",
   "dropzone_limits": [
     {
       "declarations": [
@@ -30,25 +28,127 @@
       }
     }
   ],
-  "dropzone_select": "选择图片",
   "dropzone_ready": "就绪",
+  "dropzone_select": "选择照片",
+  "email_label": "邮箱",
+  "error_conflict": "当前状态不允许此操作，请刷新页面后重试。",
+  "error_dataset_model": "图片和训练集必须使用同一个模型。",
+  "error_experiment_has_records": "此实验已有记录，无法进行此修改。",
+  "error_image_already_used": "已在本实验中使用：{images}。",
+  "error_image_already_used_item": "{file}（{unit} · {day}）",
+  "error_invalid_request": "提交的数据不符合要求，请检查后重试。",
+  "error_model_id_taken": "该标识已被占用。",
+  "error_model_in_use": "只有尚无任何记录的模型才能删除。",
+  "error_not_found": "记录已不存在，请刷新页面后重试。",
+  "error_observation_model_has_counts": "观测日已有手工计数。更换模型前，请先撤销这些计数；仍可调整同一模型下的统计类别。",
+  "error_training_artifact": "训练产物不符合本次训练的要求。",
+  "error_training_conflict": "当前状态无法启动或更新训练，请检查已复核的图片和进行中的训练。",
+  "error_user_rejected": "此修改会影响你自己的访问权限，或导致没有可用的管理员。",
+  "error_worker_name_taken": "已有同名的计算节点。",
+  "experiments_label": "实验",
+  "explant_type_label": "外植体类型",
+  "failed_label": "失败",
+  "image_copy_id": "复制图片 ID",
+  "image_label": "图片",
+  "inoculated_label": "接种日期",
+  "integrations_label": "集成",
+  "item_actions": "{name} 的操作",
+  "item_delete_title": "删除 {name}？",
+  "item_deleted": "已删除 {name}",
+  "metric_best_map50": "最佳 mAP50",
+  "metric_best_map50_95": "最佳 mAP50-95",
+  "metric_map50": "mAP50",
+  "metric_map50_95": "mAP50-95",
+  "models_label": "模型",
+  "name_label": [
+    {
+      "declarations": ["input kind"],
+      "selectors": ["kind"],
+      "match": {
+        "kind=person": "姓名",
+        "kind=*": "名称"
+      }
+    }
+  ],
+  "nav_account_menu": "账户菜单",
+  "nav_home": "首页",
+  "nav_settings": "设置",
+  "new_password_label": "新密码",
+  "not_counted_label": "未计数",
+  "not_found": "未找到",
+  "note_label": "备注",
+  "password_changed": "密码已修改",
+  "password_not_changed": "密码未修改",
+  "progress_count": [
+    {
+      "declarations": [
+        "input completed",
+        "input total",
+        "local formattedCompleted = completed: number",
+        "local formattedTotal = total: number"
+      ],
+      "match": {
+        "completed=*": "{formattedCompleted} / {formattedTotal}"
+      }
+    }
+  ],
   "quality_dish_detection_failed": "未检测到培养皿",
   "quality_exposure_clipping": "曝光溢出",
   "quality_low_focus": "对焦不足",
   "quality_unknown_warning": "图片质量需要检查",
-  "error_not_found": "记录已不存在，请刷新页面后重试。",
-  "error_conflict": "当前状态不允许此操作，请刷新页面后重试。",
-  "error_invalid_request": "提交的数据不符合要求，请检查后重试。",
-  "error_training_conflict": "当前状态无法启动或更新训练，请检查已复核的图片和进行中的训练。",
-  "error_training_artifact": "训练产物不符合本次训练的要求。",
-  "error_dataset_model": "图片和训练集必须使用同一个模型。",
-  "error_image_already_used": "已在本实验中使用：{images}。",
-  "error_image_already_used_item": "{file}（{unit} · {day}）",
-  "error_experiment_has_records": "此实验已有记录，无法进行此修改。",
-  "error_user_rejected": "此修改会影响你自己的访问权限，或导致没有可用的管理员。",
-  "error_model_id_taken": "该标识已被占用。",
-  "error_model_in_use": "只有尚无任何记录的模型才能删除。",
-  "error_worker_name_taken": "已有同名的计算节点。",
+  "relative_time_days": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount} 天前"
+      }
+    }
+  ],
+  "relative_time_hours": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount} 小时前"
+      }
+    }
+  ],
+  "relative_time_minutes": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount} 分钟前"
+      }
+    }
+  ],
+  "relative_time_seconds": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{formattedCount} 秒前"
+      }
+    }
+  ],
+  "remove_action": "移除",
+  "retry_action": "重试",
+  "return_to_experiments": "返回实验列表",
+  "reviewed_label": "已复核",
+  "save_action": "保存",
+  "scopes_label": "权限范围",
+  "status_label": "状态",
+  "to_review_label": "待复核",
+  "treatment_label": "处理",
+  "treatments_label": "处理",
+  "unclear_label": "不清晰",
+  "unclear_not_saved": "标记未保存",
+  "unclear_photo": "照片不清晰",
+  "unclear_switch_description": "无法看清，例如瓶盖起雾或培养皿失焦",
+  "units_label": "试验单元",
+  "upload_cancelled": "上传已取消",
+  "upload_not_completed": "上传未完成",
+  "users_label": "用户",
+  "version_label": "版本",
   "workbench_inspector": "信息",
-  "error_observation_model_has_counts": "此观察已有手工计数。更换模型前，请先撤销这些计数；仍可调整同一模型下的统计类别。"
+  "workbench_not_loaded": "工作台未加载",
+  "worker_label": "计算节点",
+  "workers_label": "计算节点"
 }

@@ -1,5 +1,6 @@
 import { ArrowBigUpIcon, Command, Delete } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
+
 import { useClientValue } from "./clientValue";
 import { Center, Flexbox } from "./Flex";
 import { Icon } from "./Icon";
@@ -10,7 +11,7 @@ import { Icon } from "./Icon";
  * key is shown uppercased.
  */
 
-export interface HotkeyProps {
+interface HotkeyProps {
   /** Puts all keys in one keycap, as after a tooltip's text. */
   compact?: boolean;
   keys: string;

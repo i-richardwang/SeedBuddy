@@ -1,14 +1,13 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/read-model";
 import type { Treatment } from "../../domain/experiments/schema";
-import { editUnitsTreatment } from "../../functions/experiments";
+import { updateUnitsTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { TreatmentField } from "./TreatmentField";
@@ -35,7 +34,7 @@ export function MoveUnitsDialog({
       open={open}
       onClose={onClose}
       title={m.experiment_move_units()}
-      okText={m.experiment_action_save()}
+      okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
       okDisabled={units.length === 0}
@@ -65,7 +64,6 @@ function MoveForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const shared = units.every((unit) => unit.treatment === units[0]?.treatment)
     ? units[0]?.treatment
     : undefined;
@@ -82,23 +80,20 @@ function MoveForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (treatment === "" || units.length === 0) return;
-        void action
-          .run(
-            () =>
-              editUnitsTreatment({
-                data: {
-                  experiment,
-                  units: units.map((unit) => unit.id),
-                  treatment,
-                },
-              }),
-            m.experiment_units_not_moved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            updateUnitsTreatment({
+              data: {
+                experiment,
+                units: units.map((unit) => unit.id),
+                treatment,
+              },
+            }),
+          m.experiment_treatment_not_changed(),
+          {
+            onSuccess: onDone,
+          },
+        );
       }}
     >
       <TreatmentField

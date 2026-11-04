@@ -1,8 +1,10 @@
 import { Worker } from "node:worker_threads";
+
 import { z } from "zod";
+
 import {
-  dishCircleSchema,
   type DishCircle,
+  dishCircleSchema,
 } from "../../domain/images/coverage";
 import { createWorkGate } from "../../lib/async/work";
 import type { DishRequest } from "./dish-recipe";
@@ -13,7 +15,7 @@ const responseSchema = z.union([
 ]);
 
 /** One lazy runtime per server; only thumbnail pixels cross the thread boundary. */
-export function createDishDetector(url?: URL) {
+export function createDishDetector() {
   const compute = createWorkGate(1);
   let worker: Worker | null = null;
   return {
@@ -22,11 +24,9 @@ export function createDishDetector(url?: URL) {
         () =>
           new Promise((resolve, reject) => {
             if (!worker) {
-              const configured =
-                url ??
-                (process.env.VITROFLOW_IMAGE_ANALYSIS_URL
-                  ? new URL(process.env.VITROFLOW_IMAGE_ANALYSIS_URL)
-                  : null);
+              const configured = process.env.VITROFLOW_IMAGE_ANALYSIS_URL
+                ? new URL(process.env.VITROFLOW_IMAGE_ANALYSIS_URL)
+                : null;
               if (!configured) {
                 reject(new Error("VITROFLOW_IMAGE_ANALYSIS_URL is required"));
                 return;

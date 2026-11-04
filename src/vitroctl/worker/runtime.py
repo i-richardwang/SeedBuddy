@@ -10,9 +10,6 @@ from contextlib import contextmanager
 def shutdown_signals() -> Iterator[threading.Event]:
     """Translate process termination into cooperative Worker shutdown."""
     stopped = threading.Event()
-    if threading.current_thread() is not threading.main_thread():
-        yield stopped
-        return
 
     def stop(_signum: int, _frame: object) -> None:
         stopped.set()

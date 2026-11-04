@@ -1,9 +1,59 @@
-import type {
-  CalendarDay,
-  CultureEvent,
-  CultureEventType,
-  ExperimentObservation,
+import { z } from "zod";
+
+import { timestampSchema } from "../time";
+import {
+  type CalendarDay,
+  type ExperimentObservation,
+  experimentIdSchema,
+  observationIdSchema,
+  unitIdSchema,
 } from "./schema";
+
+export const CULTURE_EVENT_TYPES = [
+  "contaminated",
+  "nonviable",
+  "discarded",
+  "harvested",
+  "missing",
+] as const;
+
+export type CultureEventType = (typeof CULTURE_EVENT_TYPES)[number];
+
+const cultureEventTypeSchema = z.enum(CULTURE_EVENT_TYPES);
+
+const cultureEventIdSchema = z.uuid();
+
+export const cultureEventSchema = z.strictObject({
+  id: cultureEventIdSchema,
+  type: cultureEventTypeSchema,
+  observation: observationIdSchema,
+  recordedAt: timestampSchema,
+});
+
+export type CultureEvent = z.infer<typeof cultureEventSchema>;
+
+export const cultureEventsRequestSchema = z.strictObject({
+  experiment: experimentIdSchema,
+  units: z
+    .array(unitIdSchema)
+    .min(1)
+    .max(200)
+    .refine(
+      (ids) => new Set(ids).size === ids.length,
+      "Units must be distinct",
+    ),
+  type: cultureEventTypeSchema,
+  observation: observationIdSchema,
+});
+
+export type CultureEventsRequest = z.infer<typeof cultureEventsRequestSchema>;
+
+export const cultureEventRefSchema = z.strictObject({
+  experiment: experimentIdSchema,
+  event: cultureEventIdSchema,
+});
+
+export type CultureEventRef = z.infer<typeof cultureEventRefSchema>;
 
 export type ObservationOrdinals = ReadonlyMap<string, number>;
 

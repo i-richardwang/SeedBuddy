@@ -1,6 +1,7 @@
 import { Select as BaseSelect } from "@base-ui/react/select";
 import { Check, ChevronDown, X } from "lucide-react";
 import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
+
 import { m } from "../../paraglide/messages";
 import { cn } from "./cn";
 import { defaultPortalContainer } from "./floating";
@@ -17,7 +18,7 @@ import { Icon } from "./Icon";
 export type SelectSize = "middle" | "small";
 export type SelectVariant = "borderless" | "filled";
 
-export interface SelectOption<Value = string> {
+interface SelectOption<Value = string> {
   disabled?: boolean;
   /** A shortcut that picks this option elsewhere, shown at the end of its row. */
   hotkey?: string;
@@ -29,6 +30,8 @@ interface SelectBaseProps<Value> {
   /** Accessible name of the trigger when no visible label is associated with it. */
   "aria-label"?: string;
   className?: string;
+  /** Integrates the trigger into a containing toolbar. */
+  triggerRender?: BaseSelect.Trigger.Props["render"];
   disabled?: boolean;
   id?: string;
   options: SelectOption<Value>[];
@@ -43,7 +46,7 @@ interface SelectBaseProps<Value> {
  * With `allowClear`, Backspace or Delete on the trigger empties the value and
  * `onChange` receives `null`; the clear glyph does the same for a pointer.
  */
-export type SelectProps<Value = string> = SelectBaseProps<Value> &
+type SelectProps<Value = string> = SelectBaseProps<Value> &
   (
     | { allowClear?: false; onChange: (value: Value) => void; value: Value }
     | {
@@ -72,6 +75,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
   const {
     "aria-label": ariaLabel,
     className,
+    triggerRender,
     disabled,
     id,
     options,
@@ -127,6 +131,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
       onValueChange={emit}
     >
       <BaseSelect.Trigger
+        render={triggerRender}
         aria-keyshortcuts={showClear ? "Backspace Delete" : undefined}
         aria-label={ariaLabel}
         className={cn(
@@ -134,6 +139,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
           TRIGGER_SIZE[size],
           variant ? TRIGGER_VARIANT[variant] : "ui-select-auto",
           className,
+          triggerRender,
         )}
         disabled={disabled}
         onKeyDown={clearByKey}
@@ -157,11 +163,7 @@ export function Select<Value = string>(props: SelectProps<Value>) {
             </span>
           )}
           <BaseSelect.Icon className="ui-select-icon">
-            <Icon
-              icon={ChevronDown}
-              size={14}
-              style={{ pointerEvents: "none" }}
-            />
+            <Icon icon={ChevronDown} size={14} className="ui-select-glyph" />
           </BaseSelect.Icon>
         </span>
       </BaseSelect.Trigger>

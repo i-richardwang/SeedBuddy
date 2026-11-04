@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { archiveFilename } from "../domain/datasets/archive-format";
-import { DatasetManifestTooLargeError } from "../domain/datasets/manifest";
+import { DatasetManifestTooLargeError } from "../domain/datasets/errors";
 import { datasetIdSchema } from "../domain/datasets/schema";
 import { datasetArchive } from "../server/datasets/public";
 

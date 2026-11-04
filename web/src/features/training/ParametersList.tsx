@@ -6,7 +6,8 @@ import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { SectionHeader } from "../../ui/kit/SectionHeader";
 import { Skeleton } from "../../ui/kit/Skeleton";
 import { formatNumber } from "../../ui/numbers";
-import { PARAMETER_GROUPS, PARAMETER_LABELS } from "./parameter-fields";
+import { parameterLabel } from "./labels";
+import { PARAMETER_GROUPS } from "./parameter-fields";
 
 /** The recipe's parameters by group, flowing into two columns on wider screens. */
 export function ParametersList({
@@ -41,7 +42,7 @@ function ParameterGroups({
           <SectionHeader level={3} size="compact" title={group.title()} />
           <Descriptions justified>
             {group.parameters.map((key) => (
-              <DescriptionsItem key={key} label={PARAMETER_LABELS[key]()}>
+              <DescriptionsItem key={key} label={parameterLabel(key)}>
                 {value(key)}
               </DescriptionsItem>
             ))}

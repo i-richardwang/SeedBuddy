@@ -11,7 +11,7 @@ from vitroctl.detectors.contract import RuntimeDescriptor
 from vitroctl.worker import session as worker_session
 from vitroctl.worker.connection import WorkerNotEnrolledError
 from vitroctl.worker.service import Worker
-from vitroctl.worker.session import WorkerSettings
+from vitroctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSettings
 
 TRADITIONAL = RuntimeDescriptor(adapter="traditional", fingerprint="b" * 64)
 ULTRALYTICS = RuntimeDescriptor(adapter="ultralytics", fingerprint="c" * 64)
@@ -47,6 +47,8 @@ def _worker(
         server_url="https://example.test",
         token="secret",
         work_dir=tmp_path,
+        device=None,
+        poll_seconds=DEFAULT_POLL_SECONDS,
     )
     return Worker(settings, transport=httpx.MockTransport(workbench)), workbench
 
@@ -106,8 +108,8 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
 
     served, _ = _worker(tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS))
     events: list[str] = []
-    jobs = iter([None, object(), object()])
-    monkeypatch.setattr(served.training, "claim", lambda: next(jobs))
+    claims = iter([None, object(), object()])
+    monkeypatch.setattr(served.training, "claim", lambda: next(claims))
     monkeypatch.setattr(
         served.runner, "run_once", lambda _stopped: events.append("inference") or True
     )
@@ -120,7 +122,7 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
         assert events[-1] == "close inference"
         events.append("training")
 
-    monkeypatch.setattr(worker, "process_training_job", train)
+    monkeypatch.setattr(worker, "serve_training_claim", train)
     try:
         assert served.serve_once(threading.Event()) is True
         assert served.serve_once(threading.Event()) is True
@@ -129,7 +131,7 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
         def fail(*args, **kwargs):
             raise RuntimeError("training failed")
 
-        monkeypatch.setattr(worker, "process_training_job", fail)
+        monkeypatch.setattr(worker, "serve_training_claim", fail)
         with pytest.raises(RuntimeError, match="training failed"):
             served.serve_once(threading.Event())
         assert events[-2:] == ["close inference", "release"]
@@ -137,33 +139,36 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
         served.close()
 
 
-def test_one_round_renews_every_lease_and_heartbeats_once(monkeypatch) -> None:
+@pytest.mark.parametrize("failure", ["renew", "heartbeat"])
+def test_single_lease_stops_on_refresh_failure(monkeypatch, failure) -> None:
     monkeypatch.setattr(worker_session, "LEASE_REFRESH_SECONDS", 0.001)
     calls: list[str] = []
+
+    def renew() -> None:
+        calls.append("renew")
+        if failure == "renew" and calls.count("renew") == 3:
+            raise OSError("claim moved on")
 
     class Session:
         def heartbeat(self) -> None:
             calls.append("heartbeat")
+            if failure == "heartbeat":
+                raise OSError("session moved on")
 
-    def renew(name: str, fails_after: int | None = None):
-        def renew_once() -> None:
-            calls.append(name)
-            if fails_after is not None and calls.count(name) > fails_after:
-                raise OSError("claim moved on")
-
-        return renew_once
-
-    keeper = worker_session.LeaseKeeper(Session())  # type: ignore[arg-type]
-    kept = keeper.hold(renew("kept"))
-    lost = keeper.hold(renew("lost", fails_after=2))
-    deadline = time.monotonic() + 5
-    while calls.count("kept") < 5 and time.monotonic() < deadline:
-        time.sleep(0.001)
-    keeper.close()
-
-    assert calls.count("heartbeat") == calls.count("kept") - 1
-    assert calls.count("lost") == 3
-    assert lost.lost and not kept.lost
-    keeper.end(kept)
-    with pytest.raises(worker_session.LeaseLostError, match="refresh failed"):
-        keeper.end(lost)
+    with (
+        pytest.raises(worker_session.LeaseLostError, match="refresh failed"),
+        worker_session.keep_lease(
+            Session(),  # type: ignore[arg-type]
+            renew,
+            cancelled=lambda: False,
+        ) as lost,
+    ):
+        deadline = time.monotonic() + 5
+        while not lost() and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert lost()
+    assert calls == (
+        ["renew", "renew", "heartbeat", "renew"]
+        if failure == "renew"
+        else ["renew", "renew", "heartbeat"]
+    )

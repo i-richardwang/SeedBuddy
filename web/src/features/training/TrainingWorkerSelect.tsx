@@ -1,15 +1,15 @@
-import type { TrainingWorkerOption } from "../../domain/training/read-model";
+import type { TrainingWorkerOverview } from "../../domain/workers/read-model";
 import { m } from "../../paraglide/messages";
 import { Select } from "../../ui/kit/Select";
 
-/** The worker a run goes to, or any that is free, named by the field that holds it. */
+/** The Worker a run goes to, or any that is free, named by the field that holds it. */
 export function TrainingWorkerSelect({
   workers,
   value,
   onChange,
   disabled,
 }: {
-  workers: TrainingWorkerOption[];
+  workers: TrainingWorkerOverview[];
   value: string | null;
   onChange: (workerId: string | null) => void;
   disabled: boolean;

@@ -1,68 +1,93 @@
-import { and, eq, sql, type SQLWrapper } from "drizzle-orm";
+import { and, eq, type SQLWrapper, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
-import type { AnnotationProposal } from "../../domain/annotation-runs/schema";
-import {
-  annotationRuns,
-  images,
-  inferenceOutcomes,
-  annotations,
-} from "../infra/db/schema";
-import { database, type Executor } from "../infra/db/client";
 import {
   annotationReading,
-  type Readings,
+  type ImageReadings,
   type Review,
-} from "../../domain/annotation/review";
-import type { AnnotationRef } from "../../domain/annotation/schema";
+} from "../../domain/annotation/readings";
+import type {
+  AnnotationDocument,
+  AnnotationRef,
+} from "../../domain/annotation/schema";
+import type {
+  AnnotationProgress,
+  AnnotationProposal,
+} from "../../domain/annotation-runs/schema";
 import type { DetectionResult } from "../../domain/detection/schema";
-import { AnnotationRunNotFoundError } from "../../domain/annotation-runs/errors";
+import { ImageNotFoundError } from "../../domain/images/errors";
 import { shownDetectingVersion } from "../inference/public";
+import { database, type Executor } from "../infra/db/client";
+import {
+  annotationRuns,
+  annotations,
+  images,
+  inferenceOutcomes,
+} from "../infra/db/schema";
 
-type Row = typeof annotationRuns.$inferSelect;
-
-export const proposalRuns = alias(annotationRuns, "proposal_runs");
-export const activeRuns = alias(annotationRuns, "active_runs");
-
-/** Joins the image's run in progress for the model, of which there is at most one. */
-export const atActiveRun = (
-  imageId: SQLWrapper,
-  modelId: SQLWrapper | string,
-) =>
-  and(
-    eq(activeRuns.imageId, imageId),
-    eq(activeRuns.modelId, modelId),
-    eq(activeRuns.status, "running"),
-  );
-
-/** The newest run that succeeded for the image and model: its AI proposal. */
-export function proposalRunId(
-  imageId: SQLWrapper,
-  modelId: SQLWrapper | string,
+/** Callers choose the detection version; reviews and proposals belong to the model. */
+export function readingsSubquery(
+  db: Executor,
+  { modelId, version }: { modelId: SQLWrapper | string; version?: SQLWrapper },
 ) {
-  return sql`(
-    select r.id
-    from annotation_runs r
-    where r.image_id = ${imageId}
-      and r.model_id = ${modelId}
-      and r.status = 'succeeded'
-    order by r.created_at desc, r.id desc
-    limit 1
-  )`;
-}
-
-function toProposal(row: Row | null): AnnotationProposal | null {
-  if (!row?.result) return null;
-  return {
-    ...row.result,
-    createdAt: row.createdAt.toISOString(),
-  };
+  const readingImages = alias(images, "reading_images");
+  const proposal = alias(annotationRuns, "proposal_runs");
+  const active = alias(annotationRuns, "active_runs");
+  return db
+    .select({
+      imageId: readingImages.id,
+      detection: sql<DetectionResult | null>`${inferenceOutcomes.document}`.as(
+        "reading_detection",
+      ),
+      annotation: sql<AnnotationDocument | null>`${annotations.document}`.as(
+        "reading_annotation",
+      ),
+      proposal:
+        sql<AnnotationProposal | null>`case when ${proposal.result} is null then null else ${proposal.result}::jsonb || jsonb_build_object('createdAt', to_char(${proposal.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')) end`.as(
+          "reading_proposal",
+        ),
+      progress:
+        sql<AnnotationProgress | null>`case when ${active.id} is null then null else jsonb_build_object('completed', ${active.completed}, 'total', ${active.total}) end`.as(
+          "reading_progress",
+        ),
+    })
+    .from(readingImages)
+    .leftJoin(
+      annotations,
+      and(
+        eq(annotations.imageId, readingImages.id),
+        eq(annotations.modelId, modelId),
+      ),
+    )
+    .leftJoin(
+      inferenceOutcomes,
+      and(
+        eq(inferenceOutcomes.imageId, readingImages.id),
+        version ? eq(inferenceOutcomes.modelVersionId, version) : sql`false`,
+      ),
+    )
+    .leftJoin(
+      proposal,
+      eq(
+        proposal.id,
+        sql`(select r.id from annotation_runs r where r.image_id = ${readingImages.id} and r.model_id = ${modelId} and r.status = 'succeeded' order by r.created_at desc, r.id desc limit 1)`,
+      ),
+    )
+    .leftJoin(
+      active,
+      and(
+        eq(active.imageId, readingImages.id),
+        eq(active.modelId, modelId),
+        eq(active.status, "running"),
+      ),
+    )
+    .as("readings");
 }
 
 /** The readings as an agent consults them before redrawing part of the image. */
 export async function readAnnotationReading(ref: AnnotationRef) {
   const readings = await readReadings(ref, await database());
-  if (!readings) throw new AnnotationRunNotFoundError("Image not found");
+  if (!readings) throw new ImageNotFoundError("Image not found");
   return annotationReading(readings);
 }
 
@@ -75,40 +100,22 @@ export async function readAnnotationReading(ref: AnnotationRef) {
 export async function readReadings(
   ref: AnnotationRef,
   db: Executor,
-): Promise<Readings | null> {
-  const shown = shownDetectingVersion(images.id, ref.modelId);
+): Promise<ImageReadings | null> {
+  const readings = readingsSubquery(db, {
+    modelId: ref.modelId,
+    version: shownDetectingVersion(images.id, ref.modelId),
+  });
   const [row] = await db
     .select({
       width: images.width,
       height: images.height,
-      detection: sql<DetectionResult | null>`${inferenceOutcomes.document}`,
-      annotation: annotations.document,
-      proposal: proposalRuns,
-      progress: {
-        completed: activeRuns.completed,
-        total: activeRuns.total,
-      },
+      detection: readings.detection,
+      annotation: readings.annotation,
+      proposal: readings.proposal,
+      progress: readings.progress,
     })
     .from(images)
-    .leftJoin(
-      annotations,
-      and(
-        eq(annotations.imageId, images.id),
-        eq(annotations.modelId, ref.modelId),
-      ),
-    )
-    .leftJoin(
-      inferenceOutcomes,
-      and(
-        eq(inferenceOutcomes.imageId, images.id),
-        eq(inferenceOutcomes.modelVersionId, shown),
-      ),
-    )
-    .leftJoin(
-      proposalRuns,
-      eq(proposalRuns.id, proposalRunId(images.id, ref.modelId)),
-    )
-    .leftJoin(activeRuns, atActiveRun(images.id, ref.modelId))
+    .leftJoinLateral(readings, eq(readings.imageId, images.id))
     .where(eq(images.id, ref.digest));
   if (!row) return null;
   return {
@@ -116,7 +123,7 @@ export async function readReadings(
     width: row.width,
     height: row.height,
     detection: row.detection,
-    proposal: toProposal(row.proposal),
+    proposal: row.proposal,
     annotation: row.annotation,
     progress: row.progress,
   };

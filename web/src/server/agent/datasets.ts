@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { command, query } from "./definition";
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
+import { datasetOverviewSchema } from "../../domain/datasets/read-model";
 import {
   datasetContentsSchema,
   datasetImageAdditionResultSchema,
@@ -12,17 +12,17 @@ import {
   datasetRefSchema,
   datasetRequestSchema,
   datasetSchema,
-  datasetSummarySchema,
   datasetUpdateSchema,
 } from "../../domain/datasets/schema";
 import {
   addExperimentObservationImages,
   createDataset,
-  listDatasetSummaries,
+  listDatasetOverviews,
   readDatasetContents,
   removeDatasetImages,
   updateDataset,
 } from "../datasets/public";
+import { command, query } from "./definition";
 
 /** A dataset gathers the photographs that train one recognition task. */
 export const datasetOperations = [
@@ -31,8 +31,8 @@ export const datasetOperations = [
     description:
       "List the datasets that train each recognition task, optionally for one model, with each one's id and name, how many images it holds, and how many of those are reviewed; training uses only reviewed images",
     input: datasetListRequestSchema,
-    output: z.array(datasetSummarySchema),
-    handler: ({ modelId }) => listDatasetSummaries(modelId),
+    output: z.array(datasetOverviewSchema),
+    handler: ({ modelId }) => listDatasetOverviews(modelId),
   }),
   query({
     name: "get-dataset",
@@ -56,7 +56,7 @@ export const datasetOperations = [
     destructive: false,
     input: datasetRequestSchema,
     output: datasetSchema,
-    handler: (input, executor) => createDataset(input, executor),
+    handler: (input, db) => createDataset(input, db),
   }),
   command({
     transaction: "operation",
@@ -66,7 +66,7 @@ export const datasetOperations = [
     destructive: true,
     input: datasetUpdateSchema,
     output: datasetSchema,
-    handler: (input, executor) => updateDataset(input, executor),
+    handler: (input, db) => updateDataset(input, db),
   }),
   command({
     transaction: "operation",
@@ -76,8 +76,7 @@ export const datasetOperations = [
     destructive: false,
     input: datasetImageAdditionSchema,
     output: datasetImageAdditionResultSchema,
-    handler: (input, executor) =>
-      addExperimentObservationImages(input, executor),
+    handler: (input, db) => addExperimentObservationImages(input, db),
   }),
   command({
     transaction: "operation",
@@ -87,6 +86,6 @@ export const datasetOperations = [
     destructive: true,
     input: datasetImageRemovalSchema,
     output: datasetImageRemovalResultSchema,
-    handler: (input, executor) => removeDatasetImages(input, executor),
+    handler: (input, db) => removeDatasetImages(input, db),
   }),
 ];

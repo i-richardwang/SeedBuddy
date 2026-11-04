@@ -1,27 +1,30 @@
+import { randomUUID } from "node:crypto";
+
 import { and, eq } from "drizzle-orm";
 
+import { sourceInstances } from "../../domain/annotation/readings";
 import {
-  AnnotationRunConflictError,
-  AnnotationRunNotFoundError,
-} from "../../domain/annotation-runs/errors";
+  type AnnotationRef,
+  annotationSchema,
+  type ReviewSource,
+} from "../../domain/annotation/schema";
+import { AnnotationRunConflictError } from "../../domain/annotation-runs/errors";
 import {
-  annotationDefinitionSchema,
   type AnnotationProgress,
+  annotationDefinitionSchema,
   type StartAnnotationRun,
 } from "../../domain/annotation-runs/schema";
 import { regions } from "../../domain/annotation-runs/tasks";
-import { sourceInstances } from "../../domain/annotation/review";
-import {
-  annotationSchema,
-  type AnnotationRef,
-  type BoundingBox,
-  type ReviewSource,
-} from "../../domain/annotation/schema";
+import type { ImageRectangle } from "../../domain/images/geometry";
 import { assertInstanceClasses } from "../../domain/models/classes";
-import { lockImage, resolveDishCoverage } from "../images/public";
-import { database, transaction, type Executor } from "../infra/db/client";
-import { annotationRuns, annotationTasks, images } from "../infra/db/schema";
-import { readModel } from "../models/public";
+import {
+  lockImage,
+  requireStoredImage,
+  resolveDishCoverage,
+} from "../images/public";
+import { type Executor, operationTime, transaction } from "../infra/db/client";
+import { annotationRuns, annotationTasks } from "../infra/db/schema";
+import { requireModel } from "../models/public";
 import { readReadings } from "../readings/public";
 
 /** The image's run in progress for the model, of which there is at most one. */
@@ -40,9 +43,9 @@ export const inProgress = (ref: AnnotationRef) =>
 export async function createAnnotationRun(
   request: StartAnnotationRun,
 ): Promise<{ id: string; progress: AnnotationProgress }> {
-  return transaction(async (tx) => {
-    await lockImage(request.ref.digest, tx);
-    const [active] = await tx
+  return transaction(async (db) => {
+    await lockImage(request.ref.digest, db);
+    const [active] = await db
       .select()
       .from(annotationRuns)
       .where(inProgress(request.ref));
@@ -50,7 +53,7 @@ export async function createAnnotationRun(
       throw new AnnotationRunConflictError(
         `This image already has an AI annotation run in progress (${active.completed}/${active.total} regions)`,
       );
-    const { definition, fallback } = await freezeDefinition(request, tx);
+    const { definition, fallback } = await freezeDefinition(request, db);
     const tasks = regions(definition);
     if (!tasks.length)
       throw new AnnotationRunConflictError("The scope touches no region");
@@ -58,9 +61,9 @@ export async function createAnnotationRun(
       throw new AnnotationRunConflictError(
         "Annotation requires too many regions; increase the model's core size",
       );
-    const id = crypto.randomUUID();
-    const now = new Date();
-    await tx.insert(annotationRuns).values({
+    const id = randomUUID();
+    const now = await operationTime(db);
+    await db.insert(annotationRuns).values({
       id,
       imageId: request.ref.digest,
       modelId: request.ref.modelId,
@@ -71,7 +74,7 @@ export async function createAnnotationRun(
       updatedAt: now,
     });
     for (let i = 0; i < tasks.length; i += 1000) {
-      await tx.insert(annotationTasks).values(
+      await db.insert(annotationTasks).values(
         tasks.slice(i, i + 1000).map((region) => ({
           runId: id,
           taskId: `${id}/${region.id}`,
@@ -80,7 +83,7 @@ export async function createAnnotationRun(
       );
     }
     if (fallback)
-      process.stderr.write(
+      console.info(
         `${JSON.stringify({
           event: "annotation-run.full-image-coverage",
           runId: id,
@@ -96,9 +99,9 @@ export async function createAnnotationRun(
 async function readingInput(
   ref: AnnotationRef,
   source: ReviewSource,
-  tx: Executor,
+  db: Executor,
 ) {
-  const readings = await readReadings(ref, tx);
+  const readings = await readReadings(ref, db);
   const instances = readings && sourceInstances(readings, source);
   if (!instances)
     throw new AnnotationRunConflictError(
@@ -106,9 +109,10 @@ async function readingInput(
     );
   return {
     input: instances,
-    ...(source === "proposal" && readings?.proposal
-      ? { inputUncertainIds: readings.proposal.uncertainIds }
-      : {}),
+    inputUncertainIds:
+      source === "proposal" && readings?.proposal
+        ? readings.proposal.uncertainIds
+        : [],
   };
 }
 
@@ -116,19 +120,14 @@ async function readingInput(
  * The request's definition as the image, its readings and its model stand
  * now, with why a dish run covers the whole image when it does.
  */
-async function freezeDefinition(request: StartAnnotationRun, tx: Executor) {
-  const [image] = await tx
-    .select()
-    .from(images)
-    .where(eq(images.id, request.ref.digest));
-  const model = await readModel(request.ref.modelId, tx);
-  if (!image || !model)
-    throw new AnnotationRunNotFoundError("Image or labeling model not found");
+async function freezeDefinition(request: StartAnnotationRun, db: Executor) {
+  const image = await requireStoredImage(request.ref.digest, db);
+  const model = await requireModel(request.ref.modelId, db);
   const frame = { digest: image.id, width: image.width, height: image.height };
   const initial =
     typeof request.input === "string"
-      ? await readingInput(request.ref, request.input, tx)
-      : { input: request.input };
+      ? await readingInput(request.ref, request.input, db)
+      : { input: request.input, inputUncertainIds: [] };
   const { input } = initial;
   if (input) {
     annotationSchema.parse({
@@ -143,7 +142,7 @@ async function freezeDefinition(request: StartAnnotationRun, tx: Executor) {
       throw new AnnotationRunConflictError(
         "Redrawing part of the image needs the boxes to keep; pass input",
       );
-    const inside = (b: BoundingBox) =>
+    const inside = (b: ImageRectangle) =>
       b.x >= 0 &&
       b.y >= 0 &&
       b.x + b.width <= image.width &&
@@ -172,15 +171,15 @@ async function freezeDefinition(request: StartAnnotationRun, tx: Executor) {
  * can start with different input or scope.
  */
 export async function cancelAnnotationRun(ref: AnnotationRef): Promise<void> {
-  const [cancelled] = await (
-    await database()
-  )
-    .update(annotationRuns)
-    .set({ status: "cancelled", updatedAt: new Date() })
-    .where(inProgress(ref))
-    .returning({ id: annotationRuns.id });
-  if (!cancelled)
-    throw new AnnotationRunConflictError(
-      "No AI annotation run is in progress for this image",
-    );
+  return transaction(async (db) => {
+    const [cancelled] = await db
+      .update(annotationRuns)
+      .set({ status: "cancelled", updatedAt: await operationTime(db) })
+      .where(inProgress(ref))
+      .returning({ id: annotationRuns.id });
+    if (!cancelled)
+      throw new AnnotationRunConflictError(
+        "No AI annotation run is in progress for this image",
+      );
+  });
 }

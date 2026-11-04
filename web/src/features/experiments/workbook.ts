@@ -1,59 +1,57 @@
 import { parseDate } from "@internationalized/date";
 
+import { unitExclusions } from "../../domain/experiments/analysis";
+import {
+  type ObservationCells,
+  observationCells,
+  unitDays,
+  unitReading,
+} from "../../domain/experiments/cell-reading";
+import {
+  type ObservationOrdinals,
+  observationOrdinals,
+} from "../../domain/experiments/culture-events";
+import type {
+  Exclusion,
+  ExperimentGridDetail,
+  ExperimentSummary,
+  Statistic,
+  Unit,
+} from "../../domain/experiments/read-model";
+import {
+  type CalendarDay,
+  type Experiment,
+  type ExperimentObservation,
+  formatFactor,
+  type Treatment,
+} from "../../domain/experiments/schema";
+import { gridSummary } from "../../domain/experiments/sheet";
+import {
+  type SummaryMeasure,
+  summaryCell,
+  summaryMeasure,
+} from "../../domain/experiments/summary";
+import type { Model } from "../../domain/models/schema";
 import {
   blankCell,
+  type CellStyle,
   countCell,
   dateCell,
   decimalCell,
   ratioCell,
   sheetName,
   textCell,
-  workbookFilename,
-  type CellStyle,
   type Workbook,
   type WorkbookCell,
   type WorkbookSheet,
+  workbookFilename,
 } from "../../lib/spreadsheet/workbook";
-import {
-  unitExclusions,
-  type Exclusion,
-} from "../../domain/experiments/analysis";
-import type { ExperimentGrid, Unit } from "../../domain/experiments/contracts";
-import {
-  observationOrdinals,
-  type ObservationOrdinals,
-} from "../../domain/experiments/culture-events";
-import {
-  observationCells,
-  unitDays,
-  unitReading,
-  type ObservationCells,
-} from "../../domain/experiments/readings";
-import {
-  formatFactor,
-  type CalendarDay,
-  type Experiment,
-  type ExperimentObservation,
-  type Treatment,
-} from "../../domain/experiments/schema";
-import {
-  experimentSummary,
-  summaryCell,
-  summaryMeasure,
-  type ExperimentSummary,
-  type Statistic,
-  type SummaryMeasure,
-} from "../../domain/experiments/summary";
-import type { Model } from "../../domain/models/schema";
-import {
-  cultureEventLabel,
-  observationQuestion,
-  summaryMeasureLabel,
-} from "./labels";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
+import { observationQuestion } from "./copy";
+import { exclusionLabel, summaryMeasureLabel } from "./labels";
 
-export type ExperimentWorkbookSource = ExperimentGrid & {
+export type ExperimentWorkbookSource = ExperimentGridDetail & {
   models: readonly Model[];
 };
 
@@ -63,13 +61,17 @@ interface Day {
 }
 
 const DESIGN_COLUMNS = [{ width: 22 }, { width: 16 }, { width: 14 }];
+
 const HEADING_ROWS = 2;
+
 const DAY_WIDTH = 14;
 
 /** The summary's design columns: a treatment and its factor. */
 const SUMMARY_DESIGN_COLUMNS = [{ width: 22 }, { width: 16 }];
+
 /** A day of the summary: its date over its measure over n, mean, SD and SE. */
 const SUMMARY_HEADING_ROWS = 3;
+
 const SUMMARY_DAY_COLUMNS = [
   { width: 6 },
   { width: 10 },
@@ -80,7 +82,7 @@ const SUMMARY_DAY_COLUMNS = [
 const COUNT_DIGITS = 1;
 
 export function experimentWorkbookFilename(experiment: Experiment): string {
-  return workbookFilename(experiment.name, m.experiments_title());
+  return workbookFilename(experiment.name, m.experiments_label());
 }
 
 /**
@@ -144,7 +146,7 @@ export function gridSheet(
   }
 
   return {
-    name: sheetName(experiment.name, m.experiments_title()),
+    name: sheetName(experiment.name, m.experiments_label()),
     columns: [...DESIGN_COLUMNS, ...days.map(() => ({ width: DAY_WIDTH }))],
     rows,
     stickyRows,
@@ -165,7 +167,7 @@ export function summarySheet(
   exportedOn: CalendarDay,
 ): WorkbookSheet {
   const { experiment, treatments, observations } = source;
-  const summary = experimentSummary(source);
+  const summary = gridSummary(source);
   const baseline = observations.find(
     (observation) => observation.id === summary.baseline,
   );
@@ -212,8 +214,8 @@ function summaryHeading(
   const perDay = (cells: WorkbookCell[]) => observations.flatMap(() => cells);
   return [
     [
-      textCell(m.experiment_column_treatment(), covering),
-      textCell(m.workbook_column_factor(), covering),
+      textCell(m.treatment_label(), covering),
+      textCell(m.treatment_factor_label(), covering),
       ...observations.flatMap((observation) => [
         calendarCell(observation.observedOn, spanning),
         ...SUMMARY_DAY_COLUMNS.slice(1).map(() => blankCell),
@@ -290,9 +292,9 @@ function provenance(
 ): WorkbookCell[][] {
   const fields: [label: string, value: WorkbookCell][] = [
     [m.experiment_field_plant_material(), fieldCell(experiment.plantMaterial)],
-    [m.experiment_field_explant_type(), fieldCell(experiment.explantType)],
-    [m.experiment_field_base_medium(), fieldCell(experiment.baseMedium)],
-    [m.experiment_field_inoculated(), calendarCell(experiment.inoculatedOn)],
+    [m.explant_type_label(), fieldCell(experiment.explantType)],
+    [m.base_medium_label(), fieldCell(experiment.baseMedium)],
+    [m.inoculated_label(), calendarCell(experiment.inoculatedOn)],
     [m.workbook_exported(), calendarCell(exportedOn)],
   ];
   return fields
@@ -304,8 +306,8 @@ function heading(days: readonly Day[]): WorkbookCell[][] {
   const covering = { strong: true, rows: HEADING_ROWS };
   return [
     [
-      textCell(m.experiment_column_treatment(), covering),
-      textCell(m.workbook_column_factor(), covering),
+      textCell(m.treatment_label(), covering),
+      textCell(m.treatment_factor_label(), covering),
       textCell(m.experiment_column_unit(), covering),
       ...days.map((day) =>
         calendarCell(day.observation.observedOn, { strong: true }),
@@ -367,10 +369,4 @@ function unitCell(
   if (exclusion) return textCell(exclusionLabel(exclusion));
   const reading = unitReading(cells, unit.id, day.observation);
   return reading ? countCell(reading.count) : blankCell;
-}
-
-function exclusionLabel(exclusion: Exclusion): string {
-  return exclusion.reason === "event"
-    ? cultureEventLabel(exclusion.event.type)
-    : m.unclear_label();
 }

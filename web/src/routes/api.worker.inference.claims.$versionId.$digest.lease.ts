@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { inferenceTargetSchema } from "../domain/inference/assignments";
-import { renewInferenceClaim } from "../server/inference/public";
+import { attemptClaimSchema } from "../domain/workers/schema";
+import { renewInferenceTask } from "../server/inference/public";
 import {
   parseWorkerSessionJson,
   parseWorkerValue,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { inferenceAttemptOwnerSchema } from "../domain/inference/tasks";
 
 /** The claim a request speaks for: its target, held by the calling session. */
 async function claimOf(params: unknown, request: Request, workerId: string) {
@@ -18,7 +18,7 @@ async function claimOf(params: unknown, request: Request, workerId: string) {
   );
   const owner = await parseWorkerSessionJson(
     request,
-    inferenceAttemptOwnerSchema,
+    attemptClaimSchema,
     workerId,
   );
   return { target, owner };
@@ -36,7 +36,7 @@ export const Route = createFileRoute(
             request,
             context.workerId,
           );
-          return Response.json(await renewInferenceClaim(target, owner));
+          return Response.json(await renewInferenceTask(target, owner));
         } catch (error) {
           return workerErrorResponse(error, "Could not renew inference lease");
         }

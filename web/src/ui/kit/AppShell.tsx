@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronRight, House, PanelLeft } from "lucide-react";
 import {
   createContext,
-  type HTMLAttributes,
   type ReactNode,
   use,
   useEffect,
@@ -9,19 +8,20 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { m } from "../../paraglide/messages";
 import { ActionIcon } from "./ActionIcon";
 import { Avatar } from "./Avatar";
 import { cn } from "./cn";
 import { DraggablePanel } from "./DraggablePanel";
 import { Drawer } from "./Drawer";
-import { DropdownMenu, type DropdownItem } from "./DropdownMenu";
+import { type DropdownItem, DropdownMenu } from "./DropdownMenu";
 import { Flexbox } from "./Flex";
 import { Icon } from "./Icon";
 import { useIsCompact } from "./mediaQuery";
 import { TooltipGroup } from "./Tooltip";
 
-export interface AppShellState {
+interface AppShellState {
   /** Closes the compact navigation drawer. */
   closeNavigation: () => void;
 }
@@ -108,13 +108,11 @@ export function AppShellAccount({
   );
 }
 
-export interface AppShellProps extends Omit<
-  HTMLAttributes<HTMLDivElement>,
-  "title"
-> {
+interface AppShellProps {
+  className?: string;
   /** Location shown in the top bar, usually a `Breadcrumb`. */
   breadcrumb: ReactNode;
-  children?: ReactNode;
+  children: ReactNode;
   /** Hide the sidebar. Ignored while compact. */
   collapsed: boolean;
   /** Pinned to the bottom of the sidebar, a row of `ActionIcon`s. */
@@ -174,7 +172,6 @@ export function AppShell({
   navigation,
   onCollapsedChange,
   tools,
-  ...rest
 }: AppShellProps) {
   const mainId = `app-main-${useId().replaceAll(":", "")}`;
   const shellRef = useRef<HTMLDivElement>(null);
@@ -255,7 +252,6 @@ export function AppShell({
       className={cn("ui-app-shell", className)}
       data-sidebar={hidden || isCompact ? "hidden" : "shown"}
       ref={shellRef}
-      {...rest}
     >
       <a
         className="ui-app-shell-skip-link"

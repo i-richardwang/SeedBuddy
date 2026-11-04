@@ -1,0 +1,49 @@
+import type { DatasetImageOverview } from "../../domain/datasets/read-model";
+import { Absent } from "../../ui/Absent";
+import { QualityTags } from "../../ui/detection-quality";
+import { Flexbox } from "../../ui/kit/Flex";
+import { Text } from "../../ui/kit/Text";
+import { formatCount } from "../../ui/numbers";
+import { UnclearTag } from "../images/unclear";
+import { qualityWarningLabels } from "./labels";
+
+/** Whether anything is said against the image: the detector's warnings, or a person's mark. */
+export function hasQualityNotes(image: DatasetImageOverview): boolean {
+  return (
+    (image.quality !== null && image.quality.status !== "ok") || image.unclear
+  );
+}
+
+/** What is said against the image, or nothing. */
+export function ImageQuality({ image }: { image: DatasetImageOverview }) {
+  if (!hasQualityNotes(image)) return <Absent />;
+  return (
+    <Flexbox horizontal gap={4} wrap="wrap">
+      {image.unclear ? <UnclearTag /> : null}
+      {image.quality && image.quality.status !== "ok" ? (
+        <QualityTags labels={qualityWarningLabels(image.quality)} />
+      ) : null}
+    </Flexbox>
+  );
+}
+
+/** A reviewer's count reads plain; an unreviewed proposal or detection reads tertiary. */
+export function BoxCount({
+  detected,
+  proposed,
+  boxes,
+}: {
+  detected: number | null;
+  proposed: number | null;
+  boxes: number | null;
+}) {
+  if (boxes !== null) return <>{formatCount(boxes)}</>;
+  const unreviewed = proposed ?? detected;
+  return unreviewed === null ? (
+    <Absent />
+  ) : (
+    <Text as="span" type="tertiary">
+      {formatCount(unreviewed)}
+    </Text>
+  );
+}

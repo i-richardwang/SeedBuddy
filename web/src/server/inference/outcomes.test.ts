@@ -1,63 +1,37 @@
-import {
-  DetectionConflictError,
-  InvalidDetectionOutcomeError,
-  ProducerMismatchError,
-} from "../../domain/inference/errors";
-import { listObservationImageRefs } from "../testing/fixtures";
 import { describe, expect, test } from "bun:test";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
-import { database } from "../infra/db/client";
-import { inferenceOutcomes, inferenceTasks } from "../infra/db/schema";
-
+import {
+  DetectionConflictError,
+  ProducerMismatchError,
+} from "../../domain/inference/errors";
+import { ClassInvalidError } from "../../domain/models/errors";
 import type { Worker } from "../../domain/workers/schema";
-
-import { addExperimentObservationImagesToNewDataset } from "../datasets/memberships";
-import { retryObservationImageAnalysis } from "../experiments/observation-images";
-
 import { storeAnnotation } from "../annotations/documents";
-
+import { addExperimentObservationImagesToNewDataset } from "../datasets/datasets";
+import { retryObservationImageAnalysis } from "../experiments/observation-images";
+import { database } from "../infra/db/client";
+import { inferenceTasks } from "../infra/db/schema";
+import { observeTextsIntoDataset } from "../testing/datasets";
+import {
+  listObservationImageRefs,
+  observeImages,
+} from "../testing/experiments";
+import { resultFor } from "../testing/images";
 import {
   seedDetectionResult,
   seedInferenceTaskFailure,
 } from "../testing/inference";
-import { listImageRecords } from "../datasets/records";
-
-import {
-  testHeartbeat,
-  observeImages,
-  resultFor,
-  traditionalVersion,
-  uploadTexts,
-} from "../testing/fixtures";
+import { traditionalVersion } from "../testing/models";
+import { testHeartbeat } from "../testing/workers";
 
 const worker: Worker = {
   ...testHeartbeat("worker"),
   lastSeenAt: "2026-08-27T00:00:00.000Z",
 };
 
-async function readImageRecord(ref: { dataset: string; digest: string }) {
-  return (
-    (await listImageRecords(ref.dataset)).find(
-      (record) => record.image.digest === ref.digest,
-    ) ?? null
-  );
-}
-
-async function storedDetection(target: { versionId: string; digest: string }) {
-  const db = await database();
-  const [row] = await db
-    .select({ document: inferenceOutcomes.document })
-    .from(inferenceOutcomes)
-    .where(
-      and(
-        eq(inferenceOutcomes.imageId, target.digest),
-        eq(inferenceOutcomes.modelVersionId, target.versionId),
-      ),
-    );
-  return row?.document ?? null;
-}
+import { readImageRecord, storedDetection } from "../testing/records";
 
 const outcomeVersion = (slug: string, createdAt?: string) =>
   traditionalVersion("outcome-detector", slug, createdAt);
@@ -157,7 +131,7 @@ describe("detections", () => {
         },
         worker,
       ),
-    ).rejects.toBeInstanceOf(InvalidDetectionOutcomeError);
+    ).rejects.toBeInstanceOf(ClassInvalidError);
     await expect(
       seedDetectionResult(
         target,
@@ -217,7 +191,7 @@ describe("detections", () => {
       version: next,
       digests,
       dataset,
-    } = await uploadTexts(
+    } = await observeTextsIntoDataset(
       "shown",
       ["shown"],
       await outcomeVersion("shown-v2", "2026-08-27T02:00:00.000Z"),
@@ -264,7 +238,7 @@ describe("detections", () => {
       digests,
       images,
       dataset: one,
-    } = await uploadTexts("ctx-one", ["ctx"]);
+    } = await observeTextsIntoDataset("ctx-one", ["ctx"]);
     const { dataset: two } = await addExperimentObservationImagesToNewDataset({
       name: "ctx-two",
       images,

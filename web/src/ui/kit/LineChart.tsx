@@ -10,20 +10,20 @@ import {
   YAxis,
 } from "recharts";
 import type { AxisDomain } from "recharts/types/util/types";
+
 import { ChartTooltip } from "./ChartTooltip";
-import { textWidth } from "./chartText";
-import { useClientValue } from "./clientValue";
+import { useValueAxisWidth } from "./chartText";
 import { chartColor, Legend } from "./Legend";
 
 /*
  * A line per category over `data` against a numeric x axis keyed by `index`,
  * under a header row holding the chart's title and the legend of its
- * categories. Series take the chart colors in category
- * order. Recharts elements passed as `children` (reference lines) draw inside
- * the chart after the lines.
+ * categories. Series take the chart colors in category order. Recharts
+ * elements passed as `children` (reference lines) draw inside the chart
+ * after the lines.
  */
 
-export interface LineChartProps {
+interface LineChartProps {
   categories: string[];
   /** Recharts elements drawn inside the chart after the lines. */
   children?: ReactNode;
@@ -50,27 +50,6 @@ export interface LineChartProps {
 /** Room for the hovered dot (radius 5) at the top edge of the plot. */
 const DOT_RADIUS = 5;
 
-/**
- * Width of the value axis: the widest formatted value plus 16px. The text is
- * measured in the browser; the server and the first client frame use 16px.
- */
-function useValueAxisWidth(
-  data: Partial<Record<string, number>>[],
-  categories: string[],
-  valueFormatter: (value: number) => string,
-): number {
-  let widest = "";
-  for (const row of data) {
-    for (const category of categories) {
-      const value = row[category];
-      if (value === undefined) continue;
-      const formatted = valueFormatter(value);
-      if (formatted.length > widest.length) widest = formatted;
-    }
-  }
-  return useClientValue(() => textWidth(widest), 0) + 16;
-}
-
 export function LineChart({
   categories,
   children,
@@ -87,7 +66,14 @@ export function LineChart({
   xAxisDomain,
   yAxisDomain,
 }: LineChartProps) {
-  const yAxisWidth = useValueAxisWidth(data, categories, valueFormatter);
+  const yAxisWidth = useValueAxisWidth(
+    data.flatMap((row) =>
+      categories.flatMap((category) =>
+        row[category] === undefined ? [] : [row[category]],
+      ),
+    ),
+    valueFormatter,
+  );
   // A single point has no line to draw, so it shows as a dot.
   const lone = data.length === 1;
 

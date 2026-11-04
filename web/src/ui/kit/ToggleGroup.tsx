@@ -1,14 +1,17 @@
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
+
+import { ToolbarButton } from "./Toolbar";
 import { Tooltip } from "./Tooltip";
 
 /*
  * An exclusive group of compact toggles; once one is selected, clicking it
  * again keeps it selected. An option's `mark` leads its label, such as the
  * dot of a state or the swatch of a color, and the key that selects it shows
- * on hover (`hotkey`; the caller binds the key). `outlined` is a list's filter: the toggles share
- * one 24px outlined box, parted by hairlines, the selected one on fill.
+ * on hover (`hotkey`; the caller binds the key). `outlined` is a list's
+ * filter: the toggles share one 24px outlined box, parted by hairlines, the
+ * selected one on fill.
  *
  * The selected toggle's fill is one indicator that slides to the next
  * selection. Until it has been measured, on the server and in the first
@@ -36,7 +39,7 @@ const place = (group: HTMLElement) => {
   group.dataset.indicator = "";
 };
 
-export interface ToggleGroupOption<Value extends string> {
+interface ToggleGroupOption<Value extends string> {
   disabled?: boolean;
   /** Written like Hotkey's `keys` (`mod+k`). */
   hotkey?: string;
@@ -45,7 +48,7 @@ export interface ToggleGroupOption<Value extends string> {
   value: Value;
 }
 
-export interface ToggleGroupProps<Value extends string> {
+interface ToggleGroupProps<Value extends string> {
   /** Accessible name of the group. */
   "aria-label": string;
   onChange: (value: Value) => void;
@@ -53,6 +56,7 @@ export interface ToggleGroupProps<Value extends string> {
   /** Nothing is selected while undefined. */
   value: Value | undefined;
   variant?: "ghost" | "outlined";
+  toolbar?: boolean;
 }
 
 export function ToggleGroup<Value extends string>({
@@ -61,6 +65,7 @@ export function ToggleGroup<Value extends string>({
   options,
   value,
   variant = "ghost",
+  toolbar = false,
 }: ToggleGroupProps<Value>) {
   const groupRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +98,7 @@ export function ToggleGroup<Value extends string>({
       {options.map((option) => (
         <Tooltip hotkey={option.hotkey} key={option.value} placement="bottom">
           <Toggle<Value>
+            render={toolbar ? <ToolbarButton /> : undefined}
             className="ui-toggle-group-item"
             disabled={option.disabled}
             value={option.value}

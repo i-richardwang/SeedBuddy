@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import sharp from "sharp";
+
 import { createDishDetector } from "./dish";
 
 test("the compute thread loads its WASM runtime, locates a dish and safely returns no candidate", async () => {

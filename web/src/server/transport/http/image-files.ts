@@ -1,7 +1,7 @@
-import { imageDigestSchema } from "../../../domain/images/schema";
 import { CANONICAL_IMAGE_MEDIA_TYPE } from "../../../domain/images/canonical";
+import { imageDigestSchema } from "../../../domain/images/schema";
 import { imageBlobKey, openImagePreview } from "../../images/public";
-import { openBlob, type OpenBlob } from "../../infra/blobs/store";
+import { type OpenBlob, openBlob } from "../../infra/blobs/store";
 
 /**
  * Serves an image by digest. Every image is stored in the one canonical

@@ -1,11 +1,17 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "ui_alert_detail": "Details",
+  "account_color_scheme": "Appearance",
+  "account_color_scheme_dark": "Dark",
+  "account_color_scheme_light": "Light",
+  "account_color_scheme_system": "Auto",
+  "account_language": "Language",
+  "account_language_en": "English",
+  "account_language_zh_cn": "简体中文",
+  "details_label": "Details",
   "ui_breadcrumb_label": "Breadcrumb",
   "ui_cancel": "Cancel",
   "ui_close": "Close",
   "ui_copy_button_copy": "Copy",
-  "ui_copy_button_failed": "Copy failed. Select the text and copy it manually.",
   "ui_date_picker_choose_month": "Choose a month",
   "ui_date_picker_choose_year": "Choose a year",
   "ui_date_picker_decade": "{first}-{last}",
@@ -62,18 +68,15 @@
   "ui_nav_label": "Primary",
   "ui_no_data": "No data",
   "ui_page_loading": "Loading",
-  "ui_shell_collapse": "Collapse sidebar",
-  "ui_shell_expand": "Expand sidebar",
-  "ui_shell_sidebar": "Sidebar",
-  "ui_shell_open_navigation": "Open navigation",
-  "ui_shell_skip_to_content": "Skip to content",
-  "ui_table_select_all": "Select all",
-  "ui_viewport_fill": "Fill frame",
-  "ui_viewport_zoom": "Zoom",
   "ui_pagination": "Pagination",
-  "ui_pagination_previous": "Previous page",
   "ui_pagination_next": "Next page",
   "ui_pagination_page": "Page {page}",
+  "ui_pagination_previous": "Previous page",
+  "ui_shell_collapse": "Collapse sidebar",
+  "ui_shell_expand": "Expand sidebar",
+  "ui_shell_open_navigation": "Open navigation",
+  "ui_shell_sidebar": "Sidebar",
+  "ui_shell_skip_to_content": "Skip to content",
   "ui_step_position": [
     {
       "declarations": [
@@ -86,5 +89,9 @@
         "index=*": "{formattedIndex} / {formattedTotal}"
       }
     }
-  ]
+  ],
+  "ui_table_select_all": "Select all",
+  "ui_text_not_copied": "Text not copied. Select the text and copy it manually.",
+  "ui_viewport_fill": "Fill frame",
+  "ui_viewport_zoom": "Zoom"
 }

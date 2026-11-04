@@ -9,12 +9,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-from vitroctl.annotations import AnnotationInstance
-from vitroctl.contracts.identifiers import CLASS_NAME
-from vitroctl.datasets.annotations import AnnotatedImage
-from vitroctl.datasets.manifest import verified_blob
+from vitroctl.contracts.annotation import AnnotationInstance
+from vitroctl.datasets.geometry import require_image_dimensions
+from vitroctl.datasets.manifest import AnnotatedImage, verified_blob
 from vitroctl.io.files import atomic_directory
 from vitroctl.io.image_io import CANONICAL_EXTENSION, read_image
+
+DEFAULT_VALIDATION_FRACTION = 0.2
+DEFAULT_SEED = 0
+
+
+class DatasetSplitError(ValueError):
+    """An export cannot form training and validation splits."""
 
 
 class YoloManifestImage(TypedDict):
@@ -44,19 +50,14 @@ class DatasetImage:
     width: int
     height: int
     instances: tuple[AnnotationInstance, ...]
-    split: str | None = None
-    file_path: Path | None = None
+    file_path: Path
+    split: str | None
 
 
 def _label_text(image: DatasetImage, class_indices: dict[str, int]) -> str:
     rows = []
     for instance in image.instances:
-        try:
-            class_index = class_indices[instance.class_name]
-        except KeyError as error:
-            raise ValueError(
-                f"Image {image.digest} uses unknown class {instance.class_name}"
-            ) from error
+        class_index = class_indices[instance.class_name]
         box = instance.bbox
         center_x, center_y = box.center
         rows.append(
@@ -67,15 +68,6 @@ def _label_text(image: DatasetImage, class_indices: dict[str, int]) -> str:
             f"{box.height / image.height:.8f}"
         )
     return "\n".join(rows) + ("\n" if rows else "")
-
-
-def _image_file(image: DatasetImage, data_root: Path) -> Path:
-    """The verified data-root blob, or the already verified file the caller supplied."""
-    if image.file_path is None:
-        return verified_blob(data_root, image.digest)
-    if not image.file_path.is_file():
-        raise FileNotFoundError(image.file_path)
-    return image.file_path.resolve()
 
 
 def _link_or_copy(source: Path, destination: Path) -> None:
@@ -90,8 +82,7 @@ def assign_splits(
 ) -> dict[str, str]:
     """Split per digest: recorded splits as they are, the rest seeded by digest.
 
-    Locally assigned images fill the validation quota the fraction implies for
-    the whole set, and the result always contains both a train and a val image.
+    Locally assigned images fill the validation quota for the whole set.
     """
     splits = {image.digest: image.split for image in images if image.split}
     unassigned = sorted(
@@ -106,56 +97,43 @@ def assign_splits(
         quota = min(quota, len(unassigned) - (1 - min(recorded_train, 1)))
         for index, image in enumerate(unassigned):
             splits[image.digest] = "val" if index < quota else "train"
-    if set(splits.values()) != {"train", "val"}:
-        raise ValueError("YOLO dataset requires both train and val images")
     return splits
 
 
 def export_dataset_images(
     images: Sequence[DatasetImage],
     class_names: Sequence[str],
-    data_root: str | Path,
     output_dir: str | Path,
     *,
-    validation_fraction: float = 0.2,
-    seed: int = 0,
+    validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
+    seed: int = DEFAULT_SEED,
     link_images: bool = False,
 ) -> YoloDatasetManifest:
     """
-    Publish a self-contained YOLO detection dataset atomically. A caller that
+    Publish schema-sourced classes and resolved image files as a YOLO dataset.
+
+    A caller that
     owns immutable sources may link them instead of copying; the dataset
     still outlives the sources, because a hard link is the file itself.
     """
-    if len(images) < 2:
-        raise ValueError("YOLO export requires at least two images")
-    digests = [image.digest for image in images]
-    if len(set(digests)) != len(digests):
-        raise ValueError("YOLO export requires unique image digests")
     classes = tuple(class_names)
-    if not classes or len(set(classes)) != len(classes):
-        raise ValueError("YOLO export class names must be non-empty and unique")
-    for name in classes:
-        if not CLASS_NAME.fullmatch(name):
-            raise ValueError(f"Invalid YOLO class name: {name}")
     class_indices = {name: index for index, name in enumerate(classes)}
     if not 0.0 < validation_fraction < 1.0:
         raise ValueError("Validation fraction must be between zero and one")
 
-    root = Path(data_root).resolve()
     splits = assign_splits(images, validation_fraction, seed)
+    if set(splits.values()) != {"train", "val"}:
+        raise DatasetSplitError("YOLO dataset requires both train and val images")
     manifest_images: list[YoloManifestImage] = []
 
     with atomic_directory(output_dir) as working:
         for image in sorted(images, key=lambda item: item.digest):
             split = splits[image.digest]
-            source = _image_file(image, root)
+            source = image.file_path
             pixels = read_image(source)
-            height, width = pixels.shape[:2]
-            if (width, height) != (image.width, image.height):
-                raise ValueError(
-                    f"Image dimensions differ from annotation for {image.digest}: "
-                    f"{width}x{height} != {image.width}x{image.height}"
-                )
+            require_image_dimensions(
+                pixels.shape, image.width, image.height, image.digest
+            )
 
             image_destination = (
                 working / "images" / split / f"{image.digest}{CANONICAL_EXTENSION}"
@@ -201,24 +179,24 @@ def export_yolo_dataset(
     class_names: Sequence[str],
     data_root: str | Path,
     output_dir: str | Path,
-    validation_fraction: float = 0.2,
-    seed: int = 0,
+    validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
+    seed: int = DEFAULT_SEED,
 ) -> YoloDatasetManifest:
     """Export the annotations as a YOLO detection dataset."""
     images = [
         DatasetImage(
-            digest=image.entry.digest,
-            width=image.annotation.width,
-            height=image.annotation.height,
+            digest=image.digest,
+            width=image.width,
+            height=image.height,
             instances=image.annotation.instances,
-            split=image.entry.split,
+            split=image.split,
+            file_path=verified_blob(data_root, image.digest),
         )
         for image in annotated
     ]
     return export_dataset_images(
         images,
         class_names,
-        data_root,
         output_dir,
         validation_fraction=validation_fraction,
         seed=seed,

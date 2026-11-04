@@ -1,5 +1,6 @@
 import { Progress as BaseProgress } from "@base-ui/react/progress";
 import type { ReactNode } from "react";
+
 import { cn } from "./cn";
 
 /*
@@ -23,11 +24,7 @@ export function Progress({
   return (
     <BaseProgress.Root
       aria-label={label}
-      className={cn(
-        "ui-progress",
-        size === "small" && "ui-progress-small",
-        className,
-      )}
+      className={cn(size === "small" && "ui-progress-small", className)}
       max={max}
       value={value}
     >
@@ -40,20 +37,18 @@ export function Progress({
 
 /**
  * Work under way, as a side figure: its `label` and the count done at the
- * ends of a line, the thin bar under them, and an optional `note` below.
+ * ends of a line and the thin bar under them.
  */
 export function ProgressMeter({
   count,
   label,
   max,
-  note,
   value,
 }: {
   /** The count written out, such as "3 / 50". */
   count: ReactNode;
   label: string;
   max: number;
-  note?: ReactNode;
   value: number;
 }) {
   return (
@@ -63,9 +58,6 @@ export function ProgressMeter({
         <span className="ui-progress-meter-count">{count}</span>
       </div>
       <Progress aria-label={label} size="small" value={value} max={max} />
-      {note != null ? (
-        <span className="ui-progress-meter-note">{note}</span>
-      ) : null}
     </div>
   );
 }

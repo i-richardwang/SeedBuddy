@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { SEED_ANNOTATION_CONFIG } from "./annotation";
 
 import traditionalManifest from "../../../../configs/traditional-v1.json";
 import { sha256Schema } from "../identifiers/schema";
+import { timestampSchema } from "../time";
+import { SEED_ANNOTATION_CONFIG } from "./annotation";
 import {
   DEFAULT_MODEL_ANNOTATION,
   modelSchema,
@@ -12,7 +13,7 @@ import {
 const traditionalManifestSchema = z.strictObject({
   schemaVersion: z.literal(1),
   definition: z.literal("traditional-v1"),
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: timestampSchema,
   artifactDigest: sha256Schema,
 });
 

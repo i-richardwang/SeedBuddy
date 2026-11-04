@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { apiRequestAuthorization } from "./authorization";
 import { issueApiKey } from "../../auth/api-keys";
-import { apiKeyHeaders, signInAs } from "../../testing/fixtures";
+import { apiKeyHeaders, signInAs } from "../../testing/auth";
+import { apiRequestAuthorization } from "./authorization";
 
 function bearer(token?: string): Request {
   return new Request("http://workbench", {

@@ -1,14 +1,11 @@
-import { useRouter } from "@tanstack/react-router";
-import { Plug, Unplug } from "lucide-react";
+import { Unplug } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { MCP_SERVER_LABELS } from "./labels";
 import type { McpClient } from "../../domain/auth/integrations";
 import { removeMcpClient } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
-import { Timestamp } from "../../ui/Timestamp";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
-import { Empty } from "../../ui/kit/Empty";
 import { Flexbox } from "../../ui/kit/Flex";
 import { SettingsGroup } from "../../ui/kit/Settings";
 import {
@@ -20,16 +17,17 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { Tag } from "../../ui/kit/Tag";
-import { Button } from "../../ui/kit/Button";
 import { toast } from "../../ui/kit/Toast";
+import { Timestamp } from "../../ui/Timestamp";
+import { mcpServerLabel } from "./labels";
 
-/** Approved MCP clients; `serversHref` leads to the server addresses a first client is given. */
+/** Approved MCP clients. */
 export function McpClientsGroup({
   mcpClients,
-  serversHref,
+  empty,
 }: {
   mcpClients: McpClient[];
-  serversHref: string;
+  empty: ReactNode;
 }) {
   return (
     <SettingsGroup
@@ -44,20 +42,7 @@ export function McpClientsGroup({
         narrow="cards"
         variant="borderless"
         aria-label={m.integrations_mcp_clients()}
-        empty={
-          mcpClients.length === 0 && (
-            <Empty
-              icon={Plug}
-              title={m.mcp_empty()}
-              description={m.mcp_empty_description()}
-              action={
-                <Button render={<a href={serversHref} />}>
-                  {m.mcp_empty_show_servers()}
-                </Button>
-              }
-            />
-          )
-        }
+        empty={mcpClients.length === 0 ? empty : undefined}
       >
         <TableHeader>
           <tr>
@@ -65,7 +50,7 @@ export function McpClientsGroup({
             <TableHead>{m.mcp_column_servers()}</TableHead>
             <TableHead>{m.mcp_column_approved()}</TableHead>
             <TableHead className="w-12">
-              <span className="sr-only">{m.mcp_column_actions()}</span>
+              <span className="sr-only">{m.column_actions()}</span>
             </TableHead>
           </tr>
         </TableHeader>
@@ -80,7 +65,7 @@ export function McpClientsGroup({
 }
 
 function McpClientRow({ client }: { client: McpClient }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
 
   return (
     <TableRow>
@@ -89,7 +74,7 @@ function McpClientRow({ client }: { client: McpClient }) {
         <Flexbox horizontal gap={4} wrap="wrap">
           {client.servers.map((server) => (
             <Tag key={server} size="small">
-              {MCP_SERVER_LABELS[server]()}
+              {mcpServerLabel(server)}
             </Tag>
           ))}
         </Flexbox>
@@ -106,10 +91,12 @@ function McpClientRow({ client }: { client: McpClient }) {
             confirmDestructive({
               title: m.mcp_disconnect_title({ name: client.name }),
               confirmLabel: m.mcp_disconnect(),
+              failure: m.mcp_not_disconnected(),
               onConfirm: async () => {
                 await removeMcpClient({ data: { client: client.id } });
+              },
+              onSuccess: () => {
                 toast.success(m.mcp_disconnected({ name: client.name }));
-                await router.invalidate();
               },
             })
           }

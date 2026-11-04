@@ -1,34 +1,30 @@
 import { ImageUp } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { ListedImage } from "./state";
 import {
   MAX_IMAGE_BYTES,
   MAX_SOURCE_IMAGE_PIXELS,
   SOURCE_IMAGE_EXTENSIONS,
   sourceImageFileError,
 } from "../../domain/images/canonical";
+import { m } from "../../paraglide/messages";
+import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import {
   DropZone,
   DropZoneFile,
   DropZoneFileList,
   type DropZoneFileStatus,
 } from "../../ui/kit/DropZone";
-import { toast } from "../../ui/kit/Toast";
+import { formatList } from "../../ui/lists";
 import { formatPercent } from "../../ui/numbers";
-import { m } from "../../paraglide/messages";
+import { imageFileErrorLabel } from "./labels";
+import type { ListedImage } from "./useUploads";
 
 const FILE_STATUS = {
   storing: "uploading",
   stored: "done",
   failed: "error",
 } as const satisfies Record<ListedImage["state"]["status"], DropZoneFileStatus>;
-
-const FILE_ERRORS = {
-  unsupported: m.image_file_unsupported,
-  empty: m.image_file_empty,
-  too_large: m.image_file_too_large,
-};
 
 /**
  * Takes source images by drop or chooser and lists them as they upload.
@@ -50,13 +46,32 @@ export function ImageDropZone({
   annotate?: (image: ListedImage) => ReactNode;
   multiple?: boolean;
 }) {
+  const { run } = useAsyncAction();
   const addFiles = (incoming: File[]) => {
-    const accepted = incoming.filter((file) => {
+    const rejected = incoming.flatMap((file) => {
       const error = sourceImageFileError(file);
-      if (error)
-        toast.error({ title: file.name, description: FILE_ERRORS[error]() });
-      return error === null;
+      return error ? [{ file, error }] : [];
     });
+    const accepted = incoming.filter(
+      (file) => !rejected.some((item) => item.file === file),
+    );
+    if (rejected.length > 0) {
+      void run(
+        () => {
+          throw new Error(
+            formatList([
+              ...new Set(
+                rejected.map(({ error }) => imageFileErrorLabel(error)),
+              ),
+            ]),
+          );
+        },
+        m.photos_not_added({
+          files: formatList(rejected.map(({ file }) => file.name)),
+        }),
+        { invalidate: false },
+      );
+    }
     if (accepted.length === 0) return;
     if (multiple) {
       onAdd(accepted);

@@ -1,168 +1,9 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "training_run_page_title": "{run} of {dataset}",
-  "training_runtime": "{framework} {version}",
-  "training_kpi_epochs": "Epochs",
-  "training_kpi_best_map": "Best mAP50-95",
-  "training_kpi_published": "Published {version}",
-  "training_kpi_best_epoch": [
-    {
-      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
-      "match": {
-        "epoch=*": "Epoch {formattedEpoch}"
-      }
-    }
-  ],
-  "training_kpi_saved": [
-    {
-      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
-      "match": {
-        "epoch=*": "Saved locally through epoch {formattedEpoch}"
-      }
-    }
-  ],
-  "training_failed_title": "Training failed",
-  "training_curves": "Curves",
-  "training_no_epochs_finished": "No epochs finished",
-  "training_waiting_first_epoch": "Waiting for the first epoch",
-  "training_parameters": "Parameters",
-  "train_button": "Train",
-  "train_dialog_title": "Train a new version",
-  "train_dialog_no_worker": "No training worker is online",
-  "train_not_started": "Training not started",
-  "train_queued": "Training run queued",
-  "training_runs": "Training runs",
-  "run_column_run": "Run",
-  "run_column_dataset": "Dataset",
-  "run_column_epochs": "Epochs",
-  "run_column_best_map50": "Best mAP50",
-  "run_column_map50_95": "mAP50-95",
-  "run_column_version": "Version",
-  "run_empty_title": "No training runs yet",
-  "run_state_queued": "Queued",
-  "run_state_preparing": "Preparing",
-  "run_state_training": "Training",
-  "run_state_validating": "Validating",
-  "run_state_succeeded": "Succeeded",
-  "run_state_failed": "Failed",
-  "epoch_chart_train_loss": "Train loss",
-  "epoch_chart_val_loss": "Validation loss",
-  "epoch_chart_map": "mAP",
-  "epoch_chart_precision_recall": "Precision and recall",
-  "epoch_series_box_loss": "Box loss",
-  "epoch_series_classification_loss": "Classification loss",
-  "epoch_series_regression_loss": "Regression loss",
-  "epoch_series_map50": "mAP50",
-  "epoch_series_map50_95": "mAP50-95",
-  "epoch_series_precision": "Precision",
-  "epoch_series_recall": "Recall",
-  "epoch_tooltip_epoch": [
-    {
-      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
-      "match": {
-        "epoch=*": "Epoch {formattedEpoch}"
-      }
-    }
-  ],
-  "parameter_epochs": "Epochs",
-  "parameter_patience": "Patience",
-  "parameter_patience_help": "0 turns early stopping off.",
-  "parameter_batch": "Batch",
-  "parameter_imgsz": "Image size",
-  "parameter_optimizer": "Optimizer",
-  "parameter_lr0": "Learning rate",
-  "parameter_warmup_epochs": "Warmup epochs",
-  "parameter_mosaic": "Mosaic",
-  "parameter_mixup": "Mixup",
-  "parameter_copy_paste": "Copy-paste",
-  "parameter_max_det": "Max detections",
-  "parameter_seed": "Seed",
-  "parameter_deterministic": "Deterministic",
-  "parameter_on": "On",
-  "parameter_off": "Off",
-  "train_refused_active": "A run is already in progress",
-  "train_refused_reviewed": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "Review at least {formattedCount} images first"
-      }
-    }
-  ],
-  "run_epochs_progress": [
-    {
-      "declarations": [
-        "input completed",
-        "input total",
-        "local formattedCompleted = completed: number",
-        "local formattedTotal = total: number"
-      ],
-      "match": {
-        "completed=*": "{formattedCompleted} / {formattedTotal}"
-      }
-    }
-  ],
-  "parameter_group_training": "Training",
-  "parameter_group_augmentation": "Augmentation",
-  "parameter_group_validation": "Validation and reproducibility",
-  "run_empty_description": "Start a run from one of the model's datasets.",
-  "run_state_paused": "Paused",
-  "run_state_cancelled": "Cancelled",
-  "training_worker": "Worker",
-  "training_worker_auto": "Automatic assignment",
-  "training_worker_offline": "{worker} · offline",
-  "training_running_worker": "Running on {worker}",
-  "training_waiting_worker": "Waiting for {worker} to pick it up",
-  "training_waiting_auto": "Waiting for an available worker",
-  "training_stall_worker_lost": "{worker} lost contact",
-  "training_stall_no_progress": [
-    {
-      "declarations": [
-        "input minutes",
-        "local formattedMinutes = minutes: number"
-      ],
-      "match": {
-        "minutes=*": "No progress for over {formattedMinutes} minutes"
-      }
-    }
-  ],
-  "training_stall_takeover": "The next available worker will take it over.",
-  "training_stall_reconnect": "The run waits for it to reconnect, or pause it and continue on another worker.",
-  "training_stall_move": "Pause it, then continue on another worker.",
-  "training_blocked_title": "Run {run} is in progress",
-  "training_blocked_description": "This run can continue once it finishes or pauses.",
-  "training_blocked_view": "View run",
-  "training_pause": "Pause",
-  "training_resume": "Continue training",
-  "training_retry": "Retry",
-  "training_menu_pause": "Pause training",
-  "training_menu_resume": "Continue training…",
-  "training_menu_retry": "Retry training…",
-  "training_menu_cancel": "Cancel training…",
-  "training_pause_failed": "Could not pause training",
-  "training_resume_title": "Continue {run}",
-  "training_retry_title": "Retry {run}",
-  "training_resume_from": "Start from",
-  "training_resume_from_saved": [
-    {
-      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
-      "match": {
-        "epoch=*": "Continue from epoch {formattedEpoch}"
-      }
-    }
-  ],
-  "training_resume_from_start": "From the beginning",
-  "training_resume_no_progress": "No progress has been saved yet, so training starts from the beginning.",
-  "training_resume_failed": "Could not continue training",
-  "training_cancel_title": "Cancel {run}?",
-  "training_cancel_note": "Its finished epochs stay readable, but the run can't be continued.",
-  "training_cancel_confirm": "Cancel training",
-  "training_attempts": "Attempts",
   "attempt_column_number": "Attempt",
-  "attempt_column_worker": "Worker",
-  "attempt_column_started": "Started",
-  "attempt_column_result": "Result",
   "attempt_column_reason": "Reason",
+  "attempt_column_started": "Started",
+  "attempt_empty_title": "No Worker has picked up this run yet",
   "attempt_number": [
     {
       "declarations": [
@@ -174,27 +15,154 @@
       }
     }
   ],
-  "attempt_state_running": "In progress",
   "attempt_state_expired": "Lost contact",
-  "attempt_empty_title": "No worker has picked up this run yet",
-  "parameter_nbs": "Nominal batch size (nbs)",
-  "parameter_nbs_help": "Controls gradient accumulation; it is not how many images are loaded into memory at once.",
-  "parameter_scale": "Scale augmentation",
+  "attempt_state_running": "In progress",
+  "epoch_chart_map": "mAP",
+  "epoch_chart_precision_recall": "Precision and recall",
+  "epoch_chart_train_loss": "Train loss",
+  "epoch_chart_val_loss": "Validation loss",
+  "epoch_label": [
+    {
+      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
+      "match": {
+        "epoch=*": "Epoch {formattedEpoch}"
+      }
+    }
+  ],
+  "epoch_series_box_loss": "Box loss",
+  "epoch_series_classification_loss": "Classification loss",
+  "epoch_series_precision": "Precision",
+  "epoch_series_recall": "Recall",
+  "epoch_series_regression_loss": "Regression loss",
+  "parameter_batch": "Batch",
+  "parameter_copy_paste": "Copy-paste",
   "parameter_degrees": "Rotation degrees",
-  "parameter_flipud": "Vertical flip probability",
+  "parameter_deterministic": "Deterministic",
+  "parameter_epochs": "Epochs",
   "parameter_fliplr": "Horizontal flip probability",
-  "parameter_translate": "Translation",
+  "parameter_flipud": "Vertical flip probability",
+  "parameter_group_augmentation": "Augmentation",
+  "parameter_group_training": "Training",
+  "parameter_group_validation": "Validation and reproducibility",
   "parameter_hsv_h": "Hue augmentation",
   "parameter_hsv_s": "Saturation augmentation",
   "parameter_hsv_v": "Brightness augmentation",
-  "train_preset": "Training preset",
+  "parameter_imgsz": "Image size",
+  "parameter_lr0": "Learning rate",
+  "parameter_max_det": "Max detections",
+  "parameter_mixup": "Mixup",
+  "parameter_mosaic": "Mosaic",
+  "parameter_nbs": "Nominal batch size (nbs)",
+  "parameter_nbs_help": "Controls gradient accumulation; it is not how many images are loaded into memory at once.",
+  "parameter_off": "Off",
+  "parameter_on": "On",
+  "parameter_optimizer": "Optimizer",
+  "parameter_patience": "Patience",
+  "parameter_patience_help": "0 turns early stopping off.",
   "parameter_runtime_default": "Runtime default",
-  "train_parameters": "Training parameters",
-  "train_advanced_parameters": "Advanced parameters",
-  "train_restore_preset": "Restore preset values",
-  "train_preset_n": "YOLO26n · Whole image",
-  "train_preset_s": "YOLO26s · Whole image 2048",
-  "train_preset_n_description": "Compact model for whole-image training.",
-  "train_preset_s_description": "Larger model with higher-resolution input for small objects.",
-  "training_resume_local_worker": "Resume uses local files on {worker}. If they are missing, restart training."
+  "parameter_scale": "Scale augmentation",
+  "parameter_seed": "Seed",
+  "parameter_translate": "Translation",
+  "parameter_warmup_epochs": "Warmup epochs",
+  "run_column_run": "Run",
+  "run_copy_id": "Copy run ID",
+  "run_empty_description": "Start a run from one of the model's datasets.",
+  "run_empty_title": "No training runs yet",
+  "run_state_cancelled": "Cancelled",
+  "run_state_paused": "Paused",
+  "run_state_preparing": "Preparing",
+  "run_state_queued": "Queued",
+  "run_state_succeeded": "Succeeded",
+  "run_state_training": "Training in progress",
+  "run_state_validating": "Validating",
+  "training_advanced_parameters": "Advanced parameters",
+  "training_attempts": "Attempts",
+  "training_blocked_description": "This run can continue once it finishes or pauses.",
+  "training_blocked_title": "Run {run} is in progress",
+  "training_blocked_view": "View run",
+  "training_button": "Train",
+  "training_cancel_confirm": "Cancel training",
+  "training_cancel_note": "Its finished epochs stay readable, but the run can't be continued.",
+  "training_cancel_title": "Cancel {run}?",
+  "training_curves": "Curves",
+  "training_dialog_title": "Train a new version",
+  "training_failed_title": "Training failed",
+  "training_hero_published": "Published {version}",
+  "training_hero_saved": [
+    {
+      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
+      "match": {
+        "epoch=*": "Saved locally through epoch {formattedEpoch}"
+      }
+    }
+  ],
+  "training_menu_cancel": "Cancel training…",
+  "training_menu_pause": "Pause training",
+  "training_menu_resume": "Continue training…",
+  "training_menu_retry": "Retry training…",
+  "training_no_epochs_finished": "No epochs finished",
+  "training_not_cancelled": "Training not cancelled",
+  "training_not_continued": "Training not continued",
+  "training_not_paused": "Training not paused",
+  "training_not_retried": "Training not retried",
+  "training_not_started": "Training not started",
+  "training_parameters_group": "Training parameters",
+  "training_parameters_heading": "Parameters",
+  "training_pause": "Pause",
+  "training_preset": "Training preset",
+  "training_preset_nano": "YOLO26n · Whole image",
+  "training_preset_nano_description": "Compact model for whole-image training.",
+  "training_preset_small": "YOLO26s · Whole image 2048",
+  "training_preset_small_description": "Larger model with higher-resolution input for small objects.",
+  "training_queued": "Training run queued",
+  "training_refused_active": "A run is already in progress",
+  "training_refused_reviewed": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "Review at least {formattedCount} images first"
+      }
+    }
+  ],
+  "training_restore_preset": "Restore preset values",
+  "training_resume": "Continue training",
+  "training_resume_from": "Start from",
+  "training_resume_from_saved": [
+    {
+      "declarations": ["input epoch", "local formattedEpoch = epoch: number"],
+      "match": {
+        "epoch=*": "Continue from epoch {formattedEpoch}"
+      }
+    }
+  ],
+  "training_resume_from_start": "From the beginning",
+  "training_resume_no_progress": "No progress has been saved yet, so training starts from the beginning.",
+  "training_resume_title": "Continue {run}",
+  "training_retry_title": "Retry {run}",
+  "training_run_page_title": "{run} of {dataset}",
+  "training_runs": "Training runs",
+  "training_runtime": "{framework} {version}",
+  "training_stall_move": "Pause it, then continue on another Worker.",
+  "training_stall_no_progress": [
+    {
+      "declarations": [
+        "input minutes",
+        "local formattedMinutes = minutes: number"
+      ],
+      "match": {
+        "minutes=*": "No progress for over {formattedMinutes} minutes"
+      }
+    }
+  ],
+  "training_stall_reconnect": "The run waits for it to reconnect, or pause it and continue on another Worker.",
+  "training_stall_takeover": "The next available Worker will take it over.",
+  "training_waiting_auto": "Waiting for an available Worker",
+  "training_waiting_first_epoch": "Waiting for the first epoch",
+  "training_worker_auto": "Automatic assignment",
+  "training_worker_lost": "{worker} lost contact",
+  "training_worker_offline": "{worker} · offline",
+  "training_worker_resume_local": "Continue uses local files on {worker}. If they are missing, restart training.",
+  "training_worker_running": "Running on {worker}",
+  "training_worker_unavailable": "No training Worker is online",
+  "training_worker_waiting": "Waiting for {worker} to pick it up"
 }

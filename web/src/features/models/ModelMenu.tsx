@@ -1,23 +1,26 @@
-import { useRouter } from "@tanstack/react-router";
 import { NotebookPen, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import {
+  MODEL_RECORD_KINDS,
+  type ModelRecords,
+} from "../../domain/models/contracts";
 import type { Model, ModelAnnotation } from "../../domain/models/schema";
 import { removeModel, updateModelAnnotation } from "../../functions/models";
 import { m } from "../../paraglide/messages";
-import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { PageMenu } from "../../ui/ActionsMenu";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
   useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
+import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { Form } from "../../ui/kit/Form";
 import { TextArea } from "../../ui/kit/Input";
 import { toast } from "../../ui/kit/Toast";
 import { modelName } from "../../ui/model-names";
-import { PageMenu } from "../../ui/ActionsMenu";
 import { AnnotationAreaField } from "./AnnotationAreaField";
 
 const FORM_ID = "model-annotation";
@@ -25,11 +28,12 @@ const FORM_ID = "model-annotation";
 /** A model page's secondary actions: its annotation guide, and deleting a model nothing has been recorded against. */
 export function ModelMenu({
   model,
-  deletable,
+  records,
 }: {
   model: Model;
-  deletable: boolean;
+  records: ModelRecords;
 }) {
+  const confirmDestructive = useConfirmDestructive();
   const navigateAfterWrite = useNavigateAfterWrite();
   const [editing, setEditing] = useState(false);
   const name = modelName(model);
@@ -42,23 +46,27 @@ export function ModelMenu({
       onClick: () => setEditing(true),
     },
   ];
-  if (deletable) {
+  if (MODEL_RECORD_KINDS.every((kind) => records[kind] === 0)) {
     items.push(
       { type: "divider" },
       {
         key: "delete",
         danger: true,
         icon: Trash2,
-        label: m.model_menu_delete_item(),
+        label: m.model_menu_delete(),
         onClick: () =>
           confirmDestructive({
-            title: m.model_delete_title({ name }),
-            confirmLabel: m.model_delete(),
+            title: m.item_delete_title({ name }),
+            confirmLabel: m.delete_action(),
+            failure: m.model_not_deleted(),
             onConfirm: async () => {
               await removeModel({ data: { model: model.id } });
-              toast.success(m.model_deleted({ name }));
+            },
+            onSuccess: async () => {
+              toast.success(m.item_deleted({ name }));
               await navigateAfterWrite({ to: "/models" });
             },
+            invalidate: false,
           }),
       },
     );
@@ -66,7 +74,7 @@ export function ModelMenu({
 
   return (
     <>
-      <PageMenu label={m.model_actions({ name })} items={items} />
+      <PageMenu label={m.item_actions({ name })} items={items} />
       <ModelAnnotationDialog
         model={model}
         open={editing}
@@ -91,7 +99,7 @@ function ModelAnnotationDialog({
       open={open}
       onClose={onClose}
       title={m.model_annotation_title({ name: modelName(model) })}
-      okText={m.model_annotation_save()}
+      okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -109,7 +117,6 @@ function ModelAnnotationForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [instructions, setInstructions] = useState(
     model.annotation.instructions,
   );
@@ -127,11 +134,10 @@ function ModelAnnotationForm({
           },
         }),
       m.model_annotation_not_saved(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      onDone();
-      await router.invalidate();
-    });
+      {
+        onSuccess: onDone,
+      },
+    );
   };
 
   return (

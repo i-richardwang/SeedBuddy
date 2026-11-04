@@ -1,44 +1,35 @@
-import { eq, inArray, sql, type Column, type SQL } from "drizzle-orm";
-
-import { database, inTransaction, type Executor } from "../infra/db/client";
-import { images, unclearImages } from "../infra/db/schema";
-import { ImageNotFoundError } from "../../domain/images/errors";
-import type { ImageRef } from "../../domain/images/schema";
-import type {
-  UnclearCleared,
-  UnclearMarked,
-} from "../../domain/images/unclear";
-import { lockImage } from "./lock";
-
 /**
  * Whether a photograph could be read clearly is said of the canonical image,
  * wherever it is shown. Marking or clearing it changes no reading: the grid,
  * the spreadsheet and the dataset pages read the mark beside the readings
  * they have.
  */
+import { type Column, eq, inArray, type SQL, sql } from "drizzle-orm";
+
+import type { ImageRef } from "../../domain/images/schema";
+import type {
+  UnclearCleared,
+  UnclearMarked,
+} from "../../domain/images/unclear";
+import { database, type Executor, inTransaction } from "../infra/db/client";
+import { unclearImages } from "../infra/db/schema";
+import { lockImage } from "./lock";
+import { requireStoredImage } from "./records";
 
 /** Whether the image a query names is marked unclear, as a column of that query. */
 export function markedUnclear(imageId: Column): SQL<boolean> {
   return sql<boolean>`exists (select 1 from ${unclearImages} where ${unclearImages.imageId} = ${imageId})`;
 }
 
-async function requireStoredImage(digest: string, tx: Executor) {
-  const [stored] = await tx
-    .select({ id: images.id })
-    .from(images)
-    .where(eq(images.id, digest));
-  if (!stored) throw new ImageNotFoundError(`Unknown image: ${digest}`);
-}
-
 /** Marks the image unclear. Marking one already marked is harmless. */
 export async function markImageUnclear(
   { digest }: ImageRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<UnclearMarked> {
-  return inTransaction(executor, async (tx) => {
-    await lockImage(digest, tx);
-    await requireStoredImage(digest, tx);
-    const added = await tx
+  return inTransaction(db, async (db) => {
+    await lockImage(digest, db);
+    await requireStoredImage(digest, db);
+    const added = await db
       .insert(unclearImages)
       .values({ imageId: digest })
       .onConflictDoNothing()
@@ -47,25 +38,27 @@ export async function markImageUnclear(
   });
 }
 
-/** Marks several images unclear in one transaction, locking digests in sorted order. */
-export async function markImagesUnclear(
+/** Insert marks after the caller has locked and verified every image. */
+export async function insertUnclearImages(
   digests: readonly string[],
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
-  for (const digest of [...new Set(digests)].sort()) {
-    await markImageUnclear({ digest }, tx);
-  }
+  if (!digests.length) return;
+  await db
+    .insert(unclearImages)
+    .values([...new Set(digests)].map((imageId) => ({ imageId })))
+    .onConflictDoNothing();
 }
 
 /** Clears the image's mark: it reads as clear again. Clearing twice is harmless. */
 export async function clearImageUnclear(
   { digest }: ImageRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<UnclearCleared> {
-  return inTransaction(executor, async (tx) => {
-    await lockImage(digest, tx);
-    await requireStoredImage(digest, tx);
-    const removed = await tx
+  return inTransaction(db, async (db) => {
+    await lockImage(digest, db);
+    await requireStoredImage(digest, db);
+    const removed = await db
       .delete(unclearImages)
       .where(eq(unclearImages.imageId, digest))
       .returning({ imageId: unclearImages.imageId });
@@ -76,10 +69,10 @@ export async function clearImageUnclear(
 /** Which of the named images are marked unclear. */
 export async function readUnclearImages(
   digests: readonly string[],
-  executor?: Executor,
+  db?: Executor,
 ): Promise<Set<string>> {
   if (digests.length === 0) return new Set();
-  const db = executor ?? (await database());
+  db ??= await database();
   const rows = await db
     .select({ imageId: unclearImages.imageId })
     .from(unclearImages)

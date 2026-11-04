@@ -2,130 +2,100 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import { inTransaction, type Executor } from "../infra/db/client";
+import type {
+  CultureEvent,
+  CultureEventRef,
+  CultureEventsRequest,
+} from "../../domain/experiments/culture-events";
+import {
+  cultureEventIsTerminal,
+  type ObservationOrdinals,
+  observationOrdinal,
+  observationOrdinals,
+  unitIsAvailableAt,
+} from "../../domain/experiments/culture-events";
+import {
+  CultureEventNotFoundError,
+  UnitConflictError,
+} from "../../domain/experiments/errors";
+import type { Unit } from "../../domain/experiments/read-model";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
+import {
+  type Executor,
+  inTransaction,
+  operationTime,
+  single,
+} from "../infra/db/client";
 import {
   experimentCultureEvents,
   experimentManualReadings,
   experimentObservationImages,
 } from "../infra/db/schema";
 import {
-  cultureEventIsTerminal,
-  observationOrdinal,
-  observationOrdinals,
-  unitIsAvailableAt,
-  type ObservationOrdinals,
-} from "../../domain/experiments/culture-events";
-import {
-  CultureEventNotFoundError,
-  ObservationNotFoundError,
-  UnitNotFoundError,
-  UnitRejectedError,
-} from "../../domain/experiments/errors";
-import type { Unit } from "../../domain/experiments/contracts";
-import type {
-  ExperimentObservation,
-  CultureEvent,
-  CultureEventRef,
-  CultureEventRequest,
-  CultureEventsRequest,
-} from "../../domain/experiments/schema";
-import { listObservations, listUnits, lockExperiment } from "./records";
-
-export async function recordCultureEvent(
-  value: CultureEventRequest,
-  executor?: Executor,
-): Promise<CultureEvent> {
-  const {
-    experiment: experimentId,
-    unit: unitId,
-    observation: observationId,
-    type,
-  } = value;
-  return inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const observations = await listObservations(experimentId, tx);
-    const observation = observations.find((item) => item.id === observationId);
-    if (!observation) {
-      throw new ObservationNotFoundError(
-        `Unknown observation: ${observationId}`,
-      );
-    }
-    const unit = (await listUnits(experimentId, tx)).find(
-      (item) => item.id === unitId,
-    );
-    if (!unit) throw new UnitNotFoundError(`Unknown unit: ${unitId}`);
-    if (
-      unit.events.some(
-        (event) => event.observation === observationId && event.type === type,
-      )
-    ) {
-      throw new UnitRejectedError(
-        `${type} is already recorded for ${unit.code} at this observation`,
-      );
-    }
-    const hasTerminalEvent = unit.events.some((event) =>
-      cultureEventIsTerminal(event.type),
-    );
-    if (cultureEventIsTerminal(type) && hasTerminalEvent) {
-      throw new UnitRejectedError(`${unit.code} has already left the bench`);
-    }
-
-    const ordinals = observationOrdinals(observations);
-    if (!unitIsAvailableAt(unit.events, observation, ordinals)) {
-      throw new UnitRejectedError(
-        `Unit ${unit.code} was already removed before this observation`,
-      );
-    }
-    if (cultureEventIsTerminal(type)) {
-      await assertUnitRecordsEndAt(
-        experimentId,
-        unit,
-        observation,
-        ordinals,
-        tx,
-      );
-    }
-
-    const [row] = await tx
-      .insert(experimentCultureEvents)
-      .values({
-        experimentId,
-        id: randomUUID(),
-        unitId,
-        observationId,
-        type,
-        recordedAt: new Date(),
-      })
-      .returning();
-    if (!row) throw new Error("Culture event was not recorded");
-    const updated = (await listUnits(experimentId, tx)).find(
-      (item) => item.id === unitId,
-    );
-    const event = updated?.events.find((item) => item.id === row.id);
-    if (!event) throw new Error("Culture event was not read back");
-    return event;
-  });
-}
+  listObservations,
+  listUnits,
+  lockExperiment,
+  requireObservation,
+  requireUnit,
+  toCultureEvent,
+} from "./records";
 
 /** Records the same event on several units in one transaction. */
 export async function recordCultureEvents(
   value: CultureEventsRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<CultureEvent[]> {
-  return inTransaction(executor, async (tx) => {
+  return inTransaction(db, async (db) => {
+    await lockExperiment(value.experiment, db);
+    const observations = await listObservations(value.experiment, db);
+    const observation = requireObservation(observations, value.observation);
+    const units = await listUnits(value.experiment, db);
+    const ordinals = observationOrdinals(observations);
+    const at = await operationTime(db);
     const events: CultureEvent[] = [];
-    for (const unit of value.units) {
-      events.push(
-        await recordCultureEvent(
-          {
-            experiment: value.experiment,
-            unit,
+    for (const unitId of value.units) {
+      const unit = requireUnit(units, unitId);
+      if (
+        unit.events.some(
+          (event) =>
+            event.observation === observation.id && event.type === value.type,
+        )
+      )
+        throw new UnitConflictError(
+          `${value.type} is already recorded for ${unit.code} at this observation`,
+        );
+      if (
+        cultureEventIsTerminal(value.type) &&
+        unit.events.some((event) => cultureEventIsTerminal(event.type))
+      )
+        throw new UnitConflictError(`${unit.code} has already left the bench`);
+      if (!unitIsAvailableAt(unit.events, observation, ordinals))
+        throw new UnitConflictError(
+          `Unit ${unit.code} was already removed before this observation`,
+        );
+      if (cultureEventIsTerminal(value.type))
+        await assertUnitRecordsEndAt(
+          value.experiment,
+          unit,
+          observation,
+          ordinals,
+          db,
+        );
+      const row = single(
+        await db
+          .insert(experimentCultureEvents)
+          .values({
+            experimentId: value.experiment,
+            id: randomUUID(),
+            unitId,
+            observationId: observation.id,
             type: value.type,
-            observation: value.observation,
-          },
-          tx,
-        ),
+            recordedAt: at,
+          })
+          .returning(),
+        "experimentCultureEvents",
       );
+      events.push(toCultureEvent(row));
     }
     return events;
   });
@@ -134,11 +104,11 @@ export async function recordCultureEvents(
 /** Erases an event that was recorded by mistake. */
 export async function deleteCultureEvent(
   { experiment: experimentId, event: eventId }: CultureEventRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<void> {
-  await inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
-    const [row] = await tx
+  await inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    const [row] = await db
       .delete(experimentCultureEvents)
       .where(
         and(
@@ -159,10 +129,10 @@ export async function assertUnitRecordsEndAt(
   unit: Unit,
   observation: ExperimentObservation,
   ordinals: ObservationOrdinals,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
   const [imageObservations, manualObservations] = await Promise.all([
-    tx
+    db
       .select({ observation: experimentObservationImages.observationId })
       .from(experimentObservationImages)
       .where(
@@ -171,7 +141,7 @@ export async function assertUnitRecordsEndAt(
           eq(experimentObservationImages.unitId, unit.id),
         ),
       ),
-    tx
+    db
       .select({ observation: experimentManualReadings.observationId })
       .from(experimentManualReadings)
       .where(
@@ -191,7 +161,7 @@ export async function assertUnitRecordsEndAt(
         observationOrdinal(ordinals, event.observation) > observation.ordinal,
     );
   if (hasLaterRecord) {
-    throw new UnitRejectedError(
+    throw new UnitConflictError(
       `Unit ${unit.code} has records after this observation and cannot be removed here`,
     );
   }

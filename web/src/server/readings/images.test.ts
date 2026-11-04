@@ -1,21 +1,21 @@
 import { expect, test } from "bun:test";
 
-import { database } from "../infra/db/client";
-import { seedDetectionResult } from "../testing/inference";
 import { instancesFromDetection } from "../../domain/annotation/detection";
+import { ImageNotFoundError } from "../../domain/images/errors";
 import { storeAnnotation } from "../annotations/documents";
-import { readReview } from "./images";
+import { database } from "../infra/db/client";
 import { setCurrentVersion } from "../models/public";
+import { observeImages } from "../testing/experiments";
+import { resultFor } from "../testing/images";
+import { seedDetectionResult } from "../testing/inference";
+import { registerTrainedVersion, traditionalVersion } from "../testing/models";
 import {
-  observeImages,
   recordTestHeartbeat,
-  registerTrainedVersion,
-  resultFor,
   TEST_RUNTIME,
   testHeartbeat,
-  traditionalVersion,
   ULTRALYTICS_RUNTIME,
-} from "../testing/fixtures";
+} from "../testing/workers";
+import { readAnnotationReading, readReview } from "./images";
 
 test("a review shows the current version's detection and the stored annotation", async () => {
   const worker = await recordTestHeartbeat({
@@ -48,4 +48,13 @@ test("a review shows the current version's detection and the stored annotation",
   const reviewed = await readReview(ref, "rv.jpg", db);
   expect(reviewed?.annotation).toEqual(saved);
   expect(reviewed?.detection).toEqual(newer);
+});
+
+test("a missing annotation image is an image refusal", async () => {
+  await expect(
+    readAnnotationReading({
+      digest: "0".repeat(64),
+      modelId: "missing-image-model",
+    }),
+  ).rejects.toBeInstanceOf(ImageNotFoundError);
 });

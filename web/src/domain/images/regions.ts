@@ -1,5 +1,4 @@
-import { intersectsCoverage, type ImageCoverage } from "./coverage";
-
+import { type ImageCoverage, intersectsCoverage } from "./coverage";
 import type {
   ImageFrame,
   ImageRectangle,

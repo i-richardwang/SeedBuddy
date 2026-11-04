@@ -1,4 +1,5 @@
 import { Toolbar as ToolbarPrimitive } from "@base-ui/react/toolbar";
+
 import { cn } from "./cn";
 import { Center } from "./Flex";
 import { TooltipGroup } from "./Tooltip";
@@ -10,7 +11,7 @@ import { TooltipGroup } from "./Tooltip";
  * `render`. Its controls share one tooltip, which glides between them.
  */
 
-export interface ToolbarProps extends Omit<
+interface ToolbarProps extends Omit<
   ToolbarPrimitive.Root.Props,
   "className" | "orientation" | "disabled"
 > {

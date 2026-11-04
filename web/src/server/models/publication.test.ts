@@ -1,23 +1,28 @@
 import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+
 import {
-  prepareModelUpload,
-  uploadModelWeights,
-  importModelUpload,
-  openModelWeights,
-  collectUnreferencedModelWeights,
-} from "./publication";
-import {
-  readCurrentVersionId,
-  createModel,
-  setCurrentVersion,
-} from "./registry";
+  type ModelBundle,
+  modelBundleSchema,
+} from "../../domain/models/bundle";
+import { ModelUploadNotFoundError } from "../../domain/models/errors";
+import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
+import { blobExists } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { modelUploads } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
-import { blobExists } from "../infra/blobs/store";
-import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
-import type { ModelBundle } from "../../domain/models/bundle";
+import {
+  collectUnreferencedModelWeights,
+  importModelUpload,
+  openModelWeights,
+  prepareModelUpload,
+  uploadModelWeights,
+} from "./publication";
+import {
+  createModel,
+  readCurrentVersionId,
+  setCurrentVersion,
+} from "./registry";
 
 const weights = new TextEncoder().encode("already-trained-weights");
 function bundle(): ModelBundle {
@@ -75,7 +80,7 @@ test("local artifacts register idempotently without a training run or changing t
   await uploadModelWeights(reservation.uploadId, weights);
   const v = await importModelUpload(reservation.uploadId);
   expect(v.source.kind).toBe("import");
-  expect(await readCurrentVersionId(m.id)).toBeNull();
+  expect(await readCurrentVersionId(m.id, await database())).toBeNull();
   expect(await importModelUpload(reservation.uploadId)).toEqual(v);
   const again = await prepareModelUpload(m.id, manifest);
   expect(again.uploadId).toBe(reservation.uploadId);
@@ -84,17 +89,17 @@ test("local artifacts register idempotently without a training run or changing t
   );
   expect(downloaded).toEqual(weights);
   await setCurrentVersion({ model: m.id, version: v.id });
-  expect(await readCurrentVersionId(m.id)).toBe(v.id);
+  expect(await readCurrentVersionId(m.id, await database())).toBe(v.id);
   const revised = bundle();
   revised.inference.confidence = 0.4;
   const other = await prepareModelUpload(m.id, revised);
   await uploadModelWeights(other.uploadId, weights);
   const v2 = await importModelUpload(other.uploadId);
   expect(v2.id).not.toBe(v.id);
-  expect(await readCurrentVersionId(m.id)).toBe(v.id);
+  expect(await readCurrentVersionId(m.id, await database())).toBe(v.id);
   await setCurrentVersion({ model: m.id, version: v2.id });
   await setCurrentVersion({ model: m.id, version: v.id });
-  expect(await readCurrentVersionId(m.id)).toBe(v.id);
+  expect(await readCurrentVersionId(m.id, await database())).toBe(v.id);
 });
 
 test("bundle validation rejects mismatched classes and unsupported inference pipelines", async () => {
@@ -102,12 +107,12 @@ test("bundle validation rejects mismatched classes and unsupported inference pip
   const b = bundle();
   b.classes = ["other"];
   await expect(prepareModelUpload(m.id, b)).rejects.toThrow(/classes/);
-  await expect(
-    prepareModelUpload(m.id, {
+  expect(
+    modelBundleSchema.safeParse({
       ...bundle(),
       inference: { ...bundle().inference, mode: "tiled" },
-    } as unknown as ModelBundle),
-  ).rejects.toThrow();
+    }).success,
+  ).toBeFalse();
 });
 
 test("only expired unregistered reservations are collected; renewal and committed versions remain rooted", async () => {
@@ -140,4 +145,13 @@ test("only expired unregistered reservations are collected; renewal and committe
     row!.weightsKey,
   );
   expect((await openModelWeights(v.id)).size).toBe(weights.length);
+});
+
+test("an unknown upload has its own typed refusal", async () => {
+  await expect(
+    uploadModelWeights("unknown-upload", weights),
+  ).rejects.toBeInstanceOf(ModelUploadNotFoundError);
+  await expect(importModelUpload("unknown-upload")).rejects.toMatchObject({
+    code: "model_upload_not_found",
+  });
 });

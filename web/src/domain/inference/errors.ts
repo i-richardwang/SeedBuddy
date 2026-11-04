@@ -6,8 +6,8 @@ export class DetectionConflictError extends ConflictError {
     super(`${versionId} already detected ${digest} with a different result`);
   }
 }
-export class InvalidDetectionOutcomeError extends ValidationError {
-  readonly code = "invalid_detection_outcome";
+export class DetectionOutcomeInvalidError extends ValidationError {
+  readonly code = "detection_outcome_invalid";
 }
 export class DetectionImageNotFoundError extends NotFoundError {
   readonly code = "detection_image_not_found";

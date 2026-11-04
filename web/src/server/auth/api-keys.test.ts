@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import { API_KEY_PREFIX } from "../../domain/auth/integrations";
 import { ApiKeyNotFoundError } from "../../domain/auth/errors";
+import { API_KEY_PREFIX } from "../../domain/auth/integrations";
+import { apiKeyHeaders, signInAs } from "../testing/auth";
 import {
   authorizeApiKey,
   issueApiKey,
   listApiKeys,
   revokeApiKey,
 } from "./api-keys";
-import { apiKeyHeaders, signInAs } from "../testing/fixtures";
-import { banUser } from "./users";
+import { setUserStatus } from "./users";
 
 function requestWith(secret: string | null): Request {
   return new Request("http://workbench/api/agent/list-experiments", {
@@ -84,7 +84,7 @@ describe("API keys", () => {
       scopes: ["experiments"],
       expiresInDays: null,
     });
-    await banUser(admin.headers, { user: user.id });
+    await setUserStatus(admin.user, { suspended: true, user: user.id });
     expect(
       await authorizeApiKey(requestWith(issued.secret), "experiments"),
     ).toBe(false);

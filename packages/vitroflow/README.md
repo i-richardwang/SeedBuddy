@@ -9,6 +9,8 @@ uvx vitroflow photos sort ~/plates -o ~/plates/plates.json
 uvx vitroflow photos review ~/plates/plates.json
 ```
 
+`python -m vitroflow` is the module entry point and accepts the same commands.
+
 `sort` reads the folder's JPEG, PNG and TIFF files, prints JSON, writes the same JSON to the file given with `-o`, and leaves every photograph where it is:
 
 ```json
@@ -61,9 +63,9 @@ Each photograph is judged on its own, so the sharpest photograph of a dish can s
 
 ## Confirming the suggestions
 
-The first shot and its `suitable` are a suggestion, and the person who will count the dish has the last word. `review` prints the address of a page on this machine. The page lists the dishes and shows every photograph of the one in view. Changing between the photographs of a dish keeps each seed in place, so focus can be compared at one spot.
+The first shot and its `suitable` are a suggestion, and the person who will count the dish has the last word. `review` prints the address of a page on the local computer. The page lists the dishes and shows every photograph of the one in view. Changing between the photographs of a dish keeps each seed in place, so focus can be compared at one spot.
 
-For each dish, accept the suggestion, or bring up the photograph to use and mark its seeds as countable, not countable, or not sure. A decision moves on to the next dish that still has none. A note can be kept with the confirmation. **Accept remaining suggestions** confirms the suggestion for every dish that still has none, and leaves a correction that is already there as it is. **Worth a look** shows the dishes whose suggested photograph cannot be counted, or that have another photograph about as sharp.
+For each dish, accept the suggestion, or bring up the photograph to use and mark its seeds as countable, not countable, or not sure. A decision moves on to the next dish that still has none. A note can be kept with the confirmation. Accept remaining suggestions confirms the suggestion for every dish that still has none, and leaves a correction that is already there as it is. Worth a look shows the dishes whose suggested photograph cannot be counted, or that have another photograph about as sharp.
 
 The confirmation is stored in the same file, beside the dish's shots:
 
@@ -79,3 +81,14 @@ The confirmation is stored in the same file, beside the dish's shots:
 ```
 
 `decision.chosen` is the photograph to use. `decision.suitable` is `true` when its seeds can be counted, `false` when they cannot, and `null` when the person was not sure. Sorting into the same file again is refused once any confirmation is present.
+
+## Publishing
+
+The package version is in `packages/vitroflow/pyproject.toml`. From the repository root, build into an empty `dist/` and publish:
+
+```bash
+uv build --package vitroflow
+uv publish
+```
+
+The publishing credential is described in the repository environment example. The release tag matches the package version.

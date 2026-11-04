@@ -1,5 +1,6 @@
 import { Link2 } from "lucide-react";
 import type { ReactNode } from "react";
+
 import { cn } from "./cn";
 import { Icon, type IconProps } from "./Icon";
 
@@ -90,4 +91,9 @@ export function AuthConnection({
       <span className="ui-auth-connection-tile">{product}</span>
     </div>
   );
+}
+
+/** A divider between the page-wide controls in the footer. */
+export function AuthLayoutSeparator() {
+  return <span aria-hidden className="ui-auth-layout-separator" />;
 }

@@ -7,12 +7,14 @@ from typing import Any
 
 import cv2
 import numpy as np
+import pytest
 
 from vitroctl.datasets.manifest import (
     MANIFEST_SCHEMA_VERSION,
     blob_path,
     manifest_path,
 )
+from vitroctl.models.bundle import weights_descriptor
 
 SEED_CLASSES = ("ungerminated", "germinated")
 
@@ -144,3 +146,90 @@ def write_blob(data_root: Path, data: bytes) -> str:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
     return digest
+
+
+PARAMETERS = {
+    "epochs": 3,
+    "patience": 20,
+    "batch": 4,
+    "imgsz": 768,
+    "optimizer": "AdamW",
+    "lr0": 0.001,
+    "warmup_epochs": 3.0,
+    "mosaic": 0.0,
+    "mixup": 0.0,
+    "copy_paste": 0.0,
+    "max_det": 500,
+    "seed": 0,
+    "deterministic": True,
+}
+
+
+@pytest.fixture
+def recipe(request: pytest.FixtureRequest) -> dict[str, Any]:
+    filename = getattr(request, "param", "yolo26n-whole-v1.recipe.json")
+    path = Path(__file__).parents[1] / "configs/yolo26" / filename
+    return json.loads(path.read_text())
+
+
+def model_bundle(weights: Path, recipe):
+    return {
+        "schemaVersion": 1,
+        "classes": ["seed"],
+        "weights": weights_descriptor(weights),
+        "inference": {
+            "mode": "whole_image",
+            "iou": 0.7,
+            "confidence": 0.26,
+            "imageSize": 1536,
+            "maxDetections": 500,
+            "endToEnd": False,
+        },
+        "training": recipe,
+        "validation": {
+            "precision": 0.5,
+            "recall": 0.4,
+            "map50": 0.5,
+            "map50To95": 0.3,
+            "fitness": 0.3,
+        },
+        "provenance": {
+            "dataset": {
+                "fingerprint": None,
+                "snapshotId": None,
+                "description": "Independent experiment",
+            },
+            "selectedEpoch": 30,
+            "codeRevision": None,
+            "effectiveParameters": {"nbs": 8},
+            "evaluation": {
+                "description": "15 comparison images",
+                "calibration": "8 calibration images",
+                "metrics": {"countMae": 17.5},
+            },
+        },
+    }
+
+
+def decode_annotation(value, context="annotation"):
+    from vitroctl.contracts.annotation import AnnotationDocument
+    from vitroctl.contracts.validation import validate_wire_contract
+
+    validate_wire_contract("annotation", value, context)
+    return AnnotationDocument.decode(value, context)
+
+
+def decode_detection(value, context="detection"):
+    from vitroctl.contracts.validation import validate_wire_contract
+    from vitroctl.detectors.contract import DetectionResult
+
+    validate_wire_contract("detection-result", value, context)
+    return DetectionResult.decode(value, context)
+
+
+def decode_model_manifest(value, context="model manifest"):
+    from vitroctl.contracts.validation import validate_wire_contract
+    from vitroctl.worker.model_store import ModelManifest
+
+    validate_wire_contract("inference-model-manifest", value, context)
+    return ModelManifest.decode(value, context)

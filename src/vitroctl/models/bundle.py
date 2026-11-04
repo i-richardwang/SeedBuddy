@@ -2,20 +2,31 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
+from vitroctl.contracts.inference import YOLO_IOU
 from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.io.files import atomic_directory
+from vitroctl.io.files import atomic_directory, file_digest
+
+BUNDLE_SCHEMA_VERSION = 1
+
+
+class TrainingPublication(Protocol):
+    @property
+    def best_weights(self) -> Path: ...
+
+    @property
+    def summary(self) -> Path: ...
+
+    @property
+    def context(self) -> dict[str, Any]: ...
 
 
 def weights_descriptor(weights: Path) -> dict[str, Any]:
-    with weights.open("rb") as stream:
-        digest = hashlib.file_digest(stream, "sha256").hexdigest()
-    return {"digest": digest, "bytes": weights.stat().st_size}
+    return {"digest": file_digest(weights), "bytes": weights.stat().st_size}
 
 
 def validate_bundle(document: Any, weights: Path) -> dict[str, Any]:
@@ -31,8 +42,12 @@ def read_bundle(directory: Path) -> tuple[dict[str, Any], Path]:
     return validate_bundle(document, weights), weights
 
 
-def write_bundle(weights: Path, document: dict[str, Any], output: Path) -> Path:
-    validate_bundle(document, weights)
+def write_bundle(
+    weights: Path,
+    document: dict[str, Any],
+    output: Path,
+) -> Path:
+    """Write an already validated bundle atomically."""
     with atomic_directory(output) as temporary:
         shutil.copyfile(weights, temporary / "weights.pt")
         (temporary / "bundle.json").write_text(json.dumps(document, indent=2) + "\n")
@@ -40,23 +55,48 @@ def write_bundle(weights: Path, document: dict[str, Any], output: Path) -> Path:
 
 
 def training_bundle(
-    weights: Path, summary: Path, classes: list[str], provenance: dict[str, Any]
+    result: TrainingPublication, classes: list[str], provenance: dict[str, Any]
 ) -> dict[str, Any]:
-    publication = json.loads(summary.read_text())
-    context = summary.parent / "training-context.json"
-    provenance = {**provenance, **json.loads(context.read_text())}
+    """Derive both schema-required metric fields from the publication's validation."""
+    publication = json.loads(result.summary.read_text())
     inference = dict(publication["inference"])
     if inference.pop("ready") is not True:
         raise ValueError("Training produced no usable validation signal")
-    return validate_bundle(
-        {
-            "schemaVersion": 1,
-            "classes": classes,
-            "weights": weights_descriptor(weights),
-            "inference": {**inference, "mode": "whole_image", "iou": 0.7},
-            "training": publication["training"],
-            "validation": publication["validation"],
-            "provenance": provenance,
+    document = {
+        "schemaVersion": BUNDLE_SCHEMA_VERSION,
+        "classes": classes,
+        "weights": weights_descriptor(result.best_weights),
+        "inference": {**inference, "mode": "whole_image", "iou": YOLO_IOU},
+        "training": publication["training"],
+        "validation": publication["validation"],
+        "provenance": {
+            **provenance,
+            **result.context,
+            "evaluation": {
+                **provenance["evaluation"],
+                "metrics": publication["validation"],
+            },
         },
-        weights,
-    )
+    }
+    return validate_bundle(document, result.best_weights)
+
+
+def training_provenance(
+    *,
+    fingerprint: str | None,
+    snapshot_id: str | None,
+    dataset_description: str,
+    evaluation_description: str,
+) -> dict[str, Any]:
+    return {
+        "dataset": {
+            "fingerprint": fingerprint,
+            "snapshotId": snapshot_id,
+            "description": dataset_description,
+        },
+        "selectedEpoch": None,
+        "evaluation": {
+            "description": evaluation_description,
+            "calibration": "Best F1 confidence on validation split",
+        },
+    }

@@ -1,62 +1,65 @@
+import type { CultureEventType } from "../../domain/experiments/culture-events";
+import type {
+  Exclusion,
+  ReviewState,
+} from "../../domain/experiments/read-model";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
+import type { SummaryMeasure } from "../../domain/experiments/summary";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
-import { countedClassesName, modelName } from "../../ui/model-names";
-import type {
-  ExperimentObservation,
-  CultureEventType,
-} from "../../domain/experiments/schema";
-import type { SummaryMeasure } from "../../domain/experiments/summary";
-import { countsEveryClass } from "../../domain/models/classes";
-import type { Model } from "../../domain/models/schema";
+import type { StatusTone } from "../../ui/kit/Status";
 
 /** An observation is named by the day it was made. */
 export function observationLabel(observation: ExperimentObservation): string {
   return formatDay(observation.observedOn);
 }
 
-/**
- * What a day asks of its photographs, said under its date: the model when
- * `nameModel`, and the classes the day counts when they are fewer than the
- * model finds. Empty when neither needs saying.
- */
-export function observationQuestion(
-  observation: ExperimentObservation,
-  model: Model | undefined,
-  { nameModel }: { nameModel: boolean },
-): string {
-  if (!model) return "";
-  return joinFacts([
-    ...(nameModel ? [modelName(model)] : []),
-    ...(countsEveryClass(observation.countedClasses, model.classes)
-      ? []
-      : [countedClassesName(observation.countedClasses)]),
-  ]);
-}
-
-/** The number a summary reads a day by, named. */
-export function summaryMeasureLabel(measure: SummaryMeasure): string {
-  return measure === "rate"
-    ? m.summary_measure_rate()
-    : m.summary_measure_count();
-}
-
-const CULTURE_EVENT_LABELS: Record<CultureEventType, () => string> = {
+const CULTURE_EVENT_LABELS = {
   contaminated: m.culture_event_contaminated,
   nonviable: m.culture_event_nonviable,
   discarded: m.culture_event_discarded,
   harvested: m.culture_event_harvested,
   missing: m.culture_event_missing,
-};
+} as const satisfies Record<CultureEventType, () => string>;
 
 export function cultureEventLabel(type: CultureEventType): string {
   return CULTURE_EVENT_LABELS[type]();
 }
 
-/** Facts of one thing, side by side in a single line. */
-export function joinFacts(facts: readonly string[]): string {
-  return facts.reduce(
-    (first, second) =>
-      first === "" ? second : m.experiment_facts_joined({ first, second }),
-    "",
-  );
+const IMAGE_REVIEW_LABELS = {
+  reviewed: { tone: "success", label: m.reviewed_label },
+  unreviewed: { tone: "neutral", label: m.to_review_label },
+} as const satisfies Record<
+  ReviewState,
+  { tone: StatusTone; label: () => string }
+>;
+
+export function imageReviewLabel(value: ReviewState): string {
+  return IMAGE_REVIEW_LABELS[value].label();
+}
+
+export function imageReviewTone(value: ReviewState): StatusTone {
+  return IMAGE_REVIEW_LABELS[value].tone;
+}
+
+const SUMMARY_MEASURE_LABELS = {
+  rate: m.summary_measure_rate,
+  count: m.summary_measure_count,
+} as const satisfies Record<SummaryMeasure, () => string>;
+
+/** The number a summary reads a day by, named. */
+export function summaryMeasureLabel(measure: SummaryMeasure): string {
+  return SUMMARY_MEASURE_LABELS[measure]();
+}
+
+export function exclusionNote(exclusion: Exclusion): string {
+  return exclusion.reason === "unclear"
+    ? m.experiment_cell_excluded_unclear()
+    : m.experiment_cell_excluded_event();
+}
+
+export function exclusionLabel(exclusion: Exclusion): string {
+  return exclusion.reason === "event"
+    ? cultureEventLabel(exclusion.event.type)
+    : m.unclear_label();
 }

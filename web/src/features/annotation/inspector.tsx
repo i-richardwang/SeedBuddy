@@ -1,29 +1,33 @@
 import type { ReactNode } from "react";
 
-import type { Review } from "../../domain/annotation/review";
-import { sourceInstances } from "../../domain/annotation/review";
+import type { Review } from "../../domain/annotation/readings";
+import {
+  availableSources,
+  sourceInstances,
+} from "../../domain/annotation/readings";
 import type { ReviewSource } from "../../domain/annotation/schema";
 import {
   classCount,
   countClasses,
   countsEveryClass,
-  tally,
   type Tally,
+  tally,
 } from "../../domain/models/classes";
 import { m } from "../../paraglide/messages";
-import { QualityAlert } from "../../ui/DetectionQuality";
+import { QualityAlert } from "../../ui/detection-quality";
+import { IdentifierName } from "../../ui/IdentifierName";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { ProgressMeter } from "../../ui/kit/Progress";
 import { StatisticHero } from "../../ui/kit/Statistic";
+import { Text } from "../../ui/kit/Text";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
+import { countedClassesLabel } from "../../ui/model-names";
 import { formatCount, formatNumber } from "../../ui/numbers";
-import { IdentifierName } from "../../ui/IdentifierName";
-import { countedClassesName } from "../../ui/model-names";
 import { Stepper } from "../../ui/Stepper";
 import { WorkbenchSection } from "../../ui/shell/Workbench";
-import { ClassLabel } from "./controls";
-import { sourceLabels } from "./labels";
-import { Text } from "../../ui/kit/Text";
+import { qualityWarningLabels } from "../datasets/labels";
+import { ClassLabel } from "./ClassLabel";
+import { sourceLabel } from "./labels";
 
 /**
  * How many of each class the boxes on view hold, and the number the image
@@ -38,30 +42,29 @@ export function CountsSection({
   counted,
   counts,
   review,
-  sources,
   shown,
-  onSourceChange,
+  onShowChange,
 }: {
   classes: string[];
   counted: readonly string[];
   counts: Tally;
   review: Review;
-  sources: ReviewSource[];
   shown: ReviewSource | null;
-  onSourceChange: (source: ReviewSource) => void;
+  onShowChange: (source: ReviewSource) => void;
 }) {
+  const sources = availableSources(review);
   return (
     <WorkbenchSection>
       <StatisticHero
         size="compact"
-        title={m.annotation_counts()}
+        title={m.counts_label()}
         value={formatCount(countClasses(counts, counted))}
         facts={
           countsEveryClass(counted, classes)
             ? undefined
             : [
                 m.annotation_counted_classes({
-                  classes: countedClassesName(counted),
+                  classes: countedClassesLabel(counted),
                 }),
               ]
         }
@@ -93,14 +96,14 @@ export function CountsSection({
             options={sources.map((source) => ({
               value: source,
               label: m.annotation_named_count({
-                name: sourceLabels[source](),
+                name: sourceLabel(source),
                 count: countClasses(
                   tally(sourceInstances(review, source) ?? []),
                   counted,
                 ),
               }),
             }))}
-            onChange={onSourceChange}
+            onChange={onShowChange}
           />
         </div>
       ) : null}
@@ -128,11 +131,11 @@ export function ChecksSection({
   const { progress } = review;
   if (!progress && checks === 0) return null;
   return (
-    <WorkbenchSection title={m.annotation_ai_section()}>
+    <WorkbenchSection title={m.ai_proposal_label()}>
       {progress ? (
         <ProgressMeter
           label={m.annotation_ai_running()}
-          count={m.annotation_ai_progress_count({
+          count={m.progress_count({
             completed: progress.completed,
             total: progress.total,
           })}
@@ -178,14 +181,14 @@ export function DetailsSection({
   const { detection } = review;
   const threshold = detection?.diagnostics?.metrics?.confidence_threshold;
   return (
-    <WorkbenchSection title={m.annotation_details()}>
+    <WorkbenchSection title={m.details_label()}>
       <Descriptions>
         {facts}
         <DescriptionsItem label={m.annotation_file()}>
           {review.filename}
         </DescriptionsItem>
         {detection ? (
-          <DescriptionsItem label={m.annotation_detection_version()}>
+          <DescriptionsItem label={m.version_label()}>
             <IdentifierName id={detection.producer.modelVersionId} />
           </DescriptionsItem>
         ) : null}
@@ -195,7 +198,9 @@ export function DetailsSection({
           </DescriptionsItem>
         )}
       </Descriptions>
-      {detection ? <QualityAlert quality={detection.quality} /> : null}
+      {detection ? (
+        <QualityAlert labels={qualityWarningLabels(detection.quality)} />
+      ) : null}
     </WorkbenchSection>
   );
 }

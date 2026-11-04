@@ -1,11 +1,12 @@
 import { expect, test } from "bun:test";
+
+import { businessFailureSchema } from "../domain/errors";
 import {
   ExperimentNotFoundError,
-  ExperimentObservationImageAlreadyUsedError,
+  ExperimentObservationImageConflictError,
 } from "../domain/experiments/errors";
-import { businessFailureSchema } from "../domain/errors";
-import { errorMessage } from "../ui/errors";
 import { withRequestLocale } from "../server/transport/http/locale";
+import { errorMessage } from "../ui/errors";
 import { mapBusinessErrors } from "./errors";
 
 const handler = mapBusinessErrors.options.server!;
@@ -76,7 +77,7 @@ test("business error details survive the wire without serializing exception inte
     await handler({
       ...context,
       next: async () => {
-        throw new ExperimentObservationImageAlreadyUsedError(images);
+        throw new ExperimentObservationImageConflictError(images);
       },
     });
   } catch (error) {
@@ -84,6 +85,6 @@ test("business error details survive the wire without serializing exception inte
   }
   const wire = businessFailureSchema.parse(JSON.parse(JSON.stringify(caught)));
   expect(wire.details).toEqual({ images });
-  expect(wire.code).toBe("experiment_observation_image_already_used");
+  expect(wire.code).toBe("experiment_observation_image_conflict");
   expect(wire).not.toHaveProperty("stack");
 });

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { snapshotForRun } from "../server/training/public";
 import {
-  parseTrainingQuery,
+  parseAttemptOwner,
   workerErrorResponse,
 } from "../server/transport/http/worker";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute(
     handlers: {
       GET: async ({ params, request, context }) => {
         try {
-          const owner = parseTrainingQuery(request, context.workerId);
+          const owner = parseAttemptOwner(request, context.workerId);
           return Response.json(await snapshotForRun(params.runId, owner));
         } catch (error) {
           return workerErrorResponse(error, "Training snapshot request failed");

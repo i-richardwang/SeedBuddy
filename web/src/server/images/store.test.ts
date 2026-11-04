@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 import { eq, sql } from "drizzle-orm";
 import sharp from "sharp";
-import { storeImage, storeCanonicalImage } from "./store";
-import { canonicalize } from "./ingest";
-import { refreshImageAnalysis } from "./analysis-maintenance";
-import { DISH_RECIPE_ID } from "./dish-recipe";
+
+import { listBlobs } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { images } from "../infra/db/schema";
-import { listBlobs } from "../infra/blobs/store";
+import { refreshImageAnalysis } from "./analysis-maintenance";
+import { DISH_RECIPE_ID } from "./dish-recipe";
+import { canonicalize } from "./ingest";
+import { storeCanonicalImage, storeImage } from "./store";
 
 async function row(digest: string) {
   return (
@@ -28,6 +29,7 @@ test("upload and canonical import persist the same analysis without preparing re
   const stored = await row(first.digest);
   const analysis = stored.dishAnalysis;
   expect(stored.dishAnalysisAttemptedAt).toBeInstanceOf(Date);
+  expect(stored.dishAnalysisAttemptedAt).toEqual(stored.receivedAt);
   expect(first.digest).toBe(canonical.digest);
   expect(analysis?.recipe).toBe(DISH_RECIPE_ID);
   expect(analysis?.circle).not.toBeNull();
@@ -77,7 +79,13 @@ test("maintenance refreshes only unavailable or obsolete analysis, including suc
   expect(result.failed).toBe(0);
   expect((await row(image.digest)).dishAnalysis).toEqual(original);
   const warm = await refreshImageAnalysis({ limit: 1000 });
-  expect(warm).toEqual({ examined: 0, completed: 0, failed: 0, skipped: 0 });
+  expect(warm).toEqual({
+    attemptedBefore: expect.any(Date),
+    examined: 0,
+    completed: 0,
+    failed: 0,
+    skipped: 0,
+  });
 });
 
 test("database analysis constraints distinguish unavailable metadata from completed no-candidate results", async () => {

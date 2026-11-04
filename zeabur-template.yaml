@@ -2,10 +2,9 @@
 #
 # Deploys the VitroFlow server side: workbench, maintenance, Postgres and the
 # S3-compatible store. Workers hold the GPUs and stay outside Zeabur; an
-# administrator enrolls each one on the workbench's Status page.
+# administrator enrolls each one on the workbench's Workers page.
 #
-# Prereq: the source repository is private, so install the Zeabur GitHub App on
-# the repository owner and grant it access before the first deploy.
+# The Zeabur GitHub App needs access to the source repository.
 apiVersion: zeabur.com/v1
 kind: Template
 metadata:
@@ -24,33 +23,25 @@ spec:
         records; the MinIO bucket holds image and model-weight bytes.
 
         ## Services
-        - **workbench** — built from `Dockerfile.web`, serves the UI, the agent
-          API, and the MCP endpoint on port 3000
-        - **maintenance** — built from the same `Dockerfile.web`, refreshes dish
-          analysis and collects unreferenced blobs without a public port
-        - **postgres** — Postgres 18, the source of truth for records
-        - **minio** — S3-compatible object store for immutable blobs
+        - workbench — built from `Dockerfile.web`, serves the UI, the agent
+          API, and the two MCP servers on port 3000
+        - maintenance — built from the same `Dockerfile.web`, runs the three maintenance loops documented in
+          `docs/images.md#maintenance`, without a public port
+        - postgres — Postgres 18, the source of truth for records
+        - minio — S3-compatible object store for immutable blobs
 
-        Workers are not part of this template. They only make outbound calls,
-        so run them next to their GPUs. An administrator enrolls each machine on
-        the workbench's Status page, which shows the token and the setup command
-        for it once.
+        Worker processes run outside this template and only make outbound calls.
+        Run them on the enrolled machines next to their GPUs. Enrollment and setup are described in
+        `docs/vitroctl.md#workers`.
 
         ## After deploying
         Bind your own domain to the workbench in its Networking tab; no domain is
-        bound for you. It has to be the domain you gave as the workbench domain,
-        because that value is the auth issuer.
+        bound for you.
 
-        The workbench initializes a fresh database and creates the first
-        administrator from the supplied credentials. Maintenance starts after
+        Database startup follows `docs/architecture.md#database-schema`. The workbench creates
+        the first administrator from the supplied credentials. Maintenance starts after
         the workbench, uses the same Postgres and MinIO, and retries unavailable
         infrastructure. Deploy both application services from the same commit.
-
-        Updating the template does not change an existing project. Add the
-        maintenance service there with the same source, Dockerfile and storage
-        variables, command `bun dist/maintenance.js`, and no public port. Align
-        an existing database separately before deploying a changed schema,
-        preserving its records and frozen annotation plans.
 
         `BETTER_AUTH_URL` is the origin browsers and MCP clients reach the
         workbench at; it is the OAuth issuer, so it must match the bound domain
@@ -63,7 +54,7 @@ spec:
         - key: PUBLIC_DOMAIN
           type: STRING
           name: Workbench Domain
-          description: "The full domain the workbench is served on, such as vitroflow.example.com. Bind it in the Networking tab after deploying. It is also the auth issuer and the MCP endpoint origin."
+          description: "The full domain the workbench is served on, such as vitroflow.example.com. Bind it in the Networking tab after deploying."
         - key: VITROFLOW_ADMIN_EMAIL
           type: STRING
           name: Administrator Email
@@ -71,7 +62,7 @@ spec:
         - key: VITROFLOW_ADMIN_PASSWORD
           type: STRING
           name: Administrator Password
-          description: "Password of the first administrator account. At least 8 characters."
+          description: "Password of the first administrator account. At least 12 characters."
     services:
         - name: postgres
           icon: https://cdn.zeabur.com/marketplace/postgresql.svg
@@ -81,6 +72,8 @@ spec:
             # which is how the dashboard offers its SQL tooling for the service.
             id: postgresql
             source:
+                # This template uses floating postgres:18 and MinIO :latest tags.
+                # Pin both images by digest for reproducible storage deployments.
                 image: postgres:18
                 command:
                     - docker-entrypoint.sh
@@ -258,8 +251,6 @@ spec:
                         default: ${MINIO_PASSWORD}
                     AWS_REGION:
                         default: us-east-1
-                PORT:
-                    default: "3000"
                 BETTER_AUTH_SECRET:
                     default: ${PASSWORD}
                 BETTER_AUTH_URL:

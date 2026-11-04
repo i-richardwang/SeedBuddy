@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { command, query } from "./definition";
+import {
+  modelImportSchema,
+  modelUploadRefSchema,
+  modelUploadSchema,
+} from "../../domain/models/bundle";
 import {
   modelAnnotationRequestSchema,
   modelRefSchema,
@@ -9,11 +13,6 @@ import {
   modelVersionRefSchema,
   modelVersionSchema,
 } from "../../domain/models/schema";
-import {
-  modelImportSchema,
-  modelUploadRefSchema,
-  modelUploadSchema,
-} from "../../domain/models/bundle";
 import {
   createModel,
   deleteModel,
@@ -24,6 +23,7 @@ import {
   setCurrentVersion,
   setModelAnnotation,
 } from "../models/public";
+import { command, query } from "./definition";
 
 /**
  * A model is a recognition task: the question an observation asks of its
@@ -46,7 +46,7 @@ export const modelOperations = [
     destructive: false,
     input: modelRequestSchema,
     output: modelSchema,
-    handler: (input, executor) => createModel(input, executor),
+    handler: (input, db) => createModel(input, db),
   }),
   command({
     transaction: "operation",
@@ -56,7 +56,7 @@ export const modelOperations = [
     destructive: true,
     input: modelAnnotationRequestSchema,
     output: modelSchema,
-    handler: (input, executor) => setModelAnnotation(input, executor),
+    handler: (input, db) => setModelAnnotation(input, db),
   }),
   command({
     transaction: "operation",
@@ -65,7 +65,7 @@ export const modelOperations = [
     destructive: true,
     input: modelRefSchema,
     output: z.null(),
-    handler: (input, executor) => deleteModel(input, executor),
+    handler: (input, db) => deleteModel(input, db),
   }),
   query({
     name: "list-model-versions",

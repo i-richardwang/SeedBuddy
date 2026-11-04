@@ -1,17 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  handleAgentInterface,
-  handleAgentOperationCall,
-  serveAgentInterface,
-  serveAgentOperationCall,
-} from "./agent";
 import { agentOperations } from "../../agent/operations";
 import { issueApiKey } from "../../auth/api-keys";
-import { apiKeyHeaders, signInAs } from "../../testing/fixtures";
+import { agentHeaders, apiKeyHeaders, signInAs } from "../../testing/auth";
+import { serveAgentInterface, serveAgentOperationCall } from "./agent";
 
-function post(body?: string): Request {
+async function post(body?: string): Promise<Request> {
   return new Request("http://workbench/api/agent/op", {
+    headers: await agentHeaders(),
     method: "POST",
     ...(body === undefined ? {} : { body }),
   });
@@ -19,7 +15,13 @@ function post(body?: string): Request {
 
 describe("agent HTTP surface", () => {
   test("describes the interface with every operation", async () => {
-    const described = (await handleAgentInterface().json()) as {
+    const described = (await (
+      await serveAgentInterface(
+        new Request("http://workbench/api/agent/operations", {
+          headers: await agentHeaders(),
+        }),
+      )
+    ).json()) as {
       call: string;
       upload: string;
       operations: { name: string }[];
@@ -63,16 +65,19 @@ describe("agent HTTP surface", () => {
   });
 
   test("an empty body calls the operation with no input", async () => {
-    const response = await handleAgentOperationCall("list-experiments", post());
+    const response = await serveAgentOperationCall(
+      "list-experiments",
+      await post(),
+    );
     expect(response.status).toBe(200);
     const { result } = (await response.json()) as { result: unknown };
     expect(Array.isArray(result)).toBe(true);
   });
 
   test("a body that is not JSON answers 400", async () => {
-    const response = await handleAgentOperationCall(
+    const response = await serveAgentOperationCall(
       "list-experiments",
-      post("not json"),
+      await post("not json"),
     );
     expect(response.status).toBe(400);
     const { error } = (await response.json()) as {
@@ -85,7 +90,10 @@ describe("agent HTTP surface", () => {
   });
 
   test("an unknown operation answers 404 naming the known ones", async () => {
-    const response = await handleAgentOperationCall("open-portal", post("{}"));
+    const response = await serveAgentOperationCall(
+      "open-portal",
+      await post("{}"),
+    );
     expect(response.status).toBe(404);
     const { error } = (await response.json()) as {
       error: { code: string; message: string };
@@ -95,9 +103,9 @@ describe("agent HTTP surface", () => {
   });
 
   test("invalid input answers 400 naming the offending field", async () => {
-    const response = await handleAgentOperationCall(
+    const response = await serveAgentOperationCall(
       "create-experiment",
-      post(JSON.stringify({ name: "" })),
+      await post(JSON.stringify({ name: "" })),
     );
     expect(response.status).toBe(400);
     const { error } = (await response.json()) as {

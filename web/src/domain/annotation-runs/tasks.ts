@@ -1,13 +1,14 @@
-import { imageRegions } from "../images/regions";
-import type { ImageRegion } from "../images/geometry";
-import { AnnotationRunConflictError } from "./errors";
 import { z } from "zod";
-import type { AnnotationContent, AnnotationDefinition } from "./schema";
+
 import {
-  annotationSchema,
   type AnnotationInstance,
-  type BoundingBox,
+  annotationSchema,
 } from "../annotation/schema";
+import { sha256Schema } from "../identifiers/schema";
+import type { ImageRectangle, ImageRegion } from "../images/geometry";
+import { imageRegions } from "../images/regions";
+import { AnnotationRunConflictError } from "./errors";
+import type { AnnotationContent, AnnotationDefinition } from "./schema";
 
 const edge = z.number().min(0).max(1000);
 const box = z
@@ -30,15 +31,14 @@ const regionProposalSchema = z.strictObject({
     .max(10000),
 });
 export type RegionProposal = z.infer<typeof regionProposalSchema>;
-export type Region = ImageRegion;
 
 /** The grid an image is cut into for a model, whatever a run redraws. */
-export function tiles(definition: AnnotationDefinition): Region[] {
+export function tiles(definition: AnnotationDefinition): ImageRegion[] {
   return imageRegions(definition.image, definition.config);
 }
 
 /** The frozen coverage and optional redraw scope select unchanged grid tiles. */
-export function regions(definition: AnnotationDefinition): Region[] {
+export function regions(definition: AnnotationDefinition): ImageRegion[] {
   return imageRegions(
     definition.image,
     definition.config,
@@ -47,7 +47,7 @@ export function regions(definition: AnnotationDefinition): Region[] {
   );
 }
 
-function sourceBox(edges: number[], patch: BoundingBox): BoundingBox {
+function sourceBox(edges: number[], patch: ImageRectangle): ImageRectangle {
   const [top, left, bottom, right] = edges as [number, number, number, number];
   const x = patch.x + (left * patch.width) / 1000;
   const y = patch.y + (top * patch.height) / 1000;
@@ -59,7 +59,7 @@ function sourceBox(edges: number[], patch: BoundingBox): BoundingBox {
     height: patch.y + (bottom * patch.height) / 1000 - y,
   };
 }
-export function owns(core: BoundingBox, box: BoundingBox): boolean {
+export function owns(core: ImageRectangle, box: ImageRectangle): boolean {
   const x = box.x + box.width / 2,
     y = box.y + box.height / 2;
   return (
@@ -71,7 +71,7 @@ export function owns(core: BoundingBox, box: BoundingBox): boolean {
 }
 export function prepareProposal(
   value: unknown,
-  region: Region,
+  region: ImageRegion,
   definition: AnnotationDefinition,
 ) {
   const response = regionProposalSchema.parse(value);
@@ -79,7 +79,7 @@ export function prepareProposal(
 }
 
 /** A box one region drew, in source pixels, and how the region saw it. */
-export interface RegionBox extends AnnotationInstance {
+interface RegionBox extends AnnotationInstance {
   /** Its center lies in the region's core. */
   owned: boolean;
   /** It touches a patch edge inside the image, so the region saw only part of it. */
@@ -90,7 +90,7 @@ export interface RegionBox extends AnnotationInstance {
 /** Every box a region drew, its halo context included. */
 export function regionBoxes(
   proposal: RegionProposal,
-  region: Region,
+  region: ImageRegion,
   definition: AnnotationDefinition,
 ): RegionBox[] {
   const ids = new Set<string>();
@@ -127,7 +127,7 @@ export function regionBoxes(
 /** What one region saves on its own: the boxes its core owns. */
 function projectProposal(
   proposal: RegionProposal,
-  region: Region,
+  region: ImageRegion,
   definition: AnnotationDefinition,
 ): AnnotationContent {
   const boxes = regionBoxes(proposal, region, definition).filter(
@@ -147,12 +147,12 @@ function projectProposal(
   };
 }
 
-export const annotationTaskInput = z.strictObject({
+export const annotationTaskSchema = z.strictObject({
   taskId: z.string().min(1),
 });
-export const annotationPreviewInput = annotationTaskInput.extend(
+export const annotationPreviewSchema = annotationTaskSchema.extend(
   regionProposalSchema.shape,
 );
-export const annotationSubmitInput = annotationTaskInput.extend({
-  proposalId: z.string().regex(/^[a-f0-9]{64}$/),
+export const annotationSubmitSchema = annotationTaskSchema.extend({
+  proposalId: sha256Schema,
 });

@@ -15,7 +15,7 @@ export interface ArchiveEntry {
   bytes: Uint8Array;
 }
 
-export interface ReadArchiveEntry {
+interface ReadArchiveEntry {
   name: string;
   bytes: Uint8Array<ArrayBuffer>;
 }
@@ -214,7 +214,7 @@ export function storedZip(
 /** Why a stream is not an archive `storedZip` wrote. */
 export class ArchiveFormatError extends Error {}
 
-export interface StoredZipLimits {
+interface StoredZipLimits {
   maxEntries: number;
   maxEntryBytes: number;
 }

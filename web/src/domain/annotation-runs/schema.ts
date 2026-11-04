@@ -1,14 +1,16 @@
 import { z } from "zod";
+
 import {
   annotationInstanceSchema,
   annotationRefSchema,
   annotationSchema,
-  boundingBoxSchema,
   REVIEW_SOURCES,
 } from "../annotation/schema";
-import { sha256Schema } from "../identifiers/schema";
-import { annotationConfigSchema } from "../models/annotation";
 import { imageCoverageSchema } from "../images/coverage";
+import { imageRectangleSchema } from "../images/geometry";
+import { imageFrameSchema } from "../images/schema";
+import { annotationConfigSchema } from "../models/annotation";
+import { timestampSchema } from "../time";
 
 export const ANNOTATION_RUN_STATUSES = [
   "running",
@@ -31,17 +33,17 @@ const annotationInputSchema = z.union([
  * boxes the run began from. Null redraws the whole image.
  */
 const annotationScopeSchema = z
-  .array(boundingBoxSchema)
+  .array(imageRectangleSchema)
   .min(1)
   .max(64)
   .nullable();
 
-export const startAnnotationRunSchema = z.strictObject({
+export const annotationRunRequestSchema = z.strictObject({
   ref: annotationRefSchema,
   input: annotationInputSchema.default(null),
   scope: annotationScopeSchema.default(null),
 });
-export type StartAnnotationRun = z.infer<typeof startAnnotationRunSchema>;
+export type StartAnnotationRun = z.infer<typeof annotationRunRequestSchema>;
 /** How many of a run's regions have been accepted. */
 export const annotationProgressSchema = z
   .strictObject({
@@ -55,11 +57,7 @@ export type AnnotationProgress = z.infer<typeof annotationProgressSchema>;
 const uncertainIdsSchema = z.array(z.string().min(1));
 
 export const annotationDefinitionSchema = z.strictObject({
-  image: z.strictObject({
-    digest: sha256Schema,
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-  }),
+  image: imageFrameSchema,
   input: z.array(annotationInstanceSchema).nullable(),
   /** Which input boxes still await confirmation, when the input is an AI proposal. */
   inputUncertainIds: uncertainIdsSchema.optional(),
@@ -77,6 +75,6 @@ export const annotationContentSchema = z.strictObject({
 export type AnnotationContent = z.infer<typeof annotationContentSchema>;
 
 export const annotationProposalSchema = annotationContentSchema.extend({
-  createdAt: z.string(),
+  createdAt: timestampSchema,
 });
 export type AnnotationProposal = z.infer<typeof annotationProposalSchema>;

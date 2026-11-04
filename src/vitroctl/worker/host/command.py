@@ -24,6 +24,7 @@ from vitroctl.worker.host.profiles import (
     profile_exists,
     save_profile,
 )
+from vitroctl.worker.session import DEFAULT_POLL_SECONDS
 
 
 def _setup(args: argparse.Namespace) -> int:
@@ -42,7 +43,7 @@ def _setup(args: argparse.Namespace) -> int:
     )
     for check in preflight_profile(args.profile, profile):
         print(check)
-    path = save_profile(args.profile, profile, overwrite=args.force)
+    path = save_profile(args.profile, profile)
     print(f"saved worker profile: {path}")
     if replacing:
         restart_service(args.profile)
@@ -64,19 +65,25 @@ def _status(args: argparse.Namespace) -> int:
 
 
 def _start(args: argparse.Namespace) -> int:
-    for check in doctor_profile(args.profile):
+    require_launchd()
+    profile = load_profile(args.profile)
+    for check in preflight_profile(args.profile, profile):
         print(check)
     start_service(args.profile)
     return 0
 
 
 def _stop(args: argparse.Namespace) -> int:
+    require_launchd()
+    load_profile(args.profile)
     stop_service(args.profile)
     return 0
 
 
 def _restart(args: argparse.Namespace) -> int:
-    for check in doctor_profile(args.profile):
+    require_launchd()
+    profile = load_profile(args.profile)
+    for check in preflight_profile(args.profile, profile):
         print(check)
     restart_service(args.profile)
     return 0
@@ -111,7 +118,7 @@ def add_worker_commands(commands: SubparserCollection) -> None:
     setup.add_argument("profile")
     setup.add_argument("--server", required=True)
     setup.add_argument("--device")
-    setup.add_argument("--poll-seconds", type=float, default=5.0)
+    setup.add_argument("--poll-seconds", type=float, default=DEFAULT_POLL_SECONDS)
     setup.add_argument(
         "--force", action="store_true", help="Replace an existing profile"
     )

@@ -1,22 +1,20 @@
 import type { DetectionResult } from "../../domain/detection/schema";
+import type { InferenceTarget } from "../../domain/inference/assignments";
 import type { Worker } from "../../domain/workers/schema";
-import { transaction } from "../infra/db/client";
+import { storeInferenceOutcome } from "../inference/outcomes";
+import { operationTime, transaction } from "../infra/db/client";
 import { inferenceTasks } from "../infra/db/schema";
-import {
-  storeInferenceOutcome,
-  type DetectionTarget,
-} from "../inference/outcomes";
 
 /** Seed a successful task and its canonical result without a worker lease. */
 export async function seedDetectionResult(
-  target: DetectionTarget,
+  target: InferenceTarget,
   result: DetectionResult,
   worker: Pick<Worker, "runtimes">,
 ): Promise<DetectionResult> {
-  return transaction(async (tx) => {
-    const stored = await storeInferenceOutcome(target, result, worker, tx);
-    const at = new Date();
-    await tx
+  return transaction(async (db) => {
+    const at = await operationTime(db);
+    await storeInferenceOutcome(target, result, worker, at, db);
+    await db
       .insert(inferenceTasks)
       .values({
         imageId: target.digest,
@@ -30,18 +28,18 @@ export async function seedDetectionResult(
         target: [inferenceTasks.imageId, inferenceTasks.modelVersionId],
         set: { status: "succeeded", finishedAt: at, error: null },
       });
-    return stored;
+    return result;
   });
 }
 
 /** Seed a terminal task failure, which has no detection document. */
 export async function seedInferenceTaskFailure(
-  target: DetectionTarget,
+  target: InferenceTarget,
   error: string,
 ): Promise<void> {
-  await transaction(async (tx) => {
-    const at = new Date();
-    await tx.insert(inferenceTasks).values({
+  await transaction(async (db) => {
+    const at = await operationTime(db);
+    await db.insert(inferenceTasks).values({
       imageId: target.digest,
       modelVersionId: target.versionId,
       status: "failed",

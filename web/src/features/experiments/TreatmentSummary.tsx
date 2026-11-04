@@ -1,24 +1,25 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type {
+  ExperimentSummary,
+  Statistic,
+  TreatmentDaySummary,
+  Unit,
+} from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
   Treatment,
 } from "../../domain/experiments/schema";
 import {
+  type SummaryMeasure,
   summaryCell,
   summaryMeasure,
-  type ExperimentSummary,
-  type Statistic,
-  type SummaryMeasure,
-  type TreatmentDaySummary,
 } from "../../domain/experiments/summary";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { formatDay } from "../../ui/Day";
 import { BarChart, type BarChartItem } from "../../ui/kit/BarChart";
 import { Card } from "../../ui/kit/Card";
-import { Empty } from "../../ui/kit/Empty";
 import { chartColor } from "../../ui/kit/Legend";
 import { Select } from "../../ui/kit/Select";
 import {
@@ -38,7 +39,7 @@ import {
   formatRate,
 } from "../../ui/numbers";
 import { observationLabel, summaryMeasureLabel } from "./labels";
-import { TreatmentName } from "./TreatmentsTable";
+import { TreatmentName } from "./TreatmentName";
 
 /**
  * The experiment by treatment: a chart of one day's means with their
@@ -54,11 +55,13 @@ export function TreatmentSummary({
   units,
   observations,
   summary,
+  empty,
 }: {
   treatments: readonly Treatment[];
   units: readonly Unit[];
   observations: readonly ExperimentObservation[];
   summary: ExperimentSummary;
+  empty: ReactNode;
 }) {
   const last = observations.at(-1);
   const [chosen, setChosen] = useState(last?.id ?? null);
@@ -69,17 +72,7 @@ export function TreatmentSummary({
   );
   const hasNumbers = summary.cells.some((cell) => cell.count !== null);
   if (!inView || !hasNumbers) {
-    return (
-      <Table
-        aria-label={m.experiment_summary()}
-        empty={
-          <Empty
-            title={m.summary_empty()}
-            description={m.summary_empty_description()}
-          />
-        }
-      />
-    );
+    return empty;
   }
   const cellOf = (treatment: Treatment, observation: ExperimentObservation) =>
     summaryCell(summary, treatment.id, observation.id);
@@ -94,8 +87,7 @@ export function TreatmentSummary({
           units={units}
           observations={observations}
           inView={inView}
-          measure={measureOf(inView)}
-          cells={treatments.map((treatment) => cellOf(treatment, inView))}
+          summary={summary}
           onChange={setChosen}
         />
       </Card>
@@ -103,7 +95,7 @@ export function TreatmentSummary({
         <TableHeader>
           <tr>
             <TableHead fixed="start" rowSpan={2} className="min-w-36">
-              {m.experiment_column_treatment()}
+              {m.treatment_label()}
             </TableHead>
             {observations.map((observation) => (
               <TableHead key={observation.id} colSpan={2}>
@@ -218,6 +210,7 @@ function SummaryCells({
 }
 
 const CHART_HEIGHT = 280;
+
 /** A rate's axis is marked by quarters. */
 const RATE_TICK = 0.25;
 
@@ -230,18 +223,20 @@ function SummaryChart({
   units,
   observations,
   inView,
-  measure,
-  cells,
+  summary,
   onChange,
 }: {
   treatments: readonly Treatment[];
   units: readonly Unit[];
   observations: readonly ExperimentObservation[];
   inView: ExperimentObservation;
-  measure: SummaryMeasure;
-  cells: readonly (TreatmentDaySummary | undefined)[];
+  summary: ExperimentSummary;
   onChange: (observation: string) => void;
 }) {
+  const measure = summaryMeasure(summary, inView.id);
+  const cells = treatments.map((treatment) =>
+    summaryCell(summary, treatment.id, inView.id),
+  );
   const codes = new Map(units.map((unit) => [unit.id, unit.code]));
   const statistics = new Map(
     treatments.map((treatment, index) => [

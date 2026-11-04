@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
-import { regions, owns, prepareProposal, tiles, type Region } from "./tasks";
+
+import type { ImageRegion } from "../images/geometry";
 import { collectRegions } from "./results";
 import type { AnnotationDefinition } from "./schema";
+import { owns, prepareProposal, regions, tiles } from "./tasks";
+
 const definition: AnnotationDefinition = {
   input: null,
   scope: null,
@@ -63,7 +66,7 @@ test("internal clipping is rejected for owned objects; context and source bounda
 
 /** The patch edges of a source box, as a region's proposal states them. */
 function drawn(
-  region: Region,
+  region: ImageRegion,
   id: string,
   x: number,
   width: number,
@@ -86,7 +89,7 @@ function drawn(
 }
 
 test("neighbors that read one seam object yield one box, whichever side they place its center", () => {
-  const [left, right] = regions(definition) as [Region, Region];
+  const [left, right] = regions(definition) as [ImageRegion, ImageRegion];
   const collect = (fromLeft: number[], fromRight: number[]) =>
     collectRegions(definition, [
       {
@@ -121,7 +124,7 @@ test("neighbors that read one seam object yield one box, whichever side they pla
 });
 
 test("neighbors that judge a seam object differently yield one box, as its owner judged it", () => {
-  const [left, right] = regions(definition) as [Region, Region];
+  const [left, right] = regions(definition) as [ImageRegion, ImageRegion];
   const result = collectRegions(definition, [
     {
       taskId: "run/left",
@@ -155,7 +158,7 @@ test("a redrawn region's reading of a retained neighbor's object keeps the retai
     inputUncertainIds: [],
     scope: [{ x: 0, y: 0, width: 10, height: 10 }],
   };
-  const [left] = regions(scoped) as [Region];
+  const [left] = regions(scoped) as [ImageRegion];
   const result = collectRegions(scoped, [
     {
       taskId: "run/left",

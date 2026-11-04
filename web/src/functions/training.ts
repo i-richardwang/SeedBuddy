@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
 import { datasetRefSchema } from "../domain/datasets/schema";
 import { resourceIdSchema } from "../domain/identifiers/schema";
@@ -11,11 +11,11 @@ import {
 import { trainingControlSchema } from "../domain/training/schema";
 import { trainingRunDetail } from "../server/queries/public";
 import {
-  createTrainingRun,
   controlTrainingRun,
+  createTrainingRun as createTrainingRunService,
 } from "../server/training/public";
 
-export const getTrainingRun = createServerFn({ method: "GET" })
+export const getTrainingRunDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema.extend({ runId: resourceIdSchema }))
   .handler(({ data }) => trainingRunDetail(data.dataset, data.runId));
 
@@ -23,7 +23,7 @@ export const getTrainingRun = createServerFn({ method: "GET" })
  * Freezes the reviewed annotations into a snapshot and queues one training run
  * of the recipe with the chosen parameters.
  */
-export const startTrainingRun = createServerFn({ method: "POST" })
+export const createTrainingRun = createServerFn({ method: "POST" })
   .validator(
     datasetRefSchema.extend({
       presetId: trainingPresetIdSchema,
@@ -32,14 +32,14 @@ export const startTrainingRun = createServerFn({ method: "POST" })
     }),
   )
   .handler(({ data }) =>
-    createTrainingRun(
+    createTrainingRunService(
       data.dataset,
       resolveTrainingRecipe(data.presetId, data.overrides),
       data.targetWorkerId,
     ),
   );
 
-export const controlTraining = createServerFn({ method: "POST" })
+export const updateTrainingRun = createServerFn({ method: "POST" })
   .validator(
     datasetRefSchema.extend({
       runId: resourceIdSchema,

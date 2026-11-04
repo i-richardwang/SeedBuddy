@@ -5,6 +5,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ReactNode } from "react";
+
 import { m } from "../../paraglide/messages";
 import { cn } from "./cn";
 import { Icon } from "./Icon";
@@ -18,9 +19,9 @@ import { Snippet } from "./Snippet";
  * live region, so a notice that appears is announced without interrupting.
  */
 
-export type AlertType = "warning" | "error";
+type AlertType = "warning" | "error";
 
-export interface AlertProps {
+interface AlertProps {
   /** Placed after the text. */
   action?: ReactNode;
   description?: ReactNode;
@@ -74,7 +75,7 @@ export function Alert({
                 icon={ChevronRight}
                 size={12}
               />
-              {m.ui_alert_detail()}
+              {m.details_label()}
             </summary>
             <Snippet>{detail}</Snippet>
           </details>

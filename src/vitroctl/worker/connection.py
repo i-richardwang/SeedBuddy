@@ -1,3 +1,5 @@
+"""Worker HTTP connections and bounded retries."""
+
 from __future__ import annotations
 
 import time
@@ -6,32 +8,15 @@ from typing import Any
 
 import httpx
 
-from vitroctl.contracts.identifiers import WORKER_DEVICE
+from vitroctl.io.http import authorized_client
 
 RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True)
 class WorkerConnection:
     server_url: str
     token: str
-
-    def __post_init__(self) -> None:
-        if not self.server_url.startswith(("http://", "https://")):
-            raise ValueError("worker server URL must use http or https")
-        if not self.token:
-            raise ValueError("worker token is required")
-
-    @property
-    def base_url(self) -> str:
-        return self.server_url.rstrip("/") + "/"
-
-
-def validate_worker_process(poll_seconds: float, device: str | None) -> None:
-    if poll_seconds <= 0:
-        raise ValueError("poll interval must be positive")
-    if device is not None and not WORKER_DEVICE.fullmatch(device):
-        raise ValueError("device must be cpu, mps, cuda, or cuda:<index>")
 
 
 class WorkerNotEnrolledError(Exception):
@@ -56,9 +41,9 @@ class WorkerHttpClient:
         timeout: float = 120.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        self._client = httpx.Client(
-            base_url=connection.base_url,
-            headers={"Authorization": f"Bearer {connection.token}"},
+        self._client = authorized_client(
+            connection.server_url,
+            connection.token,
             timeout=timeout,
             transport=transport,
         )
@@ -69,7 +54,8 @@ class WorkerHttpClient:
     def request(
         self, method: str, url: str, *, deadline: float | None = None, **kwargs: Any
     ) -> httpx.Response:
-        for attempt in range(3):
+        attempt = 0
+        while True:
             try:
                 if deadline is None:
                     response = self._client.request(method, url, **kwargs)
@@ -113,4 +99,4 @@ class WorkerHttpClient:
             if deadline is not None:
                 delay = min(delay, max(0, deadline - time.monotonic()))
             time.sleep(delay)
-        raise RuntimeError("HTTP retry loop ended without a response")
+            attempt += 1

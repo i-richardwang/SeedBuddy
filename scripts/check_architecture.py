@@ -9,51 +9,43 @@ ROOT = Path(__file__).resolve().parents[1] / "src"
 DEPENDENCIES: dict[str, set[str]] = {
     "contracts": set(),
     "io": set(),
+    "detector_contracts": {"contracts"},
     "image_geometry": {"contracts"},
-    "annotations": {"contracts"},
-    "detector_contracts": {"annotations", "contracts"},
-    "datasets": {"annotations", "contracts", "io", "detector_contracts"},
-    "training": {"annotations", "contracts", "datasets"},
+    "datasets": {"contracts", "detector_contracts", "io"},
+    "training": {"contracts"},
     "traditional": {
-        "annotations",
+        "detector_contracts",
         "contracts",
         "datasets",
         "io",
-        "detector_contracts",
         "image_geometry",
     },
     "ultralytics": {
-        "annotations",
+        "detector_contracts",
         "contracts",
         "datasets",
-        "training",
         "io",
-        "detector_contracts",
     },
     "worker": {
+        "detector_contracts",
         "models",
-        "annotations",
         "contracts",
-        "datasets",
         "training",
         "io",
-        "detector_contracts",
         "traditional",
         "ultralytics",
     },
-    "host": {"worker", "contracts", "io"},
+    "host": {"worker", "io"},
     "models": {"contracts", "io"},
     "cli": {
+        "contracts",
         "models",
         "host",
-        "worker",
         "datasets",
-        "annotations",
         "traditional",
         "ultralytics",
         "io",
         "training",
-        "contracts",
     },
     "entry": set(),
 }
@@ -140,11 +132,14 @@ def check_architecture(
             )
         ):
             if not target.startswith("vitroctl"):
-                if layer in {
-                    "contracts",
-                    "annotations",
-                    "detector_contracts",
-                } and target.split(".")[0] in {"torch", "cv2", "httpx", "ultralytics"}:
+                if layer in {"contracts", "detector_contracts"} and target.split(".")[
+                    0
+                ] in {
+                    "torch",
+                    "cv2",
+                    "httpx",
+                    "ultralytics",
+                }:
                     errors.append(
                         f"{module}: contract must not import runtime {target}"
                     )

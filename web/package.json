@@ -7,18 +7,16 @@
   "scripts": {
     "dev": "bun x vite dev",
     "build": "bun scripts/build.ts",
-    "i18n:compile": "bun scripts/compile-messages.ts",
     "start": "bun dist/server.js",
-    "test": "bun test",
     "db:generate": "drizzle-kit generate",
     "contracts:generate": "bun scripts/generate-contracts.ts",
     "contracts:check": "bun scripts/generate-contracts.ts --check",
-    "blobs:collect": "bun scripts/collect-blobs.ts",
+    "blobs:collect": "bun dist/collect-blobs.js",
     "maintenance": "bun dist/maintenance.js",
     "format": "prettier --write \"**/*.{ts,tsx}\" \"messages/**/*.json\"",
     "format:check": "prettier --check \"**/*.{ts,tsx}\" \"messages/**/*.json\"",
     "architecture:check": "bun scripts/check-architecture.ts",
-    "lint": "biome lint --error-on-warnings",
+    "lint": "biome check --error-on-warnings",
     "images:analyze": "bun dist/analyze-images.js"
   },
   "dependencies": {

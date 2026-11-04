@@ -1,34 +1,18 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
-import { UserNotFoundError, UserRejectedError } from "../../domain/auth/errors";
 import {
-  userAccountSchema,
-  workbenchUserSchema,
+  UserAccountConflictError,
+  UserNotFoundError,
+} from "../../domain/auth/errors";
+import {
   type UserAccount,
   type UserRole,
+  userAccountSchema,
   type WorkbenchUser,
 } from "../../domain/auth/schema";
 import { database } from "../infra/db/client";
 import { users } from "../infra/db/schema";
 import { auth } from "./service";
-
-/**
- * The account directory an administrator maintains. Every call carries the
- * administrator's request headers so Better Auth authorizes it as that
- * session. On top of its checks, the directory refuses an administrator
- * changing the role of, suspending, or deleting their own account, which
- * also keeps at least one administrator able to sign in.
- */
-
-async function api() {
-  return (await auth()).api;
-}
-
-async function actor(headers: Headers): Promise<WorkbenchUser> {
-  const session = await (await api()).getSession({ headers });
-  if (!session) throw new UserRejectedError("Sign in to maintain accounts");
-  return workbenchUserSchema.parse(session.user);
-}
 
 async function readUser(id: string): Promise<UserAccount> {
   const [row] = await (
@@ -61,88 +45,91 @@ function toAccount(row: {
 
 function refuseSelf(actorUser: WorkbenchUser, target: string, what: string) {
   if (actorUser.id === target) {
-    throw new UserRejectedError(`You cannot ${what} your own account`);
+    throw new UserAccountConflictError(`You cannot ${what} your own account`);
   }
 }
 
-export async function listUsers(headers: Headers): Promise<UserAccount[]> {
-  const { users: rows } = await (
-    await api()
-  ).listUsers({
-    headers,
-    query: { limit: 500, sortBy: "name", sortDirection: "asc" },
-  });
+export async function listUsers(): Promise<UserAccount[]> {
+  const rows = await (
+    await database()
+  )
+    .select()
+    .from(users)
+    .orderBy(asc(users.name))
+    .limit(500);
   return rows.map(toAccount);
 }
 
-export async function createUser(
-  headers: Headers,
-  input: { name: string; email: string; password: string; role: UserRole },
-): Promise<UserAccount> {
-  const { user } = await (await api()).createUser({ headers, body: input });
+export async function createUser(input: {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+}): Promise<UserAccount> {
+  const { user } = await (await auth()).api.createUser({ body: input });
   return toAccount(user);
 }
 
 export async function setUserRole(
-  headers: Headers,
+  actorUser: WorkbenchUser,
   input: { user: string; role: UserRole },
 ): Promise<UserAccount> {
-  refuseSelf(await actor(headers), input.user, "change the role of");
+  refuseSelf(actorUser, input.user, "change the role of");
   await readUser(input.user);
   await (
-    await api()
-  ).setRole({ headers, body: { userId: input.user, role: input.role } });
+    await (
+      await auth()
+    ).$context
+  ).internalAdapter.updateUser(input.user, { role: input.role });
   return readUser(input.user);
 }
 
 export async function setUserPassword(
-  headers: Headers,
+  actorUser: WorkbenchUser,
   input: { user: string; password: string },
 ): Promise<void> {
-  refuseSelf(await actor(headers), input.user, "reset the password of");
+  refuseSelf(actorUser, input.user, "reset the password of");
   await readUser(input.user);
-  await (
-    await api()
-  ).setUserPassword({
-    headers,
-    body: { userId: input.user, newPassword: input.password },
+  const context = await (await auth()).$context;
+  const password = await context.password.hash(input.password);
+  await context.internalAdapter.updatePassword(input.user, password);
+}
+
+export async function setUserStatus(
+  actorUser: WorkbenchUser,
+  input: { user: string; suspended: boolean },
+): Promise<UserAccount> {
+  if (input.suspended) refuseSelf(actorUser, input.user, "suspend");
+  await readUser(input.user);
+  const context = await (await auth()).$context;
+  await context.internalAdapter.updateUser(input.user, {
+    banned: input.suspended,
+    banReason: input.suspended ? undefined : null,
+    banExpires: input.suspended ? undefined : null,
   });
-}
-
-export async function banUser(
-  headers: Headers,
-  input: { user: string },
-): Promise<UserAccount> {
-  refuseSelf(await actor(headers), input.user, "suspend");
-  await readUser(input.user);
-  await (await api()).banUser({ headers, body: { userId: input.user } });
+  if (input.suspended)
+    await context.internalAdapter.deleteUserSessions(input.user);
   return readUser(input.user);
 }
 
-export async function unbanUser(
-  headers: Headers,
-  input: { user: string },
-): Promise<UserAccount> {
-  await readUser(input.user);
-  await (await api()).unbanUser({ headers, body: { userId: input.user } });
-  return readUser(input.user);
-}
-
-export async function revokeUserSessions(
-  headers: Headers,
-  input: { user: string },
-): Promise<void> {
+export async function revokeUserSessions(input: {
+  user: string;
+}): Promise<void> {
   await readUser(input.user);
   await (
-    await api()
-  ).revokeUserSessions({ headers, body: { userId: input.user } });
+    await (
+      await auth()
+    ).$context
+  ).internalAdapter.deleteUserSessions(input.user);
 }
 
 export async function deleteUser(
-  headers: Headers,
+  actorUser: WorkbenchUser,
   input: { user: string },
 ): Promise<void> {
-  refuseSelf(await actor(headers), input.user, "delete");
+  refuseSelf(actorUser, input.user, "delete");
   await readUser(input.user);
-  await (await api()).removeUser({ headers, body: { userId: input.user } });
+  const context = await (await auth()).$context;
+  await context.internalAdapter.deleteUserSessions(input.user);
+  await context.internalAdapter.deleteUser(input.user);
 }

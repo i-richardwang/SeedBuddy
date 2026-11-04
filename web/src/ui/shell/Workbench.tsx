@@ -1,10 +1,10 @@
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import {
   createContext,
+  type ReactNode,
   use,
   useLayoutEffect,
   useState,
-  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 

@@ -1,17 +1,16 @@
-import { useRouter } from "@tanstack/react-router";
 import { Ban, KeyRound, LogOut, Trash2, UserRoundCheck } from "lucide-react";
 import { useState } from "react";
 
 import type { UserAccount } from "../../domain/auth/schema";
 import {
-  reinstateUser,
   removeUser,
-  resetUserPassword,
-  signOutUserEverywhere,
-  suspendUser,
+  removeUserSessions,
+  updateUserPassword,
+  updateUserStatus,
 } from "../../functions/users";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { RowMenu } from "../../ui/ActionsMenu";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { FormDialog } from "../../ui/FormDialog";
 import {
   type AsyncAction,
@@ -19,33 +18,32 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { toast } from "../../ui/kit/Toast";
-import { RowMenu } from "../../ui/ActionsMenu";
-import { PasswordField } from "./PasswordField";
+import { PasswordField } from "../../ui/PasswordField";
 
 /** Everything an administrator does to another account, in one row menu. */
 export function UserMenu({ account }: { account: UserAccount }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const { busy, run } = useAsyncAction();
   const [resetting, setResetting] = useState(false);
 
   /** Runs a command; `done` confirms one whose effect the row does not show. */
   const act = (work: () => Promise<unknown>, failure: string, done?: string) =>
-    void run(work, failure).then(async (result) => {
-      if (!result.ok) return;
-      if (done) toast.success(done);
-      await router.invalidate();
+    void run(work, failure, {
+      onSuccess: () => {
+        if (done) toast.success(done);
+      },
     });
 
   return (
     <>
       <RowMenu
-        label={m.user_actions({ name: account.name })}
+        label={m.item_actions({ name: account.name })}
         busy={busy}
         items={[
           {
             key: "reset-password",
             icon: KeyRound,
-            label: m.user_menu_reset_password_item(),
+            label: m.user_menu_reset_password(),
             onClick: () => setResetting(true),
           },
           {
@@ -54,8 +52,8 @@ export function UserMenu({ account }: { account: UserAccount }) {
             label: m.user_menu_sign_out_everywhere(),
             onClick: () =>
               act(
-                () => signOutUserEverywhere({ data: { user: account.id } }),
-                m.user_sessions_not_revoked(),
+                () => removeUserSessions({ data: { user: account.id } }),
+                m.user_not_signed_out_everywhere({ name: account.name }),
                 m.user_signed_out_everywhere({ name: account.name }),
               ),
           },
@@ -66,23 +64,27 @@ export function UserMenu({ account }: { account: UserAccount }) {
                 label: m.user_menu_reinstate(),
                 onClick: () =>
                   act(
-                    () => reinstateUser({ data: { user: account.id } }),
+                    () =>
+                      updateUserStatus({
+                        data: { user: account.id, suspended: false },
+                      }),
                     m.user_not_reinstated(),
                   ),
               }
             : {
                 key: "suspend",
                 icon: Ban,
-                label: m.user_menu_suspend_item(),
+                label: m.user_menu_suspend(),
                 onClick: () =>
                   confirmDestructive({
                     title: m.user_suspend_title({ name: account.name }),
                     content: m.user_suspend_body(),
                     confirmLabel: m.user_suspend_confirm(),
+                    failure: m.user_not_suspended(),
                     onConfirm: async () => {
-                      await suspendUser({ data: { user: account.id } });
-                      toast.success(m.user_suspended({ name: account.name }));
-                      await router.invalidate();
+                      await updateUserStatus({
+                        data: { user: account.id, suspended: true },
+                      });
                     },
                   }),
               },
@@ -91,16 +93,18 @@ export function UserMenu({ account }: { account: UserAccount }) {
             key: "delete",
             icon: Trash2,
             danger: true,
-            label: m.user_menu_delete_item(),
+            label: m.user_menu_delete(),
             onClick: () =>
               confirmDestructive({
-                title: m.user_delete_title({ name: account.name }),
+                title: m.item_delete_title({ name: account.name }),
                 content: m.user_delete_body(),
                 confirmLabel: m.user_delete_confirm(),
+                failure: m.user_not_deleted(),
                 onConfirm: async () => {
                   await removeUser({ data: { user: account.id } });
-                  toast.success(m.user_deleted({ name: account.name }));
-                  await router.invalidate();
+                },
+                onSuccess: () => {
+                  toast.success(m.item_deleted({ name: account.name }));
                 },
               }),
           },
@@ -115,7 +119,7 @@ export function UserMenu({ account }: { account: UserAccount }) {
   );
 }
 
-const RESET_FORM_ID = "reset-password";
+const FORM_ID = "reset-password";
 
 function ResetPasswordDialog({
   account,
@@ -132,8 +136,8 @@ function ResetPasswordDialog({
       open={open}
       onClose={onClose}
       title={m.user_reset_password_title({ name: account.name })}
-      okText={m.user_dialog_save()}
-      formId={RESET_FORM_ID}
+      okText={m.save_action()}
+      formId={FORM_ID}
       busy={action.busy}
     >
       <ResetPasswordForm account={account} action={action} onDone={onClose} />
@@ -152,28 +156,30 @@ function ResetPasswordForm({
 }) {
   return (
     <Form
-      id={RESET_FORM_ID}
+      id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         void run(
           () =>
-            resetUserPassword({
+            updateUserPassword({
               data: {
                 user: account.id,
                 password: String(form.get("password") ?? ""),
               },
             }),
-          m.user_reset_password_not_changed(),
-        ).then((result) => {
-          if (!result.ok) return;
-          toast.success(m.user_reset_password_changed());
-          onDone();
-        });
+          m.password_not_changed(),
+          {
+            onSuccess: () => {
+              toast.success(m.password_changed());
+              onDone();
+            },
+          },
+        );
       }}
     >
       <PasswordField
-        label={m.user_reset_password_new_label()}
+        label={m.new_password_label()}
         description={m.user_reset_password_description()}
         disabled={busy}
         autoFocus

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { NamedDataset } from "../datasets/schema";
 import { resourceIdSchema } from "../identifiers/schema";
 import { runtimeDescriptorSchema } from "../inference/schema";
+import { timestampSchema } from "../time";
 
 const runtimesSchema = z
   .array(runtimeDescriptorSchema)
@@ -22,35 +23,38 @@ export const workerSessionSchema = z.strictObject({
   sessionId: resourceIdSchema,
 });
 
-/** What a worker process reports about itself on every heartbeat. */
-export const workerReportSchema = workerSessionSchema
-  .extend({
-    startedAt: z.string().datetime({ offset: true }),
-    runtimes: runtimesSchema,
-    memoryBytes: z.number().int().positive(),
-  })
-  .strict();
+/** The execution attempt owned by a worker process session. */
+export const attemptClaimSchema = workerSessionSchema.extend({
+  attempt: z.number().int().positive(),
+});
+type AttemptClaim = z.infer<typeof attemptClaimSchema>;
+export type AttemptOwner = WorkerIdentity & AttemptClaim;
 
-export const workerSchema = workerReportSchema
-  .extend({
-    workerId: resourceIdSchema,
-    lastSeenAt: z.string().datetime({ offset: true }),
-  })
-  .strict();
+/** What a worker process reports about itself on every heartbeat. */
+export const workerReportSchema = workerSessionSchema.extend({
+  startedAt: timestampSchema,
+  runtimes: runtimesSchema,
+  memoryBytes: z.number().int().positive(),
+});
+
+export const workerSchema = workerReportSchema.extend({
+  workerId: resourceIdSchema,
+  lastSeenAt: timestampSchema,
+});
 
 /** A worker by the name its administrator enrolled it under. */
 export const workerRefSchema = z.strictObject({ workerId: resourceIdSchema });
 
 export type WorkerActivity =
-  | { kind: "inference"; image: string }
-  | { kind: "training"; runId: string; dataset: NamedDataset };
+  | { kind: "inference"; subject: { digest: string; filename: string | null } }
+  | { kind: "training"; subject: { runId: string; dataset: NamedDataset } };
 
 /** A worker session as the server knows it: the enrolled worker and its process. */
 export interface WorkerIdentity {
   workerId: string;
   sessionId: string;
 }
-export type WorkerReport = z.infer<typeof workerReportSchema>;
+type WorkerReport = z.infer<typeof workerReportSchema>;
 export type WorkerHeartbeat = WorkerReport & { workerId: string };
 export type Worker = z.infer<typeof workerSchema>;
 

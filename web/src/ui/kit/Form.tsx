@@ -10,6 +10,7 @@ import {
   useId,
   useState,
 } from "react";
+
 import { cn } from "./cn";
 import { Icon } from "./Icon";
 
@@ -23,7 +24,7 @@ import { Icon } from "./Icon";
  * heading, folded away when the reader seldom needs them.
  */
 
-export interface FormProps extends Omit<BaseForm.Props, "className"> {
+interface FormProps extends Omit<BaseForm.Props, "className"> {
   className?: string;
 }
 
@@ -127,7 +128,7 @@ function FormField({
   );
 }
 
-export interface FormGroupProps {
+interface FormGroupProps {
   children: ReactNode;
   /** Folds the group closed under its heading, for settings the reader seldom needs. */
   collapsible?: boolean;

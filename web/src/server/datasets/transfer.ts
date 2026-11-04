@@ -1,34 +1,25 @@
-import { DatasetImportError } from "../../domain/datasets/errors";
-import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 
 import {
-  datasetManifestSchema,
-  type DatasetManifest,
-} from "../../domain/datasets/manifest";
+  DatasetImportInvalidError,
+  DatasetNameTakenError,
+} from "../../domain/datasets/errors";
+import type { DatasetManifest } from "../../domain/datasets/manifest";
 import type { Dataset } from "../../domain/datasets/schema";
 import { sameClasses } from "../../domain/models/classes";
-import { transaction } from "../infra/db/client";
-import { isUniqueViolation } from "../infra/db/errors";
+import { insertImportedAnnotations } from "../annotations/public";
+import { insertUnclearImages, lockImage } from "../images/public";
 import {
-  annotations,
-  datasetImages,
-  datasets,
-  images,
-} from "../infra/db/schema";
-import { readDatasetByName } from "./memberships";
-import { lockImage, markImagesUnclear } from "../images/public";
-import { readModel } from "../models/public";
+  type Executor,
+  inSnapshot,
+  operationTime,
+  snapshot,
+  transaction,
+} from "../infra/db/client";
+import { annotations, datasetImages, images } from "../infra/db/schema";
+import { requireModel } from "../models/public";
+import { insertDataset, readDatasetByName } from "./datasets";
 import { listImageRecords } from "./records";
-
-/**
- * A dataset leaves and enters the workbench as a manifest and the images it
- * names. The manifest carries what the workbench keeps for the dataset: the
- * memberships, the reviews recorded for its model, and which photographs a
- * person found unclear. Images travel by digest ahead of the manifest, so
- * importing it is one atomic step that either creates the whole dataset or
- * nothing.
- */
 
 /**
  * The manifest of the dataset of this name: its images with their detection
@@ -38,32 +29,36 @@ import { listImageRecords } from "./records";
 export async function readDatasetManifest(
   name: string,
 ): Promise<DatasetManifest | null> {
-  const dataset = await readDatasetByName(name);
-  return dataset ? datasetManifest(dataset) : null;
+  return snapshot(async (db) => {
+    const dataset = await readDatasetByName(name, db);
+    return dataset ? datasetManifest(dataset, db) : null;
+  });
 }
 
 /** The manifest of a dataset already read. */
 export async function datasetManifest(
   dataset: Dataset,
+  db?: Executor,
 ): Promise<DatasetManifest> {
-  const model = await readModel(dataset.modelId);
-  if (!model) throw new Error(`Unknown model: ${dataset.modelId}`);
-  const records = await listImageRecords(dataset.id);
-  return datasetManifestSchema.parse({
-    schemaVersion: 1,
-    dataset: dataset.name,
-    model: { id: model.id, classes: model.classes },
-    images: records.map(({ image, detection, annotation, unclear }) => ({
-      digest: image.digest,
-      width: image.width,
-      height: image.height,
-      filename: image.filename,
-      bytes: image.bytes,
-      split: image.split,
-      detection,
-      annotation,
-      unclear,
-    })),
+  return inSnapshot(db, async (db): Promise<DatasetManifest> => {
+    const model = await requireModel(dataset.modelId, db);
+    const records = await listImageRecords(dataset.id, db);
+    return {
+      schemaVersion: 1,
+      dataset: dataset.name,
+      model: { id: model.id, classes: model.classes },
+      images: records.map(({ image, detection, annotation, unclear }) => ({
+        digest: image.digest,
+        width: image.width,
+        height: image.height,
+        filename: image.filename,
+        bytes: image.bytes,
+        split: image.split,
+        detection,
+        annotation,
+        unclear,
+      })),
+    };
   });
 }
 
@@ -84,37 +79,35 @@ function listed(digests: string[]): string {
 export async function importDataset(
   manifest: DatasetManifest,
 ): Promise<Dataset> {
-  const addedAt = new Date();
-  return transaction(async (tx) => {
-    const model = await readModel(manifest.model.id, tx);
-    if (!model) {
-      throw new DatasetImportError(`Unknown model: ${manifest.model.id}`);
-    }
+  return transaction(async (db) => {
+    const addedAt = await operationTime(db);
+    const model = await requireModel(manifest.model.id, db);
     if (!sameClasses(model.classes, manifest.model.classes)) {
-      throw new DatasetImportError(
+      throw new DatasetImportInvalidError(
         `Model ${model.id} has classes ${listed(model.classes)}, not ${listed(manifest.model.classes)}`,
       );
     }
-    const dataset: Dataset = {
-      id: randomUUID(),
-      name: manifest.dataset,
-      modelId: model.id,
-    };
+    let dataset: Dataset;
     try {
-      await tx.insert(datasets).values({ ...dataset, createdAt: addedAt });
-    } catch (error) {
-      if (!isUniqueViolation(error, "datasets_name")) throw error;
-      throw new DatasetImportError(
-        `Dataset ${manifest.dataset} already exists`,
+      dataset = await insertDataset(
+        { name: manifest.dataset, modelId: model.id },
+        addedAt,
+        db,
       );
+    } catch (error) {
+      if (error instanceof DatasetNameTakenError)
+        throw new DatasetImportInvalidError(
+          `Dataset ${manifest.dataset} already exists`,
+        );
+      throw error;
     }
     const digests = manifest.images.map((image) => image.digest).sort();
-    for (const digest of digests) await lockImage(digest, tx);
+    for (const digest of digests) await lockImage(digest, db);
     const stored = new Map(
       digests.length === 0
         ? []
         : (
-            await tx
+            await db
               .select({
                 digest: images.id,
                 width: images.width,
@@ -127,24 +120,32 @@ export async function importDataset(
     );
     const missing = digests.filter((digest) => !stored.has(digest));
     if (missing.length > 0) {
-      throw new DatasetImportError(`Images are not stored: ${listed(missing)}`);
+      throw new DatasetImportInvalidError(
+        `Images are not stored: ${listed(missing)}`,
+      );
     }
     const mismatched = manifest.images.filter((image) => {
-      const image_ = stored.get(image.digest)!;
+      const storedImage = stored.get(image.digest)!;
       return (
-        image_.width !== image.width ||
-        image_.height !== image.height ||
-        image_.bytes !== image.bytes
+        storedImage.width !== image.width ||
+        storedImage.height !== image.height ||
+        storedImage.bytes !== image.bytes
       );
     });
     if (mismatched.length > 0) {
-      throw new DatasetImportError(
+      throw new DatasetImportInvalidError(
         `Images have other metadata here: ${listed(mismatched.map((image) => image.digest))}`,
       );
     }
-    const reviewing = manifest.images.filter((image) => image.annotation);
+    const reviewing = manifest.images.filter(
+      (
+        image,
+      ): image is typeof image & {
+        annotation: NonNullable<typeof image.annotation>;
+      } => image.annotation !== null,
+    );
     if (reviewing.length > 0) {
-      const reviewed = await tx
+      const reviewed = await db
         .select({ digest: annotations.imageId })
         .from(annotations)
         .where(eq(annotations.modelId, model.id))
@@ -153,13 +154,13 @@ export async function importDataset(
         reviewed.has(image.digest),
       );
       if (conflicting.length > 0) {
-        throw new DatasetImportError(
+        throw new DatasetImportInvalidError(
           `Images are already reviewed for ${model.id}: ${listed(conflicting.map((image) => image.digest))}`,
         );
       }
     }
     if (manifest.images.length > 0) {
-      await tx.insert(datasetImages).values(
+      await db.insert(datasetImages).values(
         manifest.images.map((image) => ({
           datasetId: dataset.id,
           imageId: image.digest,
@@ -169,22 +170,18 @@ export async function importDataset(
         })),
       );
     }
-    await markImagesUnclear(
+    await insertUnclearImages(
       manifest.images
         .filter((image) => image.unclear)
         .map((image) => image.digest),
-      tx,
+      db,
     );
-    if (reviewing.length > 0) {
-      await tx.insert(annotations).values(
-        reviewing.map((image) => ({
-          imageId: image.digest,
-          modelId: model.id,
-          document: image.annotation!,
-          updatedAt: addedAt,
-        })),
-      );
-    }
+    await insertImportedAnnotations(
+      model.id,
+      reviewing.map((image) => image.annotation),
+      addedAt,
+      db,
+    );
     return dataset;
   });
 }

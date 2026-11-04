@@ -20,7 +20,7 @@ from vitroctl.worker.inference_process import InferenceProcess
 from vitroctl.worker.inference_protocol import InferenceClient
 from vitroctl.worker.runtime import shutdown_signals
 from vitroctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
-from vitroctl.worker.training import TrainingClient, process_training_job
+from vitroctl.worker.training import TrainingClient, serve_training_claim
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,8 +36,7 @@ class Worker:
     ) -> None:
         self.settings = settings
         self.client = WorkerClient(
-            settings.server_url,
-            settings.token,
+            settings.connection,
             WorkerSession.create(settings.device),
             transport=transport,
         )
@@ -59,14 +58,14 @@ class Worker:
         if stopped.is_set():
             return False
         if self.client.session.can_train:
-            job = self.training.claim()
-            if job is not None:
+            claim = self.training.claim()
+            if claim is not None:
                 self.runner.close()
                 images = ImageCache(self.settings.work_dir / "images")
                 try:
-                    process_training_job(
+                    serve_training_claim(
                         self.training,
-                        job,
+                        claim,
                         self.settings.work_dir,
                         self.settings.device,
                         images,
@@ -82,15 +81,13 @@ class Worker:
 def run_worker(
     settings: WorkerSettings,
     *,
-    on_ready: Callable[[], None] | None = None,
-) -> int:
+    on_ready: Callable[[], None],
+) -> None:
     settings.work_dir.mkdir(parents=True, exist_ok=True)
     worker = Worker(settings)
     try:
         with shutdown_signals() as stopped:
-            worker.client.heartbeat()
-            if on_ready:
-                on_ready()
+            on_ready()
             while not stopped.is_set():
                 try:
                     worked = worker.serve_once(stopped)
@@ -102,6 +99,5 @@ def run_worker(
                     worked = False
                 if not worked:
                     stopped.wait(settings.poll_seconds)
-            return 0
     finally:
         worker.close()

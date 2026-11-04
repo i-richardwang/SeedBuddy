@@ -3,22 +3,22 @@ import { describe, expect, test } from "bun:test";
 import type {
   ObservationImageCell,
   Unit,
-} from "../../domain/experiments/contracts";
+} from "../../domain/experiments/read-model";
 import type {
   Experiment,
   ExperimentObservation,
   Treatment,
 } from "../../domain/experiments/schema";
 import type { Model } from "../../domain/models/schema";
+import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import type { WorkbookCell } from "../../lib/spreadsheet/workbook";
 import {
+  type ExperimentWorkbookSource,
   experimentWorkbook,
   experimentWorkbookFilename,
   gridSheet,
   summarySheet,
-  type ExperimentWorkbookSource,
 } from "./workbook";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 
 const HEADING_ROWS = 2;
 

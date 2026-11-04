@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { command, query } from "./definition";
 import { inferenceTargetSchema } from "../../domain/inference/assignments";
 import { inferenceTaskSchema } from "../../domain/inference/tasks";
 import { readInferenceTask, retryInferenceTask } from "../inference/public";
+import { command, query } from "./definition";
 
 export const inferenceOperations = [
   query({

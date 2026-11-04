@@ -1,21 +1,15 @@
+import "./image-analysis-runtime";
 import { bootstrap } from "../src/server/bootstrap";
+import { refreshImageAnalysis } from "../src/server/images/public";
 import { closeDatabase } from "../src/server/infra/db/client";
-import {
-  refreshImageAnalysis,
-  IMAGE_ANALYSIS_RETRY_MS,
-} from "../src/server/images/public";
 
-process.env.VITROFLOW_IMAGE_ANALYSIS_URL ??= new URL(
-  "./dish-thread.js",
-  import.meta.url,
-).href;
 bootstrap();
 const stop = new AbortController();
 process.once("SIGTERM", () => stop.abort());
 process.once("SIGINT", () => stop.abort());
 try {
   const limit = Number(process.argv[2] ?? 100);
-  const attemptedBefore = new Date(Date.now() - IMAGE_ANALYSIS_RETRY_MS);
+  let attemptedBefore: Date | undefined;
   const total = { examined: 0, completed: 0, failed: 0, skipped: 0 };
   // A fixed cutoff excludes every attempt made by this sweep, including failures.
   while (!stop.signal.aborted) {
@@ -24,6 +18,7 @@ try {
       attemptedBefore,
       signal: stop.signal,
     });
+    attemptedBefore = result.attemptedBefore;
     for (const key of ["examined", "completed", "failed", "skipped"] as const)
       total[key] += result[key];
     if (!result.examined) break;

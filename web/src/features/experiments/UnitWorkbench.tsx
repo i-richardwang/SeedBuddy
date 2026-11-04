@@ -1,21 +1,28 @@
-import { Link, linkOptions, useRouter } from "@tanstack/react-router";
+import { Link, linkOptions } from "@tanstack/react-router";
 import { Columns2, ImageOff } from "lucide-react";
 import { useCallback, useEffect, useEffectEvent } from "react";
 
-import type { NamedDataset } from "../../domain/datasets/schema";
-import { observationLabel, cultureEventLabel } from "./labels";
 import type { ReviewSource } from "../../domain/annotation/schema";
-import type { ObservationImageRef } from "../../domain/experiments/schema";
+import type { NamedDataset } from "../../domain/datasets/schema";
 import { unitExclusions } from "../../domain/experiments/analysis";
 import {
-  latestCultureEvent,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
-import { retryObservationImageAnalysis } from "../../functions/experiments";
+  cellReading,
+  imageReview,
+} from "../../domain/experiments/cell-reading";
+import { observationOrdinals } from "../../domain/experiments/culture-events";
+import type {
+  ReviewState,
+  UnitDetail,
+  UnitStep,
+} from "../../domain/experiments/read-model";
+import type { ObservationImageRef } from "../../domain/experiments/schema";
+import { createImageAnalysisRetry } from "../../functions/experiments";
+import { m } from "../../paraglide/messages";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
+import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
 import { useStep } from "../../ui/hooks/useStep";
-import { Alert } from "../../ui/kit/Alert";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
+import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
 import {
   Descriptions,
@@ -23,16 +30,11 @@ import {
   DescriptionsSkeleton,
 } from "../../ui/kit/Descriptions";
 import { Skeleton } from "../../ui/kit/Skeleton";
-import { StatusDot, type StatusTone } from "../../ui/kit/Status";
+import { StatusDot } from "../../ui/kit/Status";
+import { Text } from "../../ui/kit/Text";
+import { toast } from "../../ui/kit/Toast";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { m } from "../../paraglide/messages";
-import type {
-  ImageReview,
-  UnitSeries,
-  UnitStep,
-} from "../../domain/experiments/contracts";
-import { cellReading, imageReview } from "../../domain/experiments/readings";
-import { formatCount } from "../../ui/numbers";
+import { Stepper } from "../../ui/Stepper";
 import { ShellActions } from "../../ui/shell/Shell";
 import {
   Workbench,
@@ -43,20 +45,21 @@ import {
   WorkbenchSectionSkeleton,
   WorkbenchSkeleton,
 } from "../../ui/shell/Workbench";
-import { Stepper } from "../../ui/Stepper";
 import {
   ImageSubject,
   ImageWorkbenchSkeleton,
 } from "../annotation/ImageWorkbench";
 import { useWorkbenchKeys } from "../annotation/keys";
+import { CultureMenu } from "./CultureMenu";
 import {
   DayComparison,
   DayComparisonSkeleton,
   DayCountsSection,
   referenceDay,
 } from "./DayComparison";
-import { CultureMenu, UnitMenu } from "./UnitMenu";
-import { Text } from "../../ui/kit/Text";
+import { imageReviewLabel, imageReviewTone, observationLabel } from "./labels";
+import { TreatmentName } from "./TreatmentName";
+import { UnitMenu } from "./UnitMenu";
 
 /**
  * One unit's photograph on one observation day. The footer steps along both
@@ -75,21 +78,29 @@ import { Text } from "../../ui/kit/Text";
 export function UnitWorkbench({
   series,
   datasets,
-  source,
-  onSourceChange,
+  show,
+  onShowChange,
   compare,
   onCompareChange,
 }: {
-  series: UnitSeries;
+  series: UnitDetail;
   datasets: NamedDataset[];
-  source?: ReviewSource;
-  onSourceChange: (source: ReviewSource | undefined) => void;
+  show?: ReviewSource;
+  onShowChange: (source: ReviewSource | undefined) => void;
   /** The day the day in view stands beside, if any. */
   compare?: string;
   /** Sets the day to stand beside the day in view; none returns to one day. */
   onCompareChange: (observation: string | undefined) => void;
 }) {
   const { experiment, unit, treatments, navigation, shown } = series;
+
+  useRouteRefresh(
+    5000,
+    shown !== null &&
+      ((shown.review.detection === null && shown.failure === null) ||
+        shown.review.progress !== null),
+  );
+
   const treatment = treatments.find((item) => item.id === unit.treatment)!;
   const at = navigation.findIndex((item) => item.id === unit.id);
   const title = m.unit_title({
@@ -98,7 +109,6 @@ export function UnitWorkbench({
   });
   const observations = series.observations.map((item) => item.observation);
   const ordinals = observationOrdinals(observations);
-  const latestEvent = latestCultureEvent(unit.events, ordinals);
 
   const photographed = series.observations.filter((item) => item.image);
   // Only the days the unit has a record of, a photograph or a count, are
@@ -220,7 +230,7 @@ export function UnitWorkbench({
         </Text>
       ) : days.length > 1 ? (
         <ToggleGroup
-          aria-label={m.observations_label()}
+          aria-label={m.observation_list_label()}
           value={series.observation ?? undefined}
           options={days.map(({ observation, image }) => ({
             value: observation.id,
@@ -252,20 +262,15 @@ export function UnitWorkbench({
           experiment={experiment.id}
           unit={unit}
           observations={observations}
-          status={
-            latestEvent
-              ? cultureEventLabel(latestEvent.type)
-              : m.culture_status_active()
-          }
         />
       </div>
     </WorkbenchSection>
   );
 
+  const inView = series.observations.find(
+    (item) => item.observation.id === series.observation,
+  );
   if (reference) {
-    const inView = series.observations.find(
-      (item) => item.observation.id === series.observation,
-    );
     return (
       <Workbench title={title}>
         {steps}
@@ -282,10 +287,10 @@ export function UnitWorkbench({
             )}
           />
           {culture}
-          <WorkbenchSection title={m.annotation_details()}>
+          <WorkbenchSection title={m.details_label()}>
             <Descriptions>
               <DescriptionsItem label={m.treatment_label()}>
-                {treatment.name}
+                <TreatmentName treatment={treatment} />
               </DescriptionsItem>
             </Descriptions>
           </WorkbenchSection>
@@ -304,19 +309,17 @@ export function UnitWorkbench({
     );
   }
 
+  // In-workbench panels own their empty states and retain the surrounding navigation.
   if (!shown) {
     // A day in view is one this unit was not photographed on, though a
     // person may have counted it; without one, it has not been photographed
     // at all.
-    const inView = series.observations.find(
-      (item) => item.observation.id === series.observation,
-    );
     const counted = inView ? cellReading(inView, inView.observation) : null;
     const missing = series.observation
       ? {
           title: m.unit_no_image_on_day(),
           description: counted
-            ? m.unit_counted_on_day({ count: formatCount(counted.count) })
+            ? m.unit_counted_on_day({ count: counted.count })
             : m.unit_no_image_on_day_description(),
         }
       : {
@@ -356,8 +359,8 @@ export function UnitWorkbench({
         model={shown.model}
         review={shown.review}
         unclear={shown.unclear}
-        source={source}
-        onSourceChange={onSourceChange}
+        show={show}
+        onShowChange={onShowChange}
         onNext={toUnit(toReview[0])}
         stepping={pending}
         context={{
@@ -374,7 +377,7 @@ export function UnitWorkbench({
           sections: culture,
           facts: (
             <DescriptionsItem label={m.treatment_label()}>
-              {treatment.name}
+              <TreatmentName treatment={treatment} />
             </DescriptionsItem>
           ),
         }}
@@ -428,7 +431,7 @@ function framedPictures(
   loaderData: unknown,
   compare: string | undefined,
 ): string[] {
-  const series = loaderData as UnitSeries | undefined;
+  const series = loaderData as UnitDetail | undefined;
   if (!series) return [];
   return series.observations.flatMap(({ observation, image }) =>
     image &&
@@ -438,32 +441,27 @@ function framedPictures(
   );
 }
 
-const REVIEW_DOTS: Record<
-  ImageReview,
-  { tone: StatusTone; label: () => string }
-> = {
-  reviewed: { tone: "success", label: m.annotation_standing_reviewed },
-  unreviewed: { tone: "neutral", label: m.annotation_standing_unreviewed },
-};
-
-function ReviewDot({ review }: { review: ImageReview }) {
-  const { tone, label } = REVIEW_DOTS[review];
-  return <StatusDot tone={tone} label={label()} />;
+function ReviewDot({ review }: { review: ReviewState }) {
+  return (
+    <StatusDot
+      tone={imageReviewTone(review)}
+      label={imageReviewLabel(review)}
+    />
+  );
 }
 
 function RetryButton({ image }: { image: ObservationImageRef }) {
-  const router = useRouter();
   const action = useAsyncAction();
   return (
     <Button
       size="small"
       loading={action.busy}
-      onClick={async () => {
-        const result = await action.run(
-          () => retryObservationImageAnalysis({ data: image }),
-          m.unit_retry_failed(),
+      onClick={() => {
+        void action.run(
+          () => createImageAnalysisRetry({ data: image }),
+          m.unit_photo_not_recounted(),
+          { onSuccess: () => toast.success(m.unit_photo_count_queued()) },
         );
-        if (result.ok) await router.invalidate();
       }}
     >
       {m.unit_retry()}

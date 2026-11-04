@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import tempfile
@@ -46,3 +47,21 @@ def atomic_file(destination: str | Path) -> Iterator[BinaryIO]:
 def write_text_atomically(path: str | Path, content: str) -> None:
     with atomic_file(path) as handle:
         handle.write(content.encode("utf-8"))
+
+
+def file_digest(path: str | Path) -> str:
+    """SHA-256 of a file."""
+    with Path(path).open("rb") as stream:
+        digest = hashlib.file_digest(stream, "sha256")
+    return digest.hexdigest()
+
+
+def content_digest(data: bytes) -> str:
+    """SHA-256 of bytes."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_digest(actual: str, expected: str) -> None:
+    """Require the computed SHA-256 to match the expected content identity."""
+    if actual != expected:
+        raise ValueError(f"Content failed digest verification against {expected}")

@@ -3,10 +3,10 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { McpClientNotFoundError } from "../../domain/auth/errors";
 import {
   MCP_SERVERS,
-  mcpClientSchema,
   type McpClient,
+  mcpClientSchema,
 } from "../../domain/auth/integrations";
-import { database, transaction } from "../infra/db/client";
+import { database, operationTime, transaction } from "../infra/db/client";
 import {
   oauthClients,
   oauthConsents,
@@ -50,7 +50,7 @@ export async function listMcpClients(user: string): Promise<McpClient[]> {
       and(
         eq(oauthRefreshTokens.userId, user),
         isNull(oauthRefreshTokens.revoked),
-        gt(oauthRefreshTokens.expiresAt, new Date()),
+        gt(oauthRefreshTokens.expiresAt, await operationTime(db)),
       ),
     );
   const { mcpResources } = deploymentEndpoint();
@@ -80,16 +80,16 @@ export async function disconnectMcpClient(
   user: string,
   id: string,
 ): Promise<void> {
-  await transaction(async (tx) => {
-    const [consent] = await tx
+  await transaction(async (db) => {
+    const [consent] = await db
       .delete(oauthConsents)
       .where(and(eq(oauthConsents.id, id), eq(oauthConsents.userId, user)))
       .returning({ clientId: oauthConsents.clientId });
     if (!consent) {
       throw new McpClientNotFoundError(`Unknown MCP client: ${id}`);
     }
-    const now = new Date();
-    await tx
+    const now = await operationTime(db);
+    await db
       .update(oauthRefreshTokens)
       .set({ revoked: now })
       .where(

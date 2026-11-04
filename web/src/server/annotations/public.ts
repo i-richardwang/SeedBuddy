@@ -1,1 +1,1 @@
-export { AnnotationConflictError, storeAnnotation } from "./documents";
+export { insertImportedAnnotations, storeAnnotation } from "./documents";

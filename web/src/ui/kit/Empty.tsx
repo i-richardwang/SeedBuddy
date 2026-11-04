@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+
 import { m } from "../../paraglide/messages";
 import { Block } from "./Block";
 import { cn } from "./cn";
@@ -24,7 +25,6 @@ export interface EmptyProps {
 function EmptyImage() {
   return (
     <svg
-      className="ui-empty-image"
       height="41"
       viewBox="0 0 64 41"
       width="64"

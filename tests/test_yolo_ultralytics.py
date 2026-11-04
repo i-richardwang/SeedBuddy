@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -11,32 +10,29 @@ from conftest import (
     write_manifest,
 )
 
-from vitroctl.datasets.annotations import load_annotations
+from vitroctl.datasets.manifest import load_dataset_manifest
 from vitroctl.detectors.ultralytics import export_yolo_dataset
 
 ultralytics = pytest.importorskip("ultralytics")
 
 
 @pytest.mark.parametrize(
-    "filename", ["yolo26n-whole-v1.recipe.json", "yolo26s-whole-2048-v1.recipe.json"]
+    "recipe",
+    ["yolo26n-whole-v1.recipe.json", "yolo26s-whole-2048-v1.recipe.json"],
+    indirect=True,
 )
-def test_seed_recipe_parameters_are_accepted_ultralytics_arguments(filename) -> None:
+def test_seed_recipe_parameters_are_accepted_ultralytics_arguments(recipe) -> None:
     from ultralytics.cfg import get_cfg
 
-    project_root = Path(__file__).resolve().parents[1]
-    manifest = json.loads((project_root / "configs/yolo26" / filename).read_text())
-    parameters = manifest["recipe"]["parameters"]
+    parameters = recipe["parameters"]
 
     cfg = get_cfg(overrides=dict(parameters))
 
     for name, value in parameters.items():
         assert getattr(cfg, name) == value
-    assert cfg.optimizer == "AdamW"
-    assert cfg.mosaic == pytest.approx(0.0)
-    assert cfg.max_det == 500
 
 
-def test_ultralytics_resolves_exported_dataset_from_its_yaml(
+def test_yolo_resolves_exported_dataset_from_its_yaml(
     tmp_path: Path, monkeypatch
 ) -> None:
     from ultralytics.data import utils as data_utils
@@ -48,7 +44,9 @@ def test_ultralytics_resolves_exported_dataset_from_its_yaml(
     for variant in range(2):
         digest = write_blob(data_root, encoded_image(variant=variant))
         entries.append(manifest_entry(digest, annotation=annotation_document(digest)))
-    annotated = load_annotations(write_manifest(data_root, "batch", entries))
+    annotated = load_dataset_manifest(
+        write_manifest(data_root, "batch", entries)
+    ).annotated
 
     output = tmp_path / "dataset"
     export_yolo_dataset(annotated, SEED_CLASSES, data_root, output)

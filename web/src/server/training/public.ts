@@ -1,5 +1,10 @@
+export { saveTrainingArtifactPart } from "./artifacts";
+export { listTrainingAttempts } from "./attempts";
 export { collectTrainingArtifactParts } from "./collection";
-export { publishTrainingArtifact } from "./publication";
+export { controlTrainingRun } from "./control";
+export { listTrainingEpochs } from "./epochs";
+export { completeTrainingRun } from "./publication";
+export { toTrainingRun } from "./records";
 export {
   activeTrainingRun,
   claimTrainingRun,
@@ -7,17 +12,14 @@ export {
   enterTrainingPhase,
   failTrainingRun,
   latestTrainingRun,
-  listTrainingEpochs,
-  listTrainingRunSummaries,
-  readTrainingRun,
   recordTrainingEpoch,
-  renewTrainingLease,
-  snapshotForRun,
-  trainingLeaseHeld,
+  renewTrainingRun,
+  trainingLeaseIsHeld,
 } from "./runs";
-export { readDatasetSnapshot, snapshotSummaries } from "./snapshots";
-
-export { saveTrainingArtifactPart } from "./artifacts";
-
-export { controlTrainingRun } from "./control";
-export { listTrainingAttempts } from "./attempts";
+export { readTrainingRun, requireTrainingRun } from "./runs-access";
+export {
+  datasetSnapshotOverviews,
+  readDatasetSnapshot,
+  requireSnapshot,
+  snapshotForRun,
+} from "./snapshots";

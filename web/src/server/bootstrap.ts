@@ -1,23 +1,6 @@
 import { configureDatabase } from "./infra/db/client";
-import { connect, type Connection } from "./infra/db/connection";
-import { installBuiltinModels } from "./models/public";
-
-/**
- * Prepare one connection for the application. Connection setup owns the
- * resource until both schema migration and builtin registration succeed.
- */
-export async function prepareDatabase(
-  connection: Connection,
-): Promise<Connection> {
-  try {
-    await connection.migrate();
-    await installBuiltinModels(connection.db);
-  } catch (error) {
-    await connection.close();
-    throw error;
-  }
-  return connection;
-}
+import { connect } from "./infra/db/connection";
+import { prepareDatabase } from "./models/public";
 
 /** Wire application initialization once per entry point; opening remains lazy and retryable. */
 export function bootstrap(): void {

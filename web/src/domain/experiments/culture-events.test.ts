@@ -3,9 +3,6 @@ import { describe, expect, test } from "bun:test";
 import {
   CULTURE_EVENT_TYPES,
   type CultureEvent,
-  type ExperimentObservation,
-} from "./schema";
-import {
   cultureEventExcludesFromAnalysis,
   cultureEventIsTerminal,
   excludingEvent,
@@ -13,6 +10,7 @@ import {
   unitIsAvailableAt,
   unitIsAvailableOn,
 } from "./culture-events";
+import type { ExperimentObservation } from "./schema";
 
 const observations: ExperimentObservation[] = [
   {

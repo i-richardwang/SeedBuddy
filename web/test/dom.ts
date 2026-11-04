@@ -4,6 +4,7 @@
  * in its own process (see `isolated.ts`) because the globals are process-wide.
  */
 import assert from "node:assert/strict";
+
 import { type Element as DomElement, Window } from "happy-dom";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
@@ -28,8 +29,14 @@ for (const key of [
   "getComputedStyle",
   "requestAnimationFrame",
   "cancelAnimationFrame",
+  "scrollTo",
 ] as const) {
-  const value = key === "window" ? browser : browser[key];
+  const value =
+    key === "window"
+      ? browser
+      : key === "scrollTo"
+        ? browser.scrollTo.bind(browser)
+        : browser[key];
   Object.defineProperty(globalThis, key, { configurable: true, value });
 }
 // Motion animates in JavaScript instead of through happy-dom's partial Web Animations.
@@ -40,7 +47,7 @@ Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
 });
 
 export const body = browser.document.body;
-export const mount = browser.document.createElement("div");
+const mount = browser.document.createElement("div");
 body.append(mount);
 const root = createRoot(mount as unknown as HTMLElement);
 

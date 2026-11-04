@@ -1,14 +1,13 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
+import type { Unit } from "../../domain/experiments/read-model";
 import type { Treatment } from "../../domain/experiments/schema";
-import { editUnit } from "../../functions/experiments";
+import { updateUnit } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
@@ -36,7 +35,7 @@ export function UnitDialog({
       open={open}
       onClose={onClose}
       title={m.unit_edit()}
-      okText={m.experiment_action_save()}
+      okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -64,7 +63,6 @@ function UnitForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [code, setCode] = useState(unit.code);
   const [treatment, setTreatment] = useState(unit.treatment);
 
@@ -74,19 +72,16 @@ function UnitForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (code.trim() === "") return;
-        void action
-          .run(
-            () =>
-              editUnit({
-                data: { experiment, unit: unit.id, code, treatment },
-              }),
-            m.unit_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            updateUnit({
+              data: { experiment, unit: unit.id, code, treatment },
+            }),
+          m.unit_not_saved(),
+          {
+            onSuccess: onDone,
+          },
+        );
       }}
     >
       <Form.Field label={m.unit_code_label()} required>

@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
@@ -6,11 +5,12 @@ import type { TrainingRunDetail } from "../../domain/training/read-model";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Text } from "../../ui/kit/Text";
+import { toast } from "../../ui/kit/Toast";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { controlRun } from "./run-control";
 import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
@@ -18,7 +18,7 @@ import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
 const FORM_ID = "resume-training";
 
 /**
- * Continues a paused run or retries a failed one, on the worker it names;
+ * Continues a paused run or retries a failed one, on the Worker it names;
  * a run with saved progress picks it up there unless told to start over.
  */
 export function ResumeTrainingDialog({
@@ -42,7 +42,7 @@ export function ResumeTrainingDialog({
           ? m.training_retry_title({ run })
           : m.training_resume_title({ run })
       }
-      okText={retry ? m.training_retry() : m.training_resume()}
+      okText={retry ? m.retry_action() : m.training_resume()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -61,52 +61,50 @@ function ResumeTrainingForm({
   onDone: () => void;
 }) {
   const { run, workers } = detail;
-  const router = useRouter();
   const [targetWorkerId, setTargetWorkerId] = useState(run.targetWorkerId);
   const [from, setFrom] = useState<"saved" | "start">(
     run.checkpoint ? "saved" : "start",
   );
 
+  const workerId =
+    from === "saved"
+      ? (run.checkpoint?.workerId ?? run.targetWorkerId)
+      : targetWorkerId;
   return (
     <Form
       id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
-        void action
-          .run(
-            () =>
-              controlRun(detail, {
-                action: "resume",
-                targetWorkerId:
-                  from === "saved"
-                    ? (run.checkpoint?.workerId ?? run.targetWorkerId)
-                    : targetWorkerId,
-                restart: from === "start",
-              }),
-            m.training_resume_failed(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            controlRun(detail, {
+              action: "resume",
+              targetWorkerId: workerId,
+              restart: from === "start",
+            }),
+          run.state.status === "failed"
+            ? m.training_not_retried()
+            : m.training_not_continued(),
+          {
+            onSuccess: () => {
+              toast.success(m.training_queued());
+              onDone();
+            },
+          },
+        );
       }}
     >
-      <Form.Field label={m.training_worker()}>
+      <Form.Field label={m.worker_label()}>
         <TrainingWorkerSelect
           workers={workers}
-          value={
-            from === "saved"
-              ? (run.checkpoint?.workerId ?? run.targetWorkerId)
-              : targetWorkerId
-          }
+          value={workerId}
           onChange={setTargetWorkerId}
           disabled={action.busy || from === "saved"}
         />
       </Form.Field>
       {from === "saved" && run.checkpoint && (
         <Text size="sm" type="secondary">
-          {m.training_resume_local_worker({ worker: run.checkpoint.workerId })}
+          {m.training_worker_resume_local({ worker: run.checkpoint.workerId })}
         </Text>
       )}
       {run.checkpoint ? (

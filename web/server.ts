@@ -1,11 +1,8 @@
-import handler from "./dist/server/server.js";
+import "./scripts/image-analysis-runtime";
 import { resolve } from "node:path";
-import { MAX_MODEL_ARTIFACT_REQUEST_BYTES } from "./src/domain/models/transfer";
 
-process.env.VITROFLOW_IMAGE_ANALYSIS_URL ??= new URL(
-  "./dish-thread.js",
-  import.meta.url,
-).href;
+import handler from "./dist/server/server.js";
+import { MAX_MODEL_ARTIFACT_REQUEST_BYTES } from "./src/domain/models/transfer";
 
 const CLIENT_DIR = `${process.cwd()}/dist/client`;
 const port = Number(process.env.PORT ?? 3000);

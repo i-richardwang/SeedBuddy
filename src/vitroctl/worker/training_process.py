@@ -7,19 +7,19 @@ import logging
 import multiprocessing
 import os
 import queue
-import signal
-import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from multiprocessing.connection import Connection
 from pathlib import Path
 from typing import Any
 
-from vitroctl.detectors.ultralytics import EpochReport, YoloTrainingInterruptedError
-from vitroctl.detectors.ultralytics.training import (
+from vitroctl.detectors.ultralytics import (
+    EpochReport,
+    YoloTrainingInterruptedError,
     YoloTrainingResult,
     train_yolo_detector,
 )
+from vitroctl.worker.process import read_events, terminate_process_group
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def _train(
         pass  # The supervisor revoked execution and closed its end of the pipe.
     except Exception as error:  # noqa: BLE001 - forward trainer failures to the supervising worker
         with suppress(BrokenPipeError, EOFError):
-            connection.send(("error", f"{type(error).__name__}: {error}"))
+            connection.send(("error", str(error) or type(error).__name__))
     finally:
         connection.close()
 
@@ -61,33 +61,29 @@ def run_training_process(
     on_training_start: Callable[[], None],
     on_epoch: Callable[[EpochReport], None],
     on_validation_start: Callable[[], None],
-    **options: Any,
+    parameters: Mapping[str, Any],
+    model: str | Path,
+    model_digest: str,
+    runtime_version: str,
+    device: str | None,
+    resume_required: bool,
 ) -> YoloTrainingResult:
+    options = {
+        "parameters": parameters,
+        "model": model,
+        "model_digest": model_digest,
+        "runtime_version": runtime_version,
+        "device": device,
+        "resume_required": resume_required,
+    }
     context = multiprocessing.get_context("spawn")
     parent, child = context.Pipe()
     process = context.Process(
         target=_train, args=(child, dataset, output, options), name="vitroflow-trainer"
     )
     process.start()
-    pid = process.pid
-    assert pid is not None
     child.close()
-    events: queue.Queue[tuple[str, Any]] = queue.Queue()
-
-    def receive() -> None:
-        try:
-            while True:
-                event = parent.recv()
-                events.put(event)
-                if event[0] in ("result", "error"):
-                    return
-        except (EOFError, OSError):
-            events.put(("disconnected", None))
-
-    # A readable pipe can contain an incomplete frame. Keep blocking IPC out
-    # of the supervisor so cancellation still terminates a stalled sender.
-    reader = threading.Thread(target=receive, name="training-events", daemon=True)
-    reader.start()
+    events, reader = read_events(parent, None)
     try:
         while True:
             if cancelled():
@@ -119,20 +115,5 @@ def run_training_process(
             parent.send(None)
     finally:
         parent.close()
-        process.join(timeout=0.2)
-        # The trainer may have exited while its data-loader children still exist.
-        # macOS may report EPERM for a group containing only exited descendants.
-        try:
-            os.killpg(pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            if process.is_alive():
-                process.terminate()
-        process.join(timeout=5)
-        try:
-            os.killpg(pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            if process.is_alive():
-                process.kill()
-        process.join(timeout=5)
-        process.close()
+        terminate_process_group(process)
         reader.join(timeout=2)

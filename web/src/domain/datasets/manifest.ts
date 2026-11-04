@@ -7,13 +7,12 @@ import { MAX_IMAGE_BYTES } from "../images/canonical";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";
 import { IMAGE_SPLITS } from "../training/schema";
+import { DatasetManifestTooLargeError } from "./errors";
 import { datasetNameSchema } from "./schema";
 
 /** Keeps one manifest practical to validate and apply in a single transaction. */
 export const MAX_DATASET_IMAGES = 10_000;
 export const MAX_DATASET_MANIFEST_BYTES = 16 * 1024 * 1024;
-
-export class DatasetManifestTooLargeError extends Error {}
 
 /**
  * A dataset as it travels between workbenches and data roots: the images by
@@ -21,7 +20,7 @@ export class DatasetManifestTooLargeError extends Error {}
  * detection each image currently shows. Reviews, memberships and which
  * photographs a person found unclear are what an importing workbench keeps;
  * detections are what its own versions found and are carried for readers of
- * the manifest, never imported. An image that does not say is clear.
+ * the manifest, never imported.
  */
 const datasetManifestImageSchema = z
   .strictObject({
@@ -33,7 +32,7 @@ const datasetManifestImageSchema = z
     split: z.enum(IMAGE_SPLITS).nullable(),
     detection: detectionResultSchema.nullable(),
     annotation: annotationSchema.nullable(),
-    unclear: z.boolean().default(false),
+    unclear: z.boolean(),
   })
   .superRefine((image, context) => {
     for (const [field, document] of [
@@ -112,7 +111,9 @@ export function encodeDatasetManifest(
   const document = datasetManifestSchema.parse(manifest);
   const bytes = new TextEncoder().encode(`${JSON.stringify(document)}\n`);
   if (bytes.byteLength > MAX_DATASET_MANIFEST_BYTES) {
-    throw new DatasetManifestTooLargeError("Dataset manifest exceeds 16 MiB");
+    throw new DatasetManifestTooLargeError(
+      `Dataset manifest exceeds ${MAX_DATASET_MANIFEST_BYTES / (1024 * 1024)} MiB`,
+    );
   }
   return bytes;
 }

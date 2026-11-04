@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { type DragEvent, type ReactNode, useId, useRef, useState } from "react";
+
 import { m } from "../../paraglide/messages";
 import { ActionIcon } from "./ActionIcon";
 import { Button } from "./Button";
@@ -16,7 +17,7 @@ import { Progress } from "./Progress";
  * enter/leave pairs of nested children are counted so it does not flicker.
  */
 
-export interface DropZoneProps {
+interface DropZoneProps {
   /** File types the chooser offers, as for `<input accept>`. Drops are not filtered. */
   accept: string;
   /** The file list, usually a `DropZoneFileList`. */
@@ -140,7 +141,7 @@ export function DropZoneFileList({ children }: { children: ReactNode }) {
 
 export type DropZoneFileStatus = "uploading" | "done" | "error";
 
-export interface DropZoneFileProps {
+interface DropZoneFileProps {
   /** Extra controls before the remove button. */
   actions?: ReactNode;
   name: string;

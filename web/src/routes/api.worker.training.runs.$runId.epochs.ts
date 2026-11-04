@@ -1,16 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { trainingEpochReportSchema } from "../domain/training/schema";
+import { attemptClaimSchema } from "../domain/workers/schema";
 import { recordTrainingEpoch } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { trainingEpochReportSchema } from "../domain/training/schema";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
-const bodySchema = trainingAttemptOwnerSchema.extend(
-  trainingEpochReportSchema.shape,
-);
+const bodySchema = attemptClaimSchema.extend(trainingEpochReportSchema.shape);
 
 export const Route = createFileRoute("/api/worker/training/runs/$runId/epochs")(
   {
@@ -25,11 +23,11 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/epochs")(
                 context.workerId,
               );
             return Response.json(
-              await recordTrainingEpoch(
-                params.runId,
-                { workerId, sessionId, attempt },
-                report,
-              ),
+              await recordTrainingEpoch(params.runId, report, {
+                workerId,
+                sessionId,
+                attempt,
+              }),
             );
           } catch (error) {
             return workerErrorResponse(error, "Training epoch report failed");

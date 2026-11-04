@@ -7,36 +7,36 @@ import {
   modelVersionRefSchema,
 } from "../domain/models/schema";
 import {
-  createModel,
+  createModel as createModelService,
   deleteModel,
   setCurrentVersion,
   setModelAnnotation,
 } from "../server/models/public";
 import {
-  modelCatalogue,
-  modelOverview,
-  versionComparison,
+  listModelOverviews,
+  modelDetail,
+  versionComparisonDetail,
 } from "../server/queries/public";
 
-export const getModelCatalogue = createServerFn({ method: "GET" }).handler(() =>
-  modelCatalogue(),
+export const getModels = createServerFn({ method: "GET" }).handler(() =>
+  listModelOverviews(),
 );
 
-export const getModelOverview = createServerFn({ method: "GET" })
+export const getModelDetail = createServerFn({ method: "GET" })
   .validator(modelRefSchema)
-  .handler(({ data }) => modelOverview(data.model));
+  .handler(({ data }) => modelDetail(data.model));
 
 export const getVersionComparison = createServerFn({ method: "GET" })
   .validator(modelVersionRefSchema)
-  .handler(({ data }) => versionComparison(data.model, data.version));
+  .handler(({ data }) => versionComparisonDetail(data.model, data.version));
 
-export const chooseCurrentVersion = createServerFn({ method: "POST" })
+export const updateCurrentVersion = createServerFn({ method: "POST" })
   .validator(modelVersionRefSchema)
   .handler(({ data }) => setCurrentVersion(data));
 
-export const addModel = createServerFn({ method: "POST" })
+export const createModel = createServerFn({ method: "POST" })
   .validator(modelRequestSchema)
-  .handler(({ data }) => createModel(data));
+  .handler(({ data }) => createModelService(data));
 
 export const updateModelAnnotation = createServerFn({ method: "POST" })
   .validator(modelAnnotationRequestSchema)

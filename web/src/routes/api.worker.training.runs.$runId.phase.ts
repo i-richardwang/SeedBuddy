@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { TRAINING_PHASES } from "../domain/training/schema";
+import { attemptClaimSchema } from "../domain/workers/schema";
 import { enterTrainingPhase } from "../server/training/public";
 import {
   parseWorkerSessionJson,
   workerErrorResponse,
 } from "../server/transport/http/worker";
-import { TRAINING_PHASES } from "../domain/training/schema";
-import { trainingAttemptOwnerSchema } from "../domain/training/schema";
 
-const bodySchema = trainingAttemptOwnerSchema.extend({
+const bodySchema = attemptClaimSchema.extend({
   phase: z.enum(TRAINING_PHASES),
 });
 
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/worker/training/runs/$runId/phase")({
             context.workerId,
           );
           return Response.json(
-            await enterTrainingPhase(params.runId, owner, phase),
+            await enterTrainingPhase(params.runId, phase, owner),
           );
         } catch (error) {
           return workerErrorResponse(error, "Training phase transition failed");

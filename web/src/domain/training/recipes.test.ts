@@ -1,9 +1,11 @@
 import { expect, test } from "bun:test";
 
+import { trainingOverridesSchema } from "./parameters";
 import {
   DEFAULT_TRAINING_PRESET_ID,
-  TRAINING_PRESETS,
   resolveTrainingRecipe,
+  TRAINING_PRESETS,
+  trainingPresetIdSchema,
 } from "./recipes";
 
 test("presets resolve independent recipes with explicit accumulation settings", () => {
@@ -40,7 +42,7 @@ test("only supplied editable values override a preset", () => {
     epochs: 50,
     imgsz: 2048,
   });
-  expect(() => resolveTrainingRecipe("unknown", {})).toThrow();
+  expect(() => trainingPresetIdSchema.parse("unknown")).toThrow();
   for (const overrides of [
     { batch: 0 },
     { nbs: 0 },
@@ -51,9 +53,7 @@ test("only supplied editable values override a preset", () => {
     { baseModel: {} },
     { runtime: {} },
   ]) {
-    expect(() =>
-      resolveTrainingRecipe("yolo26s-whole-2048-v1", overrides),
-    ).toThrow();
+    expect(() => trainingOverridesSchema.parse(overrides)).toThrow();
   }
 });
 

@@ -1,72 +1,29 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import httpx
 import pytest
+from conftest import model_bundle
 
 from vitroctl.cli import main
+from vitroctl.detectors.ultralytics import YoloTrainingResult
 from vitroctl.models.bundle import (
     read_bundle,
     training_bundle,
     validate_bundle,
-    weights_descriptor,
     write_bundle,
 )
 from vitroctl.models.client import WorkbenchClient
 
 
-def bundle(weights: Path):
-    recipe = json.loads(
-        (
-            Path(__file__).parents[1] / "configs/yolo26/yolo26n-whole-v1.recipe.json"
-        ).read_text()
-    )["recipe"]
-    return {
-        "schemaVersion": 1,
-        "classes": ["seed"],
-        "weights": weights_descriptor(weights),
-        "inference": {
-            "mode": "whole_image",
-            "iou": 0.7,
-            "confidence": 0.26,
-            "imageSize": 1536,
-            "maxDetections": 500,
-            "endToEnd": False,
-        },
-        "training": recipe,
-        "validation": {
-            "precision": 0.5,
-            "recall": 0.4,
-            "map50": 0.5,
-            "map50To95": 0.3,
-            "fitness": 0.3,
-        },
-        "provenance": {
-            "dataset": {
-                "fingerprint": None,
-                "snapshotId": None,
-                "description": "Independent experiment",
-            },
-            "selectedEpoch": 30,
-            "codeRevision": None,
-            "effectiveParameters": {"nbs": 8},
-            "evaluation": {
-                "description": "15 comparison images",
-                "calibration": "8 calibration images",
-                "metrics": {"countMae": 17.5},
-            },
-        },
-    }
-
-
-def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
+def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_inference_modes(
     tmp_path,
+    recipe,
 ):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"trained once")
-    document = bundle(weights)
+    document = model_bundle(weights, recipe)
     target = write_bundle(weights, document, tmp_path / "bundle")
     actual, copied = read_bundle(target)
     assert actual == document
@@ -75,41 +32,43 @@ def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_pipelines(
     with pytest.raises(ValueError, match="digest or size"):
         read_bundle(target)
     document["inference"]["mode"] = "tiled"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="inference.mode.*whole_image"):
         validate_bundle(document, weights)
 
 
 def test_import_only_prepares_uploads_and_registers_and_can_be_retried(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, recipe
 ):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"trained once")
-    document = bundle(weights)
+    document = model_bundle(weights, recipe)
     operations = []
     uploaded = []
 
-    def post(url, **options):
-        operations.append(url.rsplit("/", 1)[-1])
-        assert options["headers"]["Authorization"] == "Bearer secret"
+    def handle(request):
+        assert request.headers["Authorization"] == "Bearer secret"
+        assert request.url.host == "workbench.example"
+        if request.method == "PUT":
+            assert request.url.path == "/api/agent/model-uploads/upload-123/weights"
+            uploaded.append(request.content)
+            return httpx.Response(200)
+        operations.append(request.url.path.rsplit("/", 1)[-1])
         result = (
             {"uploadId": "upload-123", "uploadPath": "https://untrusted.example/leak"}
             if operations[-1] == "prepare-model-upload"
             else {"id": "version-123"}
         )
-        return httpx.Response(
-            200, json={"result": result}, request=httpx.Request("POST", url)
+        return httpx.Response(200, json={"result": result})
+
+    from vitroctl.io.http import authorized_client
+    from vitroctl.models import client as client_module
+
+    def connected(server, token, **options):
+        return authorized_client(
+            server, token, transport=httpx.MockTransport(handle), **options
         )
 
-    def put(url, **options):
-        assert (
-            url
-            == "https://workbench.example/api/agent/model-uploads/upload-123/weights"
-        )
-        uploaded.append(options["content"].read())
-        return httpx.Response(200, request=httpx.Request("PUT", url))
-
-    monkeypatch.setattr(httpx, "post", post)
-    monkeypatch.setattr(httpx, "put", put)
+    monkeypatch.setattr(client_module, "authorized_client", connected)
     client = WorkbenchClient("https://workbench.example", "secret")
     assert client.import_bundle(document, weights, "seed") == {"id": "version-123"}
     assert client.import_bundle(document, weights, "seed") == {"id": "version-123"}
@@ -118,7 +77,7 @@ def test_import_only_prepares_uploads_and_registers_and_can_be_retried(
 
 
 def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
-    tmp_path, monkeypatch, capsys
+    tmp_path, monkeypatch, capsys, recipe
 ):
     operations = []
     monkeypatch.setenv("VITROFLOW_SERVER_URL", "https://workbench.example")
@@ -129,11 +88,6 @@ def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
         return {"id": "result"}
 
     monkeypatch.setattr(WorkbenchClient, "call", call)
-    recipe = json.loads(
-        (
-            Path(__file__).parents[1] / "configs/yolo26/yolo26n-whole-v1.recipe.json"
-        ).read_text()
-    )["recipe"]
     spec = tmp_path / "spec.json"
     spec.write_text(json.dumps({"dataset": "dataset-id", "recipe": recipe}))
     assert main(["training", "run", "--spec", str(spec), "--worker", "local-gpu"]) == 0
@@ -172,26 +126,21 @@ def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
 
 
 def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resume_inputs(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, recipe
 ):
     from types import SimpleNamespace
 
     from vitroctl.cli import training
 
-    recipe = json.loads(
-        (
-            Path(__file__).parents[1] / "configs/yolo26/yolo26n-whole-v1.recipe.json"
-        ).read_text()
-    )["recipe"]
     spec = tmp_path / "training.json"
     spec.write_text(json.dumps({"dataset": "local", "recipe": recipe}))
     manifest = SimpleNamespace(
         dataset="local",
+        annotated=(),
         classes=("seed",),
         to_dict=lambda: {"images": [], "classes": ["seed"]},
     )
     monkeypatch.setattr(training, "load_dataset_manifest", lambda _: manifest)
-    monkeypatch.setattr(training, "load_annotations", lambda _: [])
 
     def export(_annotations, _classes, _root, destination, **_options):
         destination.mkdir(parents=True)
@@ -208,15 +157,7 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
         output.mkdir()
         weights = output / "best.pt"
         weights.write_bytes(b"trained once")
-        metadata = bundle(weights)
-        (output / "training-context.json").write_text(
-            json.dumps(
-                {
-                    "codeRevision": "sha256:" + "a" * 64,
-                    "effectiveParameters": recipe["parameters"],
-                }
-            )
-        )
+        metadata = model_bundle(weights, recipe)
         summary = output / "inference.json"
         summary.write_text(
             json.dumps(
@@ -233,7 +174,12 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
             )
         )
         return SimpleNamespace(
-            best_weights=weights, summary=summary, metrics=metadata["validation"]
+            best_weights=weights,
+            summary=summary,
+            context={
+                "codeRevision": "sha256:" + "a" * 64,
+                "effectiveParameters": recipe["parameters"],
+            },
         )
 
     monkeypatch.setattr(training, "train_yolo_detector", train)
@@ -251,21 +197,13 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
     spec.write_text(json.dumps({"dataset": "local", "recipe": recipe}))
     assert main(args + ["--resume"]) == 2
     assert len(calls) == 1
-    (output / "training" / "training-context.json").unlink()
-    with pytest.raises(FileNotFoundError):
-        training_bundle(
-            output / "training" / "best.pt",
-            output / "training" / "inference.json",
-            ["seed"],
-            document["provenance"],
-        )
 
 
 @pytest.mark.parametrize("size", [2560, 3072])
-def test_high_resolution_bundle_roundtrips(tmp_path, size):
+def test_high_resolution_bundle_roundtrips(tmp_path, size, recipe):
     weights = tmp_path / "last.pt"
     weights.write_bytes(b"high resolution weights")
-    document = bundle(weights)
+    document = model_bundle(weights, recipe)
     document["training"]["parameters"]["imgsz"] = size
     document["inference"]["imageSize"] = size
     target = write_bundle(weights, document, tmp_path / "bundle")
@@ -273,3 +211,128 @@ def test_high_resolution_bundle_roundtrips(tmp_path, size):
     document["training"]["parameters"]["imgsz"] = 3104
     with pytest.raises(ValueError, match="imgsz"):
         validate_bundle(document, weights)
+
+
+def test_training_bundle_refuses_unusable_validation(tmp_path):
+    summary = tmp_path / "inference.json"
+    summary.write_text(json.dumps({"inference": {"ready": False}}))
+    with pytest.raises(ValueError, match="usable validation"):
+        training_bundle(
+            YoloTrainingResult(tmp_path / "best.pt", summary, {}), ["seed"], {}
+        )
+
+
+@pytest.mark.parametrize("invalid_structure", [False, True])
+def test_pack_validates_before_runtime_and_never_publishes_a_rejected_bundle(
+    tmp_path, monkeypatch, recipe, invalid_structure
+):
+    from vitroctl.cli import models
+    from vitroctl.contracts import validation
+
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"weights")
+    document = model_bundle(weights, recipe)
+    if invalid_structure:
+        document["classes"] = ["seed", "seed"]
+    metadata = tmp_path / "metadata.json"
+    metadata.write_text(json.dumps(document))
+    target = tmp_path / "bundle"
+    checked = []
+    runtime_calls = []
+    validator = validation._validator
+
+    def track(name):
+        checked.append(name)
+        return validator(name)
+
+    def reject(document, source):
+        runtime_calls.append(source)
+        raise ValueError("Weights declare different classes")
+
+    monkeypatch.setattr(validation, "_validator", track)
+    monkeypatch.setattr(models, "_verify_runtime", reject)
+    assert (
+        main(
+            [
+                "models",
+                "pack",
+                "--weights",
+                str(weights),
+                "--metadata",
+                str(metadata),
+                "--output",
+                str(target),
+            ]
+        )
+        == 2
+    )
+    assert checked == ["model-bundle"]
+    assert runtime_calls == ([] if invalid_structure else [weights])
+    assert not target.exists()
+
+
+def test_remote_training_rejects_invalid_recipe_before_send(
+    tmp_path, monkeypatch, recipe
+):
+    monkeypatch.setenv("VITROFLOW_SERVER_URL", "https://workbench.example")
+    monkeypatch.setenv("VITROFLOW_API_KEY", "secret")
+    calls = []
+    monkeypatch.setattr(WorkbenchClient, "call", lambda *args: calls.append(args))
+    recipe["parameters"]["epochs"] = 0
+    spec = tmp_path / "spec.json"
+    spec.write_text(json.dumps({"dataset": "dataset-id", "recipe": recipe}))
+    assert main(["training", "run", "--spec", str(spec)]) == 2
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "arguments, message",
+    [
+        (["--data-root", "data"], "apply only to --local"),
+        (["--local", "--worker", "other"], "cannot be combined"),
+        (["--local"], "requires --output"),
+    ],
+)
+def test_training_mode_conflicts_fail_before_reading_the_spec(
+    tmp_path, capsys, arguments, message
+):
+    assert (
+        main(["training", "run", "--spec", str(tmp_path / "absent.json"), *arguments])
+        == 2
+    )
+    assert message in capsys.readouterr().err
+
+
+def test_training_bundle_uses_result_context_and_one_metric_source(tmp_path, recipe):
+    from vitroctl.models.bundle import training_provenance
+
+    weights = tmp_path / "weights.pt"
+    weights.write_bytes(b"trained")
+    template = model_bundle(weights, recipe)
+    summary = tmp_path / "publication.json"
+    summary.write_text(
+        json.dumps(
+            {
+                "inference": {
+                    key: value
+                    for key, value in template["inference"].items()
+                    if key not in {"mode", "iou"}
+                }
+                | {"ready": True},
+                "training": recipe,
+                "validation": template["validation"],
+            }
+        )
+    )
+    context = {"codeRevision": "supplied revision", "effectiveParameters": {"batch": 2}}
+    result = YoloTrainingResult(weights, summary, context)
+    provenance = training_provenance(
+        fingerprint=None,
+        snapshot_id="snapshot-one",
+        dataset_description="dataset",
+        evaluation_description="validation",
+    )
+    document = training_bundle(result, ["seed"], provenance)
+    assert document["provenance"]["codeRevision"] == "supplied revision"
+    assert document["provenance"]["effectiveParameters"] == {"batch": 2}
+    assert document["provenance"]["evaluation"]["metrics"] is document["validation"]

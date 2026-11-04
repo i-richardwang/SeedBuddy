@@ -1,24 +1,21 @@
+export { resolveDishCoverage } from "./analysis";
+export { refreshImageAnalysis } from "./analysis-maintenance";
 export { collectImages } from "./collection";
 export { assertDocumentImage } from "./documents";
-export { ImageSourceError } from "./ingest";
 export { imageBlobKey } from "./keys";
-export { openImagePreview } from "./preview";
-export {
-  readImageRegion,
-  readImageOverview,
-  type ImageRegionEvidence,
-} from "./regions";
 export { lockImage } from "./lock";
+export { openImagePreview } from "./preview";
+export { requireStoredImage } from "./records";
+export {
+  type ImageRegionEvidence,
+  readImageOverview,
+  readImageRegion,
+} from "./regions";
 export { storeCanonicalImage, storeImage } from "./store";
 export {
-  refreshImageAnalysis,
-  IMAGE_ANALYSIS_RETRY_MS,
-} from "./analysis-maintenance";
-export { resolveDishCoverage } from "./analysis";
-export {
   clearImageUnclear,
-  markImageUnclear,
-  markImagesUnclear,
+  insertUnclearImages,
   markedUnclear,
+  markImageUnclear,
   readUnclearImages,
 } from "./unclear";

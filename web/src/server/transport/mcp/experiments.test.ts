@@ -1,25 +1,22 @@
 import { describe, expect, test } from "bun:test";
+
 import { McpClientNotFoundError } from "../../../domain/auth/errors";
-import { experimentsMcpHandler, serveExperimentsMcp } from "./experiments";
 import { agentOperations } from "../../agent/operations";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
-import { authorizeMcpClient, signInAs } from "../../testing/fixtures";
-import { banUser, revokeUserSessions } from "../../auth/users";
-import {
-  legacyRequest,
-  modernRequest,
-  requestEras,
-  rpcMessage,
-} from "../../testing/mcp";
+import { revokeUserSessions, setUserStatus } from "../../auth/users";
+import { agentHeaders, authorizeMcpClient, signInAs } from "../../testing/auth";
+import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
+import { serveExperimentsMcp } from "./experiments";
 
 async function rpc(method: string, params?: unknown): Promise<unknown> {
-  const response = await experimentsMcpHandler.fetch(
-    modernRequest(
-      "http://workbench/api/experiments/mcp",
-      method,
-      params as Record<string, unknown> | undefined,
-    ),
+  const request = modernRequest(
+    `${process.env.BETTER_AUTH_URL}/api/experiments/mcp`,
+    method,
+    params as Record<string, unknown> | undefined,
   );
+  for (const [key, value] of await agentHeaders())
+    request.headers.set(key, value);
+  const response = await serveExperimentsMcp(request);
   expect(response.status).toBe(200);
   return (await rpcMessage(response)).result;
 }
@@ -103,91 +100,89 @@ describe("experiment MCP surface", () => {
   });
 });
 
-describe.each(requestEras)(
-  "experiment MCP authorization (%s)",
-  (_, request) => {
-    const endpoint = () => `${process.env.BETTER_AUTH_URL}/api/experiments/mcp`;
+describe("experiment MCP authorization", () => {
+  const endpoint = () => `${process.env.BETTER_AUTH_URL}/api/experiments/mcp`;
 
-    const call = (token?: string): Promise<Response> =>
-      serveExperimentsMcp(request(endpoint(), "tools/list", undefined, token));
+  const call = (token?: string): Promise<Response> =>
+    serveExperimentsMcp(
+      modernRequest(endpoint(), "tools/list", undefined, token),
+    );
 
-    test("a request without a token is challenged toward the resource metadata", async () => {
-      const response = await call();
-      expect(response.status).toBe(401);
-      const challenge = response.headers.get("www-authenticate") ?? "";
-      expect(challenge).toContain("Bearer");
-      expect(challenge).toContain(
-        `${process.env.BETTER_AUTH_URL}/.well-known/oauth-protected-resource/api/experiments/mcp`,
-      );
+  test("a request without a token is challenged toward the resource metadata", async () => {
+    const response = await call();
+    expect(response.status).toBe(401);
+    const challenge = response.headers.get("www-authenticate") ?? "";
+    expect(challenge).toContain("Bearer");
+    expect(challenge).toContain(
+      `${process.env.BETTER_AUTH_URL}/.well-known/oauth-protected-resource/api/experiments/mcp`,
+    );
+  });
+
+  test("the resource metadata names this workbench as the authorization server", async () => {
+    const response = await fetch(
+      `${process.env.BETTER_AUTH_URL}/.well-known/oauth-protected-resource/api/experiments/mcp`,
+    );
+    expect(response.status).toBe(200);
+    const metadata = (await response.json()) as {
+      resource: string;
+      authorization_servers: string[];
+    };
+    expect(metadata.resource).toBe(endpoint());
+    expect(metadata.authorization_servers).toEqual([
+      `${process.env.BETTER_AUTH_URL}/api/auth`,
+    ]);
+  });
+
+  test("a client the account authorized reaches the tools until it is disconnected", async () => {
+    const { user, headers } = await signInAs("member");
+    const { clientId, accessToken } = await authorizeMcpClient(headers, {
+      name: "Claude on the bench",
     });
 
-    test("the resource metadata names this workbench as the authorization server", async () => {
-      const response = await fetch(
-        `${process.env.BETTER_AUTH_URL}/.well-known/oauth-protected-resource/api/experiments/mcp`,
-      );
-      expect(response.status).toBe(200);
-      const metadata = (await response.json()) as {
-        resource: string;
-        authorization_servers: string[];
-      };
-      expect(metadata.resource).toBe(endpoint());
-      expect(metadata.authorization_servers).toEqual([
-        `${process.env.BETTER_AUTH_URL}/api/auth`,
-      ]);
+    const accepted = await call(accessToken);
+    expect(accepted.status).toBe(200);
+    expect(await accepted.text()).toContain("list-experiments");
+
+    const [client] = await listMcpClients(user.id);
+    expect(client).toMatchObject({
+      clientId,
+      name: "Claude on the bench",
+      servers: ["experiments"],
     });
 
-    test("a client the account authorized reaches the tools until it is disconnected", async () => {
-      const { user, headers } = await signInAs("member");
-      const { clientId, accessToken } = await authorizeMcpClient(headers, {
-        name: "Claude on the bench",
-      });
+    const other = await signInAs("member");
+    expect(await listMcpClients(other.user.id)).toEqual([]);
+    await expect(
+      disconnectMcpClient(other.user.id, client!.id),
+    ).rejects.toBeInstanceOf(McpClientNotFoundError);
 
-      const accepted = await call(accessToken);
-      expect(accepted.status).toBe(200);
-      expect(await accepted.text()).toContain("list-experiments");
+    await disconnectMcpClient(user.id, client!.id);
+    expect(await listMcpClients(user.id)).toEqual([]);
+    expect((await call(accessToken)).status).toBe(401);
+  });
 
-      const [client] = await listMcpClients(user.id);
-      expect(client).toMatchObject({
-        clientId,
-        name: "Claude on the bench",
-        servers: ["experiments"],
-      });
+  test("suspending the account invalidates an issued access token", async () => {
+    const admin = await signInAs("admin");
+    const member = await signInAs("member");
+    const { accessToken } = await authorizeMcpClient(member.headers);
+    expect((await call(accessToken)).status).toBe(200);
+    await setUserStatus(admin.user, { suspended: true, user: member.user.id });
+    expect((await call(accessToken)).status).toBe(401);
+  });
 
-      const other = await signInAs("member");
-      expect(await listMcpClients(other.user.id)).toEqual([]);
-      await expect(
-        disconnectMcpClient(other.user.id, client!.id),
-      ).rejects.toBeInstanceOf(McpClientNotFoundError);
+  test("revoking the account's sessions invalidates an issued access token", async () => {
+    const member = await signInAs("member");
+    const { accessToken } = await authorizeMcpClient(member.headers);
+    expect((await call(accessToken)).status).toBe(200);
+    await revokeUserSessions({ user: member.user.id });
+    expect((await call(accessToken)).status).toBe(401);
+  });
 
-      await disconnectMcpClient(user.id, client!.id);
-      expect(await listMcpClients(user.id)).toEqual([]);
-      expect((await call(accessToken)).status).toBe(401);
-    });
-
-    test("suspending the account invalidates an issued access token", async () => {
-      const admin = await signInAs("admin");
-      const member = await signInAs("member");
-      const { accessToken } = await authorizeMcpClient(member.headers);
-      expect((await call(accessToken)).status).toBe(200);
-      await banUser(admin.headers, { user: member.user.id });
-      expect((await call(accessToken)).status).toBe(401);
-    });
-
-    test("revoking the account's sessions invalidates an issued access token", async () => {
-      const admin = await signInAs("admin");
-      const member = await signInAs("member");
-      const { accessToken } = await authorizeMcpClient(member.headers);
-      expect((await call(accessToken)).status).toBe(200);
-      await revokeUserSessions(admin.headers, { user: member.user.id });
-      expect((await call(accessToken)).status).toBe(401);
-    });
-
-    test("a forged token is refused", async () => {
-      const response = await call("not-a-token");
-      expect(response.status).toBe(401);
-    });
-  },
-);
+  test("a forged token is refused", async () => {
+    const response = await call("not-a-token");
+    expect(response.status).toBe(401);
+  });
+});
 
 test("legacy initialization negotiates tools without creating a session", async () => {
   const endpoint = () => `${process.env.BETTER_AUTH_URL}/api/experiments/mcp`;

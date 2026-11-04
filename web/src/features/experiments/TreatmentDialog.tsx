@@ -1,28 +1,22 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
-  treatmentNameSchema,
   type Treatment,
+  treatmentNameSchema,
 } from "../../domain/experiments/schema";
-import {
-  createReplicates,
-  createTreatment,
-  editTreatment,
-} from "../../functions/experiments";
+import { createTreatment, updateTreatment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
 import { FactorField, factorDraft, submittedFactor } from "./FactorField";
 import { DEFAULT_REPLICATES, ReplicatesField } from "./ReplicatesField";
 
-const TREATMENT_FORM = "treatment";
-const REPLICATES_FORM = "add-replicates";
+const FORM_ID = "treatment";
 
 /** Creates a treatment with its replicates, or edits one. */
 export function TreatmentDialog({
@@ -47,8 +41,8 @@ export function TreatmentDialog({
           ? m.treatment_new()
           : m.treatment_edit({ name: treatment.name })
       }
-      okText={creating ? m.experiment_action_add() : m.experiment_action_save()}
-      formId={TREATMENT_FORM}
+      okText={creating ? m.add_action() : m.save_action()}
+      formId={FORM_ID}
       busy={action.busy}
     >
       <TreatmentForm
@@ -72,7 +66,6 @@ function TreatmentForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [name, setName] = useState(treatment?.name ?? "");
   const [factor, setFactor] = useState(factorDraft(treatment?.factor ?? null));
   const [note, setNote] = useState(treatment?.note ?? "");
@@ -81,7 +74,7 @@ function TreatmentForm({
 
   return (
     <Form
-      id={TREATMENT_FORM}
+      id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
         if (!treatmentNameSchema.safeParse(name).success) return;
@@ -90,26 +83,23 @@ function TreatmentForm({
           factor: submittedFactor(factor),
           note,
         };
-        void action
-          .run(
-            () =>
-              creating
-                ? createTreatment({
-                    data: { experiment, ...draft, replicates },
-                  })
-                : editTreatment({
-                    data: { experiment, treatment: treatment.id, ...draft },
-                  }),
-            creating ? m.treatment_not_added() : m.treatment_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            creating
+              ? createTreatment({
+                  data: { experiment, ...draft, replicates },
+                })
+              : updateTreatment({
+                  data: { experiment, treatment: treatment.id, ...draft },
+                }),
+          creating ? m.treatment_not_added() : m.treatment_not_saved(),
+          {
+            onSuccess: onDone,
+          },
+        );
       }}
     >
-      <Form.Field label={m.treatment_name_label()} required>
+      <Form.Field label={m.name_label({ kind: "thing" })} required>
         <Input
           autoFocus
           disabled={action.busy}
@@ -123,7 +113,7 @@ function TreatmentForm({
         factor={factor}
         onChange={setFactor}
       />
-      <Form.Field label={m.treatment_note_label()}>
+      <Form.Field label={m.note_label()}>
         <Input disabled={action.busy} value={note} onValueChange={setNote} />
       </Form.Field>
       {creating ? (
@@ -133,80 +123,6 @@ function TreatmentForm({
           onChange={setReplicates}
         />
       ) : null}
-    </Form>
-  );
-}
-
-/** Lays out more replicates of a treatment, continuing its code series. */
-export function ReplicatesDialog({
-  experiment,
-  treatment,
-  open,
-  onClose,
-}: {
-  experiment: string;
-  treatment: Treatment;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const action = useAsyncAction();
-  return (
-    <FormDialog
-      open={open}
-      onClose={onClose}
-      title={m.treatment_add_replicates({ name: treatment.name })}
-      okText={m.experiment_action_add()}
-      formId={REPLICATES_FORM}
-      busy={action.busy}
-    >
-      <ReplicatesForm
-        experiment={experiment}
-        treatment={treatment}
-        action={action}
-        onDone={onClose}
-      />
-    </FormDialog>
-  );
-}
-
-function ReplicatesForm({
-  experiment,
-  treatment,
-  action,
-  onDone,
-}: {
-  experiment: string;
-  treatment: Treatment;
-  action: AsyncAction;
-  onDone: () => void;
-}) {
-  const router = useRouter();
-  const [replicates, setReplicates] = useState(1);
-  return (
-    <Form
-      id={REPLICATES_FORM}
-      onSubmit={(event) => {
-        event.preventDefault();
-        void action
-          .run(
-            () =>
-              createReplicates({
-                data: { experiment, treatment: treatment.id, replicates },
-              }),
-            m.treatment_replicates_not_added(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
-      }}
-    >
-      <ReplicatesField
-        disabled={action.busy}
-        value={replicates}
-        onChange={setReplicates}
-      />
     </Form>
   );
 }

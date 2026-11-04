@@ -16,6 +16,7 @@ interface TrainingParametersFormProps {
 }
 
 const BASIC_FIELDS = PARAMETER_FIELDS.filter((field) => !field.advanced);
+
 const ADVANCED_FIELDS = PARAMETER_FIELDS.filter((field) => field.advanced);
 
 /** Display resolved values while retaining only the user's adjustments. */
@@ -24,12 +25,12 @@ export function TrainingParametersForm(props: TrainingParametersFormProps) {
     <>
       <ParametersGroup
         {...props}
-        title={m.train_parameters()}
+        title={m.training_parameters_group()}
         fields={BASIC_FIELDS}
       />
       <ParametersGroup
         {...props}
-        title={m.train_advanced_parameters()}
+        title={m.training_advanced_parameters()}
         fields={ADVANCED_FIELDS}
         collapsible
       />
@@ -68,7 +69,7 @@ function ParametersGroup({
               onChange(next);
             }}
           >
-            {m.train_restore_preset()}
+            {m.training_restore_preset()}
           </Button>
         ) : undefined
       }

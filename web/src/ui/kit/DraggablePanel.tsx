@@ -8,6 +8,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+
 import { m } from "../../paraglide/messages";
 import { cn } from "./cn";
 import {
@@ -24,7 +25,7 @@ import {
  * trace in the page.
  */
 
-export type DraggablePanelPlacement = "left" | "right";
+type DraggablePanelPlacement = "left" | "right";
 
 const PAN_THRESHOLD = 3;
 

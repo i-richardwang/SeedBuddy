@@ -71,6 +71,13 @@
       "when": 1793707361325,
       "tag": "0009_remove_account_issuer",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793718026889,
+      "tag": "0010_observation_day_index",
+      "breakpoints": true
     }
   ]
 }

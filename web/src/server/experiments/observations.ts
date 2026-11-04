@@ -1,22 +1,16 @@
-import {
-  cultureEventIsTerminal,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
-import { assertUnitRecordsEndAt } from "./culture-events";
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import { inTransaction, type Executor } from "../infra/db/client";
-import { experimentObservations } from "../infra/db/schema";
+import { resolveCountedClasses } from "../../domain/experiments/cell-reading";
 import {
-  ObservationNotFoundError,
-  ObservationModelHasCountsError,
-  ObservationRejectedError,
+  cultureEventIsTerminal,
+  observationOrdinals,
+} from "../../domain/experiments/culture-events";
+import {
+  ObservationConflictError,
+  ObservationModelCountsConflictError,
 } from "../../domain/experiments/errors";
-import { resolveCountedClasses } from "../../domain/experiments/readings";
-import { ModelNotFoundError } from "../../domain/models/errors";
-import type { Model } from "../../domain/models/schema";
 import type {
   Experiment,
   ExperimentObservation,
@@ -25,21 +19,29 @@ import type {
   ObservationUpdate,
 } from "../../domain/experiments/schema";
 import {
+  type Executor,
+  inTransaction,
+  operationTime,
+  single,
+} from "../infra/db/client";
+import { experimentObservations } from "../infra/db/schema";
+import { requireModel } from "../models/public";
+import { assertUnitRecordsEndAt } from "./culture-events";
+import {
   atObservation,
+  listManualReadings,
   listObservations,
   listUnits,
-  listManualReadings,
   lockExperiment,
   requireObservation,
 } from "./records";
-import { readModel } from "../models/public";
 
 function rejectBeforeInoculation(
   experiment: Experiment,
   observedOn: string,
 ): void {
   if (observedOn < experiment.inoculatedOn) {
-    throw new ObservationRejectedError(
+    throw new ObservationConflictError(
       `An observation cannot precede inoculation on ${experiment.inoculatedOn}`,
     );
   }
@@ -49,9 +51,9 @@ async function rejectSameDay(
   experimentId: string,
   observedOn: string,
   exceptObservationId: string | null,
-  tx: Executor,
+  db: Executor,
 ): Promise<void> {
-  const rows = await tx
+  const rows = await db
     .select({ id: experimentObservations.id })
     .from(experimentObservations)
     .where(
@@ -61,25 +63,15 @@ async function rejectSameDay(
       ),
     );
   if (rows.some((row) => row.id !== exceptObservationId)) {
-    throw new ObservationRejectedError(
+    throw new ObservationConflictError(
       `The experiment already has an observation on ${observedOn}`,
     );
   }
 }
 
-/** An observation asks a question the registry holds a model for. */
-export async function requireModel(
-  modelId: string,
-  tx: Executor,
-): Promise<Model> {
-  const model = await readModel(modelId, tx);
-  if (!model) throw new ModelNotFoundError(`Unknown model: ${modelId}`);
-  return model;
-}
-
-export async function addObservation(
+export async function createObservation(
   value: ObservationRequest,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<ExperimentObservation> {
   const {
     experiment: experimentId,
@@ -88,32 +80,34 @@ export async function addObservation(
     modelId,
     countedClasses,
   } = value;
-  return inTransaction(executor, async (tx) => {
-    const experiment = await lockExperiment(experimentId, tx);
+  return inTransaction(db, async (db) => {
+    const experiment = await lockExperiment(experimentId, db);
     rejectBeforeInoculation(experiment, observedOn);
-    await rejectSameDay(experimentId, observedOn, null, tx);
-    const model = await requireModel(modelId, tx);
-    const [row] = await tx
-      .insert(experimentObservations)
-      .values({
-        experimentId,
-        id: randomUUID(),
-        inoculatedOn: experiment.inoculatedOn,
-        observedOn,
-        note,
-        modelId,
-        countedClasses: resolveCountedClasses(model.classes, countedClasses),
-        createdAt: new Date(),
-      })
-      .returning();
-    if (!row) throw new Error("Observation was not created");
-    return requireObservation(await listObservations(experimentId, tx), row.id);
+    await rejectSameDay(experimentId, observedOn, null, db);
+    const model = await requireModel(modelId, db);
+    const row = single(
+      await db
+        .insert(experimentObservations)
+        .values({
+          experimentId,
+          id: randomUUID(),
+          inoculatedOn: experiment.inoculatedOn,
+          observedOn,
+          note,
+          modelId,
+          countedClasses: resolveCountedClasses(model.classes, countedClasses),
+          createdAt: await operationTime(db),
+        })
+        .returning(),
+      "experimentObservations",
+    );
+    return requireObservation(await listObservations(experimentId, db), row.id);
   });
 }
 
 export async function updateObservation(
   value: ObservationUpdate,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<ExperimentObservation> {
   const {
     experiment: experimentId,
@@ -123,44 +117,42 @@ export async function updateObservation(
     modelId,
     countedClasses,
   } = value;
-  return inTransaction(executor, async (tx) => {
-    const experiment = await lockExperiment(experimentId, tx);
+  return inTransaction(db, async (db) => {
+    const experiment = await lockExperiment(experimentId, db);
     const previous = requireObservation(
-      await listObservations(experimentId, tx),
+      await listObservations(experimentId, db),
       observationId,
     );
     if (
       previous.modelId !== modelId &&
-      (await listManualReadings(experimentId, tx)).some(
+      (await listManualReadings(experimentId, db)).some(
         (reading) => reading.observation === observationId,
       )
     ) {
-      throw new ObservationModelHasCountsError(
+      throw new ObservationModelCountsConflictError(
         "Withdraw the observation's manual counts before changing its model",
       );
     }
     rejectBeforeInoculation(experiment, observedOn);
-    await rejectSameDay(experimentId, observedOn, observationId, tx);
-    const model = await requireModel(modelId, tx);
-    const [row] = await tx
-      .update(experimentObservations)
-      .set({
-        observedOn,
-        note,
-        modelId,
-        countedClasses: resolveCountedClasses(model.classes, countedClasses),
-      })
-      .where(atObservation(experimentId, observationId))
-      .returning();
-    if (!row) {
-      throw new ObservationNotFoundError(
-        `Unknown observation: ${observationId}`,
-      );
-    }
-    const observations = await listObservations(experimentId, tx);
+    await rejectSameDay(experimentId, observedOn, observationId, db);
+    const model = await requireModel(modelId, db);
+    const row = single(
+      await db
+        .update(experimentObservations)
+        .set({
+          observedOn,
+          note,
+          modelId,
+          countedClasses: resolveCountedClasses(model.classes, countedClasses),
+        })
+        .where(atObservation(experimentId, observationId))
+        .returning(),
+      "experimentObservations",
+    );
+    const observations = await listObservations(experimentId, db);
     if (previous.observedOn !== observedOn) {
       const ordinals = observationOrdinals(observations);
-      for (const unit of await listUnits(experimentId, tx)) {
+      for (const unit of await listUnits(experimentId, db)) {
         const terminal = unit.events.find((event) =>
           cultureEventIsTerminal(event.type),
         );
@@ -170,7 +162,7 @@ export async function updateObservation(
             unit,
             requireObservation(observations, terminal.observation),
             ordinals,
-            tx,
+            db,
           );
       }
     }
@@ -180,28 +172,22 @@ export async function updateObservation(
 
 export async function deleteObservation(
   value: ObservationRef,
-  executor?: Executor,
+  db?: Executor,
 ): Promise<void> {
   const { experiment: experimentId, observation: observationId } = value;
-  await inTransaction(executor, async (tx) => {
-    await lockExperiment(experimentId, tx);
+  await inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
     const observation = requireObservation(
-      await listObservations(experimentId, tx),
+      await listObservations(experimentId, db),
       observationId,
     );
     if (observation.hasRecords) {
-      throw new ObservationRejectedError(
+      throw new ObservationConflictError(
         "An observation with images, counts or culture events cannot be deleted",
       );
     }
-    const [row] = await tx
+    await db
       .delete(experimentObservations)
-      .where(atObservation(experimentId, observationId))
-      .returning({ id: experimentObservations.id });
-    if (!row) {
-      throw new ObservationNotFoundError(
-        `Unknown observation: ${observationId}`,
-      );
-    }
+      .where(atObservation(experimentId, observationId));
   });
 }

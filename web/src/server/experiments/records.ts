@@ -1,32 +1,36 @@
-import { and, asc, eq } from "drizzle-orm";
+/** Reads experiment records and enforces record existence within a transaction. */
+import { and, asc, eq, inArray } from "drizzle-orm";
 
+import {
+  type CultureEvent,
+  cultureEventSchema,
+} from "../../domain/experiments/culture-events";
+import {
+  ExperimentNotFoundError,
+  ObservationNotFoundError,
+  UnitNotFoundError,
+} from "../../domain/experiments/errors";
+import type { Unit } from "../../domain/experiments/read-model";
+import {
+  type Experiment,
+  type ExperimentObservation,
+  experimentObservationSchema,
+  experimentSchema,
+  type ManualReading,
+  manualReadingSchema,
+  type Treatment,
+  treatmentSchema,
+} from "../../domain/experiments/schema";
 import type { Executor } from "../infra/db/client";
 import {
   experimentCultureEvents,
   experimentManualReadings,
   experimentObservationImages,
   experimentObservations,
+  experiments,
   experimentTreatments,
   experimentUnits,
-  experiments,
 } from "../infra/db/schema";
-import type { Unit } from "../../domain/experiments/contracts";
-import {
-  ExperimentNotFoundError,
-  ObservationNotFoundError,
-} from "../../domain/experiments/errors";
-import {
-  cultureEventSchema,
-  experimentObservationSchema,
-  experimentSchema,
-  treatmentSchema,
-  manualReadingSchema,
-  type CultureEvent,
-  type Experiment,
-  type ExperimentObservation,
-  type ManualReading,
-  type Treatment,
-} from "../../domain/experiments/schema";
 
 export function toExperiment(row: typeof experiments.$inferSelect): Experiment {
   return experimentSchema.parse({
@@ -66,7 +70,7 @@ export function toUnit(
   };
 }
 
-function toCultureEvent(
+export function toCultureEvent(
   row: typeof experimentCultureEvents.$inferSelect,
 ): CultureEvent {
   return cultureEventSchema.parse({
@@ -106,9 +110,9 @@ export async function readExperimentRecord(
 
 export async function lockExperiment(
   experimentId: string,
-  tx: Executor,
+  db: Executor,
 ): Promise<Experiment> {
-  const [locked] = await tx
+  const [locked] = await db
     .select()
     .from(experiments)
     .where(eq(experiments.id, experimentId))
@@ -255,4 +259,98 @@ export function requireObservation(
     throw new ObservationNotFoundError(`Unknown observation: ${observationId}`);
   }
   return observation;
+}
+
+export function atObservationImage(
+  experimentId: string,
+  observationImageId: string,
+) {
+  return and(
+    eq(experimentObservationImages.experimentId, experimentId),
+    eq(experimentObservationImages.id, observationImageId),
+  );
+}
+
+type RecordScope = { treatment: string } | { unit: string } | null;
+
+/**
+ * Whether images, counts or culture events were recorded: on the whole experiment,
+ * on one treatment's units, or on one unit.
+ */
+export async function hasRecords(
+  experimentId: string,
+  scope: RecordScope,
+  db: Executor,
+): Promise<boolean> {
+  const inScope = (
+    unitId:
+      | typeof experimentObservationImages.unitId
+      | typeof experimentManualReadings.unitId
+      | typeof experimentCultureEvents.unitId,
+  ) => {
+    if (scope === null) return undefined;
+    if ("unit" in scope) return eq(unitId, scope.unit);
+    return inArray(
+      unitId,
+      db
+        .select({ id: experimentUnits.id })
+        .from(experimentUnits)
+        .where(
+          and(
+            eq(experimentUnits.experimentId, experimentId),
+            eq(experimentUnits.treatmentId, scope.treatment),
+          ),
+        ),
+    );
+  };
+  const [image] = await db
+    .select({ id: experimentObservationImages.id })
+    .from(experimentObservationImages)
+    .where(
+      and(
+        eq(experimentObservationImages.experimentId, experimentId),
+        inScope(experimentObservationImages.unitId),
+      ),
+    )
+    .limit(1);
+  if (image) return true;
+  const [manual] = await db
+    .select({ unitId: experimentManualReadings.unitId })
+    .from(experimentManualReadings)
+    .where(
+      and(
+        eq(experimentManualReadings.experimentId, experimentId),
+        inScope(experimentManualReadings.unitId),
+      ),
+    )
+    .limit(1);
+  if (manual) return true;
+  const [event] = await db
+    .select({ id: experimentCultureEvents.id })
+    .from(experimentCultureEvents)
+    .where(
+      and(
+        eq(experimentCultureEvents.experimentId, experimentId),
+        inScope(experimentCultureEvents.unitId),
+      ),
+    )
+    .limit(1);
+  return event !== undefined;
+}
+
+export function requireUnit(units: readonly Unit[], unitId: string): Unit {
+  const unit = units.find((item) => item.id === unitId);
+  if (!unit) throw new UnitNotFoundError(`Unknown unit: ${unitId}`);
+  return unit;
+}
+
+/** The observation an image was taken at. */
+export function atImageObservation() {
+  return and(
+    eq(
+      experimentObservations.experimentId,
+      experimentObservationImages.experimentId,
+    ),
+    eq(experimentObservations.id, experimentObservationImages.observationId),
+  );
 }

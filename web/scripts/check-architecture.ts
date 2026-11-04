@@ -1,9 +1,10 @@
 import { resolve } from "node:path";
 
 import { checkArchitecture } from "./architecture";
-import { unusedPublicExports } from "./public-exports";
-import { checkOperationContracts } from "./operation-contracts";
 import { checkComposition } from "./composition";
+import { checkOperationContracts } from "./operation-contracts";
+import { PROCESS_ENTRIES } from "./process-entries";
+import { unusedPublicExports } from "./public-exports";
 
 const root = resolve(import.meta.dir, "..");
 const paths = [
@@ -12,12 +13,9 @@ const paths = [
   (file) =>
     !file.startsWith("src/paraglide/") && file !== "src/routeTree.gen.ts",
 );
-paths.push(
-  "server.ts",
-  "scripts/maintenance.ts",
-  "scripts/collect-blobs.ts",
-  "scripts/analyze-images.ts",
-);
+for (const { path } of PROCESS_ENTRIES)
+  if (!paths.includes(path)) paths.push(path);
+
 const sources = new Map(
   await Promise.all(
     paths
@@ -39,6 +37,6 @@ if (errors.length) {
   process.exitCode = 1;
 } else {
   console.log(
-    "Web architecture: layer boundaries, pure capabilities, server APIs, dependency cycles and style composition checked",
+    "Web architecture: layer boundaries, pure capabilities, server APIs, dependency cycles, style composition, operation contracts and unused public exports checked",
   );
 }

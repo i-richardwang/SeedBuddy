@@ -1,8 +1,8 @@
 import type { Model } from "../../domain/models/schema";
+import { m } from "../../paraglide/messages";
 import { Form } from "../../ui/kit/Form";
 import { Select } from "../../ui/kit/Select";
 import { modelName } from "../../ui/model-names";
-import { m } from "../../paraglide/messages";
 
 /** What an observation asks of its photographs: one recognition task. */
 export function ModelField({

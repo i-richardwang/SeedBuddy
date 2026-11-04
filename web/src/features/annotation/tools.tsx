@@ -9,9 +9,11 @@ import { m } from "../../paraglide/messages";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { ColorSwatch } from "../../ui/kit/ColorSwatch";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
-import { ToolbarSeparator } from "../../ui/kit/Toolbar";
-import { className } from "../../ui/model-names";
-import { classShortcut, type LayerKey } from "./controls";
+import { ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
+import { classLabel } from "../../ui/model-names";
+import { classShortcut } from "./class-keys";
+import { layerLabel } from "./labels";
+import type { LayerKey } from "./layers";
 
 /**
  * What a press on the image does next: the class a new box takes, or the
@@ -44,12 +46,13 @@ export function EditTools({
       {classes.length > 1 ? (
         <>
           <ToggleGroup
+            toolbar
             aria-label={m.annotation_box_class()}
             value={boxClass}
             options={classes.map((name) => ({
               value: name,
               label: m.annotation_named_count({
-                name: className(name),
+                name: classLabel(name),
                 count: classCount(tally, name),
               }),
               mark: <ColorSwatch color={classColor(classes, name).hex} />,
@@ -60,41 +63,47 @@ export function EditTools({
           <ToolbarSeparator />
         </>
       ) : null}
-      <ActionIcon
-        icon={Undo2}
-        size="small"
-        title={m.annotation_undo()}
-        tooltipProps={{ hotkey: "mod+z", placement: "bottom" }}
-        disabled={!history.canUndo}
-        onClick={onUndo}
+      <ToolbarButton
+        render={
+          <ActionIcon
+            icon={Undo2}
+            size="small"
+            title={m.annotation_undo()}
+            tooltipProps={{ hotkey: "mod+z", placement: "bottom" }}
+            disabled={!history.canUndo}
+            onClick={onUndo}
+          />
+        }
       />
-      <ActionIcon
-        icon={Redo2}
-        size="small"
-        title={m.annotation_redo()}
-        tooltipProps={{ hotkey: "shift+mod+z", placement: "bottom" }}
-        disabled={!history.canRedo}
-        onClick={onRedo}
+      <ToolbarButton
+        render={
+          <ActionIcon
+            icon={Redo2}
+            size="small"
+            title={m.annotation_redo()}
+            tooltipProps={{ hotkey: "shift+mod+z", placement: "bottom" }}
+            disabled={!history.canRedo}
+            onClick={onRedo}
+          />
+        }
       />
-      <ActionIcon
-        icon={Trash2}
-        size="small"
-        title={m.annotation_delete()}
-        tooltipProps={{ hotkey: "backspace", placement: "bottom" }}
-        disabled={!canDelete}
-        onClick={onDelete}
+      <ToolbarButton
+        render={
+          <ActionIcon
+            icon={Trash2}
+            size="small"
+            title={m.delete_action()}
+            tooltipProps={{ hotkey: "backspace", placement: "bottom" }}
+            disabled={!canDelete}
+            onClick={onDelete}
+          />
+        }
       />
     </>
   );
 }
 
 const LAYER_ICONS = { boxes: Square, ids: Hash, checks: ScanSearch } as const;
-
-const LAYER_LABELS = {
-  boxes: m.annotation_layer_boxes,
-  ids: m.annotation_layer_ids,
-  checks: m.annotation_layer_checks,
-} as const;
 
 /** What is drawn over the image, each shown or hidden by its own toggle. */
 export function LayerControls({
@@ -109,18 +118,22 @@ export function LayerControls({
   return available.map((key) => {
     const on = layers.has(key);
     return (
-      <ActionIcon
+      <ToolbarButton
         key={key}
-        icon={LAYER_ICONS[key]}
-        size="small"
-        title={LAYER_LABELS[key]()}
-        pressed={on}
-        onClick={() => {
-          const next = new Set(layers);
-          if (on) next.delete(key);
-          else next.add(key);
-          onLayersChange(next);
-        }}
+        render={
+          <ActionIcon
+            icon={LAYER_ICONS[key]}
+            size="small"
+            title={layerLabel(key)}
+            pressed={on}
+            onClick={() => {
+              const next = new Set(layers);
+              if (on) next.delete(key);
+              else next.add(key);
+              onLayersChange(next);
+            }}
+          />
+        }
       />
     );
   });

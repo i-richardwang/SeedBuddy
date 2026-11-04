@@ -1,26 +1,25 @@
-import { and, desc, eq } from "drizzle-orm";
-
-import { ApiKeyNotFoundError } from "../../domain/auth/errors";
-import {
-  apiKeySchema,
-  issuedApiKeySchema,
-  permissionScopes,
-  scopePermissions,
-  type ApiKey,
-  type ApiKeyCreate,
-  type ApiScope,
-  type IssuedApiKey,
-} from "../../domain/auth/integrations";
-import { database } from "../infra/db/client";
-import { apiKeys, users } from "../infra/db/schema";
-import { auth } from "./service";
-import { bearerToken } from "./bearer";
-
 /**
  * Personal API keys. Issuing goes through Better Auth so the secret is hashed
  * the way its verifier expects; listing and revoking address the owner's rows
  * directly. A key opens a surface only while its owner is in good standing.
  */
+import { and, desc, eq } from "drizzle-orm";
+
+import { ApiKeyNotFoundError } from "../../domain/auth/errors";
+import {
+  type ApiKey,
+  type ApiKeyCreate,
+  type ApiScope,
+  apiKeySchema,
+  type IssuedApiKey,
+  issuedApiKeySchema,
+  permissionScopes,
+  scopePermissions,
+} from "../../domain/auth/integrations";
+import { database } from "../infra/db/client";
+import { apiKeys, users } from "../infra/db/schema";
+import { bearerToken } from "./bearer";
+import { auth } from "./service";
 
 const DAY_SECONDS = 24 * 60 * 60;
 

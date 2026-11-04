@@ -4,10 +4,11 @@ import { resourceIdSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";
 import {
-  modelArtifactSchema,
   type Model,
   type ModelVersion,
+  modelArtifactSchema,
 } from "../models/schema";
+import { timestampSchema } from "../time";
 
 export const inferenceModelManifestSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -20,9 +21,9 @@ export const inferenceAssignmentSchema = z.strictObject({
   manifest: inferenceModelManifestSchema,
   image: imageDigestSchema,
   attempt: z.number().int().positive(),
-  leaseExpiresAt: z.iso.datetime(),
-  deadlineAt: z.iso.datetime(),
-  serverTime: z.iso.datetime(),
+  leaseExpiresAt: timestampSchema,
+  deadlineAt: timestampSchema,
+  serverTime: timestampSchema,
 });
 
 export const inferenceTargetSchema = z.strictObject({
@@ -30,10 +31,7 @@ export const inferenceTargetSchema = z.strictObject({
   digest: imageDigestSchema,
 });
 
-export type InferenceModelManifest = z.infer<
-  typeof inferenceModelManifestSchema
->;
-export type InferenceAssignment = z.infer<typeof inferenceAssignmentSchema>;
+type InferenceModelManifest = z.infer<typeof inferenceModelManifestSchema>;
 
 export function inferenceModelManifest(
   version: Pick<ModelVersion, "id" | "artifact">,
@@ -46,3 +44,5 @@ export function inferenceModelManifest(
     artifact: version.artifact,
   });
 }
+
+export type InferenceTarget = z.infer<typeof inferenceTargetSchema>;

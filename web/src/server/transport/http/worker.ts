@@ -1,19 +1,19 @@
-import { InvalidDetectionOutcomeError } from "../../../domain/inference/errors";
-import { artifactUploadSchema } from "../../../domain/training/artifact";
-import {
-  inferenceAttemptOwnerSchema,
-  type InferenceAttemptOwner,
-} from "../../../domain/inference/tasks";
-import { DomainError } from "../../../domain/errors";
-import {
-  trainingAttemptOwnerSchema,
-  type TrainingAttemptOwner,
-} from "../../../domain/training/schema";
 import { createMiddleware } from "@tanstack/react-start";
 import type { ZodType } from "zod";
 
+import { failureCategory } from "../../../domain/errors";
+import { artifactUploadSchema } from "../../../domain/training/artifact";
+import {
+  type AttemptOwner,
+  attemptClaimSchema,
+} from "../../../domain/workers/schema";
 import { bearerToken } from "../../auth/public";
 import { authenticateWorker } from "../../workers/public";
+
+/** Worker protocol refusals are plain text under the actionable HTTP status. */
+export function workerFailure(message: string, status: number): Response {
+  return new Response(message, { status });
+}
 
 /** A request a worker route refuses before touching any record. */
 export class WorkerRequestError extends Error {
@@ -33,7 +33,7 @@ export const requireEnrolledWorker = createMiddleware().server(
   async ({ request, next }) => {
     const token = bearerToken(request);
     const workerId = token ? await authenticateWorker(token) : null;
-    if (!workerId) return new Response("Unknown worker token", { status: 401 });
+    if (!workerId) return workerFailure("Unknown worker token", 401);
     return next({ context: { workerId } });
   },
 );
@@ -75,13 +75,9 @@ export function parseWorkerValue<T>(
 
 function statusOf(error: unknown): number | null {
   if (error instanceof WorkerRequestError) return error.status;
-  if (error instanceof InvalidDetectionOutcomeError) return 400;
-  if (error instanceof DomainError)
-    return error.category === "not_found"
-      ? 404
-      : error.category === "conflict"
-        ? 409
-        : 422;
+  const category = failureCategory(error);
+  if (category !== null)
+    return { not_found: 404, conflict: 409, invalid_request: 422 }[category];
   return null;
 }
 
@@ -95,15 +91,15 @@ export function workerErrorResponse(
 ): Response {
   const message = error instanceof Error ? error.message : String(error);
   const status = statusOf(error);
-  if (status !== null) return new Response(message, { status });
+  if (status !== null) return workerFailure(message, status);
   console.error(`${operation}: ${message}`);
-  return new Response(operation, { status: 500 });
+  return workerFailure(operation, 500);
 }
 
-export function parseTrainingQuery(
+export function parseAttemptOwner(
   request: Request,
   workerId: string,
-): TrainingAttemptOwner {
+): AttemptOwner {
   const query = new URL(request.url).searchParams;
   return {
     workerId,
@@ -112,26 +108,8 @@ export function parseTrainingQuery(
         sessionId: query.get("sessionId"),
         attempt: Number(query.get("attempt")),
       },
-      trainingAttemptOwnerSchema,
-      "Training attempt",
-    ),
-  };
-}
-
-export function parseInferenceQuery(
-  request: Request,
-  workerId: string,
-): InferenceAttemptOwner {
-  const query = new URL(request.url).searchParams;
-  return {
-    workerId,
-    ...parseWorkerValue(
-      {
-        sessionId: query.get("sessionId"),
-        attempt: Number(query.get("attempt")),
-      },
-      inferenceAttemptOwnerSchema,
-      "Inference attempt",
+      attemptClaimSchema,
+      "Attempt owner",
     ),
   };
 }

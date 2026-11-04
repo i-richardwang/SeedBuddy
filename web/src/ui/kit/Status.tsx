@@ -1,7 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import { type ComponentProps, useState } from "react";
+
 import { cn } from "./cn";
 import { Icon } from "./Icon";
+import { Tooltip } from "./Tooltip";
 
 /*
  * A state as a mark and a word in the tone's color: the mark is `icon` at 12
@@ -83,12 +85,14 @@ export function StatusDot({
 }) {
   const changes = useToneChanges(tone);
   return (
-    <span
-      className={cn("ui-status-dot-mark", DOT_TONE[tone])}
-      data-changed={changes > 0 || undefined}
-      key={changes}
-      role="img"
-      title={label}
-    />
+    <Tooltip title={label}>
+      <span
+        className={cn("ui-status-dot-mark", DOT_TONE[tone])}
+        data-changed={changes > 0 || undefined}
+        key={changes}
+        role="img"
+        aria-label={label}
+      />
+    </Tooltip>
   );
 }

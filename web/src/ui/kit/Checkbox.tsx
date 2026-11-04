@@ -2,6 +2,7 @@ import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import { CheckboxGroup as BaseCheckboxGroup } from "@base-ui/react/checkbox-group";
 import { CheckIcon, MinusIcon } from "lucide-react";
 import { type ReactNode, useId } from "react";
+
 import { Text } from "./Text";
 
 /*
@@ -12,7 +13,7 @@ import { Text } from "./Text";
 
 const MARK = { size: 12, strokeWidth: 3 };
 
-export interface CheckboxProps {
+interface CheckboxProps {
   "aria-label"?: string;
   checked?: boolean;
   children?: ReactNode;
@@ -67,14 +68,14 @@ export function Checkbox({ children, ...rest }: CheckboxProps) {
   );
 }
 
-export interface CheckboxGroupOption {
+interface CheckboxGroupOption {
   /** Holds the box as it is, such as the last box a group must keep checked. */
   disabled?: boolean;
   label: ReactNode;
   value: string;
 }
 
-export interface CheckboxGroupProps {
+interface CheckboxGroupProps {
   disabled?: boolean;
   onChange: (value: string[]) => void;
   /** Laid out in a wrapping row. */

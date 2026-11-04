@@ -1,4 +1,4 @@
-import type { CountAccuracy } from "../../domain/models/comparison";
+import type { CountAccuracy } from "../../domain/models/read-model";
 import { formatDecimal, formatDecimalChange } from "../../ui/numbers";
 
 /** Mean count error per image, all classes together. */
@@ -30,10 +30,4 @@ export type Movement = "better" | "worse" | "none";
 export function movement(from: number, to: number): Movement {
   if (formatError(from) === formatError(to)) return "none";
   return to < from ? "better" : "worse";
-}
-
-/** The color a movement is written in; none keeps the color of where it stands. */
-export function movementTone(moved: Movement): "success" | "error" | undefined {
-  if (moved === "none") return undefined;
-  return moved === "better" ? "success" : "error";
 }

@@ -2,7 +2,7 @@ import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
 import { CheckboxGroup } from "../../ui/kit/Checkbox";
 import { Form } from "../../ui/kit/Form";
-import { ClassLabel } from "../annotation/controls";
+import { ClassLabel } from "../annotation/ClassLabel";
 
 /**
  * Which of its model's classes a day counts. A model with one class leaves

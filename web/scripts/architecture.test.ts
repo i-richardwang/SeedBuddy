@@ -1,19 +1,17 @@
 import { expect, test } from "bun:test";
 
-import { checkArchitecture, importSpecifiers } from "./architecture";
+import { checkArchitecture } from "./architecture";
 
-test("dependency extraction includes type imports and exports without treating comments or strings as imports", () => {
-  expect(
-    importSpecifiers(`
-    // import { hidden } from "ignored";
-    const example = 'import("also-ignored")';
-    import type { Image } from "./images";
-    export { Image } from "./images";
-    export * from "./workers";
-    type Result = import("./results").Result;
-    const load = () => import("./runtime");
-  `),
-  ).toEqual(["./images", "./images", "./workers", "./results", "./runtime"]);
+test("dependency extraction ignores prose and checks type, static and dynamic imports", () => {
+  const source = `// import { hidden } from "ignored";
+ const example = 'import("also-ignored")';
+ import type { Image } from "./images"; export { Image } from "./images"; export * from "./workers"; type Result = import("./results").Result; const load = () => import("./runtime");`;
+  const errors = checkArchitecture(
+    new Map([["src/server/agent/check.ts", source]]),
+  );
+  for (const name of ["images", "workers", "results", "runtime"])
+    expect(errors.join("\n")).toContain(name);
+  expect(errors.join("\n")).not.toContain("ignored");
 });
 
 test("business modules expose public operations, while tests may inspect internals", () => {
@@ -21,17 +19,17 @@ test("business modules expose public operations, while tests may inspect interna
     ["src/server/images/public.ts", 'export { store } from "./store";'],
     ["src/server/images/store.ts", "export const store = () => {};"],
     [
-      "src/server/datasets/memberships.ts",
+      "src/server/datasets/datasets.ts",
       'import { store } from "../images/public";',
     ],
     [
-      "src/server/datasets/memberships.test.ts",
+      "src/server/datasets/datasets.test.ts",
       'import { store } from "../images/store";',
     ],
   ]);
   expect(checkArchitecture(sources)).toEqual([]);
   sources.set(
-    "src/server/datasets/memberships.ts",
+    "src/server/datasets/datasets.ts",
     'import { store } from "../images/store";',
   );
   expect(checkArchitecture(sources).join("\n")).toContain(
@@ -124,9 +122,16 @@ test("dynamic imports cannot hide dependencies and new flat server files require
       ]),
     ).join("\n"),
   ).toContain("unclassified server module");
-  expect(() =>
-    importSpecifiers("const load = (name: string) => import(name);"),
-  ).toThrow("literal module specifier");
+  expect(
+    checkArchitecture(
+      new Map([
+        [
+          "src/server/agent/check.ts",
+          "const load = (name: string) => import(name);",
+        ],
+      ]),
+    ).join("\n"),
+  ).toContain("literal module specifier");
 });
 
 test("pure layers reject UI imports, browser globals and nonliteral dynamic imports", () => {

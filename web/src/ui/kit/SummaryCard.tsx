@@ -23,7 +23,7 @@ export function CardGrid({
   children: ReactNode;
   empty?: ReactNode;
 }) {
-  if (empty != null && empty !== false) {
+  if (empty !== undefined) {
     return <EmptyPlace variant="outlined">{empty}</EmptyPlace>;
   }
   return (
@@ -34,10 +34,11 @@ export function CardGrid({
 }
 
 /*
- * One thing at a glance, linking to its page: its icon tile, its name
- * (16px, 600) over a line of facts, an arrow at the end of that row; and
- * at the foot `footer`, usually `SummaryCardStats`. `render` is the link, a router `<Link>`; the name and
- * the arrow both follow it, the arrow hidden from assistive technology.
+ * One thing at a glance, linking to its page: its icon tile, its name (16px,
+ * 600) over a line of facts, an arrow at the end of that row; and at the
+ * foot `footer`, usually `SummaryCardStats`. `render` is the link, a router
+ * `<Link>`; the name and the arrow both follow it, the arrow hidden from
+ * assistive technology.
  */
 export function SummaryCard({
   description,

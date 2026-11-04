@@ -3,15 +3,15 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
 import sys
 from pathlib import Path
 
 import httpx
 
+from vitroctl.cli.connection import connection, connection_options
 from vitroctl.cli.models import add_model_commands
+from vitroctl.cli.output import json_output
 from vitroctl.cli.training import add_training_commands
-from vitroctl.datasets.annotations import load_annotations
 from vitroctl.datasets.manifest import (
     DatasetManifest,
     load_dataset_manifest,
@@ -23,7 +23,10 @@ from vitroctl.detectors.traditional.artifacts import (
     create_image_artifacts,
     write_image_artifacts,
 )
-from vitroctl.detectors.traditional.config import PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+    PipelineConfig,
+)
 from vitroctl.detectors.traditional.detector import TRADITIONAL_CLASS
 from vitroctl.detectors.traditional.scoring import (
     DEFAULT_MODEL,
@@ -38,17 +41,25 @@ from vitroctl.detectors.traditional.training import (
     prepare_images,
     train_candidate_model,
 )
-from vitroctl.detectors.ultralytics import export_yolo_dataset
+from vitroctl.detectors.ultralytics import (
+    DEFAULT_SEED,
+    DEFAULT_VALIDATION_FRACTION,
+    export_yolo_dataset,
+)
 from vitroctl.io.files import atomic_directory
 from vitroctl.worker.host.command import add_worker_commands
 
 
 def _pipeline_config(path: str | None) -> PipelineConfig:
-    return PipelineConfig.from_json(path) if path else PipelineConfig()
+    return PipelineConfig.from_json(path) if path else DEFAULT_PIPELINE_CONFIG
 
 
 def _candidate_model(path: str | None) -> CandidateModel:
     return load_candidate_model(path) if path else DEFAULT_MODEL
+
+
+def _model_identity(model: CandidateModel) -> dict[str, str]:
+    return {"name": model.name, "fingerprint": model.fingerprint}
 
 
 def _traditional_manifest(path: Path) -> DatasetManifest:
@@ -94,11 +105,14 @@ def _prepared_images(
 ) -> list[PreparedImage]:
     data_root = Path(args.data_root)
     source = manifest_path(data_root, args.dataset)
-    _traditional_manifest(source)
-    annotated = load_annotations(source)
+    annotated = _traditional_manifest(source).annotated
     if not annotated:
         raise ValueError("No annotations found")
-    return prepare_images([image.annotation for image in annotated], data_root, config)
+    return prepare_images(
+        [image.annotation for image in annotated],
+        data_root,
+        config,
+    )
 
 
 def _evaluate_traditional(args: argparse.Namespace) -> int:
@@ -106,11 +120,11 @@ def _evaluate_traditional(args: argparse.Namespace) -> int:
     images = _prepared_images(args, config)
     model = _candidate_model(args.model)
     report = {
-        "model": {"name": model.name, "fingerprint": model.fingerprint},
+        "model": _model_identity(model),
         "proposal": evaluate_proposals(images).to_dict(),
         "detection": evaluate_candidate_model(model, images, config).to_dict(),
     }
-    print(json.dumps(report, indent=2))
+    json_output(report)
     return 0
 
 
@@ -132,14 +146,8 @@ def _train_candidate_scoring(args: argparse.Namespace) -> int:
         report_path.write_text(
             json.dumps(
                 {
-                    "base_model": {
-                        "name": base_model.name,
-                        "fingerprint": base_model.fingerprint,
-                    },
-                    "model": {
-                        "name": trained.model.name,
-                        "fingerprint": trained.model.fingerprint,
-                    },
+                    "base_model": _model_identity(base_model),
+                    "model": _model_identity(trained.model),
                     "config": trained.config.to_dict(),
                     "training_set": [
                         {
@@ -161,19 +169,8 @@ def _train_candidate_scoring(args: argparse.Namespace) -> int:
     return 0
 
 
-def _workbench(args: argparse.Namespace) -> tuple[str, str]:
-    server_url = args.server or os.environ.get("VITROFLOW_SERVER_URL")
-    token = args.token or os.environ.get("VITROFLOW_API_KEY")
-    if not server_url or not token:
-        raise ValueError(
-            f"dataset {args.dataset_command} needs --server/VITROFLOW_SERVER_URL "
-            "and --token/VITROFLOW_API_KEY"
-        )
-    return server_url, token
-
-
 def _pull_dataset(args: argparse.Namespace) -> int:
-    server_url, token = _workbench(args)
+    server_url, token = connection(args, "transfer")
     data_root = Path(args.data_root)
     report = pull_dataset(server_url, token, args.dataset, data_root)
     print(
@@ -185,7 +182,7 @@ def _pull_dataset(args: argparse.Namespace) -> int:
 
 
 def _push_dataset(args: argparse.Namespace) -> int:
-    server_url, token = _workbench(args)
+    server_url, token = connection(args, "transfer")
     report = push_dataset(server_url, token, args.dataset, Path(args.data_root))
     print(f"pushed {report.images} images of {report.dataset} to {server_url}")
     return 0
@@ -193,11 +190,9 @@ def _push_dataset(args: argparse.Namespace) -> int:
 
 def _export_yolo(args: argparse.Namespace) -> int:
     data_root = Path(args.data_root)
-    source = manifest_path(data_root, args.dataset)
-    dataset = load_dataset_manifest(source)
-    annotated = load_annotations(source)
+    dataset = load_dataset_manifest(manifest_path(data_root, args.dataset))
     manifest = export_yolo_dataset(
-        annotated,
+        dataset.annotated,
         dataset.classes,
         data_root,
         args.output,
@@ -215,16 +210,6 @@ def _add_pipeline_options(parser: argparse.ArgumentParser) -> None:
 def _add_dataset_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--dataset", required=True, help="Workbench dataset name")
     parser.add_argument("--data-root", default="data")
-
-
-def _add_workbench_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--server", help="Workbench URL (default: VITROFLOW_SERVER_URL)"
-    )
-    parser.add_argument(
-        "--token",
-        help="API key with the transfer scope (default: VITROFLOW_API_KEY)",
-    )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -277,21 +262,23 @@ def _parser() -> argparse.ArgumentParser:
         "pull", help="Download a workbench dataset into a local data directory"
     )
     _add_dataset_options(pull)
-    _add_workbench_options(pull)
+    connection_options(pull, "transfer")
     pull.set_defaults(handler=_pull_dataset)
     push = dataset_commands.add_parser(
         "push", help="Upload a local dataset to a workbench that does not have it"
     )
     _add_dataset_options(push)
-    _add_workbench_options(push)
+    connection_options(push, "transfer")
     push.set_defaults(handler=_push_dataset)
     export_yolo = dataset_commands.add_parser(
         "export-yolo", help="Export the annotations as a YOLO dataset"
     )
     _add_dataset_options(export_yolo)
     export_yolo.add_argument("--output", required=True)
-    export_yolo.add_argument("--validation-fraction", type=float, default=0.2)
-    export_yolo.add_argument("--seed", type=int, default=0)
+    export_yolo.add_argument(
+        "--validation-fraction", type=float, default=DEFAULT_VALIDATION_FRACTION
+    )
+    export_yolo.add_argument("--seed", type=int, default=DEFAULT_SEED)
     export_yolo.set_defaults(handler=_export_yolo)
 
     add_model_commands(commands)
@@ -306,7 +293,6 @@ def main(argv: list[str] | None = None) -> int:
         return args.handler(args)
     except (
         OSError,
-        TypeError,
         ValueError,
         RuntimeError,
         httpx.HTTPError,

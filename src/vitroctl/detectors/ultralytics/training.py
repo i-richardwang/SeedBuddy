@@ -5,16 +5,19 @@ import json
 import shutil
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Protocol
 
 import numpy as np
 
-from vitroctl.detectors.ultralytics.checkpoints import EPOCH_JOURNAL
-from vitroctl.detectors.ultralytics.runtime import load_training_trainer, load_yolo
-from vitroctl.io.files import write_text_atomically
-from vitroctl.training.parameters import parse_training_parameters
+from vitroctl.contracts.validation import validate_wire_contract
+from vitroctl.detectors.ultralytics.checkpoints import EPOCH_JOURNAL, LAST_CHECKPOINT
+from vitroctl.detectors.ultralytics.runtime import (
+    load_training_trainer,
+    load_yolo,
+    require_ultralytics_version,
+)
+from vitroctl.io.files import file_digest, write_text_atomically
 
 
 class BoxValidationMetrics(Protocol):
@@ -40,7 +43,7 @@ class DetectionLosses:
     classification: float
     regression: float
 
-    def to_json(self) -> dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         return {
             "box": self.box,
             "classification": self.classification,
@@ -62,11 +65,11 @@ class EpochReport:
     fitness: float
     learning_rate: float
 
-    def to_json(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "epoch": self.epoch,
-            "train": self.train.to_json(),
-            "val": self.val.to_json(),
+            "train": self.train.to_dict(),
+            "val": self.val.to_dict(),
             "precision": self.precision,
             "recall": self.recall,
             "map50": self.map50,
@@ -76,7 +79,14 @@ class EpochReport:
         }
 
     @classmethod
-    def from_json(cls, document: Mapping[str, Any]) -> EpochReport:
+    def from_document(
+        cls, document: Mapping[str, Any], context: str = "epoch report"
+    ) -> EpochReport:
+        validate_wire_contract("training-epoch-report", document, context)
+        return cls.decode(document, context)
+
+    @classmethod
+    def decode(cls, document: Mapping[str, Any], context: str) -> EpochReport:
         return cls(
             epoch=int(document["epoch"]),
             train=DetectionLosses(**document["train"]),
@@ -94,8 +104,7 @@ class EpochReport:
 class YoloTrainingResult:
     best_weights: Path
     summary: Path
-    metrics: dict[str, float]
-    confidence: float | None
+    context: dict[str, Any]
 
 
 class YoloTrainingInterruptedError(RuntimeError):
@@ -196,20 +205,12 @@ def epoch_report(trainer: Any) -> EpochReport:
     )
 
 
-def _model_source(model: str | Path, weights_dir: Path) -> str:
+def _model_source(model: str | Path, weights_dir: Path) -> Path:
     source = Path(model)
     if source.parent == Path() and not source.exists():
         weights_dir.mkdir(parents=True, exist_ok=True)
         source = weights_dir / source.name
-    return str(source)
-
-
-def _file_digest(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return source
 
 
 def _load_checkpoint(path: Path) -> Mapping[str, Any]:
@@ -232,7 +233,7 @@ def _completed_epochs(output: Path, epochs: int) -> tuple[EpochReport, ...]:
     the checkpoint covers. A finished, torn, or partly journaled training has
     no resumable epochs. The caller decides whether a fresh start is allowed.
     """
-    checkpoint = output / "weights" / "last.pt"
+    checkpoint = output / LAST_CHECKPOINT
     journal = output / EPOCH_JOURNAL
     if not checkpoint.is_file() or not journal.is_file():
         return ()
@@ -240,7 +241,7 @@ def _completed_epochs(output: Path, epochs: int) -> tuple[EpochReport, ...]:
         state = _load_checkpoint(checkpoint)
         completed = int(state["epoch"]) + 1
         reports = tuple(
-            EpochReport.from_json(json.loads(line))
+            EpochReport.from_document(json.loads(line))
             for line in journal.read_text(encoding="utf-8").splitlines()
         )
     except Exception:  # noqa: BLE001 - unreadable state is not resumable
@@ -257,15 +258,14 @@ def train_yolo_detector(
     output_dir: str | Path,
     *,
     parameters: Mapping[str, Any],
-    model: str | Path = "yolo26n.pt",
+    model: str | Path,
     model_digest: str,
     runtime_version: str,
-    device: str | None = None,
-    cancelled: Callable[[], bool] | None = None,
+    device: str | None,
     on_training_start: Callable[[], None] | None = None,
     on_epoch: Callable[[EpochReport], None] | None = None,
     on_validation_start: Callable[[], None] | None = None,
-    resume_required: bool = False,
+    resume_required: bool,
     on_execution: Callable[[dict[str, Any]], None] | None = None,
 ) -> YoloTrainingResult:
     """Fine-tune, validate, and publish inference calibration for a YOLO detector.
@@ -275,16 +275,11 @@ def train_yolo_detector(
     training: one interrupted there resumes after its last completed epoch, and
     `on_epoch` still sees every epoch from the first.
     """
-    fixed_parameters = parse_training_parameters(parameters)
+    fixed_parameters = dict(parameters)
     data_path = Path(dataset).resolve()
     if not data_path.is_file():
         raise FileNotFoundError(data_path)
-    installed_runtime_version = version("ultralytics")
-    if installed_runtime_version != runtime_version:
-        raise ValueError(
-            "Training runtime version differs from the immutable recipe: "
-            f"{installed_runtime_version} != {runtime_version}"
-        )
+    require_ultralytics_version(runtime_version)
     output = Path(output_dir).resolve()
     completed = _completed_epochs(output, int(fixed_parameters["epochs"]))
     if resume_required and not completed:
@@ -295,18 +290,11 @@ def train_yolo_detector(
         shutil.rmtree(output)
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    # Raising, rather than setting `trainer.stop`, leaves the last completed
-    # epoch's checkpoint resumable: a stopped trainer validates and saves the
-    # partial epoch, then strips the optimizer from `last.pt`.
-    def stop_if_cancelled(_owner: object = None) -> None:
-        if cancelled and cancelled():
-            raise YoloTrainingInterruptedError("training interrupted")
-
     yolo = load_yolo()
     train_options: dict[str, object]
     if completed:
         # The checkpoint carries the arguments the run started with.
-        checkpoint_path = output / "weights" / "last.pt"
+        checkpoint_path = output / LAST_CHECKPOINT
         state = dict(_load_checkpoint(checkpoint_path))
         state["train_args"] = {
             **state["train_args"],
@@ -320,9 +308,9 @@ def train_yolo_detector(
         trainer_model = yolo(str(checkpoint_path))
         train_options = {"resume": True, "data": str(data_path)}
     else:
-        model_source = Path(_model_source(model, output.parent / "weights"))
+        model_source = _model_source(model, output.parent / "weights")
         trainer_model = yolo(str(model_source))
-        if not model_source.is_file() or _file_digest(model_source) != model_digest:
+        if not model_source.is_file() or file_digest(model_source) != model_digest:
             raise ValueError("Training base model failed digest verification")
         train_options = {
             **fixed_parameters,
@@ -343,7 +331,6 @@ def train_yolo_detector(
         # Keep requested recipe identity intact. Record actual runtime settings
         # separately, including OOM reductions and the pinned runtime defaults.
         execution = {
-            "schemaVersion": 1,
             "parameters": dict(vars(trainer.args)),
             "batch": trainer.batch_size,
             "trainBatchPerDevice": trainer.train_loader.batch_size,
@@ -363,13 +350,11 @@ def train_yolo_detector(
     def record_epoch(trainer: Any) -> None:
         report = epoch_report(trainer)
         with journal.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(report.to_json()) + "\n")
+            stream.write(json.dumps(report.to_dict()) + "\n")
         if on_epoch:
             on_epoch(report)
 
     trainer_model.add_callback("on_train_start", record_execution)
-    trainer_model.add_callback("on_train_batch_end", stop_if_cancelled)
-    trainer_model.add_callback("on_val_batch_end", stop_if_cancelled)
     trainer_model.add_callback("on_model_save", record_execution)
     trainer_model.add_callback("on_model_save", record_epoch)
     if on_training_start:
@@ -378,7 +363,6 @@ def train_yolo_detector(
         for report in completed:
             on_epoch(report)
     trainer_model.train(trainer=load_training_trainer(), **train_options)
-    stop_if_cancelled()
     trainer = trainer_model.trainer
     save_dir = Path(trainer.save_dir)
     best_weights = Path(trainer.best)
@@ -395,12 +379,7 @@ def train_yolo_detector(
         "codeRevision": "sha256:"
         + hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
-    write_text_atomically(
-        save_dir / "training-context.json", json.dumps(context, indent=2) + "\n"
-    )
     validator_model = yolo(str(best_weights))
-    validator_model.add_callback("on_val_batch_end", stop_if_cancelled)
-    stop_if_cancelled()
     if on_validation_start:
         on_validation_start()
     metrics = validator_model.val(
@@ -414,14 +393,11 @@ def train_yolo_detector(
         name="validation-one-to-many",
         exist_ok=False,
     )
-    stop_if_cancelled()
     confidence = best_f1_confidence(metrics)
     metric_values = _validation_summary(metrics)
 
     summary_path = save_dir / "inference.json"
     summary = {
-        "schemaVersion": 1,
-        "weights": best_weights.relative_to(save_dir).as_posix(),
         "inference": {
             "ready": confidence is not None,
             "confidence": confidence,
@@ -438,9 +414,9 @@ def train_yolo_detector(
             "parameters": fixed_parameters,
             "runtime": {
                 "framework": "ultralytics",
-                "version": installed_runtime_version,
+                "version": runtime_version,
             },
         },
     }
     write_text_atomically(summary_path, json.dumps(summary, indent=2) + "\n")
-    return YoloTrainingResult(best_weights, summary_path, metric_values, confidence)
+    return YoloTrainingResult(best_weights, summary_path, context)

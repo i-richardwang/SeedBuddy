@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+
 import {
   AnnotationRunConflictError,
   AnnotationRunNotFoundError,
@@ -29,6 +30,6 @@ export async function readTask(taskId: string) {
 }
 
 /** A region with its run, both locked until the transaction ends. */
-export async function lockTask(taskId: string, tx: Executor) {
-  return findTask(taskId, tx, true);
+export async function lockAnnotationTask(taskId: string, db: Executor) {
+  return findTask(taskId, db, true);
 }

@@ -1,4 +1,3 @@
-import { useRouter } from "@tanstack/react-router";
 import { Download, PencilLine } from "lucide-react";
 import { useState } from "react";
 
@@ -6,7 +5,7 @@ import {
   DATASET_NAME_PATTERN,
   type NamedDataset,
 } from "../../domain/datasets/schema";
-import { editDataset } from "../../functions/datasets";
+import { updateDataset } from "../../functions/datasets";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { FormDialog } from "../../ui/FormDialog";
@@ -28,7 +27,7 @@ export function DatasetMenu({ dataset }: { dataset: NamedDataset }) {
   return (
     <>
       <PageMenu
-        label={m.dataset_actions({ dataset: dataset.name })}
+        label={m.item_actions({ name: dataset.name })}
         items={[
           {
             key: "rename",
@@ -86,18 +85,16 @@ function RenameDatasetForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [name, setName] = useState(dataset.name);
 
   const submit = () => {
     void run(
-      () => editDataset({ data: { dataset: dataset.id, name } }),
-      m.dataset_rename_failed(),
-    ).then(async (result) => {
-      if (!result.ok) return;
-      onDone();
-      await router.invalidate();
-    });
+      () => updateDataset({ data: { dataset: dataset.id, name } }),
+      m.dataset_not_renamed(),
+      {
+        onSuccess: onDone,
+      },
+    );
   };
 
   return (
@@ -108,7 +105,7 @@ function RenameDatasetForm({
         submit();
       }}
     >
-      <Form.Field label={m.dataset_name_label()} required>
+      <Form.Field label={m.name_label({ kind: "thing" })} required>
         <Input
           value={name}
           onValueChange={setName}

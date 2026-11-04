@@ -1,29 +1,31 @@
+import { and, asc, eq, gt, not, sql } from "drizzle-orm";
+
+import type { InferenceTarget } from "../../domain/inference/assignments";
 import { InferenceAttemptConflictError } from "../../domain/inference/errors";
-import { and, asc, eq, gt, lte, not, or, sql } from "drizzle-orm";
-import {
-  snapshot,
-  inTransaction,
-  transaction,
-  type Executor,
-} from "../infra/db/client";
-import { inferenceTasks, inferenceAttempts } from "../infra/db/schema";
-import { sessionIsCurrent } from "../workers/public";
 import type { InferenceFailure } from "../../domain/inference/tasks";
 import { inferenceTaskSchema } from "../../domain/inference/tasks";
-import type { DetectionTarget } from "./outcomes";
+import {
+  type Executor,
+  inTransaction,
+  operationTime,
+  snapshot,
+  transaction,
+} from "../infra/db/client";
+import { inferenceAttempts, inferenceTasks } from "../infra/db/schema";
+import { leaseIsHeld } from "../workers/public";
 import { materializeInferenceDemand } from "./demand";
 import { INFERENCE_MAX_ATTEMPTS, retryDelaySeconds } from "./policy";
 
 export type Task = typeof inferenceTasks.$inferSelect;
 export type Attempt = typeof inferenceAttempts.$inferSelect;
 
-export function taskKey(target: DetectionTarget) {
+export function taskKey(target: InferenceTarget) {
   return and(
     eq(inferenceTasks.imageId, target.digest),
     eq(inferenceTasks.modelVersionId, target.versionId),
   );
 }
-export function attemptKey(target: DetectionTarget, attempt: number) {
+export function attemptKey(target: InferenceTarget, attempt: number) {
   return and(
     eq(inferenceAttempts.imageId, target.digest),
     eq(inferenceAttempts.modelVersionId, target.versionId),
@@ -31,26 +33,13 @@ export function attemptKey(target: DetectionTarget, attempt: number) {
   );
 }
 export function attemptIsActive(at: Date) {
-  return and(
-    eq(inferenceAttempts.status, "running"),
-    gt(inferenceAttempts.leaseExpiresAt, at),
-    gt(inferenceAttempts.deadlineAt, at),
-    sessionIsCurrent(inferenceAttempts),
-  );
+  return sql`(${eq(inferenceAttempts.status, "running")} and ${leaseIsHeld(inferenceAttempts, at)} and ${gt(inferenceAttempts.deadlineAt, at)})`;
 }
-/** Sample server time after acquiring ownership locks, never before waiting on one. */
-export async function inferenceTime(tx: Executor, at?: Date): Promise<Date> {
-  if (at) return at;
-  const [row] = await tx
-    .select({ at: sql<string>`clock_timestamp()::text` })
-    .from(sql`(select 1) as clock`);
-  return new Date(row!.at);
-}
-export async function lockTask(
-  tx: Executor,
-  target: DetectionTarget,
+export async function lockInferenceTask(
+  target: InferenceTarget,
+  db: Executor,
 ): Promise<Task> {
-  const [task] = await tx
+  const [task] = await db
     .select()
     .from(inferenceTasks)
     .where(taskKey(target))
@@ -62,21 +51,21 @@ export async function lockTask(
 
 /** Finish one attempt and retain its history; a failure is not a model result. */
 export async function finishFailedAttempt(
-  tx: Executor,
   task: Task,
   attempt: Attempt,
   failure: InferenceFailure,
   at: Date,
+  db: Executor,
 ): Promise<void> {
   const target = { digest: task.imageId, versionId: task.modelVersionId };
-  await tx
+  await db
     .update(inferenceAttempts)
     .set({ status: "failed", finishedAt: at, failure })
     .where(attemptKey(target, attempt.attempt));
   const terminal =
     failure.code === "invalid_input" ||
     task.attemptsInCycle >= INFERENCE_MAX_ATTEMPTS;
-  await tx
+  await db
     .update(inferenceTasks)
     .set({
       status: terminal ? "failed" : "queued",
@@ -90,12 +79,11 @@ export async function finishFailedAttempt(
 }
 
 /** Claims and maintenance reclaim expired ownership without worker cooperation. */
-export async function expireInferenceAttempts(
-  tx: Executor,
-  suppliedAt?: Date,
+async function expireInferenceAttempts(
+  db: Executor,
+  at: Date,
 ): Promise<number> {
-  const at = await inferenceTime(tx, suppliedAt);
-  const rows = await tx
+  const rows = await db
     .select({ task: inferenceTasks, attempt: inferenceAttempts })
     .from(inferenceTasks)
     .innerJoin(
@@ -106,16 +94,7 @@ export async function expireInferenceAttempts(
         eq(inferenceTasks.attempt, inferenceAttempts.attempt),
       ),
     )
-    .where(
-      and(
-        eq(inferenceTasks.status, "running"),
-        or(
-          lte(inferenceAttempts.leaseExpiresAt, at),
-          lte(inferenceAttempts.deadlineAt, at),
-          not(sessionIsCurrent(inferenceAttempts)),
-        ),
-      ),
-    )
+    .where(and(eq(inferenceTasks.status, "running"), not(attemptIsActive(at))))
     .orderBy(asc(inferenceTasks.modelVersionId), asc(inferenceTasks.imageId))
     .for("update", { of: inferenceTasks, skipLocked: true });
   let expired = 0;
@@ -126,15 +105,14 @@ export async function expireInferenceAttempts(
       digest: row.task.imageId,
       versionId: row.task.modelVersionId,
     };
-    const task = await lockTask(tx, target);
+    const task = await lockInferenceTask(target, db);
     if (task.status !== "running") continue;
-    const [attempt] = await tx
+    const [attempt] = await db
       .select()
       .from(inferenceAttempts)
       .where(attemptKey(target, task.attempt));
     if (attempt?.status !== "running") continue;
-    const at = await inferenceTime(tx, suppliedAt);
-    const [live] = await tx
+    const [live] = await db
       .select({ attempt: inferenceAttempts.attempt })
       .from(inferenceAttempts)
       .where(and(attemptKey(target, task.attempt), attemptIsActive(at)));
@@ -146,7 +124,6 @@ export async function expireInferenceAttempts(
           ? "lease_expired"
           : "session_replaced";
     await finishFailedAttempt(
-      tx,
       task,
       attempt,
       {
@@ -159,21 +136,24 @@ export async function expireInferenceAttempts(
               : "Worker session ended",
       },
       at,
+      db,
     );
     expired += 1;
   }
   return expired;
 }
 
-export async function maintainInferenceTasks(at?: Date): Promise<number> {
-  return transaction(async (tx) => {
-    const now = await inferenceTime(tx, at);
-    await materializeInferenceDemand(tx, now);
-    return expireInferenceAttempts(tx, at);
+export async function maintainInferenceTasks(
+  suppliedAt?: Date,
+): Promise<number> {
+  return transaction(async (db) => {
+    const now = await operationTime(db, suppliedAt);
+    await materializeInferenceDemand(now, db);
+    return expireInferenceAttempts(db, now);
   });
 }
 
-export async function readInferenceTask(target: DetectionTarget) {
+export async function readInferenceTask(target: InferenceTarget) {
   return snapshot(async (db) => {
     const [task] = await db
       .select()
@@ -214,14 +194,14 @@ export async function readInferenceTask(target: DetectionTarget) {
 
 /** An explicit retry starts a fresh budget without reusing execution identities. */
 export async function retryInferenceTask(
-  target: DetectionTarget,
-  executor?: Executor,
+  target: InferenceTarget,
+  db?: Executor,
 ): Promise<void> {
-  await inTransaction(executor, async (tx) => {
-    const task = await lockTask(tx, target);
+  await inTransaction(db, async (db) => {
+    const task = await lockInferenceTask(target, db);
     if (task.status !== "failed") return;
-    const at = await inferenceTime(tx);
-    await tx
+    const at = await operationTime(db);
+    await db
       .update(inferenceTasks)
       .set({
         status: "queued",

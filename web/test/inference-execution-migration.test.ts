@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
+
 import {
   SEED_DETECTOR,
   SEED_DETECTOR_BASELINE,

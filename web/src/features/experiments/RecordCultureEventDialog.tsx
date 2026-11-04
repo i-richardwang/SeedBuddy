@@ -1,18 +1,17 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/contracts";
 import {
   CULTURE_EVENT_TYPES,
   type CultureEventType,
-  type ExperimentObservation,
-} from "../../domain/experiments/schema";
+} from "../../domain/experiments/culture-events";
+import type { Unit } from "../../domain/experiments/read-model";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { createCultureEvents } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
-  useAsyncAction,
   type AsyncAction,
+  useAsyncAction,
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Select } from "../../ui/kit/Select";
@@ -70,7 +69,6 @@ function CultureEventForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [type, setType] = useState<CultureEventType>("contaminated");
   const [observation, setObservation] = useState(observations.at(-1)?.id ?? "");
 
@@ -80,27 +78,24 @@ function CultureEventForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (observation === "" || units.length === 0) return;
-        void action
-          .run(
-            () =>
-              createCultureEvents({
-                data: {
-                  experiment,
-                  units: units.map((unit) => unit.id),
-                  type,
-                  observation,
-                },
-              }),
-            m.culture_event_not_recorded(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
+        void action.run(
+          () =>
+            createCultureEvents({
+              data: {
+                experiment,
+                units: units.map((unit) => unit.id),
+                type,
+                observation,
+              },
+            }),
+          m.culture_event_not_recorded(),
+          {
+            onSuccess: onDone,
+          },
+        );
       }}
     >
-      <Form.Field label={m.culture_event_label()}>
+      <Form.Field label={m.status_label()}>
         <Select
           disabled={action.busy}
           options={CULTURE_EVENT_TYPES.map((value) => ({

@@ -4,8 +4,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from conftest import decode_annotation, decode_detection
 
-from vitroctl.annotations import BoundingBox
+from vitroctl.contracts.annotation import BoundingBox
+from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import (
     DetectionInstance,
     DetectionProducer,
@@ -13,8 +15,11 @@ from vitroctl.detectors.contract import (
     DetectionResult,
     RuntimeDescriptor,
 )
-from vitroctl.detectors.documents import parse_detection_result
-from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    DEFAULT_PIPELINE_CONFIG,
+    DecisionConfig,
+    PipelineConfig,
+)
 from vitroctl.detectors.traditional.detector import TraditionalDetector
 from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
 
@@ -33,7 +38,9 @@ def test_traditional_manifest_matches_the_default_artifact() -> None:
         "schemaVersion": 1,
         "definition": "traditional-v1",
         "createdAt": "2026-08-27T00:00:00.000Z",
-        "artifactDigest": TraditionalDetector().artifact_digest,
+        "artifactDigest": TraditionalDetector(
+            config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL
+        ).artifact_digest,
     }
 
 
@@ -50,14 +57,14 @@ def test_shared_detection_contract() -> None:
     ).to_dict()
     fixture = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     assert document == fixture
-    assert parse_detection_result(fixture).to_dict() == fixture
+    assert decode_detection(fixture).to_dict() == fixture
 
 
 def test_parser_rejects_unknown_contract_fields() -> None:
     document = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     document["unexpected"] = True
     with pytest.raises(ValueError, match="detection.*shared contract"):
-        parse_detection_result(document)
+        validate_wire_contract("detection-result", document, "detection")
 
 
 def test_traditional_detector_adapts_detections_to_boxes(monkeypatch) -> None:
@@ -105,7 +112,7 @@ def test_traditional_detector_adapts_detections_to_boxes(monkeypatch) -> None:
 
 
 def test_traditional_artifact_identity_covers_model_and_configuration() -> None:
-    baseline = TraditionalDetector()
+    baseline = TraditionalDetector(config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
     changed = TraditionalDetector(
         PipelineConfig(decision=DecisionConfig(confidence_threshold=0.5)),
         DEFAULT_MODEL,
@@ -115,61 +122,63 @@ def test_traditional_artifact_identity_covers_model_and_configuration() -> None:
 
 
 @pytest.mark.parametrize(
-    ("factory", "message"),
+    ("change", "reason"),
     [
-        (lambda: DetectionQuality("unknown"), "quality status"),
-        (lambda: DetectionQuality("ok", ("Not A Code",)), "warning code"),
         (
-            lambda: DetectionInstance(
-                "seed", "seed", BoundingBox(0, 0, 1, 1), math.inf
-            ),
-            "score must be finite",
+            {"quality": {"status": "unknown", "warnings": []}},
+            "quality.status.*shared contract",
         ),
         (
-            lambda: DetectionInstance("seed", "seed", BoundingBox(0, 0, 1, 1), 1.1),
-            "between zero and one",
+            {"quality": {"status": "ok", "warnings": ["Not A Code"]}},
+            r"quality.warnings\[0\].*shared contract",
+        ),
+        (
+            {
+                "instances": [
+                    DetectionInstance(
+                        "seed", "seed", BoundingBox(0, 0, 1, 1), math.inf
+                    ).to_dict()
+                ]
+            },
+            r"instances\[0\].score must be finite",
+        ),
+        (
+            {
+                "instances": [
+                    DetectionInstance(
+                        "seed", "seed", BoundingBox(0, 0, 1, 1), 1.1
+                    ).to_dict()
+                ]
+            },
+            r"instances\[0\].score.*shared contract",
+        ),
+        (
+            {"image": {"digest": "images/set/example.jpg", "width": 100, "height": 80}},
+            "image.digest.*shared contract",
         ),
     ],
 )
-def test_contract_rejects_values_the_web_cannot_accept(factory, message) -> None:
-    with pytest.raises(ValueError, match=message):
-        factory()
+def test_contract_rejects_values_the_web_cannot_accept(change, reason) -> None:
+    document = json.loads(CONTRACT_FIXTURE.read_text())
+    with pytest.raises(ValueError, match=reason):
+        validate_wire_contract("detection-result", {**document, **change}, "detection")
 
 
-def test_result_requires_a_content_digest() -> None:
-    with pytest.raises(ValueError, match="SHA-256"):
-        DetectionResult(
-            "images/set/example.jpg",
-            100,
-            80,
-            PRODUCER,
-            (),
-            DetectionQuality("ok"),
-        )
-
-
-def test_result_rejects_duplicate_ids_and_out_of_bounds_boxes() -> None:
-    outside = DetectionInstance("seed-1", "seed", BoundingBox(95, 20, 8, 6), 0.9)
-    with pytest.raises(ValueError, match="exceeds image bounds"):
-        DetectionResult(
-            "c" * 64,
-            100,
-            80,
-            PRODUCER,
-            (outside,),
-            DetectionQuality("ok"),
-        )
-
-    instance = DetectionInstance("seed-1", "seed", BoundingBox(10, 20, 8, 6), 0.9)
-    with pytest.raises(ValueError, match="Duplicate"):
-        DetectionResult(
-            "c" * 64,
-            100,
-            80,
-            PRODUCER,
-            (instance, instance),
-            DetectionQuality("ok"),
-        )
+@pytest.mark.parametrize(
+    "decode, fixture",
+    [(decode_detection, "detection.json"), (decode_annotation, "annotation.json")],
+)
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_instance_semantics_share_context_and_messages(decode, fixture, duplicate):
+    document = json.loads((CONTRACT_FIXTURE.parent / fixture).read_text())
+    if duplicate:
+        document["instances"] *= 2
+        reason = r"custom.instances\[1\].id is a duplicate"
+    else:
+        document["instances"][0]["bbox"]["x"] = 99
+        reason = r"custom.instances\[0\].bbox exceeds image bounds"
+    with pytest.raises(ValueError, match=reason):
+        decode(document, "custom")
 
 
 def test_execution_failure_is_not_a_detection_document() -> None:
@@ -180,4 +189,12 @@ def test_execution_failure_is_not_a_detection_document() -> None:
         "error": "transport failed",
     }
     with pytest.raises(ValueError, match="shared contract"):
-        parse_detection_result(failure)
+        validate_wire_contract("detection-result", failure, "detection")
+
+
+def test_detection_must_describe_the_source_image():
+    fixture = json.loads(CONTRACT_FIXTURE.read_text())
+    result = decode_detection(fixture)
+    with pytest.raises(ValueError, match="describes another image"):
+        result.require_image("d" * 64)
+    result.require_image("c" * 64)

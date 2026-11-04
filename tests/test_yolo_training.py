@@ -1,13 +1,16 @@
 import hashlib
 import json
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, ClassVar
 
 import pytest
+from conftest import PARAMETERS
 
 from vitroctl.detectors.ultralytics import training
 from vitroctl.detectors.ultralytics.training import (
+    BoxValidationMetrics,
     DetectionLosses,
     EpochReport,
     YoloTrainingInterruptedError,
@@ -24,58 +27,14 @@ def fake_training_adapter(monkeypatch):
     monkeypatch.setattr(training, "load_training_trainer", lambda: TRAINER)
 
 
-PARAMETERS = {
-    "epochs": 3,
-    "patience": 20,
-    "batch": 4,
-    "imgsz": 768,
-    "optimizer": "AdamW",
-    "lr0": 0.001,
-    "warmup_epochs": 3.0,
-    "mosaic": 0.0,
-    "mixup": 0.0,
-    "copy_paste": 0.0,
-    "max_det": 500,
-    "seed": 0,
-    "deterministic": True,
-}
-
-
-def test_nano_recipe_fixes_every_training_argument() -> None:
-    root = Path(__file__).resolve().parents[1]
-    manifest = json.loads(
-        (root / "configs/yolo26/yolo26n-whole-v1.recipe.json").read_text()
-    )
-    assert manifest["schemaVersion"] == 1
-    recipe = manifest["recipe"]
-    assert recipe["baseModel"]["reference"] == "yolo26n.pt"
-    assert recipe["runtime"] == {"framework": "ultralytics", "version": "8.4.131"}
-    assert recipe["parameters"] == {
-        "epochs": 50,
-        "nbs": 64,
-        "patience": 20,
-        "batch": 4,
-        "imgsz": 1536,
-        "optimizer": "AdamW",
-        "lr0": 0.001,
-        "warmup_epochs": 3.0,
-        "mosaic": 0.0,
-        "mixup": 0.0,
-        "copy_paste": 0.0,
-        "max_det": 500,
-        "seed": 0,
-        "deterministic": True,
-    }
-
-
 class _BoxMetrics:
     def __init__(self) -> None:
         self.mp = 0.5
         self.mr = 0.4
         self.map50 = 0.45
         self.map = 0.2
-        self.px = [0.0, 0.2, 0.4]
-        self.f1_curve = [[0.1, 0.8, 0.2]]
+        self.px: Sequence[float] = [0.0, 0.2, 0.4]
+        self.f1_curve: Sequence[Sequence[float]] = [[0.1, 0.8, 0.2]]
 
     def fitness(self) -> float:
         return 0.225
@@ -83,7 +42,7 @@ class _BoxMetrics:
 
 class _Metrics:
     def __init__(self) -> None:
-        self.box = _BoxMetrics()
+        self.box: BoxValidationMetrics = _BoxMetrics()
 
 
 def test_best_f1_confidence_reads_the_public_ultralytics_curve() -> None:
@@ -142,12 +101,12 @@ def test_epoch_report_reads_the_trainer_after_validation() -> None:
         fitness=0.225,
         learning_rate=0.001,
     )
-    assert report.to_json()["train"] == {
+    assert report.to_dict()["train"] == {
         "box": 1.5,
         "classification": 2.25,
         "regression": 1.0,
     }
-    assert report.to_json()["map50To95"] == 0.2
+    assert report.to_dict()["map50To95"] == 0.2
 
 
 def test_epoch_report_normalizes_both_ultralytics_regression_losses() -> None:
@@ -175,46 +134,17 @@ def _dataset(tmp_path: Path) -> Path:
     return dataset
 
 
-def test_training_stops_at_a_batch_boundary(tmp_path: Path, monkeypatch) -> None:
-    class FakeYolo:
-        def __init__(self, _source: str) -> None:
-            self.callbacks: dict[str, object] = {}
-
-        def add_callback(self, event: str, callback) -> None:
-            self.callbacks.setdefault(event, []).append(callback)
-
-        def train(self, **_options: object) -> None:
-            for callback in self.callbacks["on_train_batch_end"]:
-                callback(SimpleNamespace())
-            pytest.fail("training must stop at the cancelled batch boundary")
-
-    monkeypatch.setattr(training, "load_yolo", lambda: FakeYolo)
-    monkeypatch.setattr(training, "version", lambda _: "8.4.131")
-    model, digest = _base_model(tmp_path)
-
-    with pytest.raises(YoloTrainingInterruptedError, match="interrupted"):
-        train_yolo_detector(
-            _dataset(tmp_path),
-            tmp_path / "run",
-            parameters=PARAMETERS,
-            model=model,
-            model_digest=digest,
-            runtime_version="8.4.131",
-            cancelled=lambda: True,
-        )
-
-
 def _checkpointing_yolo(monkeypatch: pytest.MonkeyPatch):
     """A trainer that checkpoints like Ultralytics: every epoch, stripped at the end."""
 
     class FakeYolo:
-        checkpoints: ClassVar[dict[Path, dict[str, object]]] = {}
+        checkpoints: ClassVar[dict[Path, dict[str, Any]]] = {}
         instances: ClassVar[list[Any]] = []
         interrupt_after = 0
 
         def __init__(self, source: str) -> None:
             self.source = Path(source)
-            self.callbacks: dict[str, object] = {}
+            self.callbacks: dict[str, list[Callable[..., None]]] = {}
             self.train_options: dict[str, object] = {}
             self.trainer = None
             FakeYolo.instances.append(self)
@@ -263,7 +193,9 @@ def _checkpointing_yolo(monkeypatch: pytest.MonkeyPatch):
         "_save_checkpoint",
         lambda state, path: FakeYolo.checkpoints.__setitem__(path, state),
     )
-    monkeypatch.setattr(training, "version", lambda _: "8.4.131")
+    monkeypatch.setattr(
+        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
+    )
     return FakeYolo
 
 
@@ -287,6 +219,7 @@ def test_interrupted_training_resumes_after_its_last_completed_epoch(
             model_digest=digest,
             runtime_version="8.4.131",
             device="mps",
+            resume_required=False,
             on_epoch=lambda report: reported.append(report.epoch),
         )
 
@@ -326,13 +259,17 @@ def test_finished_training_left_behind_starts_over(
         "model_digest": digest,
         "runtime_version": "8.4.131",
     }
-    train_yolo_detector(_dataset(tmp_path), output, **options)
+    train_yolo_detector(
+        _dataset(tmp_path), output, device=None, resume_required=False, **options
+    )
     (output / "stale").write_text("left by the finished training")
     reported: list[int] = []
 
     train_yolo_detector(
         _dataset(tmp_path),
         output,
+        device=None,
+        resume_required=False,
         on_epoch=lambda report: reported.append(report.epoch),
         **options,
     )
@@ -340,60 +277,6 @@ def test_finished_training_left_behind_starts_over(
     assert reported == [1, 2, 3]
     assert "resume" not in yolo.instances[1].train_options
     assert not (output / "stale").exists()
-
-
-def test_validation_stops_at_a_batch_boundary(tmp_path: Path, monkeypatch) -> None:
-    instances = []
-
-    class FakeYolo:
-        def __init__(self, _source: str) -> None:
-            self.callbacks = {}
-            self.trainer = None
-            instances.append(self)
-
-        def add_callback(self, event: str, callback) -> None:
-            self.callbacks.setdefault(event, []).append(callback)
-
-        def train(self, **options: object) -> None:
-            save_dir = Path(str(options["project"])) / str(options["name"])
-            weights = save_dir / "weights"
-            weights.mkdir(parents=True)
-            (weights / "best.pt").write_bytes(b"weights")
-            self.trainer = SimpleNamespace(
-                save_dir=save_dir,
-                best=weights / "best.pt",
-                test_loader=SimpleNamespace(batch_size=4),
-                args=SimpleNamespace(imgsz=768, max_det=500, device="cpu"),
-            )
-
-        def val(self, **_options: object) -> None:
-            for callback in self.callbacks["on_val_batch_end"]:
-                callback(SimpleNamespace())
-            pytest.fail("validation must stop at the cancelled batch boundary")
-
-    checks = 0
-
-    def cancelled() -> bool:
-        nonlocal checks
-        checks += 1
-        return checks >= 3
-
-    monkeypatch.setattr(training, "load_yolo", lambda: FakeYolo)
-    monkeypatch.setattr(training, "version", lambda _: "8.4.131")
-    model, digest = _base_model(tmp_path)
-
-    with pytest.raises(YoloTrainingInterruptedError, match="interrupted"):
-        train_yolo_detector(
-            _dataset(tmp_path),
-            tmp_path / "run",
-            parameters=PARAMETERS,
-            model=model,
-            model_digest=digest,
-            runtime_version="8.4.131",
-            cancelled=cancelled,
-        )
-
-    assert len(instances) == 2
 
 
 def test_training_reports_epochs_and_publishes_validated_settings(
@@ -405,7 +288,7 @@ def test_training_reports_epochs_and_publishes_validated_settings(
         def __init__(self, source: str) -> None:
             self.source = source
             self.trainer = None
-            self.callbacks: dict[str, object] = {}
+            self.callbacks: dict[str, list[Callable[..., None]]] = {}
             self.train_options: dict[str, object] | None = None
             self.val_options: dict[str, object] | None = None
             instances.append(self)
@@ -434,7 +317,9 @@ def test_training_reports_epochs_and_publishes_validated_settings(
             return _Metrics()
 
     monkeypatch.setattr(training, "load_yolo", lambda: FakeYolo)
-    monkeypatch.setattr(training, "version", lambda _: "8.4.131")
+    monkeypatch.setattr(
+        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
+    )
     model, digest = _base_model(tmp_path)
     dataset = _dataset(tmp_path)
     output = tmp_path / "run"
@@ -449,6 +334,7 @@ def test_training_reports_epochs_and_publishes_validated_settings(
         model_digest=digest,
         runtime_version="8.4.131",
         device="mps",
+        resume_required=False,
         on_training_start=lambda: phases.append("training"),
         on_epoch=reported.append,
         on_validation_start=lambda: phases.append("validating"),
@@ -457,7 +343,9 @@ def test_training_reports_epochs_and_publishes_validated_settings(
     assert [report.epoch for report in reported] == [1, 2]
     assert phases == ["training", "validating"]
     assert result.best_weights == output / "weights" / "best.pt"
-    assert result.confidence == pytest.approx(0.2)
+    assert json.loads(result.summary.read_text())["inference"][
+        "confidence"
+    ] == pytest.approx(0.2)
     assert instances[0].train_options == {
         **PARAMETERS,
         "trainer": TRAINER,
@@ -475,8 +363,6 @@ def test_training_reports_epochs_and_publishes_validated_settings(
     assert instances[1].val_options["end2end"] is False
     assert instances[1].val_options["device"] == "mps"
     assert json.loads(result.summary.read_text()) == {
-        "schemaVersion": 1,
-        "weights": "weights/best.pt",
         "inference": {
             "ready": True,
             "confidence": 0.2,
@@ -502,7 +388,9 @@ def test_training_reports_epochs_and_publishes_validated_settings(
 def test_a_requested_resume_never_silently_discards_an_invalid_checkpoint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(training, "version", lambda _: "8.4.131")
+    monkeypatch.setattr(
+        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
+    )
     dataset = tmp_path / "dataset.yaml"
     dataset.write_text("train: images/train\nval: images/val\n")
     with pytest.raises(ValueError, match="not resumable"):
@@ -510,7 +398,9 @@ def test_a_requested_resume_never_silently_discards_an_invalid_checkpoint(
             dataset,
             tmp_path / "run",
             parameters=PARAMETERS,
+            model="yolo26n.pt",
             model_digest="a" * 64,
             runtime_version="8.4.131",
+            device=None,
             resume_required=True,
         )

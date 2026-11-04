@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import {
-  datasetImageRefSchema,
   datasetImageAdditionSchema,
+  datasetImageRefSchema,
   datasetImageRemovalSchema,
   datasetRefSchema,
   datasetUpdateSchema,
@@ -12,30 +12,30 @@ import {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
   removeDatasetImages,
-  updateDataset,
+  updateDataset as updateDatasetService,
 } from "../server/datasets/public";
-import { readDatasetImage, datasetOverview } from "../server/queries/public";
+import { datasetDetail, datasetImageDetail } from "../server/queries/public";
 
-export const getDatasetOverview = createServerFn({ method: "GET" })
+export const getDatasetDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema)
-  .handler(({ data }) => datasetOverview(data.dataset));
+  .handler(({ data }) => datasetDetail(data.dataset));
 
-export const getDatasetImage = createServerFn({ method: "GET" })
+export const getDatasetImageDetail = createServerFn({ method: "GET" })
   .validator(datasetImageRefSchema)
-  .handler(({ data }) => readDatasetImage(data));
+  .handler(({ data }) => datasetImageDetail(data));
 
-export const addToDataset = createServerFn({ method: "POST" })
+export const createDatasetMemberships = createServerFn({ method: "POST" })
   .validator(datasetImageAdditionSchema)
   .handler(({ data }) => addExperimentObservationImages(data));
 
 /** Founds a dataset for the images' model and adds them, in one step. */
-export const addToNewDataset = createServerFn({ method: "POST" })
+export const createDatasetFromImages = createServerFn({ method: "POST" })
   .validator(newDatasetImageAdditionSchema)
   .handler(({ data }) => addExperimentObservationImagesToNewDataset(data));
 
-export const editDataset = createServerFn({ method: "POST" })
+export const updateDataset = createServerFn({ method: "POST" })
   .validator(datasetUpdateSchema)
-  .handler(({ data }) => updateDataset(data));
+  .handler(({ data }) => updateDatasetService(data));
 
 export const removeFromDataset = createServerFn({ method: "POST" })
   .validator(datasetImageRemovalSchema)

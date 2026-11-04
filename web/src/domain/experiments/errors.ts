@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { ConflictError, NotFoundError } from "../errors";
-import { placedPhotoSchema, type PlacedPhoto } from "./photos";
+import { type PlacedPhoto, placedPhotoSchema } from "./photos";
 
 export class ExperimentNotFoundError extends NotFoundError {
   readonly code = "experiment_not_found";
@@ -22,33 +22,37 @@ export class CultureEventNotFoundError extends NotFoundError {
   readonly code = "culture_event_not_found";
 }
 
-export class ExperimentRejectedError extends ConflictError {
-  readonly code = "experiment_rejected";
+export class ExperimentNameTakenError extends ConflictError {
+  readonly code = "experiment_name_taken";
 }
-export class ExperimentHasRecordsError extends ConflictError {
-  readonly code = "experiment_has_records";
+export class ExperimentRecordsConflictError extends ConflictError {
+  readonly code = "experiment_records_conflict";
 }
-export class ImagesNotStoredError extends ConflictError {
-  readonly code = "images_not_stored";
+export class ImageStorageConflictError extends ConflictError {
+  readonly code = "image_storage_conflict";
 }
-export class ObservationRejectedError extends ConflictError {
-  readonly code = "observation_rejected";
+export class ObservationConflictError extends ConflictError {
+  readonly code = "observation_conflict";
 }
-export class ObservationModelHasCountsError extends ConflictError {
-  readonly code = "observation_model_has_counts";
+export class ObservationModelCountsConflictError extends ConflictError {
+  readonly code = "observation_model_counts_conflict";
 }
 
-export class TreatmentRejectedError extends ConflictError {
-  readonly code = "treatment_rejected";
+export class TreatmentNameTakenError extends ConflictError {
+  readonly code = "treatment_name_taken";
 }
-export class UnitRejectedError extends ConflictError {
-  readonly code = "unit_rejected";
+export class TreatmentConflictError extends ConflictError {
+  readonly code = "treatment_conflict";
 }
-export class ObservationImageRejectedError extends ConflictError {
-  readonly code = "observation_image_rejected";
+export class UnitConflictError extends ConflictError {
+  readonly code = "unit_conflict";
 }
-export class ManualReadingRejectedError extends ConflictError {
-  readonly code = "manual_reading_rejected";
+/** The requested image assignment conflicts with the observation or unit state. */
+export class ObservationImageConflictError extends ConflictError {
+  readonly code = "observation_image_conflict";
+}
+export class ManualReadingConflictError extends ConflictError {
+  readonly code = "manual_reading_conflict";
 }
 
 /** The photographs a refused assignment would have placed a second time. */
@@ -56,17 +60,20 @@ export const imageAlreadyUsedDetailsSchema = z.strictObject({
   images: z.array(placedPhotoSchema).min(1),
 });
 
-export class ExperimentObservationImageAlreadyUsedError extends ConflictError {
-  readonly code = "experiment_observation_image_already_used";
+/** The same photograph already represents a unit in this experiment. */
+export class ExperimentObservationImageConflictError extends ConflictError {
+  readonly code = "experiment_observation_image_conflict";
   override get details() {
     return imageAlreadyUsedDetailsSchema.parse({ images: this.images });
   }
   constructor(public readonly images: PlacedPhoto[]) {
-    const [first] = images;
+    const first = images[0]!;
     super(
-      first
-        ? `${first.filename} already represents unit ${first.unit} on ${first.observedOn}`
-        : "An image was already used in this experiment",
+      `${first.filename} already represents unit ${first.unit} on ${first.observedOn}`,
     );
   }
+}
+
+export class UnitNameTakenError extends ConflictError {
+  readonly code = "unit_name_taken";
 }

@@ -2,7 +2,10 @@ import { Lock, LockOpen } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { openChecks } from "../../domain/annotation/checks";
-import { availableSources, type Review } from "../../domain/annotation/review";
+import {
+  availableSources,
+  type Review,
+} from "../../domain/annotation/readings";
 import type { ReviewSource } from "../../domain/annotation/schema";
 import { tally } from "../../domain/models/classes";
 import type { Model } from "../../domain/models/schema";
@@ -12,8 +15,8 @@ import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
 import { DescriptionsSkeleton } from "../../ui/kit/Descriptions";
 import { StatisticHeroSkeleton } from "../../ui/kit/Statistic";
-import { Status, type StatusTone } from "../../ui/kit/Status";
-import { ToolbarSeparator } from "../../ui/kit/Toolbar";
+import { Status } from "../../ui/kit/Status";
+import { ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { Tooltip } from "../../ui/kit/Tooltip";
 import { ShellActions } from "../../ui/shell/Shell";
 import {
@@ -30,32 +33,25 @@ import {
   ImageViewport,
   type ViewportFocus,
 } from "../../ui/viewport/ImageViewport";
-import { ChecksLayer, EditableBoxLayer } from "./BoxLayer";
-import type { LayerKey } from "./controls";
+import { UnclearAlert, UnclearSection } from "../images/unclear";
+import { ChecksLayer, EditableBoxLayer } from "./box-layers";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
 import { useSaveKey, useWorkbenchKeys } from "./keys";
+import { standingLabel, standingTone } from "./labels";
+import type { LayerKey } from "./layers";
 import { setEditLocked, useEditLocked } from "./lock";
-import { useImageSession, type Standing } from "./session";
+import { useImageSession } from "./session";
 import { EditTools, LayerControls } from "./tools";
 import type { ImageWorkbenchContext } from "./types";
-import { UnclearAlert, UnclearSection } from "./unclear";
-
-const STANDING: Record<Standing, { tone: StatusTone; label: () => string }> = {
-  edited: { tone: "warning", label: m.annotation_standing_edited },
-  reviewed: { tone: "success", label: m.annotation_standing_reviewed },
-  proposal: { tone: "info", label: m.annotation_standing_proposal },
-  detection: { tone: "info", label: m.annotation_standing_detection },
-  unread: { tone: "neutral", label: m.annotation_standing_unread },
-};
 
 interface ImageSubjectProps {
   model: Model;
   review: Review;
   /** Whether a person marked the photograph unclear. */
   unclear: boolean;
-  source?: ReviewSource;
+  show?: ReviewSource;
   /** Shows another reading; none returns to the best. */
-  onSourceChange: (source: ReviewSource | undefined) => void;
+  onShowChange: (source: ReviewSource | undefined) => void;
   /** Opens the next image still to review, when there is one. */
   onNext?: () => unknown;
   /** Another image is on its way; this one stays until it can be replaced whole. */
@@ -115,20 +111,21 @@ export function ImageWorkbenchSkeleton({
  * One image and its boxes, on view for review inside a `Workbench`. The
  * boxes begin as the reading on view, the best one unless another is picked.
  * They are locked until the lock leading the toolbar is opened; then the
- * editing tools show and any edit begins a draft. The primary command
- * stores the boxes as the image's review and stays: it saves edits, or
- * confirms a machine's reading taken as it is, as Mod+S does. On a reviewed image it leads
- * to the next one still to review. Where an AI proposal is on view, the places it
- * asks a person to check are outlined, counted and stepped through. Whether
- * the photograph is clear is said beside it and saved on its own. Mounted
- * under a key of its image, so nothing of one image carries into the next.
+ * editing tools show and any edit begins a draft. The primary command stores
+ * the boxes as the image's review and stays: it saves edits, or confirms a
+ * Worker's reading taken as it is, as Mod+S does. On a reviewed image it
+ * leads to the next one still to review. Where an AI proposal is on view,
+ * the places it asks a person to check are outlined, counted and stepped
+ * through. Whether the photograph is clear is said beside it and saved on
+ * its own. Mounted under a key of its image, so nothing of one image carries
+ * into the next.
  */
 export function ImageSubject({
   model,
   review,
   unclear,
-  source,
-  onSourceChange,
+  show,
+  onShowChange,
   onNext,
   stepping = false,
   context = {},
@@ -137,8 +134,7 @@ export function ImageSubject({
     () => new Set(["boxes", "checks"]),
   );
   const sources = availableSources(review);
-  const shown =
-    source && sources.includes(source) ? source : (sources[0] ?? null);
+  const shown = show && sources.includes(show) ? show : (sources[0] ?? null);
   const locked = useEditLocked();
   const session = useImageSession({ review, shown, model, locked });
   const { standing, saving, instances } = session;
@@ -162,25 +158,23 @@ export function ImageSubject({
     }));
 
   const store = async () => {
-    if (await session.confirm()) onSourceChange(undefined);
+    if (await session.confirm()) onShowChange(undefined);
   };
   const ready = !saving && !session.conflict;
   const stores = standing !== "reviewed";
   const primary = stores
     ? {
-        label:
-          standing === "edited" ? m.annotation_save() : m.annotation_confirm(),
+        label: standing === "edited" ? m.save_action() : m.annotation_confirm(),
         run: store,
       }
     : onNext && { label: m.annotation_next_unreviewed(), run: onNext };
   useWorkbenchKeys({ Enter: primary && ready ? primary.run : undefined });
   useSaveKey(stores && ready ? store : undefined);
-  const badge = STANDING[standing];
 
   return (
     <>
       <WorkbenchStatus>
-        <Status tone={badge.tone}>{badge.label()}</Status>
+        <Status tone={standingTone(standing)}>{standingLabel(standing)}</Status>
       </WorkbenchStatus>
       <ShellActions>
         {standing === "edited" ? (
@@ -225,15 +219,19 @@ export function ImageSubject({
         </WorkbenchAlert>
       ) : null}
       <WorkbenchToolbar label={m.annotation_tools()} inert={saving}>
-        <ActionIcon
-          icon={locked ? LockOpen : Lock}
-          size="small"
-          title={locked ? m.annotation_unlock() : m.annotation_lock()}
-          tooltipProps={{ placement: "bottom" }}
-          onClick={() => {
-            session.setSelectedId(null);
-            setEditLocked(!locked);
-          }}
+        <ToolbarButton
+          render={
+            <ActionIcon
+              icon={locked ? LockOpen : Lock}
+              size="small"
+              title={locked ? m.annotation_unlock() : m.annotation_lock()}
+              tooltipProps={{ placement: "bottom" }}
+              onClick={() => {
+                session.setSelectedId(null);
+                setEditLocked(!locked);
+              }}
+            />
+          }
         />
         {locked ? null : (
           <>
@@ -258,9 +256,8 @@ export function ImageSubject({
           counted={context.counted ?? model.classes}
           counts={tally(instances)}
           review={review}
-          sources={sources}
           shown={shown}
-          onSourceChange={onSourceChange}
+          onShowChange={onShowChange}
         />
         <ChecksSection
           review={review}

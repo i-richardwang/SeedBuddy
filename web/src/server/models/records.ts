@@ -1,4 +1,4 @@
-import { eq, type SQL, type SQLWrapper } from "drizzle-orm";
+import { eq, type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 
 import {
@@ -7,12 +7,13 @@ import {
   type ModelRecords,
 } from "../../domain/models/contracts";
 import type { Executor } from "../infra/db/client";
+import { single } from "../infra/db/client";
 import {
   annotations,
   datasets,
   experimentObservations,
-  modelVersions,
   modelUploads,
+  modelVersions,
   trainingRuns,
 } from "../infra/db/schema";
 
@@ -35,15 +36,13 @@ const MODEL_RECORD_COLUMNS: Record<ModelRecordKind, PgColumn> = {
  * row of a select over `models` carries its own counts.
  */
 export function modelRecordCounts(
+  model: SQLWrapper | string,
   db: Executor,
-  model: SQLWrapper,
 ): Record<ModelRecordKind, SQL<number>> {
-  const counts = {} as Record<ModelRecordKind, SQL<number>>;
-  for (const kind of MODEL_RECORD_KINDS) {
+  return buildModelRecords((kind) => {
     const column = MODEL_RECORD_COLUMNS[kind];
-    counts[kind] = db.$count(column.table, eq(column, model)) as SQL<number>;
-  }
-  return counts;
+    return db.$count(column.table, eq(column, model));
+  });
 }
 
 /** How many records of each kind name one model, read at the moment of asking. */
@@ -51,23 +50,35 @@ export async function modelRecords(
   model: string,
   db: Executor,
 ): Promise<ModelRecords> {
-  const records = {} as ModelRecords;
-  for (const kind of MODEL_RECORD_KINDS) {
-    const column = MODEL_RECORD_COLUMNS[kind];
-    records[kind] = await db.$count(column.table, eq(column, model));
-  }
-  return records;
+  const row = single(
+    await db
+      .select(modelRecordCounts(model, db))
+      .from(sql`(select 1) as model_counts`),
+    "model_counts",
+  );
+  return toModelRecords(row);
 }
 
 export function toModelRecords(
   row: Record<ModelRecordKind, unknown>,
 ): ModelRecords {
-  const records = {} as ModelRecords;
-  for (const kind of MODEL_RECORD_KINDS) records[kind] = Number(row[kind]);
-  return records;
+  return buildModelRecords((kind) => Number(row[kind]));
 }
 
 /** The kinds that hold a model in place, in the order the contract lists them. */
 export function heldBy(records: ModelRecords): ModelRecordKind[] {
   return MODEL_RECORD_KINDS.filter((kind) => records[kind] > 0);
+}
+
+function buildModelRecords<T>(
+  value: (kind: ModelRecordKind) => T,
+): Record<ModelRecordKind, T> {
+  return {
+    versions: value("versions"),
+    observations: value("observations"),
+    annotations: value("annotations"),
+    datasets: value("datasets"),
+    trainingRuns: value("trainingRuns"),
+    uploads: value("uploads"),
+  };
 }

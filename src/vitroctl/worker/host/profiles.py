@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 import os
 import re
-import tempfile
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-from vitroctl.worker.connection import WorkerConnection, validate_worker_process
+from vitroctl.io.files import atomic_file
+from vitroctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSettings
 
 PROFILE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 PROFILE_FIELDS = {"server_url", "token", "device", "poll_seconds"}
@@ -16,17 +16,21 @@ PROFILE_FIELDS = {"server_url", "token", "device", "poll_seconds"}
 
 @dataclass(frozen=True)
 class WorkerProfile:
-    """One native Worker process: which workbench it serves with which enrolled
-    worker's token, and on which accelerator."""
+    """The stored form of WorkerSettings, without its resolved work directory."""
 
     server_url: str
     token: str
     device: str | None = None
-    poll_seconds: float = 5.0
+    poll_seconds: float = DEFAULT_POLL_SECONDS
 
-    def __post_init__(self) -> None:
-        WorkerConnection(server_url=self.server_url, token=self.token)
-        validate_worker_process(self.poll_seconds, self.device)
+    def settings(self, name: str) -> WorkerSettings:
+        return WorkerSettings(
+            self.server_url,
+            self.token,
+            profile_directory(name) / "work",
+            self.poll_seconds,
+            self.device,
+        )
 
     @classmethod
     def from_toml(cls, path: Path) -> WorkerProfile:
@@ -81,26 +85,14 @@ def load_profile(name: str) -> WorkerProfile:
     return WorkerProfile.from_toml(path)
 
 
-def save_profile(name: str, profile: WorkerProfile, *, overwrite: bool = False) -> Path:
+def save_profile(name: str, profile: WorkerProfile) -> Path:
     directory = profile_directory(name)
     directory.mkdir(parents=True, exist_ok=True)
     directory.chmod(0o700)
-    path = directory / "config.toml"
-    if path.exists() and not overwrite:
-        raise FileExistsError(
-            f"worker profile already exists: {name}; use --force to replace it"
-        )
-    descriptor, temporary_name = tempfile.mkstemp(prefix=".config.", dir=directory)
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(profile.to_toml())
-            handle.flush()
-            os.fsync(handle.fileno())
-        temporary.chmod(0o600)
-        temporary.replace(path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    path = profile_path(name)
+    with atomic_file(path) as handle:
+        os.fchmod(handle.fileno(), 0o600)
+        handle.write(profile.to_toml().encode("utf-8"))
     return path
 
 

@@ -64,8 +64,15 @@ markers = [
   "reference: requires the checksum-pinned private reference images",
 ]
 
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/vitroctl/detectors/traditional/config.py" = ["TRY004"]
+"src/vitroctl/detectors/traditional/scoring.py" = ["TRY004"]
+
 [tool.pyright]
-include = ["src", "scripts", "packages/vitroflow/src"]
+include = ["src", "scripts", "packages/vitroflow/src", "tests", "packages/vitroflow/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
 
@@ -74,13 +81,10 @@ packages = ["src/vitroctl"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "/configs",
   "/docs/vitroctl.md",
   "/LICENSE",
   "/README.md",
   "/pyproject.toml",
-  "/scripts",
   "/src/vitroctl",
-  "/tests",
-  "/uv.lock",
 ]
+

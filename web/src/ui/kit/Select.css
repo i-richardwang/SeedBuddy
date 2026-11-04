@@ -207,3 +207,7 @@
   padding-inline-start: 8px;
   color: var(--color-primary);
 }
+
+.ui-select-glyph {
+  pointer-events: none;
+}

@@ -1,24 +1,15 @@
-import { useRouter } from "@tanstack/react-router";
 import { Download, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { Experiment } from "../../domain/experiments/schema";
-import { editExperiment, removeExperiment } from "../../functions/experiments";
+import { removeExperiment } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
-import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import { PageMenu } from "../../ui/ActionsMenu";
-import { confirmDestructive } from "../../ui/confirmDestructive";
-import { FormDialog } from "../../ui/FormDialog";
-import {
-  useAsyncAction,
-  type AsyncAction,
-} from "../../ui/hooks/useAsyncAction";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
+import { useNavigateAfterWrite } from "../../ui/hooks/useNavigateAfterWrite";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
-import { Form } from "../../ui/kit/Form";
 import { toast } from "../../ui/kit/Toast";
-import { ExperimentFields, readExperimentFields } from "./ExperimentFields";
-
-const EDIT_FORM = "edit-experiment";
+import { ExperimentDialog } from "./ExperimentDialog";
 
 /**
  * An experiment page's secondary actions. The workbook is served as an
@@ -31,6 +22,7 @@ export function ExperimentMenu({
   experiment: Experiment;
   hasRecords: boolean;
 }) {
+  const confirmDestructive = useConfirmDestructive();
   const navigateAfterWrite = useNavigateAfterWrite();
   const [editing, setEditing] = useState(false);
 
@@ -57,13 +49,17 @@ export function ExperimentMenu({
       label: m.experiment_menu_delete(),
       onClick: () =>
         confirmDestructive({
-          title: m.experiment_delete_title({ name: experiment.name }),
+          title: m.item_delete_title({ name: experiment.name }),
           confirmLabel: m.experiment_delete(),
+          failure: m.experiment_not_deleted(),
           onConfirm: async () => {
             await removeExperiment({ data: { experiment: experiment.id } });
-            toast.success(m.experiment_deleted({ name: experiment.name }));
+          },
+          onSuccess: async () => {
+            toast.success(m.item_deleted({ name: experiment.name }));
             await navigateAfterWrite({ to: "/experiments" });
           },
+          invalidate: false,
         }),
     });
   }
@@ -71,92 +67,14 @@ export function ExperimentMenu({
   return (
     <>
       <PageMenu
-        label={m.experiment_actions({ name: experiment.name })}
+        label={m.item_actions({ name: experiment.name })}
         items={items}
       />
-      <EditExperimentDialog
+      <ExperimentDialog
         experiment={experiment}
         open={editing}
         onClose={() => setEditing(false)}
       />
     </>
-  );
-}
-
-function EditExperimentDialog({
-  experiment,
-  open,
-  onClose,
-}: {
-  experiment: Experiment;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const action = useAsyncAction();
-  return (
-    <FormDialog
-      open={open}
-      onClose={onClose}
-      title={m.experiment_edit_heading()}
-      okText={m.experiment_action_save()}
-      formId={EDIT_FORM}
-      busy={action.busy}
-    >
-      <EditExperimentForm
-        experiment={experiment}
-        action={action}
-        onDone={onClose}
-      />
-    </FormDialog>
-  );
-}
-
-function EditExperimentForm({
-  experiment,
-  action,
-  onDone,
-}: {
-  experiment: Experiment;
-  action: AsyncAction;
-  onDone: () => void;
-}) {
-  const router = useRouter();
-  const [inoculatedOn, setInoculatedOn] = useState(experiment.inoculatedOn);
-  const [countsUnclear, setCountsUnclear] = useState(experiment.countsUnclear);
-  return (
-    <Form
-      id={EDIT_FORM}
-      onSubmit={(event) => {
-        event.preventDefault();
-        const fields = readExperimentFields(new FormData(event.currentTarget));
-        void action
-          .run(
-            () =>
-              editExperiment({
-                data: {
-                  experiment: experiment.id,
-                  ...fields,
-                  inoculatedOn,
-                  countsUnclear,
-                },
-              }),
-            m.experiment_not_saved(),
-          )
-          .then(async (result) => {
-            if (!result.ok) return;
-            onDone();
-            await router.invalidate();
-          });
-      }}
-    >
-      <ExperimentFields
-        disabled={action.busy}
-        defaults={experiment}
-        inoculatedOn={inoculatedOn}
-        onInoculatedOnChange={setInoculatedOn}
-        countsUnclear={countsUnclear}
-        onCountsUnclearChange={setCountsUnclear}
-      />
-    </Form>
   );
 }

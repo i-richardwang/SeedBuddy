@@ -7,10 +7,12 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from vitroctl.detectors.traditional.config import PipelineConfig
+from vitroctl.detectors.traditional.config import (
+    PipelineConfig,
+)
 from vitroctl.detectors.traditional.pipeline import recognize
 from vitroctl.detectors.traditional.results import CountResult
-from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL, CandidateModel
+from vitroctl.detectors.traditional.scoring import CandidateModel
 
 
 @dataclass(frozen=True)
@@ -33,8 +35,8 @@ def _encode_jpeg(image: np.ndarray) -> bytes:
 def create_image_artifacts(
     image_path: str | Path,
     *,
-    config: PipelineConfig | None = None,
-    model: CandidateModel = DEFAULT_MODEL,
+    config: PipelineConfig,
+    model: CandidateModel,
 ) -> ImageArtifacts:
     recognition = recognize(image_path, config=config, model=model)
     result = recognition.result

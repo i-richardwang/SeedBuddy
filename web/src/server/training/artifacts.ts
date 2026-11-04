@@ -1,46 +1,40 @@
-import type { TrainingAttemptOwner } from "../../domain/training/schema";
-import { TrainingArtifactValidationError } from "../../domain/training/errors";
 import {
-  artifactUploadSchema,
+  type ArtifactUpload,
   artifactPartSize,
   TRAINING_ARTIFACT_PART_BYTES,
-  type ArtifactUpload,
 } from "../../domain/training/artifact";
-import { database } from "../infra/db/client";
+import { TrainingArtifactInvalidError } from "../../domain/training/errors";
+import type { AttemptOwner } from "../../domain/workers/schema";
 import {
+  ImmutableBlobConflictError,
   putImmutableBlob,
   readBlob,
-  ImmutableBlobConflictError,
 } from "../infra/blobs/store";
+import { database } from "../infra/db/client";
 import { contentDigest } from "../infra/digest";
-import { readTrainingRun, requireOwnedRunningRun } from "./runs";
 import { artifactPartKey } from "./keys";
+import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
 
 export async function saveTrainingArtifactPart(
   runId: string,
-  owner: TrainingAttemptOwner,
-  upload: ArtifactUpload,
-  part: number,
-  digest: string,
-  bytes: Uint8Array,
+  {
+    upload,
+    part,
+    digest,
+    bytes,
+  }: {
+    upload: ArtifactUpload;
+    part: number;
+    digest: string;
+    bytes: Uint8Array;
+  },
+  owner: AttemptOwner,
 ) {
-  if (!artifactUploadSchema.safeParse(upload).success)
-    throw new TrainingArtifactValidationError("Invalid artifact upload");
   const db = await database();
-  await requireOwnedRunningRun(
-    runId,
-    await readTrainingRun(runId, db),
-    owner,
-    db,
-  );
-  const expected = artifactPartSize(upload, part);
-  if (
-    !expected ||
-    bytes.byteLength !== expected ||
-    contentDigest(bytes) !== digest
-  )
-    throw new TrainingArtifactValidationError(
-      "Artifact part size or digest does not match",
+  await requireOwnedRunningRun(await requireTrainingRun(runId, db), owner, db);
+  if (contentDigest(bytes) !== digest)
+    throw new TrainingArtifactInvalidError(
+      "Artifact part digest does not match",
     );
   try {
     await putImmutableBlob(
@@ -49,7 +43,7 @@ export async function saveTrainingArtifactPart(
     );
   } catch (error) {
     if (error instanceof ImmutableBlobConflictError)
-      throw new TrainingArtifactValidationError(
+      throw new TrainingArtifactInvalidError(
         "Artifact part already has different contents",
       );
     throw error;
@@ -59,8 +53,8 @@ export async function saveTrainingArtifactPart(
 /** Assemble verified final weights; no model is published before every part is present. */
 export async function readTrainingArtifactParts(
   runId: string,
-  owner: TrainingAttemptOwner,
   upload: ArtifactUpload,
+  owner: AttemptOwner,
 ) {
   const bytes = new Uint8Array(upload.bytes);
   for (
@@ -72,12 +66,12 @@ export async function readTrainingArtifactParts(
       artifactPartKey(runId, owner.attempt, upload, part),
     );
     if (!chunk || chunk.byteLength !== artifactPartSize(upload, part))
-      throw new TrainingArtifactValidationError(
+      throw new TrainingArtifactInvalidError(
         `Artifact part ${part} is missing or incomplete`,
       );
     bytes.set(chunk, part * TRAINING_ARTIFACT_PART_BYTES);
   }
   if (contentDigest(bytes) !== upload.digest)
-    throw new TrainingArtifactValidationError("Artifact digest does not match");
+    throw new TrainingArtifactInvalidError("Artifact digest does not match");
   return bytes;
 }

@@ -10,6 +10,7 @@ import {
   useEffect,
   useState,
 } from "react";
+
 import { defaultPortalContainer, triggerRender } from "./floating";
 import { Hotkey } from "./Hotkey";
 import {
@@ -37,7 +38,7 @@ const OPEN_DELAY = 400;
 const CLOSE_DELAY = 100;
 
 /** The side of the trigger the tooltip sits on, centered along it. */
-export type TooltipPlacement = "top" | "right" | "bottom";
+type TooltipPlacement = "top" | "right" | "bottom";
 
 export interface TooltipProps {
   children: ReactElement;

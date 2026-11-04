@@ -1,40 +1,3 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
-
-import {
-  SEED_DETECTOR,
-  SEED_DETECTOR_BASELINE,
-} from "../../domain/models/builtins";
-import {
-  DEFAULT_MODEL_ANNOTATION,
-  modelAnnotationRequestSchema,
-  modelRequestSchema,
-  modelSchema,
-  modelVersionRefSchema,
-  modelVersionSchema,
-  sameModel,
-  sameModelVersion,
-  type Model,
-  type ModelAnnotationRequest,
-  type ModelRef,
-  type ModelRequest,
-  type ModelVersion,
-  type ModelVersionRef,
-} from "../../domain/models/schema";
-import {
-  ModelIdTakenError,
-  ModelInUseError,
-  ModelNotFoundError,
-  ModelVersionNotFoundError,
-} from "../../domain/models/errors";
-import {
-  database,
-  transaction,
-  inTransaction,
-  type Executor,
-} from "../infra/db/client";
-import { modelVersions, models } from "../infra/db/schema";
-import { heldBy, modelRecords } from "./records";
-
 /**
  * Model and version rows, written under two rules. Registration is write-once:
  * the same contents again are accepted, different contents under a registered
@@ -42,6 +5,41 @@ import { heldBy, modelRecords } from "./records";
  * start. Naming a task is a claim instead: the insert either takes the id or
  * finds it taken.
  */
+import { and, desc, eq, isNull } from "drizzle-orm";
+
+import {
+  SEED_DETECTOR,
+  SEED_DETECTOR_BASELINE,
+} from "../../domain/models/builtins";
+import {
+  ModelNameTakenError,
+  ModelNotFoundError,
+  ModelUsageConflictError,
+  ModelVersionNotFoundError,
+} from "../../domain/models/errors";
+import {
+  DEFAULT_MODEL_ANNOTATION,
+  type Model,
+  type ModelAnnotationRequest,
+  type ModelRef,
+  type ModelRequest,
+  type ModelVersion,
+  type ModelVersionRef,
+  modelSchema,
+  modelVersionSchema,
+  sameModel,
+  sameModelVersion,
+} from "../../domain/models/schema";
+import {
+  database,
+  type Executor,
+  inTransaction,
+  single,
+  transaction,
+} from "../infra/db/client";
+import { refusingUnique } from "../infra/db/errors";
+import { models, modelVersions } from "../infra/db/schema";
+import { heldBy, modelRecords } from "./records";
 
 export function toModel(row: typeof models.$inferSelect): Model {
   return modelSchema.parse({
@@ -69,11 +67,19 @@ export function toModelVersion(
 
 export async function readModel(
   modelId: string,
-  executor?: Executor,
+  db: Executor,
 ): Promise<Model | null> {
-  const db = executor ?? (await database());
   const [row] = await db.select().from(models).where(eq(models.id, modelId));
   return row ? toModel(row) : null;
+}
+
+export async function requireModel(
+  modelId: string,
+  db: Executor,
+): Promise<Model> {
+  const model = await readModel(modelId, db);
+  if (!model) throw new ModelNotFoundError(`Unknown model: ${modelId}`);
+  return model;
 }
 
 /** Bounded version discovery for one model, in deterministic newest-first order. */
@@ -93,9 +99,8 @@ export async function listModelVersions(
 
 export async function readModelVersion(
   versionId: string,
-  executor?: Executor,
+  db: Executor,
 ): Promise<ModelVersion | null> {
-  const db = executor ?? (await database());
   const [row] = await db
     .select()
     .from(modelVersions)
@@ -107,13 +112,7 @@ export async function readModelVersion(
 async function insertModel(model: Model, db: Executor): Promise<Model | null> {
   const [inserted] = await db
     .insert(models)
-    .values({
-      id: model.id,
-      name: model.name,
-      task: model.task,
-      classes: [...model.classes],
-      annotation: model.annotation,
-    })
+    .values(modelColumns(model))
     .onConflictDoNothing()
     .returning();
   return inserted ? toModel(inserted) : null;
@@ -125,11 +124,9 @@ async function insertModel(model: Model, db: Executor): Promise<Model | null> {
  * supplies a starting point and never overrides what was changed since.
  */
 export async function registerModel(
-  value: Model,
-  executor?: Executor,
+  model: Model,
+  db: Executor,
 ): Promise<Model> {
-  const db = executor ?? (await database());
-  const model = modelSchema.parse(value);
   const inserted = await insertModel(model, db);
   if (inserted) return inserted;
   const existing = await readModel(model.id, db);
@@ -153,30 +150,33 @@ export async function registerModel(
  * once get one model and one refusal.
  */
 export async function createModel(
-  value: ModelRequest,
-  executor?: Executor,
+  request: ModelRequest,
+  db?: Executor,
 ): Promise<Model> {
-  const request = modelRequestSchema.parse(value);
   const model = modelSchema.parse({
     schemaVersion: 1,
     task: "object_detection",
     ...request,
     annotation: { ...DEFAULT_MODEL_ANNOTATION, ...request.annotation },
   });
-  const created = await insertModel(model, executor ?? (await database()));
-  if (!created) {
-    throw new ModelIdTakenError(`Model ${model.id} already exists`);
-  }
-  return created;
+  db ??= await database();
+  const created = single(
+    await refusingUnique(
+      "models_pkey",
+      () => new ModelNameTakenError(`Model ${model.id} already exists`),
+      () => db.insert(models).values(modelColumns(model)).returning(),
+    ),
+    "models",
+  );
+  return toModel(created);
 }
 
 /** Changes how agents annotate the task. Its classes and records are untouched. */
 export async function setModelAnnotation(
-  value: ModelAnnotationRequest,
-  executor?: Executor,
+  request: ModelAnnotationRequest,
+  db?: Executor,
 ): Promise<Model> {
-  const request = modelAnnotationRequestSchema.parse(value);
-  const db = executor ?? (await database());
+  db ??= await database();
   const [row] = await db
     .update(models)
     .set({ annotation: request.annotation })
@@ -191,36 +191,29 @@ export async function setModelAnnotation(
  * before anything is counted against it, so the count is of every record that
  * got there first, and one arriving after finds the task gone.
  */
-export async function deleteModel(
-  ref: ModelRef,
-  executor?: Executor,
-): Promise<void> {
-  await inTransaction(executor, async (tx) => {
-    const [taken] = await tx
+export async function deleteModel(ref: ModelRef, db?: Executor): Promise<void> {
+  await inTransaction(db, async (db) => {
+    const [taken] = await db
       .select({ id: models.id })
       .from(models)
       .where(eq(models.id, ref.model))
       .for("update");
     if (!taken) throw new ModelNotFoundError(`Unknown model: ${ref.model}`);
-    const held = heldBy(await modelRecords(ref.model, tx));
+    const held = heldBy(await modelRecords(ref.model, db));
     if (held.length > 0) {
-      throw new ModelInUseError(
+      throw new ModelUsageConflictError(
         `Model ${ref.model} is named by ${held.join(", ")} and cannot be deleted`,
       );
     }
-    await tx.delete(models).where(eq(models.id, ref.model));
+    await db.delete(models).where(eq(models.id, ref.model));
   });
 }
 
 export async function registerModelVersion(
-  value: ModelVersion,
-  executor?: Executor,
+  version: ModelVersion,
+  db: Executor,
 ): Promise<ModelVersion> {
-  const db = executor ?? (await database());
-  const version = modelVersionSchema.parse(value);
-  if (!(await readModel(version.modelId, db))) {
-    throw new ModelNotFoundError(`Unknown model: ${version.modelId}`);
-  }
+  await requireModel(version.modelId, db);
   const [inserted] = await db
     .insert(modelVersions)
     .values({
@@ -245,9 +238,8 @@ export async function registerModelVersion(
 /** The version that reads for the model, or null while none has been chosen. */
 export async function readCurrentVersionId(
   modelId: string,
-  executor?: Executor,
+  db: Executor,
 ): Promise<string | null> {
-  const db = executor ?? (await database());
   const [row] = await db
     .select({ currentVersionId: models.currentVersionId })
     .from(models)
@@ -264,17 +256,16 @@ export async function readCurrentVersionId(
  * are untouched.
  */
 export async function setCurrentVersion(
-  value: ModelVersionRef,
+  ref: ModelVersionRef,
 ): Promise<ModelVersion> {
-  const ref = modelVersionRefSchema.parse(value);
-  return transaction(async (tx) => {
-    const version = await readModelVersion(ref.version, tx);
+  return transaction(async (db) => {
+    const version = await readModelVersion(ref.version, db);
     if (!version || version.modelId !== ref.model) {
       throw new ModelVersionNotFoundError(
         `${ref.model} has no version ${ref.version}`,
       );
     }
-    await tx
+    await db
       .update(models)
       .set({ currentVersionId: version.id })
       .where(eq(models.id, ref.model));
@@ -282,24 +273,10 @@ export async function setCurrentVersion(
   });
 }
 
-export async function listModels(): Promise<Model[]> {
-  const db = await database();
+export async function listModels(db?: Executor): Promise<Model[]> {
+  db ??= await database();
   const rows = await db.select().from(models).orderBy(models.id);
   return rows.map(toModel);
-}
-
-/**
- * Every version of every model, newest first. Builtin baselines carry the
- * package's date, so they follow whatever has been trained since; the order
- * says nothing about which version reads.
- */
-export async function listAllModelVersions(): Promise<ModelVersion[]> {
-  const db = await database();
-  const rows = await db
-    .select()
-    .from(modelVersions)
-    .orderBy(desc(modelVersions.createdAt), desc(modelVersions.id));
-  return rows.map(toModelVersion);
 }
 
 /**
@@ -316,4 +293,9 @@ export async function installBuiltinModels(db: Executor): Promise<void> {
     .where(
       and(eq(models.id, SEED_DETECTOR.id), isNull(models.currentVersionId)),
     );
+}
+
+function modelColumns(model: Model) {
+  const { id, name, task, classes, annotation } = model;
+  return { id, name, task, classes: [...classes], annotation };
 }

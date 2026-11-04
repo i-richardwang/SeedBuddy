@@ -1,8 +1,7 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import type { UserRole } from "../../domain/auth/schema";
-import { addUser } from "../../functions/users";
+import { createUser } from "../../functions/users";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
 import {
@@ -11,7 +10,7 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
-import { PasswordField } from "./PasswordField";
+import { PasswordField } from "../../ui/PasswordField";
 import { RoleSelect } from "./RoleSelect";
 
 const FORM_ID = "new-user";
@@ -28,8 +27,8 @@ export function NewUserDialog({
     <FormDialog
       open={open}
       onClose={onClose}
-      title={m.user_dialog_new_title()}
-      okText={m.user_dialog_add()}
+      title={m.users_new()}
+      okText={m.add_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
@@ -45,7 +44,6 @@ function NewUserForm({
   action: AsyncAction;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const [role, setRole] = useState<UserRole>("member");
 
   return (
@@ -56,7 +54,7 @@ function NewUserForm({
         const form = new FormData(event.currentTarget);
         void run(
           () =>
-            addUser({
+            createUser({
               data: {
                 name: String(form.get("name") ?? ""),
                 email: String(form.get("email") ?? ""),
@@ -65,17 +63,16 @@ function NewUserForm({
               },
             }),
           m.user_not_added(),
-        ).then(async (result) => {
-          if (!result.ok) return;
-          onDone();
-          await router.invalidate();
-        });
+          {
+            onSuccess: onDone,
+          },
+        );
       }}
     >
-      <Form.Field label={m.user_dialog_name_label()} name="name" required>
+      <Form.Field label={m.name_label({ kind: "person" })} name="name" required>
         <Input name="name" autoComplete="off" autoFocus disabled={busy} />
       </Form.Field>
-      <Form.Field label={m.user_dialog_email_label()} name="email" required>
+      <Form.Field label={m.email_label()} name="email" required>
         <Input name="email" type="email" autoComplete="off" disabled={busy} />
       </Form.Field>
       <PasswordField

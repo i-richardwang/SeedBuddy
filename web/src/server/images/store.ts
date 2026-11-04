@@ -1,22 +1,28 @@
 import { eq } from "drizzle-orm";
-import { database, transaction, type Executor } from "../infra/db/client";
-import { images } from "../infra/db/schema";
+
 import { MAX_IMAGE_BYTES } from "../../domain/images/canonical";
-import { contentDigest } from "../infra/digest";
-import { imageBlobKey } from "./keys";
+import type { DishAnalysis } from "../../domain/images/coverage";
+import { ImageSourceInvalidError } from "../../domain/images/errors";
+import { createSingleFlight } from "../../lib/async/work";
 import { putImmutableBlob } from "../infra/blobs/store";
 import {
+  database,
+  type Executor,
+  operationTime,
+  transaction,
+} from "../infra/db/client";
+import { images } from "../infra/db/schema";
+import { contentDigest } from "../infra/digest";
+import { analyzeImage } from "./analysis";
+import { DISH_RECIPE_ID } from "./dish-recipe";
+import {
+  type CanonicalImage,
   canonicalImageSize,
   canonicalize,
-  ImageSourceError,
-  type CanonicalImage,
 } from "./ingest";
+import { imageBlobKey } from "./keys";
 import { lockImage } from "./lock";
-import { analyzeImage } from "./analysis";
 import { prepareImagePreview } from "./preview";
-import { DISH_RECIPE_ID } from "./dish-recipe";
-import type { DishAnalysis } from "../../domain/images/coverage";
-import { createSingleFlight } from "../../lib/async/work";
 
 /** A canonical image held independently of every dataset. */
 interface StoredImage {
@@ -27,9 +33,12 @@ interface StoredImage {
 }
 
 function assertStorable(bytes: Uint8Array): void {
-  if (bytes.byteLength === 0) throw new ImageSourceError("The image is empty");
+  if (bytes.byteLength === 0)
+    throw new ImageSourceInvalidError("The image is empty");
   if (bytes.byteLength > MAX_IMAGE_BYTES) {
-    throw new ImageSourceError("The image exceeds 64 MiB");
+    throw new ImageSourceInvalidError(
+      `The image exceeds ${MAX_IMAGE_BYTES / (1024 * 1024)} MiB`,
+    );
   }
 }
 
@@ -41,12 +50,14 @@ function assertStorable(bytes: Uint8Array): void {
 async function recordImage(
   image: CanonicalImage,
   analysis: DishAnalysis | null,
-  attemptedAt: Date | null,
-  tx: Executor,
+  attempted: boolean,
+  db: Executor,
 ): Promise<StoredImage> {
   const { digest, bytes, width, height } = image;
-  await lockImage(digest, tx);
-  await tx
+  await lockImage(digest, db);
+  const receivedAt = await operationTime(db);
+  const attemptedAt = attempted ? receivedAt : null;
+  await db
     .insert(images)
     .values({
       id: digest,
@@ -55,12 +66,12 @@ async function recordImage(
       bytes: bytes.byteLength,
       dishAnalysis: analysis,
       dishAnalysisAttemptedAt: attemptedAt,
-      receivedAt: new Date(),
+      receivedAt,
     })
     .onConflictDoUpdate({
       target: images.id,
       set: {
-        receivedAt: new Date(),
+        receivedAt,
         ...(analysis ? { dishAnalysis: analysis } : {}),
         ...(attemptedAt ? { dishAnalysisAttemptedAt: attemptedAt } : {}),
       },
@@ -89,7 +100,7 @@ export async function storeCanonicalImage(
 ): Promise<StoredImage> {
   assertStorable(bytes);
   if (contentDigest(bytes) !== digest) {
-    throw new ImageSourceError(`The bytes do not hash to ${digest}`);
+    throw new ImageSourceInvalidError(`The bytes do not hash to ${digest}`);
   }
   const { width, height } = await canonicalImageSize(bytes);
   return store({ digest, bytes, width, height });
@@ -108,9 +119,8 @@ function store(image: CanonicalImage): Promise<StoredImage> {
       .where(eq(images.id, image.digest));
     const current = existing?.analysis?.recipe === DISH_RECIPE_ID;
     const analysis = current ? existing.analysis : await analyzeImage(image);
-    const attemptedAt = current ? null : new Date();
-    const stored = await transaction((tx) =>
-      recordImage(image, analysis, attemptedAt, tx),
+    const stored = await transaction((db) =>
+      recordImage(image, analysis, !current, db),
     );
     await prepareImagePreview(image.digest);
     return stored;

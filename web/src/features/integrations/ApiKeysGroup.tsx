@@ -1,17 +1,12 @@
-import { useRouter } from "@tanstack/react-router";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
-import { API_SCOPE_LABELS } from "./labels";
-import { NewApiKeyDialog } from "./NewApiKeyDialog";
 import type { ApiKey } from "../../domain/auth/integrations";
 import { removeApiKey } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
-import { Timestamp } from "../../ui/Timestamp";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
-import { Empty } from "../../ui/kit/Empty";
 import { Flexbox } from "../../ui/kit/Flex";
 import { SettingsGroup } from "../../ui/kit/Settings";
 import {
@@ -23,11 +18,20 @@ import {
   TableRow,
 } from "../../ui/kit/Table";
 import { Tag } from "../../ui/kit/Tag";
-import { toast } from "../../ui/kit/Toast";
 import { Text } from "../../ui/kit/Text";
+import { toast } from "../../ui/kit/Toast";
+import { Timestamp } from "../../ui/Timestamp";
+import { apiScopeLabel } from "./labels";
+import { NewApiKeyDialog } from "./NewApiKeyDialog";
 
 /** The reader's API keys, and the one place a new key is created. */
-export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
+export function ApiKeysGroup({
+  apiKeys,
+  empty,
+}: {
+  apiKeys: ApiKey[];
+  empty: (create: () => void) => ReactNode;
+}) {
   const [creating, setCreating] = useState(false);
   const create = () => setCreating(true);
 
@@ -50,30 +54,17 @@ export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
           narrow="cards"
           variant="borderless"
           aria-label={m.integrations_api_keys()}
-          empty={
-            apiKeys.length === 0 && (
-              <Empty
-                icon={KeyRound}
-                title={m.api_key_empty()}
-                description={m.api_key_empty_description()}
-                action={
-                  <Button type="primary" icon={Plus} onClick={create}>
-                    {m.integrations_new_key()}
-                  </Button>
-                }
-              />
-            )
-          }
+          empty={apiKeys.length === 0 ? empty(create) : undefined}
         >
           <TableHeader>
             <tr>
-              <TableHead>{m.api_key_column_name()}</TableHead>
+              <TableHead>{m.name_label({ kind: "thing" })}</TableHead>
               <TableHead>{m.api_key_column_key()}</TableHead>
-              <TableHead>{m.api_key_column_scopes()}</TableHead>
+              <TableHead>{m.scopes_label()}</TableHead>
               <TableHead>{m.api_key_column_expires()}</TableHead>
               <TableHead>{m.api_key_column_last_used()}</TableHead>
               <TableHead className="w-12">
-                <span className="sr-only">{m.api_key_column_actions()}</span>
+                <span className="sr-only">{m.column_actions()}</span>
               </TableHead>
             </tr>
           </TableHeader>
@@ -90,7 +81,7 @@ export function ApiKeysGroup({ apiKeys }: { apiKeys: ApiKey[] }) {
 }
 
 function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const expired =
     apiKey.expiresAt !== null && new Date(apiKey.expiresAt) <= new Date();
 
@@ -98,15 +89,15 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
     <TableRow>
       <TableCell cellSlot="title">{apiKey.name}</TableCell>
       <TableCell cellLabel={m.api_key_column_key()}>
-        <Text as="span" size="xs" className="font-mono">
+        <Text as="code" size="xs">
           {m.api_key_start({ start: apiKey.start })}
         </Text>
       </TableCell>
-      <TableCell cellLabel={m.api_key_column_scopes()}>
+      <TableCell cellLabel={m.scopes_label()}>
         <Flexbox horizontal gap={4} wrap="wrap">
           {apiKey.scopes.map((scope) => (
             <Tag key={scope} size="small">
-              {API_SCOPE_LABELS[scope]()}
+              {apiScopeLabel(scope)}
             </Tag>
           ))}
         </Flexbox>
@@ -138,10 +129,12 @@ function ApiKeyRow({ apiKey }: { apiKey: ApiKey }) {
             confirmDestructive({
               title: m.api_key_revoke_title({ name: apiKey.name }),
               confirmLabel: m.api_key_revoke(),
+              failure: m.api_key_not_revoked(),
               onConfirm: async () => {
                 await removeApiKey({ data: { key: apiKey.id } });
+              },
+              onSuccess: () => {
                 toast.success(m.api_key_revoked({ name: apiKey.name }));
-                await router.invalidate();
               },
             })
           }

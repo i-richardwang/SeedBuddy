@@ -1,11 +1,17 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "ui_alert_detail": "详细信息",
+  "account_color_scheme": "外观",
+  "account_color_scheme_dark": "深色",
+  "account_color_scheme_light": "浅色",
+  "account_color_scheme_system": "自动",
+  "account_language": "语言",
+  "account_language_en": "English",
+  "account_language_zh_cn": "简体中文",
+  "details_label": "详细信息",
   "ui_breadcrumb_label": "面包屑导航",
   "ui_cancel": "取消",
   "ui_close": "关闭",
   "ui_copy_button_copy": "复制",
-  "ui_copy_button_failed": "复制失败，请选中文字后手动复制",
   "ui_date_picker_choose_month": "选择月份",
   "ui_date_picker_choose_year": "选择年份",
   "ui_date_picker_decade": "{first}-{last}",
@@ -62,18 +68,15 @@
   "ui_nav_label": "主导航",
   "ui_no_data": "暂无数据",
   "ui_page_loading": "加载中",
-  "ui_shell_collapse": "收起侧栏",
-  "ui_shell_expand": "展开侧栏",
-  "ui_shell_sidebar": "侧栏",
-  "ui_shell_open_navigation": "打开导航",
-  "ui_shell_skip_to_content": "跳到主要内容",
-  "ui_table_select_all": "全选",
-  "ui_viewport_fill": "铺满画面",
-  "ui_viewport_zoom": "缩放",
   "ui_pagination": "分页",
-  "ui_pagination_previous": "上一页",
   "ui_pagination_next": "下一页",
   "ui_pagination_page": "第 {page} 页",
+  "ui_pagination_previous": "上一页",
+  "ui_shell_collapse": "收起侧栏",
+  "ui_shell_expand": "展开侧栏",
+  "ui_shell_open_navigation": "打开导航",
+  "ui_shell_sidebar": "侧栏",
+  "ui_shell_skip_to_content": "跳到主要内容",
   "ui_step_position": [
     {
       "declarations": [
@@ -86,5 +89,9 @@
         "index=*": "{formattedIndex} / {formattedTotal}"
       }
     }
-  ]
+  ],
+  "ui_table_select_all": "全选",
+  "ui_text_not_copied": "文字未复制，请选中文字后手动复制",
+  "ui_viewport_fill": "铺满画面",
+  "ui_viewport_zoom": "缩放"
 }

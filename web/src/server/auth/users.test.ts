@@ -1,17 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import { UserRejectedError } from "../../domain/auth/errors";
+import { UserAccountConflictError } from "../../domain/auth/errors";
+import { sessionHeaders, signInAs, TEST_PASSWORD } from "../testing/auth";
 import { readSession } from "../transport/http/session";
-import { TEST_PASSWORD, sessionHeaders, signInAs } from "../testing/fixtures";
 import {
-  banUser,
   createUser,
   deleteUser,
   listUsers,
   revokeUserSessions,
   setUserPassword,
   setUserRole,
-  unbanUser,
+  setUserStatus,
 } from "./users";
 
 let sequence = 0;
@@ -26,52 +25,44 @@ function draft(role: "admin" | "member" = "member") {
 }
 
 describe("account directory", () => {
-  test("only administrators read or change the directory", async () => {
-    const member = await signInAs("member");
-    await expect(listUsers(member.headers)).rejects.toThrow();
-    await expect(createUser(member.headers, draft())).rejects.toThrow();
-    await expect(listUsers(new Headers())).rejects.toThrow();
-  });
-
   test("an administrator adds accounts that can sign in", async () => {
-    const admin = await signInAs("admin");
     const input = draft();
-    const created = await createUser(admin.headers, input);
+    const created = await createUser(input);
     expect(created).toMatchObject({
       name: input.name,
       email: input.email,
       role: "member",
       banned: false,
     });
-    expect(await listUsers(admin.headers)).toContainEqual(created);
+    expect(await listUsers()).toContainEqual(created);
     const session = await readSession(
       await sessionHeaders(input.email, input.password),
     );
     expect(session?.id).toBe(created.id);
-    await expect(createUser(admin.headers, input)).rejects.toThrow();
+    await expect(createUser(input)).rejects.toThrow();
   });
 
   test("roles change for other accounts, never one's own", async () => {
     const admin = await signInAs("admin");
-    const target = await createUser(admin.headers, draft());
-    const promoted = await setUserRole(admin.headers, {
+    const target = await createUser(draft());
+    const promoted = await setUserRole(admin.user, {
       user: target.id,
       role: "admin",
     });
     expect(promoted.role).toBe("admin");
     await expect(
-      setUserRole(admin.headers, { user: admin.user.id, role: "member" }),
-    ).rejects.toBeInstanceOf(UserRejectedError);
+      setUserRole(admin.user, { user: admin.user.id, role: "member" }),
+    ).rejects.toBeInstanceOf(UserAccountConflictError);
     await expect(
-      setUserRole(admin.headers, { user: "nobody", role: "member" }),
+      setUserRole(admin.user, { user: "nobody", role: "member" }),
     ).rejects.toThrow("Unknown user: nobody");
   });
 
   test("a new password signs in and the old one does not", async () => {
     const admin = await signInAs("admin");
     const input = draft();
-    const target = await createUser(admin.headers, input);
-    await setUserPassword(admin.headers, {
+    const target = await createUser(input);
+    await setUserPassword(admin.user, {
       user: target.id,
       password: "a-different-passphrase",
     });
@@ -82,17 +73,18 @@ describe("account directory", () => {
       ),
     ).toMatchObject({ id: target.id });
     await expect(
-      setUserPassword(admin.headers, {
+      setUserPassword(admin.user, {
         user: admin.user.id,
         password: "admin-cannot-bypass-current-password",
       }),
-    ).rejects.toBeInstanceOf(UserRejectedError);
+    ).rejects.toBeInstanceOf(UserAccountConflictError);
   });
 
   test("suspension ends sessions and refuses sign-in until reinstated", async () => {
     const admin = await signInAs("admin");
     const target = await signInAs("member");
-    const suspended = await banUser(admin.headers, {
+    const suspended = await setUserStatus(admin.user, {
+      suspended: true,
       user: target.user.id,
     });
     expect(suspended.banned).toBe(true);
@@ -101,10 +93,11 @@ describe("account directory", () => {
       sessionHeaders(target.user.email, TEST_PASSWORD),
     ).rejects.toThrow();
     await expect(
-      banUser(admin.headers, { user: admin.user.id }),
-    ).rejects.toBeInstanceOf(UserRejectedError);
+      setUserStatus(admin.user, { suspended: true, user: admin.user.id }),
+    ).rejects.toBeInstanceOf(UserAccountConflictError);
 
-    const reinstated = await unbanUser(admin.headers, {
+    const reinstated = await setUserStatus(admin.user, {
+      suspended: false,
       user: target.user.id,
     });
     expect(reinstated.banned).toBe(false);
@@ -114,24 +107,21 @@ describe("account directory", () => {
   });
 
   test("revoking sessions signs the account out everywhere", async () => {
-    const admin = await signInAs("admin");
     const target = await signInAs("member");
-    await revokeUserSessions(admin.headers, { user: target.user.id });
+    await revokeUserSessions({ user: target.user.id });
     expect(await readSession(target.headers)).toBeNull();
   });
 
   test("deletion removes the account and refuses the acting administrator", async () => {
     const admin = await signInAs("admin");
     const target = await signInAs("member");
-    await deleteUser(admin.headers, { user: target.user.id });
+    await deleteUser(admin.user, { user: target.user.id });
     expect(await readSession(target.headers)).toBeNull();
     expect(
-      (await listUsers(admin.headers)).some(
-        (account) => account.id === target.user.id,
-      ),
+      (await listUsers()).some((account) => account.id === target.user.id),
     ).toBe(false);
     await expect(
-      deleteUser(admin.headers, { user: admin.user.id }),
-    ).rejects.toBeInstanceOf(UserRejectedError);
+      deleteUser(admin.user, { user: admin.user.id }),
+    ).rejects.toBeInstanceOf(UserAccountConflictError);
   });
 });

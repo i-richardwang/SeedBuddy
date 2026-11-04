@@ -1,14 +1,13 @@
 export {
-  claimInferenceAssignment,
-  completeInferenceClaim,
-  renewInferenceClaim,
-  failInferenceAttempt,
+  claimInferenceTask,
+  completeInferenceTask,
+  failInferenceTask,
+  renewInferenceTask,
 } from "./attempts";
+export { currentVersion, shownDetectingVersion } from "./reading-sql";
 export {
+  attemptIsActive,
   maintainInferenceTasks,
   readInferenceTask,
   retryInferenceTask,
-  attemptIsActive,
 } from "./tasks";
-
-export { currentVersion, shownDetectingVersion } from "./queries";

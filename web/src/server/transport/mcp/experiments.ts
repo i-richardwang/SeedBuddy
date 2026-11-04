@@ -6,11 +6,12 @@ import {
 
 import packageJson from "../../../../package.json";
 import {
-  executeAgentOperation,
   type AgentOperation,
   agentOperations,
+  executeAgentOperation,
 } from "../../agent/public";
 import { guardMcpRequest, serveAuthorized } from "./access";
+import { mcpErrorContent } from "./errors";
 
 /**
  * The experiment MCP server: the MCP face of the agent operations. Every tool
@@ -39,18 +40,7 @@ function buildServer(): McpServer {
       async (args) => {
         const outcome = await executeAgentOperation(operation.name, args);
         if (!outcome.ok) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  code: outcome.code,
-                  message: outcome.message,
-                }),
-              },
-            ],
-            isError: true,
-          };
+          return mcpErrorContent(outcome);
         }
         return {
           content: [{ type: "text", text: JSON.stringify(outcome.output) }],
@@ -62,7 +52,7 @@ function buildServer(): McpServer {
   return server;
 }
 
-export const experimentsMcpHandler = createMcpHandler(buildServer, {
+const experimentsMcpHandler = createMcpHandler(buildServer, {
   legacy: "stateless",
 });
 

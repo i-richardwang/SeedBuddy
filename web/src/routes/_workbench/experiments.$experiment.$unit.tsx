@@ -2,19 +2,18 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { REVIEW_SOURCES } from "../../domain/annotation/schema";
+import type { UnitDetail } from "../../domain/experiments/read-model";
+import {
+  observationIdSchema,
+  unitRefSchema,
+} from "../../domain/experiments/schema";
 import {
   UnitWorkbench,
   UnitWorkbenchSkeleton,
 } from "../../features/experiments/UnitWorkbench";
-import {
-  unitRefSchema,
-  observationIdSchema,
-} from "../../domain/experiments/schema";
-import { getUnit } from "../../functions/experiments";
-import { useRouteRefresh } from "../../ui/hooks/useRouteRefresh";
-import { documentTitle } from "../../ui/documentTitle";
+import { getUnitDetail } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
-import type { UnitSeries } from "../../domain/experiments/contracts";
+import { documentTitle } from "../../ui/documentTitle";
 
 /**
  * An observation the link cannot name is no observation: the newest with a
@@ -38,7 +37,7 @@ export const Route = createFileRoute(
       unit: params.unit,
     });
     if (!ref.success) throw notFound();
-    const series = await getUnit({
+    const series = await getUnitDetail({
       data: { ...ref.data, ...deps },
     });
     if (!series) throw notFound();
@@ -46,9 +45,9 @@ export const Route = createFileRoute(
   },
   staticData: {
     crumbs: ({ loaderData }) => {
-      const { experiment, unit } = loaderData as UnitSeries;
+      const { experiment, unit } = loaderData as UnitDetail;
       return [
-        { label: m.experiments_title(), href: "/experiments" },
+        { label: m.experiments_label(), href: "/experiments" },
         { label: experiment.name, href: `/experiments/${experiment.id}` },
         { label: unit.code },
       ];
@@ -75,21 +74,13 @@ function UnitPage() {
   const { datasets, ...series } = Route.useLoaderData();
   const { show, compare } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { shown } = series;
-
-  useRouteRefresh(
-    5000,
-    shown !== null &&
-      ((shown.review.detection === null && shown.failure === null) ||
-        shown.review.progress !== null),
-  );
 
   return (
     <UnitWorkbench
       series={series}
       datasets={datasets}
-      source={show}
-      onSourceChange={(show) =>
+      show={show}
+      onShowChange={(show) =>
         void navigate({ search: (previous) => ({ ...previous, show }) })
       }
       compare={compare}

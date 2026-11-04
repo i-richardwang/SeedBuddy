@@ -1,7 +1,7 @@
 import { createRouter } from "@tanstack/react-router";
 
-import type { Crumb } from "./ui/shell/crumbs";
 import { routeTree } from "./routeTree.gen";
+import type { Crumb } from "./ui/shell/crumbs";
 
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {

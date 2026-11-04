@@ -1,23 +1,22 @@
-import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { API_SCOPE_LABELS } from "./labels";
 import {
   API_SCOPES,
-  MAX_API_KEY_DAYS,
   type ApiScope,
   type IssuedApiKey,
+  MAX_API_KEY_DAYS,
 } from "../../domain/auth/integrations";
-import { addApiKey } from "../../functions/integrations";
+import { createApiKey } from "../../functions/integrations";
 import { m } from "../../paraglide/messages";
 import { CopyableCode } from "../../ui/CopyableCode";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { RevealOnceDialog } from "../../ui/RevealOnceDialog";
 import { CheckboxGroup } from "../../ui/kit/Checkbox";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
 import { Select } from "../../ui/kit/Select";
+import { RevealOnceDialog } from "../../ui/RevealOnceDialog";
+import { apiScopeLabel } from "./labels";
 
 const FORM_ID = "new-api-key";
 
@@ -44,7 +43,6 @@ export function NewApiKeyDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const [issued, setIssued] = useState<IssuedApiKey | null>(null);
 
   return (
@@ -68,7 +66,6 @@ export function NewApiKeyDialog({
         hint={m.api_key_dialog_shown_once()}
         onClose={() => {
           setIssued(null);
-          void router.invalidate();
         }}
       >
         {(apiKey) => (
@@ -103,7 +100,7 @@ function NewApiKeySession({
       onClose={onClose}
       afterClose={afterClose}
       title={m.api_key_dialog_title()}
-      okText={m.api_key_dialog_create()}
+      okText={m.create_action()}
       formId={FORM_ID}
       busy={action.busy}
       okDisabled={scopes.length === 0}
@@ -115,24 +112,25 @@ function NewApiKeySession({
           const form = new FormData(event.currentTarget);
           const expiresInDays =
             EXPIRY_OPTIONS.find((option) => option.id === expiry)?.days ?? null;
-          void action
-            .run(
-              () =>
-                addApiKey({
-                  data: {
-                    name: String(form.get("name") ?? ""),
-                    scopes,
-                    expiresInDays,
-                  },
-                }),
-              m.api_key_not_created(),
-            )
-            .then((result) => {
-              if (result.ok) onIssued(result.value);
-            });
+          void action.run(
+            () =>
+              createApiKey({
+                data: {
+                  name: String(form.get("name") ?? ""),
+                  scopes,
+                  expiresInDays,
+                },
+              }),
+            m.api_key_not_created(),
+            { invalidate: false, onSuccess: onIssued },
+          );
         }}
       >
-        <Form.Field label={m.api_key_dialog_name_label()} name="name" required>
+        <Form.Field
+          label={m.name_label({ kind: "thing" })}
+          name="name"
+          required
+        >
           <Input
             name="name"
             autoComplete="off"
@@ -141,13 +139,13 @@ function NewApiKeySession({
             placeholder={m.api_key_dialog_name_placeholder()}
           />
         </Form.Field>
-        <Form.Field label={m.api_key_dialog_scopes_label()} required fieldset>
+        <Form.Field label={m.scopes_label()} required fieldset>
           <CheckboxGroup
             value={scopes}
             disabled={action.busy}
             options={API_SCOPES.map((scope) => ({
               value: scope,
-              label: API_SCOPE_LABELS[scope](),
+              label: apiScopeLabel(scope),
             }))}
             onChange={(next) =>
               setScopes(API_SCOPES.filter((scope) => next.includes(scope)))

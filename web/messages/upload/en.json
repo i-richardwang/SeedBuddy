@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "image_file_empty": "The file is empty",
+  "image_file_too_large": [
+    {
+      "declarations": ["input megabytes", "local size = megabytes: number"],
+      "match": {
+        "megabytes=*": "The file exceeds {size} MiB"
+      }
+    }
+  ],
+  "image_file_unsupported": "Choose a JPEG, PNG, or TIFF image",
+  "photos_not_added": "Photos not added: {files}"
+}

@@ -1,45 +1,20 @@
 import { MAX_IMAGE_BYTES } from "../../../domain/images/canonical";
+import { ImageSourceInvalidError } from "../../../domain/images/errors";
 import { imageDigestSchema } from "../../../domain/images/schema";
-import {
-  ImageSourceError,
-  storeCanonicalImage,
-  storeImage,
-} from "../../images/public";
-
-function failed(message: string, status: number): Response {
-  return Response.json({ error: message }, { status });
-}
-
-/** The request body, which must be exactly the bytes its length declares. */
-async function imageBody(request: Request): Promise<Uint8Array | Response> {
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (!Number.isSafeInteger(declaredLength) || declaredLength <= 0) {
-    return failed("Image Content-Length is required", 411);
-  }
-  if (declaredLength > MAX_IMAGE_BYTES) {
-    return failed("Image exceeds 64 MiB", 413);
-  }
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.byteLength !== declaredLength) {
-    return failed("Image length differs from Content-Length", 400);
-  }
-  return bytes;
-}
+import { storeCanonicalImage, storeImage } from "../../images/public";
+import { refuseWithoutAgentKey } from "./agent";
+import { agentUploadFailure, agentUploadRefusal } from "./agent-upload";
+import { exactLengthBody, uploadFailure } from "./upload-body";
 
 async function storing(
   store: () => Promise<{ digest: string }>,
+  refuse: (error: unknown) => Response,
 ): Promise<Response> {
   try {
     const stored = await store();
     return Response.json({ digest: stored.digest });
   } catch (error) {
-    if (error instanceof ImageSourceError) {
-      return failed(error.message, 400);
-    }
-    console.error(
-      `Store image failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return failed("Could not store image", 500);
+    return refuse(error);
   }
 }
 
@@ -49,9 +24,17 @@ async function storing(
  * belongs to the experiment observation that submits it, not to the image.
  */
 export async function handleImageUpload(request: Request): Promise<Response> {
-  const body = await imageBody(request);
+  const body = await exactLengthBody(request, MAX_IMAGE_BYTES);
   if (body instanceof Response) return body;
-  return storing(() => storeImage(body));
+  return storing(
+    () => storeImage(body),
+    (error) => {
+      if (error instanceof ImageSourceInvalidError)
+        return uploadFailure(error.message, 400);
+      console.error("Store image failed", error);
+      return new Response("Could not store image", { status: 500 });
+    },
+  );
 }
 
 /**
@@ -64,8 +47,34 @@ export async function handleCanonicalImageUpload(
   request: Request,
 ): Promise<Response> {
   const parsed = imageDigestSchema.safeParse(digest);
-  if (!parsed.success) return failed("Not an image digest", 400);
-  const body = await imageBody(request);
+  if (!parsed.success) return uploadFailure("Not an image digest", 400);
+  const body = await exactLengthBody(request, MAX_IMAGE_BYTES);
   if (body instanceof Response) return body;
-  return storing(() => storeCanonicalImage(parsed.data, body));
+  return storing(
+    () => storeCanonicalImage(parsed.data, body),
+    (error) => {
+      if (error instanceof ImageSourceInvalidError)
+        return uploadFailure(error.message, 400);
+      console.error("Store image failed", error);
+      return uploadFailure("Could not store image", 500);
+    },
+  );
+}
+
+/** Agent authentication stays at the transport boundary, like model uploads. */
+export async function serveAgentImageUpload(
+  request: Request,
+): Promise<Response> {
+  const refusal = await refuseWithoutAgentKey(request);
+  if (refusal) return refusal;
+  const body = await exactLengthBody(
+    request,
+    MAX_IMAGE_BYTES,
+    agentUploadRefusal,
+  );
+  if (body instanceof Response) return body;
+  return storing(
+    () => storeImage(body),
+    (error) => agentUploadFailure(error, "Store image"),
+  );
 }

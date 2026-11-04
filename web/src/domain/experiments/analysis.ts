@@ -1,18 +1,11 @@
-import { excludingEvent, type ObservationOrdinals } from "./culture-events";
-import type { UnitDay } from "./readings";
-import type { CultureEvent, Experiment, ExperimentObservation } from "./schema";
-
-/**
- * Why a unit's day stays out of the analysis. A culture event takes the unit
- * out from the observation that records it, since what came before it still
- * happened. An unclear photograph, where the experiment does not count
- * unclear photographs, takes the whole unit out: marking it says the dish's
- * record cannot be trusted, and that is said of the dish, not of one day. A
- * day with no photograph is no exclusion; the unit only has no number that
- * day.
- */
-export type Exclusion =
-  { reason: "event"; event: CultureEvent } | { reason: "unclear" };
+import type { UnitDay } from "./cell-reading";
+import {
+  type CultureEvent,
+  excludingEvent,
+  type ObservationOrdinals,
+} from "./culture-events";
+import type { Exclusion } from "./read-model";
+import type { Experiment, ExperimentObservation } from "./schema";
 
 /**
  * Why each of a unit's days stays out of the analysis, or nothing for a day

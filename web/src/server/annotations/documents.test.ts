@@ -1,19 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import { instancesFromDetection } from "../../domain/annotation/detection";
+import { AnnotationConflictError } from "../../domain/annotation/errors";
 import type { AnnotationInstance } from "../../domain/annotation/schema";
+import { observeImages } from "../testing/experiments";
+import { imageDigest, resultFor } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
-import {
-  AnnotationConflictError,
-  readAnnotation,
-  storeAnnotation,
-} from "./documents";
-import {
-  imageDigest,
-  observeImages,
-  resultFor,
-  testHeartbeat,
-} from "../testing/fixtures";
+import { readAnnotation } from "../testing/records";
+import { testHeartbeat } from "../testing/workers";
+import { storeAnnotation } from "./documents";
 
 /** Uploads one image, detects it, and returns the boxes a review begins from. */
 async function detected(name: string, worker: string) {
@@ -111,4 +106,14 @@ test("a base compares content regardless of JSON object property order", async (
   ];
   await storeAnnotation(ref, [], base);
   expect((await readAnnotation(ref))!.instances).toEqual([]);
+});
+
+test("reviewing an absent canonical image uses the shared image refusal", async () => {
+  await expect(
+    storeAnnotation(
+      { digest: "0".repeat(64), modelId: "seed-detector" },
+      [],
+      null,
+    ),
+  ).rejects.toMatchObject({ code: "image_not_found" });
 });

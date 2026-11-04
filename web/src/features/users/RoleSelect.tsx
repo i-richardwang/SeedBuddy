@@ -4,7 +4,7 @@ import {
   type SelectSize,
   type SelectVariant,
 } from "../../ui/kit/Select";
-import { USER_ROLE_LABELS } from "../../ui/user-roles";
+import { userRoleLabel } from "./labels";
 
 export function RoleSelect({
   "aria-label": ariaLabel,
@@ -31,7 +31,7 @@ export function RoleSelect({
       popupWidth="content"
       options={USER_ROLES.map((role) => ({
         value: role,
-        label: USER_ROLE_LABELS[role](),
+        label: userRoleLabel(role),
       }))}
       onChange={onChange}
     />

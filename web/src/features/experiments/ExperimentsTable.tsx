@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { Search, SearchX } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import type { ExperimentSummary } from "../../domain/experiments/contracts";
+import type { ExperimentOverview } from "../../domain/experiments/read-model";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { Day } from "../../ui/Day";
+import { usePagedSearch } from "../../ui/hooks/usePagedSearch";
 import { Empty } from "../../ui/kit/Empty";
 import { Icon } from "../../ui/kit/Icon";
 import { Input } from "../../ui/kit/Input";
@@ -20,20 +21,16 @@ import {
 } from "../../ui/kit/Table";
 import { TextLink } from "../../ui/kit/TextLink";
 import { formatCount } from "../../ui/numbers";
-import { joinFacts } from "./labels";
-
-const PAGE_SIZE = 20;
+import { joinFacts } from "./copy";
 
 /** What an experiment is found by: its name and what it grows on what. */
-function searchable({ experiment }: ExperimentSummary): string {
+function searchable({ experiment }: ExperimentOverview): string {
   return [
     experiment.name,
     experiment.plantMaterial,
     experiment.explantType,
     experiment.baseMedium,
-  ]
-    .join("\n")
-    .toLowerCase();
+  ].join("\n");
 }
 
 /**
@@ -45,23 +42,17 @@ export function ExperimentsTable({
   experiments,
   empty,
 }: {
-  experiments: ExperimentSummary[];
+  experiments: ExperimentOverview[];
   empty: ReactNode;
 }) {
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-
-  const needle = query.trim().toLowerCase();
-  const matches = experiments.filter((summary) =>
-    searchable(summary).includes(needle),
+  const { query, setQuery, matches, shown, pagination } = usePagedSearch(
+    experiments,
+    { text: searchable },
   );
-  const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
-  const current = Math.min(page, pages);
-  const shown = matches.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
   return (
     <Table
-      aria-label={m.experiments_title()}
+      aria-label={m.experiments_label()}
       narrow="cards"
       toolbar={
         experiments.length > 0 ? (
@@ -75,21 +66,11 @@ export function ExperimentsTable({
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
-              setPage(1);
             }}
           />
         ) : undefined
       }
-      footer={
-        matches.length > PAGE_SIZE ? (
-          <Pagination
-            current={current}
-            pageSize={PAGE_SIZE}
-            total={matches.length}
-            onChange={setPage}
-          />
-        ) : undefined
-      }
+      footer={pagination ? <Pagination {...pagination} /> : undefined}
       empty={
         experiments.length === 0 ? (
           empty
@@ -104,20 +85,20 @@ export function ExperimentsTable({
     >
       <TableHeader>
         <tr>
-          <TableHead>{m.experiments_column_experiment()}</TableHead>
-          <TableHead>{m.experiments_column_material()}</TableHead>
-          <TableHead>{m.experiments_column_medium()}</TableHead>
-          <TableHead>{m.experiments_column_inoculated()}</TableHead>
+          <TableHead>{m.experiment_column_experiment()}</TableHead>
+          <TableHead>{m.experiment_column_material()}</TableHead>
+          <TableHead>{m.base_medium_label()}</TableHead>
+          <TableHead>{m.inoculated_label()}</TableHead>
           <TableHead className="w-20" numeric>
-            {m.experiments_column_treatments()}
+            {m.treatments_label()}
           </TableHead>
           <TableHead className="w-24" numeric>
-            {m.experiments_column_units()}
+            {m.units_label()}
           </TableHead>
           <TableHead className="w-24" numeric>
-            {m.experiments_column_observations()}
+            {m.experiment_column_observations()}
           </TableHead>
-          <TableHead>{m.experiments_column_last_observed()}</TableHead>
+          <TableHead>{m.experiment_column_last_observed()}</TableHead>
         </tr>
       </TableHeader>
       <TableBody>
@@ -143,35 +124,32 @@ export function ExperimentsTable({
                     {experiment.name}
                   </TextLink>
                 </TableCell>
-                <TableCell cellLabel={m.experiments_column_material()}>
+                <TableCell cellLabel={m.experiment_column_material()}>
                   {material || <Absent />}
                 </TableCell>
-                <TableCell cellLabel={m.experiments_column_medium()}>
+                <TableCell cellLabel={m.base_medium_label()}>
                   {experiment.baseMedium || <Absent />}
                 </TableCell>
                 <TableCell
-                  cellLabel={m.experiments_column_inoculated()}
+                  cellLabel={m.inoculated_label()}
                   className="whitespace-nowrap"
                 >
                   <Day value={experiment.inoculatedOn} />
                 </TableCell>
-                <TableCell
-                  cellLabel={m.experiments_column_treatments()}
-                  numeric
-                >
+                <TableCell cellLabel={m.treatments_label()} numeric>
                   {formatCount(treatments)}
                 </TableCell>
-                <TableCell cellLabel={m.experiments_column_units()} numeric>
+                <TableCell cellLabel={m.units_label()} numeric>
                   {formatCount(units)}
                 </TableCell>
                 <TableCell
-                  cellLabel={m.experiments_column_observations()}
+                  cellLabel={m.experiment_column_observations()}
                   numeric
                 >
                   {formatCount(observations)}
                 </TableCell>
                 <TableCell
-                  cellLabel={m.experiments_column_last_observed()}
+                  cellLabel={m.experiment_column_last_observed()}
                   className="whitespace-nowrap"
                 >
                   {lastObservedOn ? <Day value={lastObservedOn} /> : <Absent />}

@@ -1,6 +1,7 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import { Play } from "lucide-react";
 import type { ReactNode } from "react";
+
 import { m } from "../../paraglide/messages";
 import { useAppShell } from "./AppShell";
 import { Icon, type IconProps } from "./Icon";
@@ -14,7 +15,7 @@ export interface AppNavItem {
 }
 
 /**
- * A titled run of places under the main ones, such as the open experiments:
+ * A titled run of places under the main ones, such as the experiments:
  * its heading (12px, 500, secondary) with the count after it folds the run
  * away, the panel closing over its rows as they fade. Its items carry 16px
  * icons.
@@ -55,12 +56,12 @@ function resolveActiveHref(pathname: string, items: readonly AppNavItem[]) {
  * `groups` follow the places, 8px apart, each open at first.
  */
 export function AppNav({
-  groups = [],
+  groups,
   items,
   pathname,
   renderLink,
 }: {
-  groups?: AppNavGroup[];
+  groups: AppNavGroup[];
   items: AppNavItem[];
   pathname: string;
   /**
@@ -100,11 +101,7 @@ export function AppNav({
         >
           <Collapsible.Trigger className="ui-app-nav-group-trigger">
             <span className="ui-app-nav-group-label">{group.label}</span>
-            {group.items.length > 0 ? (
-              <span className="ui-app-nav-group-count">
-                {group.items.length}
-              </span>
-            ) : null}
+            {group.items.length > 0 ? <span>{group.items.length}</span> : null}
             <span aria-hidden className="ui-app-nav-group-indicator">
               <Play fill="currentColor" size={7} strokeWidth={1} />
             </span>

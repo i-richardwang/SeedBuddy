@@ -10,35 +10,42 @@ from typing import Any
 
 from vitroctl.cli.connection import client, connection_options
 from vitroctl.cli.output import json_output
-from vitroctl.datasets.annotations import load_annotations
+from vitroctl.contracts.validation import outbound
 from vitroctl.datasets.manifest import load_dataset_manifest, manifest_path
 from vitroctl.detectors.ultralytics import export_yolo_dataset, train_yolo_detector
-from vitroctl.models.bundle import training_bundle, write_bundle
-from vitroctl.training.recipe import parse_training_recipe
+from vitroctl.models.bundle import training_bundle, training_provenance, write_bundle
+from vitroctl.training.recipe import TrainingRecipe
 
 
-def run(args: argparse.Namespace) -> int:
+def _run(args: argparse.Namespace) -> int:
+    if args.local:
+        if args.worker:
+            raise ValueError("--worker cannot be combined with --local")
+        if not args.output:
+            raise ValueError("Local training requires --output")
+    elif args.resume or args.output or args.device or args.data_root:
+        raise ValueError(
+            "--resume, --output, --device and --data-root apply only to --local; use training resume for managed tasks"
+        )
     spec = json.loads(Path(args.spec).read_text())
     if not isinstance(spec, dict) or set(spec) != {"dataset", "recipe"}:
         raise ValueError("Training spec must contain dataset and recipe")
-    recipe = parse_training_recipe(spec["recipe"])
     if not args.local:
-        if args.resume or args.output or args.device:
-            raise ValueError(
-                "--resume, --output and --device apply only to --local; use training resume for managed tasks"
-            )
         json_output(
             client(args).call(
-                "start-training-run", {**spec, "targetWorkerId": args.worker}
+                "start-training-run",
+                {
+                    **spec,
+                    "recipe": outbound("training-recipe", spec["recipe"]),
+                    "targetWorkerId": args.worker,
+                },
             )
         )
         return 0
-    if args.worker:
-        raise ValueError("--worker cannot be combined with --local")
-    if not args.output:
-        raise ValueError("Local training requires --output")
+    recipe = TrainingRecipe.from_document(spec["recipe"])
     output = Path(args.output).resolve()
-    source = manifest_path(Path(args.data_root), spec["dataset"])
+    data_root = args.data_root or Path("data")
+    source = manifest_path(data_root, spec["dataset"])
     manifest = load_dataset_manifest(source)
     identity = {"spec": spec, "dataset": manifest.to_dict()}
     identity_text = json.dumps(identity, sort_keys=True, separators=(",", ":"))
@@ -58,9 +65,9 @@ def run(args: argparse.Namespace) -> int:
     exported_path = output / "dataset"
     if not (exported_path / "dataset.yaml").exists():
         export_yolo_dataset(
-            load_annotations(source),
+            manifest.annotated,
             manifest.classes,
-            args.data_root,
+            data_root,
             exported_path,
             seed=recipe.parameters["seed"],
         )
@@ -73,7 +80,7 @@ def run(args: argparse.Namespace) -> int:
         runtime_version=recipe.runtime_version,
         device=args.device,
         resume_required=args.resume,
-        on_epoch=lambda epoch: print(json.dumps(epoch.to_json()), flush=True),
+        on_epoch=lambda epoch: print(json.dumps(epoch.to_dict()), flush=True),
     )
     exported = json.loads((exported_path / "manifest.json").read_text())
     fingerprint = hashlib.sha256(
@@ -83,27 +90,18 @@ def run(args: argparse.Namespace) -> int:
             separators=(",", ":"),
         ).encode()
     ).hexdigest()
-    provenance = {
-        "dataset": {
-            "fingerprint": fingerprint,
-            "snapshotId": None,
-            "description": f"Pulled dataset {manifest.dataset}; exact input and exported splits in input.json and dataset/manifest.json",
-        },
-        "selectedEpoch": None,
-        "evaluation": {
-            "description": "Exported validation split",
-            "calibration": "Best F1 confidence on validation split",
-            "metrics": result.metrics,
-        },
-    }
-    document = training_bundle(
-        result.best_weights, result.summary, list(manifest.classes), provenance
+    provenance = training_provenance(
+        fingerprint=fingerprint,
+        snapshot_id=None,
+        dataset_description=f"Pulled dataset {manifest.dataset}; exact input and exported splits in input.json and dataset/manifest.json",
+        evaluation_description="Exported validation split",
     )
+    document = training_bundle(result, list(manifest.classes), provenance)
     print(write_bundle(result.best_weights, document, output / "bundle"))
     return 0
 
 
-def remote(args: argparse.Namespace) -> int:
+def _remote(args: argparse.Namespace) -> int:
     if args.training_command == "workers":
         operation, arguments = "list-training-workers", {}
     elif args.training_command == "list":
@@ -141,11 +139,11 @@ def add_training_commands(commands: Any) -> None:
     start.add_argument("--local", action="store_true")
     start.add_argument("--worker")
     start.add_argument("--output")
-    start.add_argument("--data-root", default="data")
+    start.add_argument("--data-root", type=Path)
     start.add_argument("--device")
     start.add_argument("--resume", action="store_true")
-    connection_options(start)
-    start.set_defaults(handler=run)
+    connection_options(start, "experiments")
+    start.set_defaults(handler=_run)
     for name in ("workers", "list", "get", "pause", "cancel", "resume"):
         command = sub.add_parser(name)
         if name == "list":
@@ -158,5 +156,5 @@ def add_training_commands(commands: Any) -> None:
         if name == "resume":
             command.add_argument("--worker")
             command.add_argument("--restart", action="store_true")
-        connection_options(command)
-        command.set_defaults(handler=remote)
+        connection_options(command, "experiments")
+        command.set_defaults(handler=_remote)

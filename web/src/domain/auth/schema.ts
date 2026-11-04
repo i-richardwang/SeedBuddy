@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { timestampSchema } from "../time";
+
 /**
  * Workbench accounts. Every signed-in person holds one role: administrators
  * maintain accounts, members use the workbench. Accounts are created by an
@@ -17,6 +19,7 @@ const userNameSchema = z.string().trim().min(1).max(120);
 const userEmailSchema = z.string().trim().toLowerCase().email().max(254);
 const passwordSchema = z.string().min(MIN_PASSWORD_LENGTH).max(256);
 
+/** Better Auth session.user includes provider-owned account fields. */
 export const workbenchUserSchema = z.object({
   id: z.string(),
   name: userNameSchema,
@@ -25,15 +28,16 @@ export const workbenchUserSchema = z.object({
 });
 export type WorkbenchUser = z.infer<typeof workbenchUserSchema>;
 
-export const userAccountSchema = workbenchUserSchema.extend({
+export const userAccountSchema = z.strictObject({
+  ...workbenchUserSchema.shape,
   banned: z.boolean(),
-  createdAt: z.string().datetime(),
+  createdAt: timestampSchema,
 });
 export type UserAccount = z.infer<typeof userAccountSchema>;
 
-export const userRefSchema = z.object({ user: z.string() });
+export const userRefSchema = z.strictObject({ user: z.string() });
 
-export const userCreateSchema = z.object({
+export const userRequestSchema = z.strictObject({
   name: userNameSchema,
   email: userEmailSchema,
   password: passwordSchema,
@@ -51,3 +55,7 @@ export const userPasswordUpdateSchema = userRefSchema.extend({
 export function isAdmin(user: Pick<WorkbenchUser, "role">): boolean {
   return user.role === "admin";
 }
+
+export const userStatusUpdateSchema = userRefSchema.extend({
+  suspended: z.boolean(),
+});

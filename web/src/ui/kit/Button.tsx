@@ -3,6 +3,7 @@ import { useRender } from "@base-ui/react/use-render";
 import type { LucideIcon } from "lucide-react";
 import { animate, press } from "motion";
 import { type MouseEvent, type ReactNode, useEffect, useRef } from "react";
+
 import { cn } from "./cn";
 import { resolveIcon } from "./Icon";
 import { springTransition } from "./motionToken";
@@ -14,8 +15,8 @@ import { springTransition } from "./motionToken";
  * Pressing scales the element with a spring, whatever element `render` gives.
  */
 
-export type ButtonType = "default" | "primary" | "dashed" | "text";
-export type ButtonSize = "small" | "middle" | "large";
+type ButtonType = "default" | "primary" | "dashed" | "text";
+type ButtonSize = "small" | "middle" | "large";
 
 export interface ButtonProps extends Omit<
   useRender.ComponentProps<"button">,

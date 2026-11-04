@@ -1,17 +1,17 @@
-import { WorkerSessionConflictError } from "../../domain/workers/errors";
-import { and, desc, eq, gt, lt, or, sql, type SQLWrapper } from "drizzle-orm";
+import { and, desc, eq, gt, lt, or, type SQLWrapper, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
-import { database, type Executor } from "../infra/db/client";
-import { workerSessions } from "../infra/db/schema";
+import { WorkerSessionConflictError } from "../../domain/workers/errors";
+import { workerPresence } from "../../domain/workers/presence";
 import {
   canTrain,
-  workerSchema,
   type Worker,
   type WorkerHeartbeat,
   type WorkerIdentity,
+  workerSchema,
 } from "../../domain/workers/schema";
-import { workerPresence } from "../../domain/workers/presence";
+import { type Executor, operationTime, transaction } from "../infra/db/client";
+import { workerSessions } from "../infra/db/schema";
 
 function toWorker(row: typeof workerSessions.$inferSelect): Worker {
   return workerSchema.parse({
@@ -32,39 +32,40 @@ function toWorker(row: typeof workerSessions.$inferSelect): Worker {
  */
 export async function recordWorkerHeartbeat(
   heartbeat: WorkerHeartbeat,
-  at: Date = new Date(),
+  suppliedAt?: Date,
 ): Promise<Worker> {
-  const worker = workerSchema.parse({
-    ...heartbeat,
-    lastSeenAt: at.toISOString(),
+  return transaction(async (db) => {
+    const at = await operationTime(db, suppliedAt);
+    const worker = workerSchema.parse({
+      ...heartbeat,
+      lastSeenAt: at.toISOString(),
+    });
+    const row = {
+      sessionId: worker.sessionId,
+      startedAt: new Date(worker.startedAt),
+      runtimes: worker.runtimes,
+      memoryBytes: worker.memoryBytes,
+      lastSeenAt: at,
+    };
+    const [stored] = await db
+      .insert(workerSessions)
+      .values({ workerId: worker.workerId, ...row })
+      .onConflictDoUpdate({
+        target: workerSessions.workerId,
+        set: row,
+        setWhere: or(
+          eq(workerSessions.sessionId, worker.sessionId),
+          lt(workerSessions.startedAt, new Date(worker.startedAt)),
+        ),
+      })
+      .returning();
+    if (!stored) {
+      throw new WorkerSessionConflictError(
+        `Worker ${worker.workerId} has a newer active session`,
+      );
+    }
+    return toWorker(stored);
   });
-  const row = {
-    sessionId: worker.sessionId,
-    startedAt: new Date(worker.startedAt),
-    runtimes: worker.runtimes,
-    memoryBytes: worker.memoryBytes,
-    lastSeenAt: at,
-  };
-  const [stored] = await (
-    await database()
-  )
-    .insert(workerSessions)
-    .values({ workerId: worker.workerId, ...row })
-    .onConflictDoUpdate({
-      target: workerSessions.workerId,
-      set: row,
-      setWhere: or(
-        eq(workerSessions.sessionId, worker.sessionId),
-        lt(workerSessions.startedAt, new Date(worker.startedAt)),
-      ),
-    })
-    .returning();
-  if (!stored) {
-    throw new WorkerSessionConflictError(
-      `Worker ${worker.workerId} has a newer active session`,
-    );
-  }
-  return toWorker(stored);
 }
 
 function sessionRow(identity: WorkerIdentity, db: Executor) {
@@ -97,18 +98,18 @@ function sessionOf(
  */
 export async function currentWorkerSession(
   identity: WorkerIdentity,
-  db?: Executor,
+  db: Executor,
 ): Promise<Worker> {
-  const [row] = await sessionRow(identity, db ?? (await database()));
+  const [row] = await sessionRow(identity, db);
   return sessionOf(identity, row);
 }
 
-/** The current session with its row locked, so one worker claims one job at a time. */
+/** The current session with its row locked, so one worker claims one task at a time. */
 export async function lockWorkerSession(
   identity: WorkerIdentity,
-  tx: Executor,
+  db: Executor,
 ): Promise<Worker> {
-  const [row] = await sessionRow(identity, tx).for("update");
+  const [row] = await sessionRow(identity, db).for("update");
   return sessionOf(identity, row);
 }
 
@@ -124,7 +125,7 @@ interface SessionRef {
  * ends when a newer process of its worker heartbeats or the worker is
  * removed.
  */
-export function sessionIsCurrent(session: SessionRef) {
+function sessionIsCurrent(session: SessionRef) {
   return sql`exists (
     select 1 from ${workerSessions}
     where ${workerSessions.workerId} = ${session.workerId}
@@ -144,10 +145,8 @@ export function leaseIsHeld(
 }
 
 /** The latest session of every worker that has connected, newest first. */
-export async function listWorkers(): Promise<Worker[]> {
-  const rows = await (
-    await database()
-  )
+export async function listWorkers(db: Executor): Promise<Worker[]> {
+  const rows = await db
     .select()
     .from(workerSessions)
     .orderBy(desc(workerSessions.lastSeenAt));
@@ -156,9 +155,10 @@ export async function listWorkers(): Promise<Worker[]> {
 
 /** Workers online now that could take a training run. */
 export async function listOnlineTrainers(
-  at: Date = new Date(),
+  at: Date,
+  db: Executor,
 ): Promise<Worker[]> {
-  return (await listWorkers()).filter(
+  return (await listWorkers(db)).filter(
     (worker) =>
       canTrain(worker) && workerPresence(worker.lastSeenAt, at) === "online",
   );

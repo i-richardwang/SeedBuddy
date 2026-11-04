@@ -1,5 +1,6 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { cloneElement, type ReactElement, type Ref } from "react";
+
 import { isNativeButtonElement } from "./nativeButton";
 import { mergeRefs } from "./refs";
 

@@ -1,11 +1,7 @@
 import { z } from "zod";
 
+import { failureCategory } from "../../domain/errors";
 import { transaction } from "../infra/db/client";
-import {
-  ConflictError,
-  NotFoundError,
-  ValidationError,
-} from "../../domain/errors";
 import type { AgentOperation } from "./definition";
 import { agentOperations } from "./operations";
 
@@ -21,7 +17,10 @@ interface PreparedOperation {
   input: unknown;
 }
 
-function failure(code: AgentFailureCode, message: string): AgentCallResult {
+function failure(
+  code: AgentFailureCode,
+  message: string,
+): Extract<AgentCallResult, { ok: false }> {
   return { ok: false, code, message };
 }
 
@@ -53,30 +52,35 @@ function prepareOperation(
 export async function executeAgentOperation(
   name: string,
   input: unknown,
-  registry: ReadonlyMap<string, AgentOperation> = agentOperations,
 ): Promise<AgentCallResult> {
-  const prepared = prepareOperation(name, input, registry);
+  const prepared = prepareOperation(name, input, agentOperations);
   if ("ok" in prepared) return prepared;
   const { operation, input: parsed } = prepared;
   try {
     const validate = (value: unknown) => operation.output.parse(value ?? null);
     const output =
       operation.kind === "command" && operation.transaction === "operation"
-        ? await transaction(async (tx) =>
-            validate(await operation.handler(parsed, tx)),
+        ? await transaction(async (db) =>
+            validate(await operation.handler(parsed, db)),
           )
         : validate(await operation.handler(parsed));
     return { ok: true, output };
   } catch (error) {
-    if (error instanceof ValidationError)
-      return failure("invalid_request", error.message);
-    if (error instanceof NotFoundError) {
-      return failure("not_found", error.message);
-    }
-    if (error instanceof ConflictError) {
-      return failure("conflict", error.message);
-    }
-    console.error(`Agent operation ${operation.name} failed:`, error);
-    return failure("internal_error", "Internal error");
+    return classifyAgentFailure(error, operation.name);
   }
+}
+
+/** Classifies service failures for every agent protocol adapter. */
+export function classifyAgentFailure(
+  error: unknown,
+  operation: string,
+): Extract<AgentCallResult, { ok: false }> {
+  const category = failureCategory(error);
+  if (category !== null)
+    return failure(
+      category,
+      error instanceof Error ? error.message : String(error),
+    );
+  console.error(`Agent operation ${operation} failed:`, error);
+  return failure("internal_error", "Internal error");
 }

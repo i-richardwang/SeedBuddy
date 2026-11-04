@@ -1,9 +1,11 @@
 import { createRequire } from "node:module";
 import { parentPort } from "node:worker_threads";
+
 import type * as OpenCV from "@techstark/opencv-js";
+
 import {
-  DISH_GEOMETRY as recipe,
   type DishCircle,
+  DISH_GEOMETRY as recipe,
 } from "../../domain/images/coverage";
 import type { DishRequest } from "./dish-recipe";
 

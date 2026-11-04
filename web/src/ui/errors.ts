@@ -1,4 +1,4 @@
-import { businessFailureSchema, type BusinessFailure } from "../domain/errors";
+import { type BusinessFailure, businessFailureSchema } from "../domain/errors";
 import { imageAlreadyUsedDetailsSchema } from "../domain/experiments/errors";
 import { m } from "../paraglide/messages";
 import { formatDay } from "./Day";
@@ -11,18 +11,18 @@ const BUSINESS_ERROR_LABELS: ReadonlyMap<string, Label> = new Map<
   Label
 >([
   ["training_run_conflict", () => m.error_training_conflict()],
-  ["training_artifact_validation", () => m.error_training_artifact()],
+  ["training_artifact_invalid", () => m.error_training_artifact()],
   ["dataset_model_mismatch", () => m.error_dataset_model()],
-  ["model_id_taken", () => m.error_model_id_taken()],
-  ["model_in_use", () => m.error_model_in_use()],
-  ["experiment_observation_image_already_used", imageAlreadyUsed],
+  ["model_name_taken", () => m.error_model_id_taken()],
+  ["model_usage_conflict", () => m.error_model_in_use()],
+  ["experiment_observation_image_conflict", imageAlreadyUsed],
   [
-    "observation_model_has_counts",
+    "observation_model_counts_conflict",
     () => m.error_observation_model_has_counts(),
   ],
-  ["experiment_has_records", () => m.error_experiment_has_records()],
-  ["user_rejected", () => m.error_user_rejected()],
-  ["worker_already_enrolled", () => m.error_worker_name_taken()],
+  ["experiment_records_conflict", () => m.error_experiment_has_records()],
+  ["user_account_conflict", () => m.error_user_rejected()],
+  ["worker_name_taken", () => m.error_worker_name_taken()],
 ]);
 
 function imageAlreadyUsed(details: BusinessFailure["details"]): string | null {

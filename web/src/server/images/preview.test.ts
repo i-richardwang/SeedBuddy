@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import sharp from "sharp";
 
 import { blobExists, removeBlob } from "../infra/blobs/store";
-import { imageBytes } from "../testing/fixtures";
+import { imageBytes } from "../testing/images";
 import { imagePreviewKey } from "./keys";
 import { openImagePreview } from "./preview";
 import { storeImage } from "./store";

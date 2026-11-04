@@ -2,22 +2,24 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 from dataclasses import dataclass, field
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from vitroctl.annotations import BoundingBox
-from vitroctl.contracts.identifiers import CLASS_NAME
+from vitroctl.contracts import annotation
+from vitroctl.contracts.annotation import BoundingBox
+from vitroctl.contracts.inference import YOLO_IOU
+from vitroctl.detectors import contract
 from vitroctl.detectors.contract import (
     DetectionInstance,
     DetectionProducer,
     DetectionQuality,
     DetectionResult,
     RuntimeDescriptor,
+    adapter_fingerprint,
 )
 from vitroctl.detectors.ultralytics.runtime import load_yolo
 
@@ -29,21 +31,14 @@ class YoloInferenceSettings:
     max_detections: int
     end_to_end: bool
 
-    def __post_init__(self) -> None:
-        if isinstance(self.confidence, bool) or not isinstance(
-            self.confidence, (int, float)
-        ):
-            raise TypeError("YOLO confidence must be a number")
-        if not math.isfinite(self.confidence) or not 0 <= self.confidence <= 1:
-            raise ValueError("YOLO confidence must be between zero and one")
-        for value, name in (
-            (self.image_size, "image size"),
-            (self.max_detections, "maximum detections"),
-        ):
-            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-                raise ValueError(f"YOLO {name} must be a positive integer")
-        if not isinstance(self.end_to_end, bool):
-            raise TypeError("YOLO end_to_end must be a boolean")
+    @classmethod
+    def decode(cls, document: dict[str, Any], context: str) -> YoloInferenceSettings:
+        return cls(
+            document["confidence"],
+            document["imageSize"],
+            document["maxDetections"],
+            document["endToEnd"],
+        )
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -54,98 +49,29 @@ class YoloInferenceSettings:
         }
 
 
-def _strict_object(value: Any, fields: set[str], context: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise TypeError(f"{context} must be an object")
-    unknown = set(value) - fields
-    missing = fields - set(value)
-    if unknown:
-        raise ValueError(f"{context} has unknown {', '.join(sorted(unknown))}")
-    if missing:
-        raise ValueError(f"{context} is missing {', '.join(sorted(missing))}")
-    return value
-
-
-def load_yolo_inference_settings(run_dir: Path) -> tuple[Path, YoloInferenceSettings]:
-    """Read the immutable deployment inputs published by a validated run."""
-    summary_path = run_dir.resolve() / "inference.json"
-    document = _strict_object(
-        json.loads(summary_path.read_text(encoding="utf-8")),
-        {"schemaVersion", "weights", "inference", "validation", "training"},
-        "YOLO inference summary",
-    )
-    if document["schemaVersion"] != 1:
-        raise ValueError("Unsupported YOLO inference summary schema")
-    if not isinstance(document["weights"], str) or not document["weights"]:
-        raise TypeError("YOLO weights must be a relative path")
-    relative_weights = Path(document["weights"])
-    if relative_weights.is_absolute() or ".." in relative_weights.parts:
-        raise ValueError("YOLO weights must be a relative path within the run")
-    weights = (run_dir.resolve() / relative_weights).resolve()
-    if run_dir.resolve() not in weights.parents or not weights.is_file():
-        raise FileNotFoundError(weights)
-
-    inference = _strict_object(
-        document["inference"],
-        {"ready", "confidence", "imageSize", "maxDetections", "endToEnd"},
-        "YOLO inference settings",
-    )
-    if inference["ready"] is not True:
-        raise ValueError("YOLO run is not ready for inference")
-    settings = YoloInferenceSettings(
-        confidence=inference["confidence"],
-        image_size=inference["imageSize"],
-        max_detections=inference["maxDetections"],
-        end_to_end=inference["endToEnd"],
-    )
-    return weights, settings
-
-
-def _artifact_digest(weights: Path, settings: YoloInferenceSettings) -> str:
-    digest = hashlib.sha256()
-    with weights.open("rb") as stream:
-        while chunk := stream.read(1024 * 1024):
-            digest.update(chunk)
-    digest.update(b"\0")
-    digest.update(
-        json.dumps(settings.to_dict(), sort_keys=True, separators=(",", ":")).encode()
-    )
-    return digest.hexdigest()
-
-
-def _runtime_fingerprint() -> str:
-    digest = hashlib.sha256()
-    try:
-        ultralytics_version = version("ultralytics")
-    except PackageNotFoundError as error:
-        raise RuntimeError(
-            "Ultralytics is not installed; run `uv sync --extra yolo` first"
-        ) from error
-    digest.update(b"\0ultralytics\0")
-    digest.update(ultralytics_version.encode())
-    package = Path(__file__).parent
-    for name in ("../contract.py", "detector.py"):
-        digest.update(b"\0")
-        digest.update(name.encode())
-        digest.update(b"\0")
-        digest.update((package / name).read_bytes())
-    return digest.hexdigest()
-
-
 def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
     """The runtime identity this process would sign YOLO predictions with."""
-    load_yolo()
-    return RuntimeDescriptor(adapter="ultralytics", fingerprint=_runtime_fingerprint())
+    return RuntimeDescriptor(
+        adapter="ultralytics",
+        fingerprint=adapter_fingerprint(
+            b"\0ultralytics\0" + version("ultralytics").encode(),
+            {
+                "contract.py": Path(contract.__file__),
+                "annotation.py": Path(annotation.__file__),
+                "detector.py": Path(__file__),
+            },
+        ),
+    )
 
 
 @dataclass
 class UltralyticsDetector:
-    """Runs one validated YOLO training artifact through the shared contract."""
+    """Run whole-image inference with the model document's calibrated settings."""
 
     weights: Path
     settings: YoloInferenceSettings
     class_names: tuple[str, ...]
-    device: str | None = None
+    device: str | None
     _model: Any = field(default=None, init=False, repr=False)
     _runtime: type = field(init=False, repr=False)
     _artifact_digest: str = field(init=False, repr=False)
@@ -155,31 +81,17 @@ class UltralyticsDetector:
         self.weights = self.weights.resolve()
         if not self.weights.is_file():
             raise FileNotFoundError(self.weights)
-        if not self.class_names or len(set(self.class_names)) != len(self.class_names):
-            raise ValueError("YOLO class names must be non-empty and unique")
-        for name in self.class_names:
-            if not CLASS_NAME.fullmatch(name):
-                raise ValueError(f"Invalid YOLO class name: {name}")
         self._runtime = load_yolo()
-        self._artifact_digest = _artifact_digest(self.weights, self.settings)
-        self._runtime_descriptor = ultralytics_runtime_descriptor()
-
-    @classmethod
-    def from_run(
-        cls,
-        run_dir: str | Path,
-        class_names: tuple[str, ...],
-        *,
-        device: str | None = None,
-    ) -> UltralyticsDetector:
-        run = Path(run_dir).resolve()
-        weights, settings = load_yolo_inference_settings(run)
-        return cls(
-            weights,
-            settings,
-            class_names,
-            device,
+        with self.weights.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256")
+        digest.update(b"\0")
+        digest.update(
+            json.dumps(
+                self.settings.to_dict(), sort_keys=True, separators=(",", ":")
+            ).encode()
         )
+        self._artifact_digest = digest.hexdigest()
+        self._runtime_descriptor = ultralytics_runtime_descriptor()
 
     @property
     def artifact_digest(self) -> str:
@@ -195,8 +107,6 @@ class UltralyticsDetector:
             names = getattr(model, "names", None)
             if isinstance(names, dict) and set(names) == set(range(len(names))):
                 artifact_classes = tuple(names[index] for index in range(len(names)))
-            elif isinstance(names, (list, tuple)):
-                artifact_classes = tuple(names)
             else:
                 raise RuntimeError("YOLO weights do not declare an ordered class list")
             if artifact_classes != self.class_names:
@@ -220,7 +130,7 @@ class UltralyticsDetector:
             "imgsz": self.settings.image_size,
             "max_det": self.settings.max_detections,
             "end2end": self.settings.end_to_end,
-            "iou": 0.7,
+            "iou": YOLO_IOU,
             "verbose": False,
         }
         if self.device is not None:

@@ -2,23 +2,24 @@ import { useBlocker, useRouter } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 
 import {
-  openDraft,
-  reduceDraft,
   type AnnotationDraft,
   type DraftAction,
+  openDraft,
+  reduceDraft,
 } from "../../domain/annotation/draft";
-import { sourceInstances, type Review } from "../../domain/annotation/review";
+import { type Review, sourceInstances } from "../../domain/annotation/readings";
 import type {
   AnnotationInstance,
   ReviewSource,
 } from "../../domain/annotation/schema";
+import { businessFailureSchema } from "../../domain/errors";
 import type { Model } from "../../domain/models/schema";
-import { saveAnnotation } from "../../functions/review";
+import { updateAnnotation } from "../../functions/review";
 import { canonicalJson } from "../../lib/json/canonical";
 import { m } from "../../paraglide/messages";
-import { confirmDestructive } from "../../ui/confirmDestructive";
+import { useConfirmDestructive } from "../../ui/confirmDestructive";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
-import { classForShortcut } from "./controls";
+import { classForShortcut } from "./class-keys";
 import { isOwnedKey } from "./keys";
 
 /** The readings a draft opens from: which one is shown, and the stored review. */
@@ -105,12 +106,12 @@ function reduceSession(
 
 /**
  * Where the boxes on view stand: edited and not yet confirmed, a person's
- * review, a machine's reading awaiting one, or nothing read at all.
+ * review, a Worker's reading awaiting one, or nothing read at all.
  */
 export type Standing =
   "edited" | "reviewed" | Exclude<ReviewSource, "review"> | "unread";
 
-export interface ImageSession {
+interface ImageSession {
   instances: AnnotationInstance[];
   /** The reading the draft descends from. */
   origin: ReviewSource | null;
@@ -168,6 +169,7 @@ export function useImageSession({
   model: Model;
   locked: boolean;
 }): ImageSession {
+  const confirmDestructive = useConfirmDestructive();
   const opening = useMemo(() => openingOf(review, shown), [review, shown]);
   const [session, dispatch] = useReducer(reduceSession, null, () =>
     opened(opening, model.classes[0]!),
@@ -209,10 +211,12 @@ export function useImageSession({
       title: m.annotation_discard_confirm(),
       content: m.annotation_discard_description(),
       confirmLabel: m.annotation_discard(),
+      failure: m.annotation_not_discarded(),
       onConfirm: blocker.proceed,
       onCancel: blocker.reset,
+      invalidate: false,
     });
-  }, [blocker, saving]);
+  }, [blocker, saving, confirmDestructive]);
 
   const selected =
     instances.find((instance) => instance.id === session.selectedId) ?? null;
@@ -265,37 +269,47 @@ export function useImageSession({
     dispatch({ type: "submit" });
     const result = await runSave(
       () =>
-        saveAnnotation({
+        updateAnnotation({
           data: {
             ref: review.ref,
             base: draft.base,
             instances: draft.instances,
           },
+        }).catch((error: unknown) => {
+          const failure = businessFailureSchema.safeParse(error);
+          if (failure.success && failure.data.code === "annotation_conflict")
+            return { status: "conflict" } as const;
+          throw error;
         }),
-      m.annotation_save_failed(),
+      m.annotation_not_saved(),
+      {
+        invalidate: false,
+        onSuccess: async (value) => {
+          if (value.status === "conflict") {
+            dispatch({ type: "conflict" });
+            return;
+          }
+          // The stored boxes are the review now. The readings on hand still predate
+          // it, so the draft holds until fresh ones arrive.
+          dispatch({
+            type: "open",
+            opening: {
+              key: opening.key,
+              shown: "review",
+              base: draft.instances,
+              instances: draft.instances,
+            },
+            activeClass: session.activeClass,
+          });
+          await router.invalidate();
+        },
+      },
     );
     if (!result.ok) {
       dispatch({ type: "failed" });
       return false;
     }
-    if (result.value.status === "conflict") {
-      dispatch({ type: "conflict" });
-      return false;
-    }
-    // The stored boxes are the review now. The readings on hand still predate
-    // it, so the draft holds until fresh ones arrive.
-    dispatch({
-      type: "open",
-      opening: {
-        key: opening.key,
-        shown: "review",
-        base: draft.instances,
-        instances: draft.instances,
-      },
-      activeClass: session.activeClass,
-    });
-    await router.invalidate();
-    return true;
+    return result.value.status !== "conflict";
   }, [draft, review.ref, router, runSave, opening.key, session.activeClass]);
 
   const discard = useCallback(
@@ -306,7 +320,9 @@ export function useImageSession({
   const { run: runReload } = useAsyncAction();
   const reload = useCallback(() => {
     discard();
-    void runReload(() => router.invalidate(), m.annotation_reload_failed());
+    void runReload(() => router.invalidate(), m.annotation_not_reloaded(), {
+      invalidate: false,
+    });
   }, [discard, runReload, router]);
 
   useShortcuts({

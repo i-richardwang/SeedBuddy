@@ -1,4 +1,5 @@
 import type { ElementType, HTMLAttributes, ReactNode } from "react";
+
 import { cn } from "./cn";
 
 /*
@@ -21,7 +22,7 @@ const SIZE = {
   lg: "ui-text-lg",
 } as const;
 
-export interface TextProps extends HTMLAttributes<HTMLDivElement> {
+interface TextProps extends HTMLAttributes<HTMLDivElement> {
   as?: ElementType;
   disabled?: boolean;
   ellipsis?: boolean;

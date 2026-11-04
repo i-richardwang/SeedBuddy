@@ -7,8 +7,7 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-from vitroctl.image_geometry.recipe import DISH_RECIPE as recipe
-from vitroctl.image_geometry.recipe import thumbnail_geometry
+from vitroctl.image_geometry.recipe import DISH_RECIPE, thumbnail_geometry
 
 
 @dataclass(frozen=True)
@@ -27,17 +26,17 @@ def detect_dish_circle(image: np.ndarray) -> DishCircle | None:
         interpolation=cv2.INTER_AREA,
     )
     gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-    gray = cv2.GaussianBlur(gray, (0, 0), recipe["sigma"])
+    gray = cv2.GaussianBlur(gray, (0, 0), DISH_RECIPE["sigma"])
     sh, sw = gray.shape
     circles = cv2.HoughCircles(
         gray,
         cv2.HOUGH_GRADIENT,
-        dp=recipe["dp"],
+        dp=DISH_RECIPE["dp"],
         minDist=min(sh, sw) // 2,
-        param1=recipe["edgeThreshold"],
-        param2=recipe["centerThreshold"],
-        minRadius=int(min(sh, sw) * recipe["minRadiusFraction"]),
-        maxRadius=int(min(sh, sw) * recipe["maxRadiusFraction"]),
+        param1=DISH_RECIPE["edgeThreshold"],
+        param2=DISH_RECIPE["centerThreshold"],
+        minRadius=int(min(sh, sw) * DISH_RECIPE["minRadiusFraction"]),
+        maxRadius=int(min(sh, sw) * DISH_RECIPE["maxRadiusFraction"]),
     )
     if circles is None:
         return None
@@ -47,7 +46,7 @@ def detect_dish_circle(image: np.ndarray) -> DishCircle | None:
         circles[0],
         key=lambda candidate: (
             np.linalg.norm(candidate[:2] - image_center)
-            - recipe["radiusPreference"] * candidate[2]
+            - DISH_RECIPE["radiusPreference"] * candidate[2]
         ),
     )
     center_x, center_y, radius = (float(value / scale) for value in best)

@@ -1,20 +1,22 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
+
 import type {
-  TrainingRun,
   TrainingAttempt,
+  TrainingRun,
 } from "../../domain/training/schema";
-import { database, type Executor } from "../infra/db/client";
+import type { Executor } from "../infra/db/client";
 import { trainingAttempts } from "../infra/db/schema";
 
 export async function finishAttempt(
   run: TrainingRun,
   outcome: Exclude<TrainingAttempt["outcome"], null>,
+  error: string | null,
+  at: Date,
   db: Executor,
-  error: string | null = null,
 ) {
   await db
     .update(trainingAttempts)
-    .set({ outcome, error, finishedAt: new Date() })
+    .set({ outcome, error, finishedAt: at })
     .where(
       and(
         eq(trainingAttempts.runId, run.id),
@@ -26,10 +28,9 @@ export async function finishAttempt(
 
 export async function listTrainingAttempts(
   runId: string,
+  db: Executor,
 ): Promise<TrainingAttempt[]> {
-  const rows = await (
-    await database()
-  )
+  const rows = await db
     .select()
     .from(trainingAttempts)
     .where(eq(trainingAttempts.runId, runId))

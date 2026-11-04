@@ -49,3 +49,7 @@
     height: 36px;
   }
 }
+
+.ui-action-icon-glyph {
+  pointer-events: none;
+}

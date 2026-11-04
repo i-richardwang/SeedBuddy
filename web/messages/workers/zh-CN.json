@@ -1,70 +1,31 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "status_title": "计算节点",
-  "status_empty": "还没有登记计算节点",
-  "worker_presence_online": "在线",
-  "worker_presence_stale": "失联",
-  "worker_presence_offline": "离线",
   "worker_activity_idle": "空闲",
   "worker_activity_inference": "正在检测 {image}",
+  "worker_activity_inference_unnamed": "正在检测图片",
   "worker_activity_training": "正在训练 {dataset}",
-  "worker_age_seconds": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount} 秒前"
-      }
-    }
-  ],
-  "worker_age_minutes": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount} 分钟前"
-      }
-    }
-  ],
-  "worker_age_hours": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount} 小时前"
-      }
-    }
-  ],
-  "worker_age_days": [
-    {
-      "declarations": ["input count", "local formattedCount = count: number"],
-      "match": {
-        "count=*": "{formattedCount} 天前"
-      }
-    }
-  ],
-  "worker_never_seen": "从未连接",
+  "worker_column_activity": "当前工作",
+  "worker_column_seen": "最近联系",
   "worker_enroll": "登记计算节点",
-  "worker_enroll_title": "登记计算节点",
-  "worker_enroll_name_label": "名称",
-  "worker_enroll_name_placeholder": "gpu-1",
-  "worker_enroll_name_description": "字母、数字、点、连字符和下划线，例如机器名。",
+  "worker_enroll_command_description": "在这台计算节点上运行，按提示粘贴令牌。",
+  "worker_enroll_command_label": "安装命令",
   "worker_enroll_create": "登记",
-  "worker_enroll_failed": "未能登记计算节点",
+  "worker_enroll_name_description": "字母、数字、点、连字符和下划线，例如计算节点名。",
+  "worker_enroll_name_placeholder": "gpu-1",
   "worker_enroll_ready": "保存令牌",
   "worker_enroll_shown_once": "只显示这一次。持有令牌即可以这个计算节点的身份连接。",
-  "worker_enroll_command_label": "安装命令",
-  "worker_enroll_command_description": "在这台机器上运行，按提示粘贴令牌。",
   "worker_enroll_token_label": "令牌",
-  "worker_remove": "移除",
+  "worker_menu_remove": "移除…",
+  "worker_never_seen": "从未连接",
+  "worker_not_enrolled": "计算节点未登记",
+  "worker_not_removed": "计算节点未移除",
+  "worker_presence_offline": "离线",
+  "worker_presence_online": "在线",
+  "worker_presence_stale": "失联",
+  "worker_remove_description": "它的令牌会立即失效，手上的任务会回到队列。要让这台计算节点重新连接，需要重新登记。",
   "worker_remove_title": "移除 {name}？",
-  "worker_remove_description": "它的令牌会立即失效，手上的任务会回到队列。要让这台机器重新连接，需要重新登记。",
   "worker_removed": "已移除 {name}",
-  "status_empty_description_admin": "登记一台机器，然后在机器上运行设置命令。",
-  "status_empty_description_member": "运行检测与训练的机器由管理员登记。",
-  "status_workers": "计算节点",
-  "worker_actions": "{name} 的操作",
-  "worker_remove_item": "移除…",
-  "status_column_worker": "计算节点",
-  "status_column_presence": "状态",
-  "status_column_activity": "当前工作",
-  "status_column_seen": "最近联系",
-  "status_column_actions": "操作"
+  "workers_empty": "还没有登记计算节点",
+  "workers_empty_description_admin": "登记一台计算节点，然后在计算节点上运行安装命令。",
+  "workers_empty_description_member": "运行检测与训练的计算节点由管理员登记。"
 }

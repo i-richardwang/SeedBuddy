@@ -36,8 +36,8 @@ def test_local_and_type_only_cycles_are_checked() -> None:
 def test_package_dependency_direction_is_checked_without_a_file_cycle() -> None:
     errors = architecture.check_architecture(
         {
-            "vitroctl.annotations": "from vitroctl.datasets.manifest import Manifest",
-            "vitroctl.datasets.manifest": "from vitroctl.annotations import Annotation",
+            "vitroctl.contracts.annotation": "from vitroctl.datasets.manifest import Manifest",
+            "vitroctl.datasets.manifest": "from vitroctl.contracts.annotation import Annotation",
         }
     )
     assert any("direction" in error for error in errors)
@@ -54,3 +54,26 @@ def test_package_member_imports_participate_in_cycles() -> None:
         {"vitroctl.training"},
     )
     assert any("Dependency cycle" in error for error in errors)
+
+
+def test_detector_contracts_have_only_their_designated_importers() -> None:
+    for layer in ("training", "image_geometry", "models", "worker.host", "cli"):
+        errors = architecture.check_architecture(
+            {
+                f"vitroctl.{layer}.consumer": "from vitroctl.detectors.contract import DetectionResult",
+                "vitroctl.detectors.contract": "",
+            }
+        )
+        assert any("direction" in error for error in errors)
+    for layer in (
+        "datasets",
+        "detectors.traditional",
+        "detectors.ultralytics",
+        "worker",
+    ):
+        assert not architecture.check_architecture(
+            {
+                f"vitroctl.{layer}.consumer": "from vitroctl.detectors.contract import DetectionResult",
+                "vitroctl.detectors.contract": "",
+            }
+        )

@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
+
 import type { StartAnnotationRun } from "../../domain/annotation-runs/schema";
-import { readReview } from "../readings/public";
-import { createModel, setModelAnnotation } from "../models/public";
-import { annotationRuns } from "../infra/db/schema";
+import { modelAnnotationRequestSchema } from "../../domain/models/schema";
 import { database } from "../infra/db/client";
-import { observeImages } from "../testing/fixtures";
-import { createAnnotationRun, cancelAnnotationRun } from "./runs";
+import { annotationRuns } from "../infra/db/schema";
+import { createModel, setModelAnnotation } from "../models/public";
+import { readReview } from "../readings/public";
+import { observeImages } from "../testing/experiments";
+import { cancelAnnotationRun, createAnnotationRun } from "./runs";
 import { nextAnnotationTask, savePreview, submitProposal } from "./tasks";
 
 async function stored(id: string) {
@@ -47,12 +49,12 @@ test("the model's instructions and region are frozen into the run definition", a
     displayScale: 4,
   };
   await setModelAnnotation({ model: model.id, annotation });
-  await expect(
-    setModelAnnotation({
+  expect(() =>
+    modelAnnotationRequestSchema.parse({
       model: model.id,
       annotation: { ...annotation, halo: 17 },
     }),
-  ).rejects.toThrow("Context cannot exceed core size");
+  ).toThrow("Context cannot exceed core size");
   const run = await createAnnotationRun({ ...request, ref });
   const { definition } = await stored(run.id);
   expect(definition.config).toEqual({
@@ -196,4 +198,14 @@ test("starting a run never waits for image processing or creates regional eviden
     release();
     await blocked;
   }
+});
+
+test("starting on an absent canonical image uses the shared image refusal", async () => {
+  await expect(
+    createAnnotationRun({
+      ref: { digest: "0".repeat(64), modelId: "seed-detector" },
+      input: null,
+      scope: null,
+    }),
+  ).rejects.toMatchObject({ code: "image_not_found" });
 });

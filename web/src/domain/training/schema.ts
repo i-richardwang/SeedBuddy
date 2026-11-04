@@ -4,6 +4,7 @@ import { annotationSchema } from "../annotation/schema";
 import { resourceIdSchema, sha256Schema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";
+import { timestampSchema } from "../time";
 import { trainingParametersSchema } from "./parameters";
 
 /** A snapshot needs one training and one validation image. */
@@ -64,7 +65,7 @@ export const datasetSnapshotSchema = z
     datasetId: resourceIdSchema,
     modelId: resourceIdSchema,
     classes: classListSchema,
-    createdAt: z.string().datetime({ offset: true }),
+    createdAt: timestampSchema,
     images: z.array(snapshotImageSchema).min(MIN_SNAPSHOT_IMAGES),
   })
   .superRefine((snapshot, context) => {
@@ -129,7 +130,7 @@ export const trainingEpochReportSchema = z.strictObject({
 });
 
 export const trainingEpochSchema = trainingEpochReportSchema.extend({
-  recordedAt: z.string().datetime({ offset: true }),
+  recordedAt: timestampSchema,
 });
 
 const trainingRunStateSchema = z.discriminatedUnion("status", [
@@ -140,7 +141,7 @@ const trainingRunStateSchema = z.discriminatedUnion("status", [
     status: z.literal("running"),
     workerId: resourceIdSchema,
     sessionId: resourceIdSchema,
-    leaseExpiresAt: z.string().datetime({ offset: true }),
+    leaseExpiresAt: timestampSchema,
     phase: z.enum(TRAINING_PHASES),
     progress: z.number().finite().min(0).max(1),
   }),
@@ -154,16 +155,8 @@ const trainingRunStateSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
-export const trainingAttemptOwnerSchema = z.strictObject({
-  sessionId: resourceIdSchema,
-  attempt: z.number().int().positive(),
-});
-export type TrainingAttemptOwner = z.infer<
-  typeof trainingAttemptOwnerSchema
-> & { workerId: string };
-
 /** Last reported recovery point; its files exist only on this Worker. */
-export const trainingCheckpointSchema = z.strictObject({
+const trainingCheckpointSchema = z.strictObject({
   attempt: z.number().int().positive(),
   epoch: z.number().int().positive(),
   workerId: resourceIdSchema,
@@ -192,8 +185,8 @@ export const TRAINING_ATTEMPT_OUTCOMES = [
 export interface TrainingAttempt {
   attempt: number;
   workerId: string;
-  startedAt: string;
-  finishedAt: string | null;
+  startedAt: z.infer<typeof timestampSchema>;
+  finishedAt: z.infer<typeof timestampSchema> | null;
   outcome: (typeof TRAINING_ATTEMPT_OUTCOMES)[number] | null;
   error: string | null;
 }
@@ -203,10 +196,10 @@ export const trainingRunSchema = z.strictObject({
   id: resourceIdSchema,
   modelId: resourceIdSchema,
   datasetSnapshotId: resourceIdSchema,
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: timestampSchema,
   attempt: z.number().int().nonnegative(),
   targetWorkerId: resourceIdSchema.nullable(),
-  lastProgressAt: z.string().datetime({ offset: true }).nullable(),
+  lastProgressAt: timestampSchema.nullable(),
   checkpoint: trainingCheckpointSchema.nullable(),
   recipe: trainingRecipeSchema,
   state: trainingRunStateSchema,

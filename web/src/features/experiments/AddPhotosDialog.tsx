@@ -1,9 +1,7 @@
-import { useRouter } from "@tanstack/react-router";
-
-import type { Unit } from "../../domain/experiments/contracts";
 import type { PlacedPhoto } from "../../domain/experiments/photos";
+import type { Unit } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
-import { assignImagesToObservation } from "../../functions/experiments";
+import { updateObservationImages } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
@@ -12,7 +10,7 @@ import { observationLabel } from "./labels";
 import {
   ObservationPhotosField,
   useObservationPhotos,
-} from "./ObservationPhotos";
+} from "./observation-photos";
 
 const FORM_ID = "add-photos";
 
@@ -48,7 +46,6 @@ function AddPhotosSession({
   onClose,
   afterClose,
 }: AddPhotosDialogProps & { afterClose: () => void }) {
-  const router = useRouter();
   const action = useAsyncAction();
   const photos = useObservationPhotos({ units, assigned, placed });
 
@@ -57,13 +54,13 @@ function AddPhotosSession({
       open={open}
       onClose={onClose}
       afterClose={afterClose}
-      title={m.observation_images_heading({
+      title={m.observation_photos_heading({
         observation: observationLabel(observation),
       })}
       okText={
         photos.uploads.storing
-          ? m.observation_images_uploading()
-          : m.observation_images_assign_count({ count: photos.ready.length })
+          ? m.observation_photos_uploading()
+          : m.observation_photos_match_count({ count: photos.ready.length })
       }
       formId={FORM_ID}
       busy={action.busy}
@@ -74,23 +71,20 @@ function AddPhotosSession({
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
-          void action
-            .run(
-              () =>
-                assignImagesToObservation({
-                  data: {
-                    experiment,
-                    observation: observation.id,
-                    images: photos.ready,
-                  },
-                }),
-              m.observation_images_assign_failed(),
-            )
-            .then(async (result) => {
-              if (!result.ok) return;
-              onClose();
-              await router.invalidate();
-            });
+          void action.run(
+            () =>
+              updateObservationImages({
+                data: {
+                  experiment,
+                  observation: observation.id,
+                  images: photos.ready,
+                },
+              }),
+            m.observation_photos_not_matched(),
+            {
+              onSuccess: onClose,
+            },
+          );
         }}
       >
         <ObservationPhotosField photos={photos} disabled={action.busy} />

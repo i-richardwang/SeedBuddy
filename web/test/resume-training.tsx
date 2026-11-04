@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+
 import { mock } from "bun:test";
 import { act } from "react";
+
 import { body, browser, button, render, unmount } from "./dom";
 
 const submissions: unknown[] = [];
@@ -8,7 +10,7 @@ mock.module("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate: async () => {} }),
 }));
 mock.module("../src/functions/training", () => ({
-  controlTraining: async (value: unknown) => {
+  updateTrainingRun: async (value: unknown) => {
     submissions.push(value);
   },
 }));
@@ -32,7 +34,7 @@ const paused: Run = {
   recipe: YOLO26N_WHOLE_RECIPE,
   state: { status: "paused" },
 };
-/** The dialog reads the run, its training set and the workers it can go to. */
+/** The dialog reads the run, its training set and the Workers it can go to. */
 const detail = (run: Run) =>
   ({
     dataset: { id: "test" },
@@ -64,7 +66,7 @@ try {
   );
   assert.ok(
     body.textContent?.includes(
-      m.training_resume_local_worker({ worker: "gpu-1" }),
+      m.training_worker_resume_local({ worker: "gpu-1" }),
     ),
   );
   await submit();

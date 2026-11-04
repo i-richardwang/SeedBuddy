@@ -74,7 +74,7 @@ class PipelineConfig:
     def from_json(cls, path: str | Path) -> PipelineConfig:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            raise TypeError("Configuration must be a JSON object")
+            raise ValueError("Configuration must be a JSON object")
         valid_sections = {field.name for field in fields(cls)}
         unknown_sections = set(data).difference(valid_sections)
         if unknown_sections:
@@ -107,10 +107,16 @@ def _section(
 ) -> ConfigSection:
     values = data.get(name, {})
     if not isinstance(values, dict):
-        raise TypeError(f"Configuration section '{name}' must be an object")
+        raise ValueError(f"Configuration section '{name}' must be an object")
     valid_fields = {field.name for field in fields(section_type)}
     unknown_fields = set(values).difference(valid_fields)
     if unknown_fields:
         names = ", ".join(sorted(unknown_fields))
         raise ValueError(f"Unknown field(s) in '{name}': {names}")
-    return section_type(**values)
+    try:
+        return section_type(**values)
+    except TypeError as error:
+        raise ValueError(f"Invalid configuration section {name}: {error}") from error
+
+
+DEFAULT_PIPELINE_CONFIG = PipelineConfig()
