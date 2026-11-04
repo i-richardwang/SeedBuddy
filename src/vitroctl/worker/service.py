@@ -81,14 +81,13 @@ class Worker:
 def run_worker(
     settings: WorkerSettings,
     *,
-    on_ready: Callable[[], None] | None = None,
-) -> int:
+    on_ready: Callable[[], None],
+) -> None:
     settings.work_dir.mkdir(parents=True, exist_ok=True)
     worker = Worker(settings)
     try:
         with shutdown_signals() as stopped:
-            if on_ready:
-                on_ready()
+            on_ready()
             while not stopped.is_set():
                 try:
                     worked = worker.serve_once(stopped)
@@ -100,6 +99,5 @@ def run_worker(
                     worked = False
                 if not worked:
                     stopped.wait(settings.poll_seconds)
-            return 0
     finally:
         worker.close()

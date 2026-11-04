@@ -219,6 +219,7 @@ def test_interrupted_training_resumes_after_its_last_completed_epoch(
             model_digest=digest,
             runtime_version="8.4.131",
             device="mps",
+            resume_required=False,
             on_epoch=lambda report: reported.append(report.epoch),
         )
 
@@ -258,13 +259,17 @@ def test_finished_training_left_behind_starts_over(
         "model_digest": digest,
         "runtime_version": "8.4.131",
     }
-    train_yolo_detector(_dataset(tmp_path), output, **options)
+    train_yolo_detector(
+        _dataset(tmp_path), output, device=None, resume_required=False, **options
+    )
     (output / "stale").write_text("left by the finished training")
     reported: list[int] = []
 
     train_yolo_detector(
         _dataset(tmp_path),
         output,
+        device=None,
+        resume_required=False,
         on_epoch=lambda report: reported.append(report.epoch),
         **options,
     )
@@ -329,6 +334,7 @@ def test_training_reports_epochs_and_publishes_validated_settings(
         model_digest=digest,
         runtime_version="8.4.131",
         device="mps",
+        resume_required=False,
         on_training_start=lambda: phases.append("training"),
         on_epoch=reported.append,
         on_validation_start=lambda: phases.append("validating"),
@@ -395,5 +401,6 @@ def test_a_requested_resume_never_silently_discards_an_invalid_checkpoint(
             model="yolo26n.pt",
             model_digest="a" * 64,
             runtime_version="8.4.131",
+            device=None,
             resume_required=True,
         )

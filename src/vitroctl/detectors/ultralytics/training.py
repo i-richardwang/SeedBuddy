@@ -261,11 +261,11 @@ def train_yolo_detector(
     model: str | Path,
     model_digest: str,
     runtime_version: str,
-    device: str | None = None,
+    device: str | None,
     on_training_start: Callable[[], None] | None = None,
     on_epoch: Callable[[EpochReport], None] | None = None,
     on_validation_start: Callable[[], None] | None = None,
-    resume_required: bool = False,
+    resume_required: bool,
     on_execution: Callable[[dict[str, Any]], None] | None = None,
 ) -> YoloTrainingResult:
     """Fine-tune, validate, and publish inference calibration for a YOLO detector.

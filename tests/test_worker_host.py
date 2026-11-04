@@ -116,10 +116,9 @@ def test_profile_host_passes_typed_settings_and_marks_readiness(
     )
     received: list[WorkerSettings] = []
 
-    def run(settings: WorkerSettings, *, on_ready):
+    def run(settings: WorkerSettings, *, on_ready) -> None:
         received.append(settings)
         on_ready()
-        return 0
 
     monkeypatch.setattr(worker_host, "run_worker", run)
 
@@ -146,7 +145,7 @@ def test_profile_host_records_startup_failures_in_status_and_log(
         ),
     )
 
-    def fail(_settings, *, on_ready):
+    def fail(_settings, *, on_ready) -> None:
         raise RuntimeError("startup failed")
 
     monkeypatch.setattr(worker_host, "run_worker", fail)
@@ -167,7 +166,7 @@ def test_an_unenrolled_worker_stops_cleanly_and_says_why(tmp_path, monkeypatch) 
         WorkerProfile(server_url="https://example.test", token="removed"),
     )
 
-    def refused(_settings, *, on_ready):
+    def refused(_settings, *, on_ready) -> None:
         raise WorkerNotEnrolledError
 
     monkeypatch.setattr(worker_host, "run_worker", refused)

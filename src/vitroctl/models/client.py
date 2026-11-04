@@ -11,7 +11,7 @@ from vitroctl.io.http import authorized_client
 
 class WorkbenchClient:
     def __init__(self, server: str, token: str):
-        self.server = server.rstrip("/")
+        self.server = server
         self.token = token
 
     def call(self, operation: str, arguments: dict[str, Any]) -> Any:

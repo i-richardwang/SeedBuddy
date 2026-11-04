@@ -107,7 +107,7 @@ def run_profile(name: str) -> int:
             def ready() -> None:
                 _write_status(name, "running")
 
-            result = run_worker(profile.settings(name), on_ready=ready)
+            run_worker(profile.settings(name), on_ready=ready)
         except WorkerNotEnrolledError as error:
             # Exiting cleanly keeps launchd from restarting a worker that can
             # only be refused again.
@@ -118,8 +118,8 @@ def run_profile(name: str) -> int:
             LOGGER.exception("worker stopped after an error")
             _write_status(name, "failed", detail=str(error))
             return 1
-        _write_status(name, "stopped" if result == 0 else "failed")
-        return result
+        _write_status(name, "stopped")
+        return 0
 
 
 def _read_status(name: str) -> dict[str, object] | None:

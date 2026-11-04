@@ -13,6 +13,7 @@ from vitroctl.detectors.traditional.candidates import FEATURE_NAMES, CandidateEv
 from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
 from vitroctl.detectors.traditional.proposals import SeedProposal
 from vitroctl.detectors.traditional.scoring import CandidateModel
+from vitroctl.detectors.traditional.training import training
 from vitroctl.detectors.traditional.training.data import (
     PreparedImage,
     label_candidates,
@@ -125,7 +126,9 @@ def test_every_annotated_class_is_a_seed_body(monkeypatch: pytest.MonkeyPatch) -
     assert prepared.matched_boxes == 2
 
 
-def test_training_selects_a_model_that_reduces_traditional_corrections() -> None:
+def test_training_selects_a_model_that_reduces_traditional_corrections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     images = [_image(index) for index in range(3)]
     config = PipelineConfig(
         decision=DecisionConfig(
@@ -135,11 +138,15 @@ def test_training_selects_a_model_that_reduces_traditional_corrections() -> None
     )
     baseline = evaluate_candidate_model(_prior(), images, config)
 
+    monkeypatch.setattr(
+        training,
+        "_DEFAULT_GRID",
+        SelectionGrid((None, 1.0), (0.3, 3.0), (0.3, 0.5, 0.7)),
+    )
     trained = train_candidate_model(
         images,
         _prior(),
         config,
-        grid=SelectionGrid((None, 1.0), (0.3, 3.0), (0.3, 0.5, 0.7)),
     )
 
     assert baseline.false_positive == 3
