@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ExperimentGridDetail } from "./read-model";
+import type { ExperimentRecords } from "./read-model";
 import type { Experiment } from "./schema";
-import { gridSummary } from "./sheet";
-import { statistic } from "./summary";
-import { cell, counted, event, grid, observation, photograph } from "./testing";
+import { recordsSummary, statistic, summaryCell } from "./summary";
+import { counted, event, observation, photograph, records } from "./testing";
 
 const experiment: Experiment = {
   id: "experiment",
@@ -37,9 +36,9 @@ const DISHES = [
 ];
 
 function scenario(
-  overrides: Partial<ExperimentGridDetail> = {},
-): ExperimentGridDetail {
-  return grid({
+  overrides: Partial<ExperimentRecords> = {},
+): ExperimentRecords {
+  return records({
     experiment,
     treatments: [
       { id: "t", name: "Treated", factor: null, note: "", position: 1 },
@@ -78,7 +77,7 @@ describe("a statistic", () => {
 
 describe("the summary by treatment", () => {
   test("has a cell for every treatment on every observation, treatments in the design's order", () => {
-    const summary = gridSummary(scenario());
+    const summary = recordsSummary(scenario());
     expect(summary.baseline).toBe(sown.id);
     expect(
       summary.cells.map(
@@ -88,24 +87,14 @@ describe("the summary by treatment", () => {
   });
 
   test("summarises the counts of the first observation, which has no rate", () => {
-    const first = cell(gridSummary(scenario()), "t", sown);
-    expect(first.units).toEqual([
-      { unit: "a", count: 10, rate: null },
-      { unit: "b", count: 20, rate: null },
-      { unit: "c", count: 40, rate: null },
-    ]);
+    const first = summaryCell(recordsSummary(scenario()), "t", sown.id)!;
     expect(first.count?.n).toBe(3);
     expect(first.count?.mean).toBeCloseTo(23.333, 3);
     expect(first.rate).toBeNull();
   });
 
   test("rates a later day against each unit's own first count, then averages the rates", () => {
-    const later = cell(gridSummary(scenario()), "t", grown);
-    expect(later.units).toEqual([
-      { unit: "a", count: 5, rate: 0.5 },
-      { unit: "b", count: 15, rate: 0.75 },
-      { unit: "c", count: 40, rate: 1 },
-    ]);
+    const later = summaryCell(recordsSummary(scenario()), "t", grown.id)!;
     expect(later.count).toEqual({
       n: 3,
       mean: 20,
@@ -118,18 +107,17 @@ describe("the summary by treatment", () => {
   });
 
   test("a treatment with nothing read has an empty cell", () => {
-    const control = cell(gridSummary(scenario()), "c", grown);
+    const control = summaryCell(recordsSummary(scenario()), "c", grown.id)!;
     expect(control).toEqual({
       treatment: "c",
       observation: grown.id,
-      units: [],
       count: null,
       rate: null,
     });
   });
 
-  test("a unit out of the analysis is not among the treatment's units that day", () => {
-    const summary = gridSummary(
+  test("a unit out of the analysis does not count toward its treatment that day", () => {
+    const summary = recordsSummary(
       scenario({
         units: [
           { id: "a", code: "T-1", treatment: "t", events: [] },
@@ -144,12 +132,10 @@ describe("the summary by treatment", () => {
         ],
       }),
     );
-    expect(cell(summary, "t", sown).count?.n).toBe(3);
-    expect(cell(summary, "t", grown).units.map((unit) => unit.unit)).toEqual([
-      "a",
-      "c",
-    ]);
-    expect(cell(summary, "t", grown).rate).toEqual({
+    expect(summaryCell(summary, "t", sown.id)!.count?.n).toBe(3);
+    // T-2 is out: T-1 grew 5 of 10 and T-3 40 of 40.
+    expect(summaryCell(summary, "t", grown.id)!.count?.mean).toBe(22.5);
+    expect(summaryCell(summary, "t", grown.id)!.rate).toEqual({
       n: 2,
       mean: 0.75,
       sd: expect.closeTo(0.3536, 3),
@@ -166,17 +152,17 @@ describe("the summary by treatment", () => {
         ...{ unclear: true },
       }),
     ];
-    const out = gridSummary(scenario({ images }));
-    expect(cell(out, "t", sown).count?.n).toBe(2);
-    expect(cell(out, "t", grown).count?.n).toBe(2);
-    const counted = gridSummary(
+    const out = recordsSummary(scenario({ images }));
+    expect(summaryCell(out, "t", sown.id)!.count?.n).toBe(2);
+    expect(summaryCell(out, "t", grown.id)!.count?.n).toBe(2);
+    const counted = recordsSummary(
       scenario({ images, experiment: { ...experiment, countsUnclear: true } }),
     );
-    expect(cell(counted, "t", grown).count?.n).toBe(3);
+    expect(summaryCell(counted, "t", grown.id)!.count?.n).toBe(3);
   });
 
   test("a single unit has a mean and no spread", () => {
-    const summary = gridSummary(
+    const summary = recordsSummary(
       scenario({
         images: [
           photograph("k", sown, { detectionTally: { ungerminated: 8 } }),
@@ -184,7 +170,7 @@ describe("the summary by treatment", () => {
         ],
       }),
     );
-    expect(cell(summary, "c", grown).rate).toEqual({
+    expect(summaryCell(summary, "c", grown.id)!.rate).toEqual({
       n: 1,
       mean: 0.75,
       sd: null,
@@ -193,7 +179,7 @@ describe("the summary by treatment", () => {
   });
 
   test("a count entered by hand counts like a photograph's", () => {
-    const summary = gridSummary(
+    const summary = recordsSummary(
       scenario({
         images: DISHES.filter((image) => image.observation !== grown.id),
         manualReadings: [
@@ -202,14 +188,18 @@ describe("the summary by treatment", () => {
         ],
       }),
     );
-    expect(cell(summary, "t", grown).units).toEqual([
-      { unit: "a", count: 10, rate: 1 },
-      { unit: "b", count: 10, rate: 0.5 },
-    ]);
+    // T-1 sowed 10 and T-2 20; T-3 has nothing that day.
+    expect(summaryCell(summary, "t", grown.id)!.count).toEqual({
+      n: 2,
+      mean: 10,
+      sd: 0,
+      se: 0,
+    });
+    expect(summaryCell(summary, "t", grown.id)!.rate?.mean).toBe(0.75);
   });
 
   test("a day read for another model has counts but no rate", () => {
-    const summary = gridSummary(
+    const summary = recordsSummary(
       scenario({
         observations: [sown, grown, rooted],
         images: [
@@ -218,14 +208,14 @@ describe("the summary by treatment", () => {
         ],
       }),
     );
-    const roots = cell(summary, "t", rooted);
-    expect(roots.units).toEqual([{ unit: "a", count: 3, rate: null }]);
+    const roots = summaryCell(summary, "t", rooted.id)!;
+    expect(roots.count?.n).toBe(1);
     expect(roots.count?.mean).toBe(3);
     expect(roots.rate).toBeNull();
   });
 
   test("a unit that counted nothing on the first day has no rate", () => {
-    const summary = gridSummary(
+    const summary = recordsSummary(
       scenario({
         images: [
           photograph("k", sown, { detectionTally: {} }),
@@ -233,24 +223,22 @@ describe("the summary by treatment", () => {
         ],
       }),
     );
-    expect(cell(summary, "c", grown).units).toEqual([
-      { unit: "k", count: 2, rate: null },
-    ]);
+    expect(summaryCell(summary, "c", grown.id)!.count?.mean).toBe(2);
+    expect(summaryCell(summary, "c", grown.id)!.rate).toBeNull();
   });
 
   test("a unit not read on the first day has no rate on any day", () => {
-    const summary = gridSummary(
+    const summary = recordsSummary(
       scenario({
         images: [photograph("k", grown, { detectionTally: { germinated: 2 } })],
       }),
     );
-    expect(cell(summary, "c", grown).units).toEqual([
-      { unit: "k", count: 2, rate: null },
-    ]);
+    expect(summaryCell(summary, "c", grown.id)!.count?.mean).toBe(2);
+    expect(summaryCell(summary, "c", grown.id)!.rate).toBeNull();
   });
 
   test("an experiment without observations has no baseline and no cells", () => {
-    expect(gridSummary(scenario({ observations: [], images: [] }))).toEqual({
+    expect(recordsSummary(scenario({ observations: [], images: [] }))).toEqual({
       baseline: null,
       cells: [],
     });

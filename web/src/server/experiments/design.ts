@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq, lt, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, ne, sql } from "drizzle-orm";
 
 import {
   ExperimentNameTakenError,
@@ -45,11 +45,14 @@ import {
 import {
   atTreatment,
   atUnit,
+  countUnits,
+  countUnitsByTreatment,
   hasRecords,
   listTreatments,
-  listUnits,
   lockExperiment,
+  requireTreatment,
   requireUnit,
+  requireUnits,
   toExperiment,
   toTreatment,
   toUnit,
@@ -139,7 +142,7 @@ export async function deleteExperiment(
   const { experiment } = value;
   await inTransaction(db, async (db) => {
     await lockExperiment(experiment, db);
-    if (await hasRecords(experiment, null, db)) {
+    if (await hasRecords(experiment, { units: "all" }, db)) {
       throw new ExperimentRecordsConflictError(
         "An experiment with images, counts or culture events cannot be deleted",
       );
@@ -180,7 +183,12 @@ async function insertReplicates(
   replicates: number,
   db: Executor,
 ): Promise<Unit[]> {
-  const taken = (await listUnits(experimentId, db)).map((unit) => unit.code);
+  const taken = (
+    await db
+      .select({ code: experimentUnits.code })
+      .from(experimentUnits)
+      .where(eq(experimentUnits.experimentId, experimentId))
+  ).map((row) => row.code);
   const rows = await db
     .insert(experimentUnits)
     .values(
@@ -274,7 +282,9 @@ export async function deleteTreatment(
         "The last treatment of an experiment cannot be deleted",
       );
     }
-    if (await hasRecords(experimentId, { treatment: treatmentId }, db)) {
+    if (
+      await hasRecords(experimentId, { units: { treatment: treatmentId } }, db)
+    ) {
       throw new TreatmentConflictError(
         "A treatment whose units have images, counts or culture events cannot be deleted",
       );
@@ -306,13 +316,8 @@ export async function updateUnit(
   return inTransaction(db, async (db) => {
     await lockExperiment(experimentId, db);
     await requireTreatment(experimentId, treatment, db);
-    const units = await listUnits(experimentId, db);
-    const unit = requireUnit(units, unitId);
-    if (unit.treatment !== treatment && isLastReplicate(units, unit)) {
-      throw new UnitConflictError(
-        "The last replicate of a treatment cannot be moved",
-      );
-    }
+    const unit = await requireUnit(experimentId, unitId, db);
+    await keepEveryTreatment(experimentId, [unit], treatment, db);
     const row = single(
       await refusingUnique(
         "experiment_units_code",
@@ -326,35 +331,31 @@ export async function updateUnit(
       ),
       "experimentUnits",
     );
-    return toUnit(row);
+    return toUnit(row, unit.events);
   });
 }
 
-/** Moves several units to one treatment in one transaction; each keeps its code. */
+/** Moves named units to one treatment in one transaction; each keeps its code. */
 export async function moveUnits(
   value: UnitsTreatmentUpdate,
   db?: Executor,
 ): Promise<Unit[]> {
+  const { experiment: experimentId, treatment } = value;
   return inTransaction(db, async (db) => {
-    await lockExperiment(value.experiment, db);
-    await requireTreatment(value.experiment, value.treatment, db);
-    const units = await listUnits(value.experiment, db);
-    const moved: Unit[] = [];
-    for (const unitId of value.units) {
-      const unit = requireUnit(units, unitId);
-      if (unit.treatment !== value.treatment && isLastReplicate(units, unit))
-        throw new UnitConflictError(
-          "The last replicate of a treatment cannot be moved",
-        );
-      unit.treatment = value.treatment;
-      moved.push(unit);
-    }
-    for (const unit of moved)
-      await db
-        .update(experimentUnits)
-        .set({ treatmentId: unit.treatment })
-        .where(atUnit(value.experiment, unit.id));
-    return moved;
+    await lockExperiment(experimentId, db);
+    await requireTreatment(experimentId, treatment, db);
+    const units = await requireUnits(experimentId, value.units, db);
+    await keepEveryTreatment(experimentId, units, treatment, db);
+    await db
+      .update(experimentUnits)
+      .set({ treatmentId: treatment })
+      .where(
+        and(
+          eq(experimentUnits.experimentId, experimentId),
+          inArray(experimentUnits.id, [...value.units]),
+        ),
+      );
+    return units.map((unit) => ({ ...unit, treatment }));
   });
 }
 
@@ -363,39 +364,50 @@ export async function deleteUnit(value: UnitRef, db?: Executor): Promise<void> {
   const { experiment: experimentId, unit: unitId } = value;
   await inTransaction(db, async (db) => {
     await lockExperiment(experimentId, db);
-    const units = await listUnits(experimentId, db);
-    const unit = requireUnit(units, unitId);
-    if (isLastReplicate(units, unit)) {
-      throw new UnitConflictError(
-        "The last replicate of a treatment cannot be deleted",
-      );
-    }
-    if (await hasRecords(experimentId, { unit: unitId }, db)) {
-      throw new UnitConflictError(
-        "A unit with images, counts or culture events cannot be deleted",
-      );
-    }
+    const unit = await requireUnit(experimentId, unitId, db);
+    const refusal = await unitDeletionRefusal(experimentId, unit, db);
+    if (refusal) throw new UnitConflictError(refusal);
     await db.delete(experimentUnits).where(atUnit(experimentId, unitId));
   });
 }
 
-function isLastReplicate(units: readonly Unit[], unit: Unit): boolean {
-  return !units.some(
-    (item) => item.treatment === unit.treatment && item.id !== unit.id,
-  );
+/**
+ * Why the unit cannot be deleted, or null where it can: its treatment keeps
+ * a replicate, and nothing is recorded of it.
+ */
+export async function unitDeletionRefusal(
+  experimentId: string,
+  unit: Unit,
+  db: Executor,
+): Promise<string | null> {
+  if ((await countUnits(experimentId, db, { treatment: unit.treatment })) < 2) {
+    return "The last replicate of a treatment cannot be deleted";
+  }
+  if (await hasRecords(experimentId, { units: { units: [unit.id] } }, db)) {
+    return "A unit with images, counts or culture events cannot be deleted";
+  }
+  return null;
 }
 
-async function requireTreatment(
+/**
+ * Every treatment keeps a replicate: refuses moving `leaving` to the
+ * treatment `to` where that would leave a treatment they come from without
+ * units.
+ */
+async function keepEveryTreatment(
   experimentId: string,
-  treatmentId: string,
+  leaving: readonly Unit[],
+  to: string,
   db: Executor,
-): Promise<Treatment> {
-  const [treatment] = await db
-    .select()
-    .from(experimentTreatments)
-    .where(atTreatment(experimentId, treatmentId));
-  if (!treatment) {
-    throw new TreatmentNotFoundError(`Unknown treatment: ${treatmentId}`);
+): Promise<void> {
+  const remaining = await countUnitsByTreatment(experimentId, db);
+  for (const unit of leaving) {
+    if (unit.treatment === to) continue;
+    remaining.set(unit.treatment, (remaining.get(unit.treatment) ?? 0) - 1);
   }
-  return toTreatment(treatment);
+  if (leaving.some((unit) => (remaining.get(unit.treatment) ?? 0) < 1)) {
+    throw new UnitConflictError(
+      "The last replicate of a treatment cannot be moved",
+    );
+  }
 }

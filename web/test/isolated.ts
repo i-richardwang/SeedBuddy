@@ -3,8 +3,9 @@ import { expect } from "bun:test";
 const WEB_DIR = `${import.meta.dir}/..`;
 
 /**
- * Runs a DOM harness in a process of its own, since the browser globals it
- * installs are process-wide, and expects it to finish cleanly with `done`.
+ * Runs a harness in a process of its own, since what it installs, browser
+ * globals or module mocks, is process-wide, and expects it to finish cleanly
+ * with `done`.
  */
 export async function expectIsolatedRun(
   harness: string,

@@ -233,8 +233,10 @@ export const unitRefSchema = z.strictObject({
 
 export type UnitRef = z.infer<typeof unitRefSchema>;
 
+/** A unit on the workbench: the day in view, and the treatment whose units are stepped through. */
 export const unitRequestSchema = unitRefSchema.extend({
   observation: observationIdSchema.optional(),
+  treatment: treatmentIdSchema.optional(),
 });
 
 export const unitUpdateSchema = unitRefSchema.extend({
@@ -244,13 +246,44 @@ export const unitUpdateSchema = unitRefSchema.extend({
 
 export type UnitUpdate = z.infer<typeof unitUpdateSchema>;
 
+/** The page sizes a reader picks among for a table of units. */
+export const UNIT_PAGE_SIZES = [20, 50, 100, 200] as const;
+
+export const DEFAULT_UNIT_PAGE_SIZE =
+  50 satisfies (typeof UNIT_PAGE_SIZES)[number];
+
+/** The most units a page holds, and so the most a command names one by one. */
+export const MAX_UNIT_PAGE_SIZE = UNIT_PAGE_SIZES[UNIT_PAGE_SIZES.length - 1];
+
+/** Units named one by one, as many as a page of them holds. */
+const namedUnitsSchema = z
+  .array(unitIdSchema)
+  .min(1)
+  .max(MAX_UNIT_PAGE_SIZE)
+  .refine(distinctIds, "Units must be distinct");
+
+/**
+ * The units a culture event is recorded for: units named one by one, each
+ * of which must take it, or every unit of one treatment, or of the whole
+ * experiment when `treatment` is null. A selection by treatment states how
+ * many units it was made over, and is refused when the experiment then holds
+ * another number; of its units, those that cannot take the event that day
+ * are passed over.
+ */
+export const unitSelectionSchema = z.union([
+  namedUnitsSchema,
+  z.strictObject({
+    treatment: treatmentIdSchema.nullable(),
+    expected: z.number().int().min(1),
+  }),
+]);
+
+export type UnitSelection = z.infer<typeof unitSelectionSchema>;
+
+/** Named units moved to another treatment, each keeping its code. */
 export const unitsTreatmentUpdateSchema = z.strictObject({
   experiment: experimentIdSchema,
-  units: z
-    .array(unitIdSchema)
-    .min(1)
-    .max(200)
-    .refine(distinctIds, "Units must be distinct"),
+  units: namedUnitsSchema,
   treatment: treatmentIdSchema,
 });
 
@@ -323,6 +356,16 @@ export const observationRefSchema = z.strictObject({
 });
 
 export type ObservationRef = z.infer<typeof observationRefSchema>;
+
+/** One treatment's units on a day, as counts are entered for them. */
+export const manualEntryRequestSchema = observationRefSchema.extend({
+  treatment: treatmentIdSchema,
+});
+
+/** The units a day's photographs are placed on, for a day already recorded or one to come. */
+export const photoSlotsRequestSchema = experimentRefSchema.extend({
+  observation: observationIdSchema.optional(),
+});
 
 const observationRequestSchema = z.strictObject({
   experiment: experimentIdSchema,

@@ -5,6 +5,7 @@ import type { NamedDataset } from "../../domain/datasets/schema";
 import type {
   ExperimentObservationImageDetail,
   Unit,
+  UnitPageRequest,
 } from "../../domain/experiments/read-model";
 import type { Treatment } from "../../domain/experiments/schema";
 import {
@@ -20,6 +21,7 @@ import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { ReplaceObservationImageDialog } from "./ReplaceObservationImageDialog";
 import { UnitDialog } from "./UnitDialog";
+import { unitTableSearch } from "./unit-table";
 
 type Action = "replace" | "edit" | "dataset";
 
@@ -31,6 +33,7 @@ export function UnitMenu({
   canRemove,
   image,
   datasets,
+  table,
 }: {
   experiment: string;
   unit: Unit;
@@ -39,6 +42,8 @@ export function UnitMenu({
   image: ExperimentObservationImageDetail | null;
   /** The datasets the photograph could join. */
   datasets: NamedDataset[];
+  /** The page of the experiment's units table that holds the unit, where deleting it leads. */
+  table: UnitPageRequest;
 }) {
   const confirmDestructive = useConfirmDestructive();
   const navigateAfterWrite = useNavigateAfterWrite();
@@ -108,6 +113,7 @@ export function UnitMenu({
             await navigateAfterWrite({
               to: "/experiments/$experiment",
               params: { experiment },
+              search: unitTableSearch(table),
             });
           },
           invalidate: false,

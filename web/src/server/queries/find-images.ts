@@ -11,7 +11,7 @@ import type {
   ImageSearchOverview,
 } from "../../domain/images/read-model";
 import { imageDigestSchema } from "../../domain/images/schema";
-import { atImageObservation } from "../experiments/public";
+import { atImageObservation, atImageUnit } from "../experiments/public";
 import { snapshot } from "../infra/db/client";
 import {
   datasetImages,
@@ -95,16 +95,7 @@ export async function findImages(
               eq(experiments.id, experimentObservationImages.experimentId),
             )
             .innerJoin(experimentObservations, atImageObservation())
-            .innerJoin(
-              experimentUnits,
-              and(
-                eq(
-                  experimentUnits.experimentId,
-                  experimentObservationImages.experimentId,
-                ),
-                eq(experimentUnits.id, experimentObservationImages.unitId),
-              ),
-            )
+            .innerJoin(experimentUnits, atImageUnit())
             .where(
               want.kind === "unit"
                 ? and(

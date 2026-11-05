@@ -1,9 +1,9 @@
 import type { CultureEvent } from "./culture-events";
 import type {
-  ExperimentGridDetail,
-  ExperimentSheetDetail,
-  ExperimentSummary,
+  ExperimentRecords,
   ObservationImageCell,
+  SheetCell,
+  SheetRow,
 } from "./read-model";
 import type { ExperimentObservation, ManualReading } from "./schema";
 
@@ -66,9 +66,9 @@ export function event(
     recordedAt: "2026-09-01T00:00:00.000Z",
   };
 }
-export function grid(
-  overrides: Partial<ExperimentGridDetail> = {},
-): ExperimentGridDetail {
+export function records(
+  overrides: Partial<ExperimentRecords> = {},
+): ExperimentRecords {
   return {
     experiment: {
       id: "experiment",
@@ -89,16 +89,16 @@ export function grid(
     ...overrides,
   };
 }
-export function cell<T extends ExperimentSheetDetail | ExperimentSummary>(
-  source: T,
-  subject: string,
-  day: ExperimentObservation,
-): T["cells"][number] {
-  const found = source.cells.find(
-    (cell) =>
-      ("unit" in cell ? cell.unit : cell.treatment) === subject &&
-      cell.observation === day.id,
-  );
-  if (!found) throw new Error(`No cell for ${subject} on ${day.id}`);
+/** The unit's cell among `rows` on `day`. */
+export function rowCell(
+  rows: readonly SheetRow[],
+  unit: string,
+  day: ExperimentObservation | string,
+): SheetCell {
+  const observation = typeof day === "string" ? day : day.id;
+  const found = rows
+    .find((row) => row.unit.id === unit)
+    ?.cells.find((cell) => cell.observation === observation);
+  if (!found) throw new Error(`No cell for ${unit} on ${observation}`);
   return found;
 }

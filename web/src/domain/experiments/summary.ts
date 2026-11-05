@@ -1,12 +1,11 @@
-import { cellKey } from "./cell-reading";
 import type {
-  ExperimentGridDetail,
+  ExperimentRecords,
   ExperimentSummary,
-  SheetCell,
   Statistic,
   TreatmentDaySummary,
 } from "./read-model";
 import type { ExperimentObservation } from "./schema";
+import { sheetRows } from "./sheet";
 
 /**
  * The summary is the experiment by treatment: on each observation, how many
@@ -81,26 +80,24 @@ function summaryKey(treatment: string, observation: string): string {
   return `${treatment}:${observation}`;
 }
 
-/** The experiment summarised by treatment on every observation, from the cells the analysis reads. */
-export function experimentSummary(
-  grid: ExperimentGridDetail,
-  cells: readonly SheetCell[],
-): ExperimentSummary {
-  const byCell = new Map(
-    cells.map((cell) => [cellKey(cell.unit, cell.observation), cell]),
-  );
-  const baseline = baselineObservation(grid.observations);
+/**
+ * The experiment summarised by treatment on every observation, from the row
+ * of every unit the records hold as the analysis reads it.
+ */
+export function recordsSummary(records: ExperimentRecords): ExperimentSummary {
+  const baseline = baselineObservation(records.observations);
 
   // Every unit's numbers on every day, before they are gathered by treatment.
-  const numbers = new Map<string, TreatmentDaySummary["units"]>();
-  for (const unit of grid.units) {
+  // A row holds a cell for every observation, in the observations' order.
+  const numbers = new Map<string, { count: number; rate: number | null }[]>();
+  for (const { unit, cells } of sheetRows(records)) {
     const first = baseline
-      ? (byCell.get(cellKey(unit.id, baseline.id))?.reading ?? null)
+      ? (cells.find((cell) => cell.observation === baseline.id)?.reading ??
+        null)
       : null;
-    for (const observation of grid.observations) {
-      const cell = byCell.get(cellKey(unit.id, observation.id));
-      if (!cell || cell.exclusion || !cell.reading) continue;
-      const reading = cell.reading;
+    records.observations.forEach((observation, index) => {
+      const { reading, exclusion } = cells[index]!;
+      if (exclusion || !reading) return;
       const comparable =
         baseline !== null &&
         observation.id !== baseline.id &&
@@ -110,24 +107,22 @@ export function experimentSummary(
       const key = summaryKey(unit.treatment, observation.id);
       const entry = numbers.get(key) ?? [];
       entry.push({
-        unit: unit.id,
         count: reading.count,
         rate: comparable ? reading.count / first.count : null,
       });
       numbers.set(key, entry);
-    }
+    });
   }
 
   return {
     baseline: baseline?.id ?? null,
-    cells: grid.treatments.flatMap((treatment) =>
-      grid.observations.map((observation): TreatmentDaySummary => {
+    cells: records.treatments.flatMap((treatment) =>
+      records.observations.map((observation): TreatmentDaySummary => {
         const units =
           numbers.get(summaryKey(treatment.id, observation.id)) ?? [];
         return {
           treatment: treatment.id,
           observation: observation.id,
-          units,
           count: statistic(units.map((unit) => unit.count)),
           rate: statistic(
             units.flatMap((unit) => (unit.rate === null ? [] : [unit.rate])),

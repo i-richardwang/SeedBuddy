@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { observationImageRefSchema } from "../experiments/schema";
+import {
+  observationImageRefSchema,
+  observationRefSchema,
+} from "../experiments/schema";
 import { resourceIdSchema } from "../identifiers/schema";
 import { imageDigestSchema } from "../images/schema";
 import { IMAGE_SPLITS } from "../training/schema";
@@ -45,10 +48,23 @@ export type Dataset = z.infer<typeof datasetSchema>;
 /** A dataset by its id, with the name it is shown under. */
 export type NamedDataset = Pick<Dataset, "id" | "name">;
 
+/**
+ * Experiment photographs joining a dataset: named one by one, or every
+ * photograph of one observation, resolved when they are added.
+ */
+export const observationPhotographsSchema = z.union([
+  z.array(observationImageRefSchema).min(1, "No images to add"),
+  observationRefSchema,
+]);
+
+export type ObservationPhotographs = z.infer<
+  typeof observationPhotographsSchema
+>;
+
 /** Experiment images founding a new dataset for their observation's model. */
 export const newDatasetImageAdditionSchema = z.strictObject({
   name: datasetNameSchema,
-  images: z.array(observationImageRefSchema).min(1, "No images to add"),
+  images: observationPhotographsSchema,
 });
 
 export type NewDatasetImageAddition = z.infer<
@@ -74,7 +90,7 @@ export type DatasetUpdate = z.infer<typeof datasetUpdateSchema>;
 /** Experiment images joining a dataset that trains their observation's model. */
 export const datasetImageAdditionSchema = z.strictObject({
   dataset: datasetIdSchema,
-  images: z.array(observationImageRefSchema).min(1, "No images to add"),
+  images: observationPhotographsSchema,
 });
 
 export type DatasetImageAddition = z.infer<typeof datasetImageAdditionSchema>;

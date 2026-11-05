@@ -20,12 +20,9 @@ import {
 } from "../infra/db/schema";
 import { documentTally } from "../readings/public";
 
-function reading(
-  status: "succeeded" | "failed" | null,
-  counted: Tally,
-): ComparedReading {
-  if (status === "failed") return "failed";
-  return status === "succeeded" ? counted : null;
+/** What a version read of an image: its failure, its count, or nothing yet. */
+function reading(failed: boolean, counted: Tally | null): ComparedReading {
+  return failed ? "failed" : counted;
 }
 
 /**
@@ -51,14 +48,10 @@ function heldOutImages(
       datasetId: datasetImages.datasetId,
       filename: datasetImages.filename,
       reviewed: documentTally(datasetSnapshotImages.annotation),
-      candidateStatus: sql<
-        "succeeded" | "failed" | null
-      >`case when ${candidateTask.status} = 'failed' then 'failed' when ${candidateOutcome.imageId} is not null then 'succeeded' else null end`,
-      candidateTally: documentTally(candidateOutcome.document),
-      currentStatus: sql<
-        "succeeded" | "failed" | null
-      >`case when ${currentTask.status} = 'failed' then 'failed' when ${currentOutcome.imageId} is not null then 'succeeded' else null end`,
-      currentTally: documentTally(currentOutcome.document),
+      candidateFailed: sql<boolean>`${candidateTask.status} is not distinct from 'failed'`,
+      candidateTally: candidateOutcome.tally,
+      currentFailed: sql<boolean>`${currentTask.status} is not distinct from 'failed'`,
+      currentTally: currentOutcome.tally,
     })
     .from(modelVersions)
     .innerJoin(models, eq(models.id, modelVersions.modelId))
@@ -149,8 +142,8 @@ export async function findVersionComparisons(
           ? { id: row.datasetId, filename: row.filename }
           : null,
       reviewed: row.reviewed,
-      candidate: reading(row.candidateStatus, row.candidateTally),
-      current: reading(row.currentStatus, row.currentTally),
+      candidate: reading(row.candidateFailed, row.candidateTally),
+      current: reading(row.currentFailed, row.currentTally),
     });
     byVersion.set(row.versionId, entry);
   }

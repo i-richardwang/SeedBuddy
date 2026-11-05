@@ -71,6 +71,8 @@
   "ui_pagination": "分页",
   "ui_pagination_next": "下一页",
   "ui_pagination_page": "第 {page} 页",
+  "ui_pagination_page_size": "每页条数",
+  "ui_pagination_page_size_option": "{size} 条/页",
   "ui_pagination_previous": "上一页",
   "ui_shell_collapse": "收起侧栏",
   "ui_shell_expand": "展开侧栏",

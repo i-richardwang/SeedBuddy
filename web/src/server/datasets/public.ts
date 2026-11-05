@@ -4,7 +4,6 @@ export {
   addExperimentObservationImagesToNewDataset,
   createDataset,
   datasetMembershipOrder,
-  listDatasets,
   listDatasetsForModel,
   readDataset,
   removeDatasetImages,

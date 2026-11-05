@@ -1,7 +1,10 @@
 import { ImageOff } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import { countChange } from "../../domain/experiments/cell-reading";
+import {
+  cellReading,
+  countChange,
+} from "../../domain/experiments/cell-reading";
 import type {
   Exclusion,
   UnitDetail,
@@ -120,7 +123,7 @@ export function DayComparison({
 
 /**
  * What the two days read, a row each in the order they stand, the reference
- * day first, each read as the experiment's grid reads it. When both days
+ * day first, each read as the experiment's sheet reads it. When both days
  * enter the analysis and count alike, the change between them follows,
  * signed in the text color, since a count's rise is neither better nor worse.
  */
@@ -149,9 +152,12 @@ export function DayCountsSection({
             label={observationLabel(day.observation)}
           >
             <UnitDayCount
-              cell={day}
-              observation={day.observation}
-              exclusion={exclusion(day.observation)}
+              cell={{
+                image: day.image,
+                manual: day.manual,
+                reading: cellReading(day, day.observation),
+                exclusion: exclusion(day.observation),
+              }}
             />
           </DescriptionsItem>
         ))}

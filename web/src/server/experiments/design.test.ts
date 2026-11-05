@@ -26,7 +26,7 @@ import { blobExists } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { experimentUnits } from "../infra/db/schema";
 import { listModelVersions } from "../models/registry";
-import { experimentGridDetail } from "../queries/experiment-grid-detail";
+import { experimentRecordsDetail } from "../queries/experiment-records-detail";
 import { listExperimentOverviews } from "../queries/list-experiment-overviews";
 import {
   assignImages,
@@ -89,7 +89,7 @@ test("have server-owned identities and one name each", async () => {
   expect(first.name).toBe("Germination A");
 
   const invalidUnit = (async () => {
-    const [treatment] = (await experimentGridDetail(first.id))!.treatments;
+    const [treatment] = (await experimentRecordsDetail(first.id))!.treatments;
     await (await database()).insert(experimentUnits).values({
       experimentId: first.id,
       id: randomUUID(),
@@ -123,8 +123,8 @@ test("the design lays out units before any image exists", async () => {
   ]);
   expect(experiment.notes).toBe("");
 
-  const grid = (await experimentGridDetail(experiment.id))!;
-  const [control, auxin] = grid.treatments;
+  const records = (await experimentRecordsDetail(experiment.id))!;
+  const [control, auxin] = records.treatments;
   expect([control?.position, auxin?.position]).toEqual([1, 2]);
   expect(control?.note).toBe("Hormone-free MS");
   expect(auxin?.name).toBe("T1");
@@ -133,15 +133,15 @@ test("the design lays out units before any image exists", async () => {
     level: "1.0",
     unit: "mg/L",
   });
-  expect(grid.observations).toEqual([]);
-  expect(grid.units.map((unit) => [unit.code, unit.treatment])).toEqual([
+  expect(records.observations).toEqual([]);
+  expect(records.units.map((unit) => [unit.code, unit.treatment])).toEqual([
     ["CK-1", control?.id],
     ["CK-2", control?.id],
     ["T1-1", auxin?.id],
     ["T1-2", auxin?.id],
     ["T1-3", auxin?.id],
   ]);
-  expect(grid.units.every((unit) => unit.events.length === 0)).toBeTrue();
+  expect(records.units.every((unit) => unit.events.length === 0)).toBeTrue();
 
   const summary = (await listExperimentOverviews()).find(
     ({ experiment: item }) => item.id === experiment.id,
@@ -158,7 +158,8 @@ test("a treatment can gain replicates after it is designed", async () => {
     inoculatedOn: INOCULATED,
     treatments: [{ name: "T1", replicates: 1 }],
   });
-  const [treatment] = (await experimentGridDetail(experiment.id))!.treatments;
+  const [treatment] = (await experimentRecordsDetail(experiment.id))!
+    .treatments;
   const added = await addReplicates({
     experiment: experiment.id,
     treatment: treatment!.id,
@@ -172,8 +173,8 @@ test("a treatment can gain replicates after it is designed", async () => {
       replicates: 1,
     }),
   ).rejects.toThrow(TreatmentNotFoundError);
-  const grid = await experimentGridDetail(experiment.id);
-  expect(grid?.units.map((unit) => unit.code)).toEqual([
+  const records = await experimentRecordsDetail(experiment.id);
+  expect(records?.units.map((unit) => unit.code)).toEqual([
     "T1-1",
     "T1-2",
     "T1-3",
@@ -189,7 +190,7 @@ test("treatment names and unit codes are unique", async () => {
       { name: "T1", replicates: 1 },
     ],
   });
-  const [control, treated] = (await experimentGridDetail(experiment.id))!
+  const [control, treated] = (await experimentRecordsDetail(experiment.id))!
     .treatments;
 
   await expect(
@@ -255,7 +256,7 @@ test("treatment names and unit codes are unique", async () => {
     experiment: experiment.id,
     treatment: control!.id,
   });
-  const after = await experimentGridDetail(experiment.id);
+  const after = await experimentRecordsDetail(experiment.id);
   expect(after?.treatments).toEqual([{ ...treated!, position: 1 }]);
   expect(after?.units.map((unit) => [unit.code, unit.treatment])).toEqual([
     ["CK-1", treated!.id],
@@ -272,7 +273,7 @@ test("an experiment keeps a treatment, and a treatment keeps a replicate", async
       { name: "T1", replicates: 2 },
     ],
   });
-  const [control, treated] = (await experimentGridDetail(experiment.id))!
+  const [control, treated] = (await experimentRecordsDetail(experiment.id))!
     .treatments;
   const units = await unitsOf(experiment.id);
 
@@ -297,7 +298,9 @@ test("an experiment keeps a treatment, and a treatment keeps a replicate", async
     deleteTreatment({ experiment: experiment.id, treatment: treated!.id }),
   ).rejects.toThrow(TreatmentConflictError);
   expect(
-    (await experimentGridDetail(experiment.id))?.units.map((unit) => unit.code),
+    (await experimentRecordsDetail(experiment.id))?.units.map(
+      (unit) => unit.code,
+    ),
   ).toEqual(["T1-1"]);
 });
 
@@ -310,7 +313,7 @@ test("several units can move to another treatment together", async () => {
       { name: "T1", replicates: 1 },
     ],
   });
-  const [control, treated] = (await experimentGridDetail(experiment.id))!
+  const [control, treated] = (await experimentRecordsDetail(experiment.id))!
     .treatments;
   const units = await unitsOf(experiment.id);
 
@@ -322,7 +325,7 @@ test("several units can move to another treatment together", async () => {
     }),
   ).rejects.toThrow(UnitConflictError);
   expect(
-    (await experimentGridDetail(experiment.id))?.units.filter(
+    (await experimentRecordsDetail(experiment.id))?.units.filter(
       (unit) => unit.treatment === control!.id,
     ),
   ).toHaveLength(3);
@@ -337,7 +340,7 @@ test("several units can move to another treatment together", async () => {
     treated!.id,
   ]);
   expect(
-    (await experimentGridDetail(experiment.id))?.units.filter(
+    (await experimentRecordsDetail(experiment.id))?.units.filter(
       (unit) => unit.treatment === control!.id,
     ),
   ).toHaveLength(1);
@@ -353,7 +356,7 @@ test("a treatment leaves with its units unless they have records", async () => {
       { name: "T1", replicates: 1 },
     ],
   });
-  const [control, treated] = (await experimentGridDetail(experiment.id))!
+  const [control, treated] = (await experimentRecordsDetail(experiment.id))!
     .treatments;
   const observation = await createObservation({
     experiment: experiment.id,
@@ -377,10 +380,12 @@ test("a treatment leaves with its units unless they have records", async () => {
     experiment: experiment.id,
     treatment: control!.id,
   });
-  const grid = await experimentGridDetail(experiment.id);
-  expect(grid?.treatments.map((treatment) => treatment.name)).toEqual(["T1"]);
-  expect(grid?.units.map((unit) => unit.code)).toEqual(["T1-1"]);
-  expect(grid?.images).toHaveLength(1);
+  const records = await experimentRecordsDetail(experiment.id);
+  expect(records?.treatments.map((treatment) => treatment.name)).toEqual([
+    "T1",
+  ]);
+  expect(records?.units.map((unit) => unit.code)).toEqual(["T1-1"]);
+  expect(records?.images).toHaveLength(1);
 });
 
 test("a unit keeps its images when its code is corrected", async () => {
@@ -401,7 +406,8 @@ test("a unit keeps its images when its code is corrected", async () => {
     "A-1": "r-a1",
   });
 
-  const [treatment] = (await experimentGridDetail(experiment.id))!.treatments;
+  const [treatment] = (await experimentRecordsDetail(experiment.id))!
+    .treatments;
   const renamed = await updateUnit({
     experiment: experiment.id,
     unit: units.get("A-1")!,
@@ -418,10 +424,10 @@ test("a unit keeps its images when its code is corrected", async () => {
     }),
   ).rejects.toThrow(UnitNameTakenError);
 
-  const grid = await experimentGridDetail(experiment.id);
-  expect(grid?.units.map((unit) => unit.code)).toEqual(["A-01", "A-2"]);
-  expect(grid?.images).toHaveLength(1);
-  expect(grid?.images[0]?.unit).toBe(units.get("A-1")!);
+  const records = await experimentRecordsDetail(experiment.id);
+  expect(records?.units.map((unit) => unit.code)).toEqual(["A-01", "A-2"]);
+  expect(records?.images).toHaveLength(1);
+  expect(records?.images[0]?.unit).toBe(units.get("A-1")!);
 });
 
 test("the notebook stays editable after an observation is added", async () => {
@@ -490,7 +496,8 @@ test("the notebook stays editable after an observation is added", async () => {
     true,
   ]);
 
-  const treatment = (await experimentGridDetail(experiment.id))!.treatments[0]!;
+  const treatment = (await experimentRecordsDetail(experiment.id))!
+    .treatments[0]!;
   const described = await updateTreatment({
     experiment: experiment.id,
     treatment: treatment.id,
@@ -511,7 +518,9 @@ test("the notebook stays editable after an observation is added", async () => {
     unit: units.get("A-1")!,
   });
   expect(
-    (await experimentGridDetail(experiment.id))?.units.map((unit) => unit.code),
+    (await experimentRecordsDetail(experiment.id))?.units.map(
+      (unit) => unit.code,
+    ),
   ).toEqual(["A-2", "T1-1"]);
 });
 
@@ -551,10 +560,10 @@ test("images keep their units, and experiments without them can be deleted", asy
       unit: units.get("A-2")!,
     }),
   ).rejects.toThrow(UnitConflictError);
-  const grid = await experimentGridDetail(experiment.id);
-  expect(grid?.observations.map((item) => item.id)).toEqual([day7.id]);
-  expect(grid?.units.map((unit) => unit.code)).toEqual(["A-1", "A-2"]);
-  expect(grid?.images).toHaveLength(2);
+  const records = await experimentRecordsDetail(experiment.id);
+  expect(records?.observations.map((item) => item.id)).toEqual([day7.id]);
+  expect(records?.units.map((unit) => unit.code)).toEqual(["A-1", "A-2"]);
+  expect(records?.images).toHaveLength(2);
   const first = await imageDigest("m-a1-1");
   expect(await blobExists(imageBlobKey(first))).toBeTrue();
 
@@ -567,7 +576,7 @@ test("images keep their units, and experiments without them can be deleted", asy
     inoculatedOn: INOCULATED,
   });
   await deleteExperiment({ experiment: disposable.id });
-  expect(await experimentGridDetail(disposable.id)).toBeNull();
+  expect(await experimentRecordsDetail(disposable.id)).toBeNull();
   await expect(deleteExperiment({ experiment: disposable.id })).rejects.toThrow(
     ExperimentNotFoundError,
   );

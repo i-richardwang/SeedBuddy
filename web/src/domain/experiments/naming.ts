@@ -1,21 +1,3 @@
-/** Numbers inside codes compare by value, so `A2` precedes `A10`. */
-function compareUnitCodes(left: string, right: string): number {
-  return left.localeCompare(right, "en", { numeric: true });
-}
-
-/** The design's treatments in their own order, each followed by its replicates. */
-export function unitOrder<Unit extends { code: string; treatment: string }>(
-  units: readonly Unit[],
-  treatments: readonly { id: string; position: number }[],
-): Unit[] {
-  const rank = new Map(treatments.map((item) => [item.id, item.position]));
-  return [...units].sort(
-    (left, right) =>
-      rank.get(left.treatment)! - rank.get(right.treatment)! ||
-      compareUnitCodes(left.code, right.code),
-  );
-}
-
 /**
  * The codes a treatment's replicates take: `T1-1` through `T1-n`, skipping
  * any the experiment already uses so that adding replicates continues the

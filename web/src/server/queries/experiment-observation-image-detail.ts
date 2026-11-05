@@ -5,6 +5,7 @@ import type { ExperimentObservationImageDetail } from "../../domain/experiments/
 import type { ObservationImageRef } from "../../domain/experiments/schema";
 import {
   atImageObservation,
+  atImageUnit,
   atObservationImage,
   listObservations,
   requireObservation,
@@ -58,16 +59,7 @@ async function readObservationImage(
       modelVersions,
       eq(modelVersions.id, currentVersion(experimentObservations.modelId)),
     )
-    .innerJoin(
-      experimentUnits,
-      and(
-        eq(
-          experimentUnits.experimentId,
-          experimentObservationImages.experimentId,
-        ),
-        eq(experimentUnits.id, experimentObservationImages.unitId),
-      ),
-    )
+    .innerJoin(experimentUnits, atImageUnit())
     .leftJoin(
       inferenceTasks,
       and(

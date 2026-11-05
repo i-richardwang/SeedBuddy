@@ -1,12 +1,7 @@
 import { EyeOff, ImageIcon, PencilLine } from "lucide-react";
 import type { ReactElement } from "react";
 
-import {
-  cellReading,
-  type UnitCell,
-} from "../../domain/experiments/cell-reading";
-import type { Exclusion } from "../../domain/experiments/read-model";
-import type { ExperimentObservation } from "../../domain/experiments/schema";
+import type { SheetCell } from "../../domain/experiments/read-model";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { cn } from "../../ui/kit/cn";
@@ -32,19 +27,17 @@ import { exclusionNote } from "./labels";
  */
 export function UnitDayCount({
   cell,
-  observation,
-  exclusion,
   link = (content) => content,
 }: {
-  cell: UnitCell | null | undefined;
-  observation: Pick<ExperimentObservation, "countedClasses">;
-  /** Why the day stays out of the analysis, or nothing when it enters it. */
-  exclusion: Exclusion | null;
+  /**
+   * The day resolved: its reading and why it stays out of the analysis, if
+   * it does, over the photograph and the entered count it came from.
+   */
+  cell: Pick<SheetCell, "reading" | "exclusion" | "image" | "manual">;
   link?: (content: ReactElement) => ReactElement;
 }) {
-  if (!cell || (!cell.image && !cell.manual)) return <Absent />;
-  const { image, manual } = cell;
-  const reading = cellReading(cell, observation);
+  if (!cell.image && !cell.manual) return <Absent />;
+  const { image, manual, reading, exclusion } = cell;
   // A count entered by hand that leaves out a class the day has since come
   // to count answers another question than the day asks, and says so.
   const notes: string[] = [

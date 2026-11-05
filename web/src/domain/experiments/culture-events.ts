@@ -6,7 +6,9 @@ import {
   type ExperimentObservation,
   experimentIdSchema,
   observationIdSchema,
+  unitCodeSchema,
   unitIdSchema,
+  unitSelectionSchema,
 } from "./schema";
 
 export const CULTURE_EVENT_TYPES = [
@@ -34,19 +36,47 @@ export type CultureEvent = z.infer<typeof cultureEventSchema>;
 
 export const cultureEventsRequestSchema = z.strictObject({
   experiment: experimentIdSchema,
-  units: z
-    .array(unitIdSchema)
-    .min(1)
-    .max(200)
-    .refine(
-      (ids) => new Set(ids).size === ids.length,
-      "Units must be distinct",
-    ),
+  units: unitSelectionSchema,
   type: cultureEventTypeSchema,
   observation: observationIdSchema,
 });
 
 export type CultureEventsRequest = z.infer<typeof cultureEventsRequestSchema>;
+
+/**
+ * Why a unit cannot take an event on a day: it holds the same event that
+ * day, it already left the bench and the event would take it off again, it
+ * left the bench before that day, or it has records after a day it would
+ * leave the bench on.
+ */
+export const CULTURE_EVENT_REFUSALS = [
+  "recorded",
+  "already_left",
+  "left_before",
+  "later_records",
+] as const;
+
+export type CultureEventRefusal = (typeof CULTURE_EVENT_REFUSALS)[number];
+
+/**
+ * What recording an event did: the events recorded, and the units of a
+ * selection by treatment it passed over, each with why. Units named one by
+ * one are never passed over; the command is refused instead.
+ */
+export const cultureEventsResultSchema = z.strictObject({
+  recorded: z.array(
+    z.strictObject({ unit: unitIdSchema, event: cultureEventSchema }),
+  ),
+  passedOver: z.array(
+    z.strictObject({
+      unit: unitIdSchema,
+      code: unitCodeSchema,
+      reason: z.enum(CULTURE_EVENT_REFUSALS),
+    }),
+  ),
+});
+
+export type CultureEventsResult = z.infer<typeof cultureEventsResultSchema>;
 
 export const cultureEventRefSchema = z.strictObject({
   experiment: experimentIdSchema,
@@ -111,6 +141,10 @@ export function cultureEventIsTerminal(type: CultureEventType): boolean {
   return CULTURE_EVENT_KINDS[type].terminal;
 }
 
+/** The events that take a unit off the bench. */
+export const TERMINAL_CULTURE_EVENT_TYPES: readonly CultureEventType[] =
+  CULTURE_EVENT_TYPES.filter(cultureEventIsTerminal);
+
 export function cultureEventExcludesFromAnalysis(
   type: CultureEventType,
 ): boolean {
@@ -124,37 +158,94 @@ function eventOrdinal(
   return observationOrdinal(ordinals, event.observation);
 }
 
-/** A terminal event takes effect after the observation that records it. */
-export function unitIsAvailableAt(
+/**
+ * The day the unit left the bench: the day of the observation that recorded
+ * its terminal event, of which a unit has one at most, or null while it is
+ * on the bench.
+ */
+export function unitLeftOn(
   events: readonly CultureEvent[],
-  observation: ExperimentObservation,
-  ordinals: ObservationOrdinals,
-): boolean {
-  return !events.some(
-    (event) =>
-      cultureEventIsTerminal(event.type) &&
-      eventOrdinal(event, ordinals) < observation.ordinal,
-  );
+  observations: readonly ExperimentObservation[],
+): CalendarDay | null {
+  const exit = events.find((event) => cultureEventIsTerminal(event.type));
+  if (!exit) return null;
+  const observation = observations.find((item) => item.id === exit.observation);
+  if (!observation) throw new Error(`Unknown observation: ${exit.observation}`);
+  return observation.observedOn;
 }
 
 /**
- * Whether the unit can be photographed on a day not yet recorded: no
- * terminal event was recorded on an earlier observation.
+ * Whether a unit that left the bench on `leftOn` can still be photographed
+ * or counted on `day`: a terminal event takes effect after its day.
  */
-export function unitIsAvailableOn(
-  events: readonly CultureEvent[],
-  observedOn: CalendarDay,
-  observations: readonly ExperimentObservation[],
+export function onBenchOn(
+  leftOn: CalendarDay | null,
+  day: CalendarDay,
 ): boolean {
-  const earlier = new Set(
+  return leftOn === null || day <= leftOn;
+}
+
+/** Whether a unit is on the bench on the observation's day, judged by its events. */
+export function unitIsOnBench(
+  events: readonly CultureEvent[],
+  observations: readonly ExperimentObservation[],
+  observation: ExperimentObservation,
+): boolean {
+  return onBenchOn(unitLeftOn(events, observations), observation.observedOn);
+}
+
+/**
+ * What an event is judged against on a unit: its events, and the
+ * observations it has a photograph or an entered count on. Only those after
+ * the event's observation weigh, so a caller may read no others.
+ */
+export interface UnitRecords {
+  events: readonly CultureEvent[];
+  recorded: readonly string[];
+}
+
+/** Why the unit cannot take an event of `type` on the observation; null where it can. */
+export function cultureEventRefusal(
+  unit: UnitRecords,
+  observations: readonly ExperimentObservation[],
+  observation: ExperimentObservation,
+  type: CultureEventType,
+): CultureEventRefusal | null {
+  const { events } = unit;
+  const leaves = cultureEventIsTerminal(type);
+  if (
+    events.some(
+      (event) => event.observation === observation.id && event.type === type,
+    )
+  )
+    return "recorded";
+  if (leaves && events.some((event) => cultureEventIsTerminal(event.type)))
+    return "already_left";
+  if (!unitIsOnBench(events, observations, observation)) return "left_before";
+  if (leaves && hasRecordsAfter(unit, observations, observation))
+    return "later_records";
+  return null;
+}
+
+/**
+ * Whether a unit leaving the bench on the observation would leave records
+ * behind it: an event, a photograph or an entered count of a later
+ * observation.
+ */
+export function hasRecordsAfter(
+  unit: UnitRecords,
+  observations: readonly ExperimentObservation[],
+  observation: ExperimentObservation,
+): boolean {
+  const later = new Set(
     observations
-      .filter((observation) => observation.observedOn < observedOn)
-      .map((observation) => observation.id),
+      .filter((day) => day.ordinal > observation.ordinal)
+      .map((day) => day.id),
   );
-  return !events.some(
-    (event) =>
-      cultureEventIsTerminal(event.type) && earlier.has(event.observation),
-  );
+  return [
+    ...unit.recorded,
+    ...unit.events.map((event) => event.observation),
+  ].some((recorded) => later.has(recorded));
 }
 
 /**

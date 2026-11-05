@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
+import { onBenchOn } from "../../domain/experiments/culture-events";
 import { pairInOrder, suggestUnit } from "../../domain/experiments/naming";
 import {
+  MAX_PLACED_PHOTOS_ASKED,
   type PhotoConflict,
   type PlacedPhoto,
   photoConflicts,
 } from "../../domain/experiments/photos";
-import type { Unit } from "../../domain/experiments/read-model";
-import type { UnitPhoto } from "../../domain/experiments/schema";
+import type {
+  PhotoSlot,
+  PhotoSlots,
+} from "../../domain/experiments/read-model";
+import type { CalendarDay, UnitPhoto } from "../../domain/experiments/schema";
+import { getPlacedPhotos } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
 import { Alert } from "../../ui/kit/Alert";
@@ -18,10 +24,14 @@ import { ImageDropZone } from "../upload/ImageDropZone";
 import type { ListedImage } from "../upload/useUploads";
 import { type Uploads, useUploads } from "../upload/useUploads";
 
+/** A unit a photograph is matched to, by its code. */
+type PhotoUnit = Pick<PhotoSlot, "id" | "code">;
+
 /** Photographs being uploaded for one observation day and matched to its units. */
 interface ObservationPhotos {
   uploads: Uploads;
-  units: readonly Unit[];
+  /** The units on the bench that day, in the experiment's order. */
+  units: readonly PhotoUnit[];
   /** Units that already have a photograph that day. */
   assigned: ReadonlySet<string>;
   conflicts: ReadonlyMap<number, PhotoConflict>;
@@ -34,7 +44,11 @@ interface ObservationPhotos {
   unmatched: number;
   /** Units still without a photograph. */
   vacant: number;
-  /** Still uploading, a photograph failed to upload, is already used, or has no unit. */
+  /** Whether the server could not say which photographs the experiment holds. */
+  checkFailed: boolean;
+  /** Asks the server again about the photographs it could not answer for. */
+  recheck: () => void;
+  /** Still uploading or checking, a photograph failed to upload, is already used, or has no unit. */
   pending: boolean;
 }
 
@@ -45,21 +59,24 @@ interface ObservationPhotos {
  * experiment already holds cannot be placed again.
  */
 export function useObservationPhotos({
-  units,
-  assigned,
-  placed,
+  experiment,
+  slots,
+  day,
 }: {
-  /** The units that can be photographed that day. */
-  units: readonly Unit[];
-  assigned: ReadonlySet<string>;
-  /** The photographs the experiment already holds. */
-  placed: readonly PlacedPhoto[];
+  experiment: string;
+  slots: PhotoSlots;
+  /** The day photographed, which decides the units still on the bench. */
+  day: CalendarDay;
 }): ObservationPhotos {
-  const uploads = useUploads();
+  const units = slots.units.filter((unit) => onBenchOn(unit.leftOn, day));
+  const assigned = new Set(slots.taken);
+  const placed = usePlacedPhotos(experiment);
+  const uploads = useUploads(placed.check);
   const [choices, setChoices] = useState<Record<number, string | null>>({});
   const vacantUnits = units.filter((unit) => !assigned.has(unit.id));
   const stored = storedPhotos(uploads.images);
-  const conflicts = photoConflicts(stored, placed);
+  const answered = placed.of(stored.map((photo) => photo.digest));
+  const conflicts = photoConflicts(stored, answered.photos);
   const free = stored.filter((photo) => !conflicts.has(photo.id));
   const chosen = matchPhotos(free, choices, vacantUnits);
   const ready = free.flatMap((photo) => {
@@ -93,9 +110,84 @@ export function useObservationPhotos({
     ready,
     unmatched,
     vacant: vacantUnits.length - ready.length,
+    checkFailed: answered.failed,
+    recheck: answered.retry,
     pending:
-      uploads.storing || uploads.failed || conflicts.size > 0 || unmatched > 0,
+      uploads.storing ||
+      uploads.failed ||
+      answered.checking ||
+      answered.failed ||
+      conflicts.size > 0 ||
+      unmatched > 0,
   };
+}
+
+/** What the server answered for a photograph: where it is placed, nothing, or no answer yet or at all. */
+type PlacedAnswer = PlacedPhoto | null | "checking" | "failed";
+
+/**
+ * Which photographs the experiment already holds, asked of the server as
+ * each is stored (`check`). `of` reads the answers for the photographs still
+ * on hand: a photograph is checking until its answer comes, and one the
+ * server could not answer for fails the check until it is asked again, with
+ * every other that failed, a batch at a time. Every asking of a photograph
+ * gets the same answer, so an answer, once come, stands: asking again does
+ * not set it back to checking, and a failure replaces only a check.
+ */
+function usePlacedPhotos(experiment: string) {
+  const [answers, setAnswers] = useState<ReadonlyMap<string, PlacedAnswer>>(
+    () => new Map(),
+  );
+  const ask = useCallback(
+    (digests: readonly string[]) => {
+      const settle = (
+        batch: readonly string[],
+        answer: (digest: string, previous?: PlacedAnswer) => PlacedAnswer,
+      ) =>
+        setAnswers((previous) => {
+          const next = new Map(previous);
+          for (const digest of batch) {
+            next.set(digest, answer(digest, previous.get(digest)));
+          }
+          return next;
+        });
+      settle(digests, (_, previous) =>
+        previous === undefined || previous === "failed" ? "checking" : previous,
+      );
+      for (
+        let start = 0;
+        start < digests.length;
+        start += MAX_PLACED_PHOTOS_ASKED
+      ) {
+        const batch = digests.slice(start, start + MAX_PLACED_PHOTOS_ASKED);
+        getPlacedPhotos({ data: { experiment, digests: batch } }).then(
+          (placed) => {
+            const found = new Map(placed.map((photo) => [photo.digest, photo]));
+            settle(batch, (digest) => found.get(digest) ?? null);
+          },
+          () =>
+            settle(batch, (_, previous) =>
+              previous === "checking" ? "failed" : previous!,
+            ),
+        );
+      }
+    },
+    [experiment],
+  );
+  const check = useCallback((digest: string) => ask([digest]), [ask]);
+  const of = (digests: readonly string[]) => {
+    const failed = digests.filter((digest) => answers.get(digest) === "failed");
+    return {
+      photos: digests.flatMap((digest) => {
+        const answer = answers.get(digest);
+        return typeof answer === "object" && answer !== null ? [answer] : [];
+      }),
+      checking: digests.some((digest) => answers.get(digest) === "checking"),
+      failed: failed.length > 0,
+      retry: () => ask(failed),
+    };
+  };
+  return { check, of };
 }
 
 /** The drop zone of an observation's photographs, each with the unit it shows. */
@@ -136,6 +228,17 @@ export function ObservationPhotosField({
           );
         }}
       />
+      {photos.checkFailed ? (
+        <Alert
+          type="error"
+          title={m.observation_photos_check_failed()}
+          action={
+            <Button size="small" disabled={disabled} onClick={photos.recheck}>
+              {m.retry_action()}
+            </Button>
+          }
+        />
+      ) : null}
       {photos.conflicts.size > 0 ? (
         <Alert
           type="warning"
@@ -177,7 +280,7 @@ interface StoredPhoto {
 function matchPhotos(
   free: readonly StoredPhoto[],
   choices: Readonly<Record<number, string | null>>,
-  vacantUnits: readonly Unit[],
+  vacantUnits: readonly PhotoUnit[],
 ): Map<number, string> {
   const claimed = new Set(free.flatMap((photo) => choices[photo.id] ?? []));
   const codes = vacantUnits.map((unit) => unit.code);
@@ -237,7 +340,7 @@ function UnitChoice({
   onChange,
 }: {
   image: ListedImage;
-  units: readonly Unit[];
+  units: readonly PhotoUnit[];
   unavailable: ReadonlySet<string>;
   value: string | null;
   disabled: boolean;

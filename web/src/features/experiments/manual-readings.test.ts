@@ -25,7 +25,7 @@ describe("what the form opens with", () => {
   });
 
   test("nothing for a unit without one, or for a class its count never gave", () => {
-    expect(manualReadingDraft(CLASSES, undefined)).toEqual({
+    expect(manualReadingDraft(CLASSES, null)).toEqual({
       ungerminated: null,
       germinated: null,
     });

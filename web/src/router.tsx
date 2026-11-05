@@ -12,6 +12,7 @@ declare module "@tanstack/react-router" {
     crumbs?: (match: {
       loaderData: unknown;
       params: Record<string, string>;
+      search: Record<string, unknown>;
     }) => Crumb[];
   }
 }

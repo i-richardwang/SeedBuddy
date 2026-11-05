@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 import type { Dataset } from "../../domain/datasets/schema";
-import type { CultureEvent } from "../../domain/experiments/culture-events";
+import type { CultureEventsResult } from "../../domain/experiments/culture-events";
 import type {
   ExperimentSheetDetail,
+  ExperimentSummary,
   SheetCell,
   Unit,
   UnitRowOverview,
@@ -13,6 +14,7 @@ import type {
   ExperimentObservation,
   ManualReading,
 } from "../../domain/experiments/schema";
+import { rowCell } from "../../domain/experiments/testing";
 import { storeAnnotation } from "../annotations/documents";
 import { createModel } from "../models/public";
 import { observeImagesForModel } from "../testing/experiments";
@@ -27,22 +29,29 @@ function output(result: AgentCallResult): unknown {
   return result.output;
 }
 
-async function readSheet(experiment: string): Promise<ExperimentSheetDetail> {
+async function readSheet(
+  experiment: string,
+  page: Record<string, unknown> = {},
+): Promise<ExperimentSheetDetail> {
   return output(
-    await executeAgentOperation("get-experiment", { experiment }),
+    await executeAgentOperation("get-experiment", { experiment, ...page }),
   ) as ExperimentSheetDetail;
 }
 
+function unitsOn(sheet: ExperimentSheetDetail): Unit[] {
+  return sheet.units.rows.map((row) => row.unit);
+}
+
+function cellsOf(sheet: ExperimentSheetDetail): SheetCell[] {
+  return sheet.units.rows.flatMap((row) => row.cells);
+}
+
 function cellOf(
-  sheet: Pick<ExperimentSheetDetail, "cells">,
+  sheet: ExperimentSheetDetail,
   unit: string,
   observation: string,
 ): SheetCell {
-  const cell = sheet.cells.find(
-    (item) => item.unit === unit && item.observation === observation,
-  );
-  if (!cell) throw new Error(`No cell for ${unit} on ${observation}`);
-  return cell;
+  return rowCell(sheet.units.rows, unit, observation);
 }
 
 describe("agent operations", () => {
@@ -63,6 +72,7 @@ describe("agent operations", () => {
     const readOnly = new Set([
       "list-experiments",
       "get-experiment",
+      "get-experiment-summary",
       "get-unit",
       "list-datasets",
       "get-dataset",
@@ -155,13 +165,13 @@ describe("agent operations", () => {
 
     const sheet = await readSheet(experiment.id);
     expect(sheet.treatments.map(({ name }) => name)).toContain("T1");
-    expect(sheet.units).toHaveLength(2);
+    expect(sheet.units.rows).toHaveLength(2);
     // A cell for every unit on the one day, with nothing in it yet.
-    expect(sheet.cells).toHaveLength(2);
+    expect(cellsOf(sheet)).toHaveLength(2);
     expect(
-      sheet.cells.every((cell) => cell.observation === observation.id),
+      cellsOf(sheet).every((cell) => cell.observation === observation.id),
     ).toBe(true);
-    expect(sheet.cells[0]).toMatchObject({
+    expect(cellsOf(sheet)[0]).toMatchObject({
       reading: null,
       exclusion: null,
       image: null,
@@ -199,29 +209,32 @@ describe("agent operations", () => {
         modelId: version.modelId,
       }),
     ) as ExperimentObservation;
-    const [lost, kept, spare] = (await readSheet(experiment.id)).units;
+    const [lost, kept, spare] = unitsOn(await readSheet(experiment.id));
 
-    const contaminated = output(
+    const recorded = output(
       await executeAgentOperation("record-culture-events", {
         experiment: experiment.id,
         units: [lost!.id, spare!.id],
         observation: first.id,
         type: "contaminated",
       }),
-    ) as CultureEvent[];
+    ) as CultureEventsResult;
+    expect(recorded.passedOver).toEqual([]);
+    const contaminated = recorded.recorded.map(({ event }) => event);
     expect(contaminated.map(({ type }) => type)).toEqual([
       "contaminated",
       "contaminated",
     ]);
-    const [harvested] = output(
+    const harvest = output(
       await executeAgentOperation("record-culture-events", {
         experiment: experiment.id,
         units: [kept!.id],
         observation: first.id,
         type: "harvested",
       }),
-    ) as CultureEvent[];
-    expect(harvested!.observation).toBe(first.id);
+    ) as CultureEventsResult;
+    const harvested = harvest.recorded[0]!.event;
+    expect(harvested.observation).toBe(first.id);
 
     const sheet = await readSheet(experiment.id);
     expect(cellOf(sheet, lost!.id, first.id).exclusion).toEqual({
@@ -256,6 +269,22 @@ describe("agent operations", () => {
         }),
       ).code,
     ).toBe("conflict");
+
+    // A treatment's units take the event, those that cannot are passed over,
+    // and a selection made over another number of units is refused.
+    const treatment = (await readSheet(experiment.id)).treatments[0]!;
+    const select = (expected: number) =>
+      executeAgentOperation("record-culture-events", {
+        experiment: experiment.id,
+        units: { treatment: treatment.id, expected },
+        observation: first.id,
+        type: "contaminated",
+      });
+    expect(failure(await select(2)).code).toBe("conflict");
+    const every = output(await select(3)) as CultureEventsResult;
+    expect(every.passedOver.map(({ code, reason }) => [code, reason])).toEqual([
+      [lost!.code, "recorded"],
+    ]);
   });
 
   test("counts taken by hand enter a day, outrank its photographs, and withdraw", async () => {
@@ -268,7 +297,7 @@ describe("agent operations", () => {
       }),
     ) as Experiment;
     const [photo] = await storeTexts(["agent-counted"]);
-    const { units } = await readSheet(experiment.id);
+    const units = unitsOn(await readSheet(experiment.id));
     const [photographed, counted] = units;
     // The day is created with the one photograph taken on it.
     const observation = output(
@@ -383,7 +412,7 @@ describe("agent operations", () => {
     ) as Experiment;
     const sheet = await readSheet(experiment.id);
     const b = sheet.treatments.find(({ name }) => name === "B")!;
-    const fromA = sheet.units.filter(({ treatment }) => treatment !== b.id);
+    const fromA = unitsOn(sheet).filter(({ treatment }) => treatment !== b.id);
     const moved = output(
       await executeAgentOperation("move-units", {
         experiment: experiment.id,
@@ -395,6 +424,61 @@ describe("agent operations", () => {
     expect(moved.map(({ code }) => code)).toEqual(
       fromA.slice(0, 2).map(({ code }) => code),
     );
+  });
+
+  test("the sheet is read a page of units at a time, and the summary on its own", async () => {
+    const experiment = output(
+      await executeAgentOperation("create-experiment", {
+        name: "Paged sheet",
+        inoculatedOn: "2026-08-01",
+        treatments: [
+          { name: "A", replicates: 3 },
+          { name: "B", replicates: 2 },
+        ],
+      }),
+    ) as Experiment;
+    const b = (await readSheet(experiment.id)).treatments.find(
+      ({ name }) => name === "B",
+    )!;
+    const narrowed = await readSheet(experiment.id, {
+      treatment: b.id,
+      page: 2,
+      pageSize: 1,
+    });
+    expect(narrowed.units).toMatchObject({
+      treatment: b.id,
+      total: 2,
+      page: 2,
+      pageSize: 1,
+      pages: 2,
+    });
+    expect(unitsOn(narrowed).map(({ code }) => code)).toEqual(["B-2"]);
+    // A page past the last holds no units, and says how many pages there are.
+    const past = await readSheet(experiment.id, { page: 4, pageSize: 2 });
+    expect(past.units).toMatchObject({ page: 4, pages: 3, rows: [] });
+    expect(
+      failure(
+        await executeAgentOperation("get-experiment", {
+          experiment: experiment.id,
+          treatment: crypto.randomUUID(),
+        }),
+      ).code,
+    ).toBe("not_found");
+    expect(
+      failure(
+        await executeAgentOperation("get-experiment", {
+          experiment: experiment.id,
+          pageSize: 201,
+        }),
+      ).code,
+    ).toBe("invalid_request");
+
+    const summary = output(
+      await executeAgentOperation("get-experiment-summary", {
+        experiment: experiment.id,
+      }),
+    ) as ExperimentSummary;
+    expect(summary).toEqual({ baseline: null, cells: [] });
   });
 
   test("a photograph is marked unclear by digest, or as it is assigned", async () => {
@@ -413,7 +497,7 @@ describe("agent operations", () => {
         modelId: version.modelId,
       }),
     ) as ExperimentObservation;
-    const { units } = await readSheet(experiment.id);
+    const units = unitsOn(await readSheet(experiment.id));
     const [fogged, blurred] = await storeTexts(["agent-fogged", "agent-blur"]);
     output(
       await executeAgentOperation("assign-images-to-observation", {
@@ -432,7 +516,7 @@ describe("agent operations", () => {
     );
     const cells = async () =>
       new Map(
-        (await readSheet(experiment.id)).cells.flatMap((cell) =>
+        cellsOf(await readSheet(experiment.id)).flatMap((cell) =>
           cell.image ? [[cell.image.digest, cell.image.unclear] as const] : [],
         ),
       );

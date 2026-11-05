@@ -1,13 +1,25 @@
 /** Reads experiment records and enforces record existence within a transaction. */
-import { and, asc, eq, inArray } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  exists,
+  inArray,
+  type SQL,
+  sql,
+} from "drizzle-orm";
+import { type AnyPgColumn, alias } from "drizzle-orm/pg-core";
 
 import {
   type CultureEvent,
   cultureEventSchema,
+  TERMINAL_CULTURE_EVENT_TYPES,
 } from "../../domain/experiments/culture-events";
 import {
   ExperimentNotFoundError,
   ObservationNotFoundError,
+  TreatmentNotFoundError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import type { Unit } from "../../domain/experiments/read-model";
@@ -156,25 +168,139 @@ export function atObservation(experimentId: string, observationId: string) {
   );
 }
 
+/**
+ * Which units a read covers: every unit of the experiment, those of one
+ * treatment, or those named.
+ */
+export type UnitScope =
+  "all" | { treatment: string } | { units: readonly string[] };
+
+/** Which records a read covers: those of the units in scope, on every observation or on one. */
+export interface RecordScope {
+  units: UnitScope;
+  observation?: string;
+}
+
+/**
+ * The units in scope, as a condition on a column naming a unit of the
+ * experiment: the units named, or those `unitRowsIn` finds.
+ */
+function unitsIn(
+  experimentId: string,
+  column: AnyPgColumn,
+  scope: UnitScope,
+): SQL | undefined {
+  if (scope === "all") return undefined;
+  if ("units" in scope) return inArray(column, [...scope.units]);
+  return sql`${column} in (select ${experimentUnits.id} from ${experimentUnits} where ${unitRowsIn(experimentId, scope)})`;
+}
+
+/** A table that records units' days: their photographs, counts or culture events. */
+export type UnitDayTable =
+  | typeof experimentObservationImages
+  | typeof experimentManualReadings
+  | typeof experimentCultureEvents;
+
+/** The records in scope of a table that records units' days. */
+export function recordsIn(
+  table: UnitDayTable,
+  experimentId: string,
+  scope: RecordScope,
+): SQL | undefined {
+  return and(
+    eq(table.experimentId, experimentId),
+    unitsIn(experimentId, table.unitId, scope.units),
+    scope.observation === undefined
+      ? undefined
+      : eq(table.observationId, scope.observation),
+  );
+}
+
+/** The experiment's units in scope, as a condition on the units' table. */
+function unitRowsIn(experimentId: string, scope: UnitScope): SQL | undefined {
+  return and(
+    eq(experimentUnits.experimentId, experimentId),
+    scope === "all"
+      ? undefined
+      : "units" in scope
+        ? inArray(experimentUnits.id, [...scope.units])
+        : eq(experimentUnits.treatmentId, scope.treatment),
+  );
+}
+
+/** A unit's treatment, joined to order the unit by. */
+export function atUnitTreatment() {
+  return and(
+    eq(experimentTreatments.experimentId, experimentUnits.experimentId),
+    eq(experimentTreatments.id, experimentUnits.treatmentId),
+  );
+}
+
+/**
+ * The experiment's order of units, over units joined to their treatments
+ * (`atUnitTreatment`): its treatments in their order, and each treatment's
+ * units by code, numbers compared by value. Codes that differ only in how a
+ * number is written, `T1-1` and `T1-01`, compare equal, so their order falls
+ * to the unit's id: the order is total, and a page never repeats or drops a
+ * unit.
+ */
+export const UNIT_ORDER = [
+  asc(experimentTreatments.position),
+  sql`${experimentUnits.codeOrder} collate "C"`,
+  asc(experimentUnits.id),
+];
+
+/** A run of units in the experiment's order: `limit` of them, after the first `offset`. */
+export interface UnitWindow {
+  offset: number;
+  limit: number;
+}
+
+/**
+ * The units a read returned, as the scope of their records: the scope it
+ * read, or, where a window cut a run from it, the units of that run.
+ */
+export function scopeOfRead(
+  scope: UnitScope,
+  window: UnitWindow | undefined,
+  units: readonly { id: string }[],
+): UnitScope {
+  return window ? { units: units.map((unit) => unit.id) } : scope;
+}
+
+/**
+ * The experiment's units in scope, in the experiment's order, each with its
+ * culture events; with `window`, only the run of them it names.
+ */
 export async function listUnits(
   experimentId: string,
   db: Executor,
+  scope: UnitScope = "all",
+  window?: UnitWindow,
 ): Promise<Unit[]> {
-  const [rows, eventRows] = await Promise.all([
-    db
-      .select()
-      .from(experimentUnits)
-      .where(eq(experimentUnits.experimentId, experimentId))
-      .orderBy(asc(experimentUnits.code)),
-    db
-      .select()
-      .from(experimentCultureEvents)
-      .where(eq(experimentCultureEvents.experimentId, experimentId))
-      .orderBy(
-        asc(experimentCultureEvents.recordedAt),
-        asc(experimentCultureEvents.id),
-      ),
-  ]);
+  const query = db
+    .select({ unit: experimentUnits })
+    .from(experimentUnits)
+    .innerJoin(experimentTreatments, atUnitTreatment())
+    .where(unitRowsIn(experimentId, scope))
+    .orderBy(...UNIT_ORDER)
+    .$dynamic();
+  const rows = (
+    window ? await query.offset(window.offset).limit(window.limit) : await query
+  ).map((row) => row.unit);
+  if (rows.length === 0) return [];
+  const eventRows = await db
+    .select()
+    .from(experimentCultureEvents)
+    .where(
+      recordsIn(experimentCultureEvents, experimentId, {
+        units: scopeOfRead(scope, window, rows),
+      }),
+    )
+    .orderBy(
+      asc(experimentCultureEvents.recordedAt),
+      asc(experimentCultureEvents.id),
+    );
   const byUnit = new Map<string, CultureEvent[]>();
   for (const row of eventRows) {
     const events = byUnit.get(row.unitId) ?? [];
@@ -182,6 +308,64 @@ export async function listUnits(
     byUnit.set(row.unitId, events);
   }
   return rows.map((row) => toUnit(row, byUnit.get(row.id) ?? []));
+}
+
+/** How many of the experiment's units are in scope. */
+export async function countUnits(
+  experimentId: string,
+  db: Executor,
+  scope: UnitScope = "all",
+): Promise<number> {
+  const [row] = await db
+    .select({ units: count() })
+    .from(experimentUnits)
+    .where(unitRowsIn(experimentId, scope));
+  return row!.units;
+}
+
+/** How many units each treatment of the experiment holds; a treatment without any is absent. */
+export async function countUnitsByTreatment(
+  experimentId: string,
+  db: Executor,
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ treatment: experimentUnits.treatmentId, units: count() })
+    .from(experimentUnits)
+    .where(eq(experimentUnits.experimentId, experimentId))
+    .groupBy(experimentUnits.treatmentId);
+  return new Map(rows.map((row) => [row.treatment, row.units]));
+}
+
+/**
+ * The day each unit that left the bench left it, as a subquery: the day of
+ * the observation recording its terminal event, of which a unit has one at
+ * most. A unit on the bench is absent. The domain reads the same day from a
+ * unit's events (`unitLeftOn`).
+ */
+export function benchExits(experimentId: string, db: Executor) {
+  const observation = alias(experimentObservations, "exit_observation");
+  return db
+    .select({
+      unit: sql<string>`${experimentCultureEvents.unitId}`.as("unit"),
+      leftOn: sql<string>`${observation.observedOn}`.as("left_on"),
+    })
+    .from(experimentCultureEvents)
+    .innerJoin(
+      observation,
+      and(
+        eq(observation.experimentId, experimentCultureEvents.experimentId),
+        eq(observation.id, experimentCultureEvents.observationId),
+      ),
+    )
+    .where(
+      and(
+        eq(experimentCultureEvents.experimentId, experimentId),
+        inArray(experimentCultureEvents.type, [
+          ...TERMINAL_CULTURE_EVENT_TYPES,
+        ]),
+      ),
+    )
+    .as("bench_exit");
 }
 
 function toManualReading(
@@ -195,15 +379,16 @@ function toManualReading(
   });
 }
 
-/** The counts people entered by hand across the experiment. */
+/** The counts people entered by hand for the records in scope. */
 export async function listManualReadings(
   experimentId: string,
   db: Executor,
+  scope: RecordScope = { units: "all" },
 ): Promise<ManualReading[]> {
   const rows = await db
     .select()
     .from(experimentManualReadings)
-    .where(eq(experimentManualReadings.experimentId, experimentId))
+    .where(recordsIn(experimentManualReadings, experimentId, scope))
     .orderBy(
       asc(experimentManualReadings.observationId),
       asc(experimentManualReadings.unitId),
@@ -219,39 +404,34 @@ export async function listObservations(
   experimentId: string,
   db: Executor,
 ): Promise<ExperimentObservation[]> {
-  const [rows, observationImageRefs, manualRefs, eventRefs] = await Promise.all(
-    [
+  const observation = alias(experimentObservations, "observation");
+  const recordedOn = (table: UnitDayTable) =>
+    exists(
       db
-        .select()
-        .from(experimentObservations)
-        .where(eq(experimentObservations.experimentId, experimentId))
-        .orderBy(asc(experimentObservations.observedOn)),
-      db
-        .select({ observation: experimentObservationImages.observationId })
-        .from(experimentObservationImages)
-        .where(eq(experimentObservationImages.experimentId, experimentId)),
-      db
-        .select({ observation: experimentManualReadings.observationId })
-        .from(experimentManualReadings)
-        .where(eq(experimentManualReadings.experimentId, experimentId)),
-      db
-        .select({ observation: experimentCultureEvents.observationId })
-        .from(experimentCultureEvents)
-        .where(eq(experimentCultureEvents.experimentId, experimentId)),
-    ],
-  );
-  const recorded = new Set([
-    ...observationImageRefs.map((row) => row.observation),
-    ...manualRefs.map((row) => row.observation),
-    ...eventRefs.map((row) => row.observation),
-  ]);
-  return rows.map((observation, index) =>
-    toObservation(observation, index + 1, recorded.has(observation.id)),
+        .select({ one: sql`1` })
+        .from(table)
+        .where(
+          and(
+            eq(table.experimentId, observation.experimentId),
+            eq(table.observationId, observation.id),
+          ),
+        ),
+    );
+  const rows = await db
+    .select({
+      observation,
+      hasRecords: sql<boolean>`${recordedOn(experimentObservationImages)} or ${recordedOn(experimentManualReadings)} or ${recordedOn(experimentCultureEvents)}`,
+    })
+    .from(observation)
+    .where(eq(observation.experimentId, experimentId))
+    .orderBy(asc(observation.observedOn));
+  return rows.map((row, index) =>
+    toObservation(row.observation, index + 1, row.hasRecords),
   );
 }
 
 export function requireObservation(
-  observations: ExperimentObservation[],
+  observations: readonly ExperimentObservation[],
   observationId: string,
 ): ExperimentObservation {
   const observation = observations.find((item) => item.id === observationId);
@@ -271,77 +451,78 @@ export function atObservationImage(
   );
 }
 
-type RecordScope = { treatment: string } | { unit: string } | null;
-
 /**
- * Whether images, counts or culture events were recorded: on the whole experiment,
- * on one treatment's units, or on one unit.
+ * Whether any of `tables` holds a record in scope; by default, whether
+ * images, counts or culture events were recorded for the units in scope.
  */
 export async function hasRecords(
   experimentId: string,
   scope: RecordScope,
   db: Executor,
+  tables: readonly UnitDayTable[] = [
+    experimentObservationImages,
+    experimentManualReadings,
+    experimentCultureEvents,
+  ],
 ): Promise<boolean> {
-  const inScope = (
-    unitId:
-      | typeof experimentObservationImages.unitId
-      | typeof experimentManualReadings.unitId
-      | typeof experimentCultureEvents.unitId,
-  ) => {
-    if (scope === null) return undefined;
-    if ("unit" in scope) return eq(unitId, scope.unit);
-    return inArray(
-      unitId,
-      db
-        .select({ id: experimentUnits.id })
-        .from(experimentUnits)
-        .where(
-          and(
-            eq(experimentUnits.experimentId, experimentId),
-            eq(experimentUnits.treatmentId, scope.treatment),
-          ),
-        ),
-    );
-  };
-  const [image] = await db
-    .select({ id: experimentObservationImages.id })
-    .from(experimentObservationImages)
-    .where(
-      and(
-        eq(experimentObservationImages.experimentId, experimentId),
-        inScope(experimentObservationImages.unitId),
-      ),
-    )
-    .limit(1);
-  if (image) return true;
-  const [manual] = await db
-    .select({ unitId: experimentManualReadings.unitId })
-    .from(experimentManualReadings)
-    .where(
-      and(
-        eq(experimentManualReadings.experimentId, experimentId),
-        inScope(experimentManualReadings.unitId),
-      ),
-    )
-    .limit(1);
-  if (manual) return true;
-  const [event] = await db
-    .select({ id: experimentCultureEvents.id })
-    .from(experimentCultureEvents)
-    .where(
-      and(
-        eq(experimentCultureEvents.experimentId, experimentId),
-        inScope(experimentCultureEvents.unitId),
-      ),
-    )
-    .limit(1);
-  return event !== undefined;
+  for (const table of tables) {
+    const [found] = await db
+      .select({ one: sql`1` })
+      .from(table)
+      .where(recordsIn(table, experimentId, scope))
+      .limit(1);
+    if (found) return true;
+  }
+  return false;
 }
 
-export function requireUnit(units: readonly Unit[], unitId: string): Unit {
-  const unit = units.find((item) => item.id === unitId);
+export async function requireTreatment(
+  experimentId: string,
+  treatmentId: string,
+  db: Executor,
+): Promise<Treatment> {
+  const [treatment] = await db
+    .select()
+    .from(experimentTreatments)
+    .where(atTreatment(experimentId, treatmentId));
+  if (!treatment) {
+    throw new TreatmentNotFoundError(`Unknown treatment: ${treatmentId}`);
+  }
+  return toTreatment(treatment);
+}
+
+/** The unit named, which must be the experiment's. */
+export async function requireUnit(
+  experimentId: string,
+  unitId: string,
+  db: Executor,
+): Promise<Unit> {
+  const [unit] = await listUnits(experimentId, db, { units: [unitId] });
   if (!unit) throw new UnitNotFoundError(`Unknown unit: ${unitId}`);
   return unit;
+}
+
+/** The units named, in the experiment's order; each must be the experiment's. */
+export async function requireUnits(
+  experimentId: string,
+  unitIds: readonly string[],
+  db: Executor,
+): Promise<Unit[]> {
+  const units = await listUnits(experimentId, db, { units: unitIds });
+  const found = new Set(units.map((unit) => unit.id));
+  const unknown = unitIds.filter((id) => !found.has(id));
+  if (unknown.length > 0) {
+    throw new UnitNotFoundError(`Unknown units: ${unknown.join(", ")}`);
+  }
+  return units;
+}
+
+/** The unit an image shows. */
+export function atImageUnit() {
+  return and(
+    eq(experimentUnits.experimentId, experimentObservationImages.experimentId),
+    eq(experimentUnits.id, experimentObservationImages.unitId),
+  );
 }
 
 /** The observation an image was taken at. */

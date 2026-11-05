@@ -54,3 +54,7 @@
   text-align: center;
   letter-spacing: 2px;
 }
+
+.ui-pagination-size {
+  margin-inline-start: 8px;
+}

@@ -6,7 +6,7 @@ import {
   experimentWorkbookFilename,
 } from "../features/experiments/workbook";
 import { listModels } from "../server/models/public";
-import { experimentGridDetail } from "../server/queries/public";
+import { experimentRecordsDetail } from "../server/queries/public";
 import { workbookResponse } from "../server/transport/http/workbook";
 
 export const Route = createFileRoute("/experiments/$experiment/workbook")({
@@ -15,15 +15,15 @@ export const Route = createFileRoute("/experiments/$experiment/workbook")({
       GET: async ({ params }) => {
         if (!experimentIdSchema.safeParse(params.experiment).success)
           return new Response("Not found", { status: 404 });
-        const grid = await experimentGridDetail(params.experiment);
-        if (!grid) return new Response("Not found", { status: 404 });
+        const records = await experimentRecordsDetail(params.experiment);
+        if (!records) return new Response("Not found", { status: 404 });
         const workbook = experimentWorkbook(
-          { ...grid, models: await listModels() },
+          { ...records, models: await listModels() },
           today(),
         );
         return workbookResponse(
           workbook,
-          experimentWorkbookFilename(grid.experiment),
+          experimentWorkbookFilename(records.experiment),
         );
       },
     },

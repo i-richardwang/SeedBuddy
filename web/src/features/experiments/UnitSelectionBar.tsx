@@ -1,5 +1,4 @@
 import { ArrowRightLeft, ClipboardPen, X } from "lucide-react";
-import { useState } from "react";
 
 import type { Unit } from "../../domain/experiments/read-model";
 import type {
@@ -7,12 +6,14 @@ import type {
   Treatment,
 } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
+import { useDialog } from "../../ui/hooks/useDialog";
 import { ActionIcon } from "../../ui/kit/ActionIcon";
 import { Button } from "../../ui/kit/Button";
 import { Text } from "../../ui/kit/Text";
 import { Toolbar, ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { MoveUnitsDialog } from "./MoveUnitsDialog";
 import { RecordCultureEventDialog } from "./RecordCultureEventDialog";
+import { choiceSize, type UnitChoice } from "./unit-choice";
 
 /**
  * Commands for the selected units, shown while any unit is selected. With
@@ -21,22 +22,26 @@ import { RecordCultureEventDialog } from "./RecordCultureEventDialog";
  */
 export function UnitSelectionBar({
   experiment,
-  units,
+  choice,
   treatments,
   observations,
   onClear,
 }: {
   experiment: string;
-  units: Unit[];
+  choice: UnitChoice;
   treatments: Treatment[];
   observations: ExperimentObservation[];
   onClear: () => void;
 }) {
-  const [open, setOpen] = useState<"record" | "move" | null>(null);
-  // A dialog about the selection closes when the selection empties.
-  if (units.length === 0 && open !== null) setOpen(null);
-  const close = () => setOpen(null);
-  const hidden = units.length === 0;
+  // A dialog acts on the units chosen when it opened, whatever a refresh
+  // does to the selection meanwhile.
+  const dialog = useDialog<{ record: UnitChoice; move: Unit[] }>();
+  const size = choiceSize(choice);
+  const done = () => {
+    dialog.close();
+    onClear();
+  };
+  const hidden = size === 0;
 
   return (
     <>
@@ -50,7 +55,7 @@ export function UnitSelectionBar({
           weight="medium"
           className="px-3 whitespace-nowrap tabular-nums"
         >
-          {m.experiment_selection_count({ count: units.length })}
+          {m.experiment_selection_count({ count: size })}
         </Text>
         <ToolbarSeparator />
         <ToolbarButton
@@ -60,7 +65,7 @@ export function UnitSelectionBar({
               type="text"
               icon={ClipboardPen}
               aria-label={m.culture_event_record()}
-              onClick={() => setOpen("record")}
+              onClick={() => dialog.show("record", choice)}
             >
               <span className="max-mobile:hidden">
                 {m.culture_event_record()}
@@ -69,13 +74,16 @@ export function UnitSelectionBar({
           }
         />
         <ToolbarButton
-          disabled={treatments.length < 2}
+          // Units move one by one; a whole treatment is not moved.
+          disabled={treatments.length < 2 || !("units" in choice)}
           render={
             <Button
               type="text"
               icon={ArrowRightLeft}
               aria-label={m.experiment_move_units()}
-              onClick={() => setOpen("move")}
+              onClick={() => {
+                if ("units" in choice) dialog.show("move", choice.units);
+              }}
             >
               <span className="max-mobile:hidden">
                 {m.experiment_move_units()}
@@ -94,20 +102,26 @@ export function UnitSelectionBar({
           }
         />
       </Toolbar>
-      <RecordCultureEventDialog
-        experiment={experiment}
-        units={units}
-        observations={observations}
-        open={open === "record"}
-        onClose={close}
-      />
-      <MoveUnitsDialog
-        experiment={experiment}
-        units={units}
-        treatments={treatments}
-        open={open === "move"}
-        onClose={close}
-      />
+      {dialog.last?.key === "record" ? (
+        <RecordCultureEventDialog
+          experiment={experiment}
+          choice={dialog.last.value}
+          observations={observations}
+          open={dialog.open}
+          onClose={dialog.close}
+          onDone={done}
+        />
+      ) : null}
+      {dialog.last?.key === "move" ? (
+        <MoveUnitsDialog
+          experiment={experiment}
+          units={dialog.last.value}
+          treatments={treatments}
+          open={dialog.open}
+          onClose={dialog.close}
+          onDone={done}
+        />
+      ) : null}
     </>
   );
 }

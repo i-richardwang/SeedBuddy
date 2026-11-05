@@ -19,7 +19,7 @@ const unreviewed = (count: number) => ({
   source: "detection" as const,
 });
 
-describe("what a grid reads", () => {
+describe("what a cell reads", () => {
   const day0 = observation(1);
 
   test("a day that names every class counts the whole tally", () => {

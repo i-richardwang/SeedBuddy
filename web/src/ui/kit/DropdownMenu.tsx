@@ -98,15 +98,18 @@ interface DropdownMenuProps {
   items: DropdownItem[];
   /** The menu opens below the trigger, lined up with its start or end edge. */
   align?: "start" | "end";
+  /** Keeps the menu shut. */
+  disabled?: boolean;
 }
 
 export function DropdownMenu({
   children,
   items,
   align = "start",
+  disabled = false,
 }: DropdownMenuProps) {
   return (
-    <Menu.Root modal={false}>
+    <Menu.Root modal={false} disabled={disabled}>
       <Menu.Trigger
         nativeButton={resolveNativeButton(children)}
         render={triggerRender(children)}

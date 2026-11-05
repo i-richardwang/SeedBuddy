@@ -1,8 +1,8 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
-import type { Unit } from "../../domain/experiments/read-model";
-import { formatFactor, type Treatment } from "../../domain/experiments/schema";
+import type { TreatmentFrame } from "../../domain/experiments/read-model";
+import { formatFactor } from "../../domain/experiments/schema";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { Button } from "../../ui/kit/Button";
@@ -26,11 +26,10 @@ import { TreatmentName } from "./TreatmentName";
 export function TreatmentsTable({
   experiment,
   treatments,
-  units,
 }: {
   experiment: string;
-  treatments: readonly Treatment[];
-  units: readonly Unit[];
+  /** Each treatment with how many units it holds. */
+  treatments: readonly TreatmentFrame[];
 }) {
   const [adding, setAdding] = useState(false);
   return (
@@ -76,10 +75,7 @@ export function TreatmentsTable({
                   )}
                 </TableCell>
                 <TableCell cellLabel={m.units_label()} numeric>
-                  {formatCount(
-                    units.filter((unit) => unit.treatment === treatment.id)
-                      .length,
-                  )}
+                  {formatCount(treatment.units)}
                 </TableCell>
                 <TableCell cellSlot="actions" className="text-end">
                   <TreatmentMenu

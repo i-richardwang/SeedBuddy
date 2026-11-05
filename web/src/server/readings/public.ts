@@ -1,6 +1,10 @@
 export {
+  hasDetection,
+  hasProposal,
+  imageDetection,
+  imageReadings,
+  type JoinedReadings,
   readAnnotationReading,
-  readingsSubquery,
   readReadings,
   readReview,
 } from "./images";

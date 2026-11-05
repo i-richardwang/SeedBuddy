@@ -12,7 +12,7 @@ import { countedImageResult, storeTexts } from "../testing/images";
 import { seedDetectionResult } from "../testing/inference";
 import { trainedVersion } from "../testing/models";
 import { ultralyticsWorker as worker } from "../testing/workers";
-import { experimentGridDetail } from "./experiment-grid-detail";
+import { experimentRecordsDetail } from "./experiment-records-detail";
 
 test("two experiments analyzing one image with one version share one inference", async () => {
   const version = await trainedVersion("exp-shared");
@@ -48,7 +48,7 @@ test("two experiments analyzing one image with one version share one inference",
   const states = async () =>
     Promise.all(
       experimentIds.map(
-        async (id) => (await experimentGridDetail(id))?.images[0]?.state,
+        async (id) => (await experimentRecordsDetail(id))?.images[0]?.state,
       ),
     );
   expect(await states()).toEqual(["pending", "pending"]);

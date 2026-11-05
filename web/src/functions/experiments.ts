@@ -4,16 +4,20 @@ import {
   cultureEventRefSchema,
   cultureEventsRequestSchema,
 } from "../domain/experiments/culture-events";
+import { placedPhotosRequestSchema } from "../domain/experiments/photos";
+import { experimentPageRequestSchema } from "../domain/experiments/read-model";
 import {
   experimentRefSchema,
   experimentRequestSchema,
   experimentUpdateSchema,
+  manualEntryRequestSchema,
   manualReadingsRequestSchema,
   observationImageAssignmentSchema,
   observationImageRefSchema,
   observationRecordSchema,
   observationRefSchema,
   observationUpdateSchema,
+  photoSlotsRequestSchema,
   replicateRequestSchema,
   treatmentRefSchema,
   treatmentRequestSchema,
@@ -45,10 +49,14 @@ import {
   updateUnit as updateUnitService,
 } from "../server/experiments/public";
 import {
-  experimentGridPage,
+  experimentPage,
+  experimentProgressDetail,
   findExperimentNames,
+  findPlacedPhotos,
   listExperimentOverviews,
-  unitPage,
+  manualEntryDetail,
+  photoSlotsDetail,
+  unitWorkbench,
 } from "../server/queries/public";
 
 export const getExperiments = createServerFn({ method: "GET" }).handler(() =>
@@ -60,12 +68,35 @@ export const getExperimentNames = createServerFn({ method: "GET" }).handler(
 );
 
 /**
- * The grid with what its page edits it against: the models an observation may
- * be read for and the datasets its images may join.
+ * The experiment's page: its frame, the models an observation may be read
+ * for, and the view on show, a page of units or the summary.
  */
-export const getExperimentGrid = createServerFn({ method: "GET" })
+export const getExperimentPage = createServerFn({ method: "GET" })
+  .validator(experimentPageRequestSchema)
+  .handler(({ data }) => experimentPage(data.experiment, data.view));
+
+/** How many photographs the experiment holds, and how many still wait for their reading. */
+export const getExperimentProgress = createServerFn({ method: "GET" })
   .validator(experimentRefSchema)
-  .handler(({ data }) => experimentGridPage(data.experiment));
+  .handler(({ data }) => experimentProgressDetail(data.experiment));
+
+/** The units a day's photographs are placed on, and those the day holds one of. */
+export const getPhotoSlots = createServerFn({ method: "GET" })
+  .validator(photoSlotsRequestSchema)
+  .handler(({ data }) => photoSlotsDetail(data));
+
+/** One treatment's units on a day, as counts are entered for them. */
+export const getManualEntry = createServerFn({ method: "GET" })
+  .validator(manualEntryRequestSchema)
+  .handler(({ data }) => manualEntryDetail(data));
+
+/**
+ * Which of a batch's photographs the experiment already holds. A read, sent
+ * as a POST because a batch of digests outgrows an address.
+ */
+export const getPlacedPhotos = createServerFn({ method: "POST" })
+  .validator(placedPhotosRequestSchema)
+  .handler(({ data }) => findPlacedPhotos(data.experiment, data.digests));
 
 export const createExperiment = createServerFn({ method: "POST" })
   .validator(experimentRequestSchema)
@@ -97,7 +128,9 @@ export const createReplicates = createServerFn({ method: "POST" })
 
 export const getUnitDetail = createServerFn({ method: "GET" })
   .validator(unitRequestSchema)
-  .handler(({ data: { observation, ...ref } }) => unitPage(ref, observation));
+  .handler(({ data: { observation, treatment, ...ref } }) =>
+    unitWorkbench(ref, { observation, treatment }),
+  );
 
 export const updateUnit = createServerFn({ method: "POST" })
   .validator(unitUpdateSchema)

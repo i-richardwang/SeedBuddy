@@ -47,6 +47,10 @@ export class TreatmentConflictError extends ConflictError {
 export class UnitConflictError extends ConflictError {
   readonly code = "unit_conflict";
 }
+/** A selection by treatment was made over another number of units than it now covers. */
+export class UnitSelectionConflictError extends ConflictError {
+  readonly code = "unit_selection_conflict";
+}
 /** The requested image assignment conflicts with the observation or unit state. */
 export class ObservationImageConflictError extends ConflictError {
   readonly code = "observation_image_conflict";
