@@ -16,7 +16,7 @@ import {
   type ExperimentWorkbookSource,
   experimentWorkbook,
   experimentWorkbookFilename,
-  gridSheet,
+  recordsSheet,
   summarySheet,
 } from "./workbook";
 
@@ -144,9 +144,9 @@ function source(
   };
 }
 
-/** The grid sheet of the trial's workbook. */
+/** The records sheet of the trial's workbook. */
 function trial(overrides: Partial<ExperimentWorkbookSource> = {}) {
-  return gridSheet(source(overrides), "2026-09-20");
+  return recordsSheet(source(overrides), "2026-09-20");
 }
 
 /** The summary sheet of the trial's workbook. */
@@ -392,7 +392,7 @@ describe("the summary sheet", () => {
       ],
     });
 
-  test("comes second in the file, after the grid", () => {
+  test("comes second in the file, after the records", () => {
     const workbook = experimentWorkbook(source(), "2026-09-20");
     expect(workbook.sheets.map((sheet) => sheet.name)).toEqual([
       "Germination trial",

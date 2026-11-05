@@ -1,10 +1,12 @@
 import { useState } from "react";
 
+import { businessFailureSchema } from "../../domain/errors";
 import {
+  CULTURE_EVENT_REFUSALS,
   CULTURE_EVENT_TYPES,
+  type CultureEventsResult,
   type CultureEventType,
 } from "../../domain/experiments/culture-events";
-import type { Unit } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { createCultureEvents } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
@@ -15,82 +17,115 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Select } from "../../ui/kit/Select";
-import { cultureEventLabel, observationLabel } from "./labels";
+import { toast } from "../../ui/kit/Toast";
+import { formatList } from "../../ui/lists";
+import {
+  cultureEventLabel,
+  cultureEventRefusalLabel,
+  observationLabel,
+} from "./labels";
+import { choiceSelection, choiceSize, type UnitChoice } from "./unit-choice";
 
 const FORM_ID = "record-culture-event";
 
-/** Records the same culture event on one or more units at one observation. */
+/**
+ * Records the same culture event on one or more units at one observation.
+ * Of a choice by treatment, units that cannot take the event that day are
+ * passed over, and the toast names them with why.
+ */
 export function RecordCultureEventDialog({
   experiment,
-  units,
+  choice,
   observations,
   open,
   onClose,
+  onDone,
 }: {
   experiment: string;
-  units: Unit[];
+  choice: UnitChoice;
   observations: ExperimentObservation[];
   open: boolean;
   onClose: () => void;
+  /** After the event was recorded, or the units chosen were found changed. */
+  onDone: () => void;
 }) {
   const action = useAsyncAction();
   return (
     <FormDialog
       open={open}
       onClose={onClose}
-      title={m.culture_event_record()}
+      title={m.culture_event_record_units({ count: choiceSize(choice) })}
       okText={m.culture_event_record_action()}
       formId={FORM_ID}
       busy={action.busy}
-      okDisabled={units.length === 0 || observations.length === 0}
     >
       <CultureEventForm
         experiment={experiment}
-        units={units}
+        choice={choice}
         observations={observations}
         action={action}
-        onDone={onClose}
+        onDone={onDone}
       />
     </FormDialog>
   );
 }
 
-/** Proposes contamination at the latest observation. */
+/** Proposes contamination at the latest observation; the bar offers the command only once an observation is recorded. */
 function CultureEventForm({
   experiment,
-  units,
+  choice,
   observations,
   action,
   onDone,
 }: {
   experiment: string;
-  units: Unit[];
+  choice: UnitChoice;
   observations: ExperimentObservation[];
   action: AsyncAction;
   onDone: () => void;
 }) {
   const [type, setType] = useState<CultureEventType>("contaminated");
-  const [observation, setObservation] = useState(observations.at(-1)?.id ?? "");
+  const [observation, setObservation] = useState(observations.at(-1)!.id);
 
   return (
     <Form
       id={FORM_ID}
       onSubmit={(event) => {
         event.preventDefault();
-        if (observation === "" || units.length === 0) return;
         void action.run(
           () =>
             createCultureEvents({
               data: {
                 experiment,
-                units: units.map((unit) => unit.id),
+                units: choiceSelection(choice),
                 type,
                 observation,
               },
+            }).catch((error: unknown) => {
+              // Every unit of a treatment or of the experiment was chosen by
+              // how many there were, and that has changed since: the choice
+              // is let go and the page read again.
+              const failure = businessFailureSchema.safeParse(error);
+              if (
+                failure.success &&
+                failure.data.code === "unit_selection_conflict"
+              )
+                return "changed" as const;
+              throw error;
             }),
           m.culture_event_not_recorded(),
           {
-            onSuccess: onDone,
+            onSuccess: (result) => {
+              if (result === "changed") {
+                toast.error({
+                  title: m.culture_event_not_recorded(),
+                  description: m.culture_event_units_changed(),
+                });
+              } else if (!("units" in choice)) {
+                reportRecorded(result);
+              }
+              onDone();
+            },
           },
         );
       }}
@@ -119,4 +154,29 @@ function CultureEventForm({
       </Form.Field>
     </Form>
   );
+}
+
+/** What a choice by treatment came to: the units recorded, and those passed over by why. */
+function reportRecorded({ recorded, passedOver }: CultureEventsResult) {
+  const title = m.culture_event_recorded_count({ count: recorded.length });
+  if (passedOver.length === 0) {
+    toast.success(title);
+    return;
+  }
+  toast.success({
+    title,
+    description: CULTURE_EVENT_REFUSALS.map((reason) => {
+      const codes = passedOver
+        .filter((unit) => unit.reason === reason)
+        .map((unit) => unit.code);
+      return codes.length === 0 ? null : (
+        <span key={reason} className="block">
+          {m.culture_event_passed_over({
+            reason: cultureEventRefusalLabel(reason),
+            units: formatList(codes),
+          })}
+        </span>
+      );
+    }),
+  });
 }

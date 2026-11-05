@@ -18,9 +18,13 @@ import {
   type DatasetUpdate,
   datasetSchema,
   type NewDatasetImageAddition,
+  type ObservationPhotographs,
 } from "../../domain/datasets/schema";
 import { ExperimentObservationImageNotFoundError } from "../../domain/experiments/errors";
-import type { ObservationImageRef } from "../../domain/experiments/schema";
+import type {
+  ObservationImageRef,
+  ObservationRef,
+} from "../../domain/experiments/schema";
 import type { ImageSplit } from "../../domain/training/schema";
 import { lockImage } from "../images/public";
 import {
@@ -208,12 +212,9 @@ interface ObservedImage {
   modelId: string;
 }
 
-/** The experiment images named, which must all be observed for one model. */
-async function resolveObservedImages(
-  images: ObservationImageRef[],
-  db: Executor,
-): Promise<{ modelId: string; observed: ObservedImage[] }> {
-  const rows = await db
+/** The experiment's photographs with the model their observation reads for, to be narrowed. */
+function observedImages(db: Executor) {
+  return db
     .select({
       experimentId: experimentObservationImages.experimentId,
       observationImageId: experimentObservationImages.id,
@@ -235,7 +236,41 @@ async function resolveObservedImages(
         ),
       ),
     )
-    .where(or(...images.map(atObservationImage)));
+    .$dynamic();
+}
+
+/** Every photograph of one observation, all read for its model. */
+async function resolveObservationImages(
+  { experiment, observation }: ObservationRef,
+  db: Executor,
+): Promise<{ modelId: string; observed: ObservedImage[] }> {
+  const observed = await observedImages(db).where(
+    and(
+      eq(experimentObservationImages.experimentId, experiment),
+      eq(experimentObservationImages.observationId, observation),
+    ),
+  );
+  const [first] = observed;
+  if (!first) {
+    throw new ExperimentObservationImageNotFoundError(
+      `The observation holds no photographs: ${experiment}/${observation}`,
+    );
+  }
+  return { modelId: first.modelId, observed };
+}
+
+/**
+ * The experiment images named, or every photograph of the observation
+ * named, which must all be observed for one model.
+ */
+async function resolveObservedImages(
+  images: ObservationPhotographs,
+  db: Executor,
+): Promise<{ modelId: string; observed: ObservedImage[] }> {
+  if (!Array.isArray(images)) return resolveObservationImages(images, db);
+  const rows = await observedImages(db).where(
+    or(...images.map(atObservationImage)),
+  );
   const byRef = new Map(
     rows.map((row) => [
       describeObservationImage({

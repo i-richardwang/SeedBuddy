@@ -14,19 +14,22 @@ import { TreatmentField } from "./TreatmentField";
 
 const FORM_ID = "move-units";
 
-/** Moves the selected units to one treatment; each keeps its code. */
+/** Moves the units ticked to one treatment; each keeps its code. */
 export function MoveUnitsDialog({
   experiment,
   units,
   treatments,
   open,
   onClose,
+  onDone,
 }: {
   experiment: string;
   units: Unit[];
   treatments: Treatment[];
   open: boolean;
   onClose: () => void;
+  /** After the units moved. */
+  onDone: () => void;
 }) {
   const action = useAsyncAction();
   return (
@@ -37,14 +40,13 @@ export function MoveUnitsDialog({
       okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
-      okDisabled={units.length === 0}
     >
       <MoveForm
         experiment={experiment}
         units={units}
         treatments={treatments}
         action={action}
-        onDone={onClose}
+        onDone={onDone}
       />
     </FormDialog>
   );

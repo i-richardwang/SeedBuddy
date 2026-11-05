@@ -4,10 +4,6 @@ import { and, eq } from "drizzle-orm";
 
 import { resolveCountedClasses } from "../../domain/experiments/cell-reading";
 import {
-  cultureEventIsTerminal,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
-import {
   ObservationConflictError,
   ObservationModelCountsConflictError,
 } from "../../domain/experiments/errors";
@@ -24,12 +20,16 @@ import {
   operationTime,
   single,
 } from "../infra/db/client";
-import { experimentObservations } from "../infra/db/schema";
+import {
+  experimentManualReadings,
+  experimentObservations,
+} from "../infra/db/schema";
 import { requireModel } from "../models/public";
-import { assertUnitRecordsEndAt } from "./culture-events";
+import { assertRecordsEndOffBench } from "./culture-events";
 import {
   atObservation,
-  listManualReadings,
+  benchExits,
+  hasRecords,
   listObservations,
   listUnits,
   lockExperiment,
@@ -125,9 +125,12 @@ export async function updateObservation(
     );
     if (
       previous.modelId !== modelId &&
-      (await listManualReadings(experimentId, db)).some(
-        (reading) => reading.observation === observationId,
-      )
+      (await hasRecords(
+        experimentId,
+        { units: "all", observation: observationId },
+        db,
+        [experimentManualReadings],
+      ))
     ) {
       throw new ObservationModelCountsConflictError(
         "Withdraw the observation's manual counts before changing its model",
@@ -151,20 +154,16 @@ export async function updateObservation(
     );
     const observations = await listObservations(experimentId, db);
     if (previous.observedOn !== observedOn) {
-      const ordinals = observationOrdinals(observations);
-      for (const unit of await listUnits(experimentId, db)) {
-        const terminal = unit.events.find((event) =>
-          cultureEventIsTerminal(event.type),
-        );
-        if (terminal)
-          await assertUnitRecordsEndAt(
-            experimentId,
-            unit,
-            requireObservation(observations, terminal.observation),
-            ordinals,
-            db,
-          );
-      }
+      const exits = benchExits(experimentId, db);
+      const left = await db.select({ unit: exits.unit }).from(exits);
+      await assertRecordsEndOffBench(
+        experimentId,
+        await listUnits(experimentId, db, {
+          units: left.map((row) => row.unit),
+        }),
+        observations,
+        db,
+      );
     }
     return requireObservation(observations, row.id);
   });

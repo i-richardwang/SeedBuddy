@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, not, or, sql } from "drizzle-orm";
 
 import type {
   PendingAnnotationOverview,
@@ -13,7 +13,7 @@ import {
   experimentObservations,
   models,
 } from "../infra/db/schema";
-import { readingsSubquery } from "../readings/public";
+import { imageReadings, type JoinedReadings } from "../readings/public";
 
 /** How many images one listing names; the total says how many remain. */
 const PENDING_ANNOTATIONS_LIST_LIMIT = 100;
@@ -23,13 +23,13 @@ const PENDING_ANNOTATIONS_LIST_LIMIT = 100;
  * nobody has reviewed it and no agent has proposed boxes for it, provided its
  * model says how to annotate.
  */
-function awaiting(readings: ReturnType<typeof readingsSubquery>) {
+function awaiting(readings: JoinedReadings) {
   return or(
     isNotNull(readings.progress),
     and(
       sql`${models.annotation}->>'instructions' <> ''`,
       isNull(readings.annotation),
-      isNull(readings.proposal),
+      not(readings.proposed),
     ),
   );
 }
@@ -42,26 +42,28 @@ export async function pendingAnnotationsDetail(
   modelId?: string,
 ): Promise<PendingAnnotationsDetail> {
   return snapshot(async (db) => {
-    const datasetReadings = readingsSubquery(db, {
+    const datasetReadings = imageReadings({
+      imageId: datasetImages.imageId,
       modelId: datasets.modelId,
     });
-    const observationReadings = readingsSubquery(db, {
+    const observationReadings = imageReadings({
+      imageId: experimentObservationImages.imageId,
       modelId: experimentObservations.modelId,
     });
     const [inDatasets, inExperiments] = await Promise.all([
-      db
-        .select({
-          digest: datasetImages.imageId,
-          modelId: datasets.modelId,
-          filename: datasetImages.filename,
-          progress: datasetReadings.progress,
-        })
-        .from(datasetImages)
-        .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-        .innerJoin(models, eq(models.id, datasets.modelId))
-        .leftJoinLateral(
-          datasetReadings,
-          eq(datasetReadings.imageId, datasetImages.imageId),
+      datasetReadings
+        .join(
+          db
+            .select({
+              digest: datasetImages.imageId,
+              modelId: datasets.modelId,
+              filename: datasetImages.filename,
+              progress: datasetReadings.progress,
+            })
+            .from(datasetImages)
+            .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
+            .innerJoin(models, eq(models.id, datasets.modelId))
+            .$dynamic(),
         )
         .where(
           and(
@@ -69,19 +71,19 @@ export async function pendingAnnotationsDetail(
             modelId ? eq(datasets.modelId, modelId) : undefined,
           ),
         ),
-      db
-        .select({
-          digest: experimentObservationImages.imageId,
-          modelId: experimentObservations.modelId,
-          filename: experimentObservationImages.filename,
-          progress: observationReadings.progress,
-        })
-        .from(experimentObservationImages)
-        .innerJoin(experimentObservations, atImageObservation())
-        .innerJoin(models, eq(models.id, experimentObservations.modelId))
-        .leftJoinLateral(
-          observationReadings,
-          eq(observationReadings.imageId, experimentObservationImages.imageId),
+      observationReadings
+        .join(
+          db
+            .select({
+              digest: experimentObservationImages.imageId,
+              modelId: experimentObservations.modelId,
+              filename: experimentObservationImages.filename,
+              progress: observationReadings.progress,
+            })
+            .from(experimentObservationImages)
+            .innerJoin(experimentObservations, atImageObservation())
+            .innerJoin(models, eq(models.id, experimentObservations.modelId))
+            .$dynamic(),
         )
         .where(
           and(

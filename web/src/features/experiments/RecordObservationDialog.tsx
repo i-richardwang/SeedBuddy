@@ -1,8 +1,6 @@
 import { useState } from "react";
 
-import { unitIsAvailableOn } from "../../domain/experiments/culture-events";
-import type { PlacedPhoto } from "../../domain/experiments/photos";
-import type { Unit } from "../../domain/experiments/read-model";
+import type { PhotoSlots } from "../../domain/experiments/read-model";
 import {
   type CalendarDay,
   type ExperimentObservation,
@@ -22,7 +20,6 @@ import {
 
 const FORM_ID = "observation";
 
-const NO_UNITS: ReadonlySet<string> = new Set();
 /**
  * Records an observation day in one step: the date, the model its
  * photographs read for, and the photographs, each matched to its unit.
@@ -32,9 +29,8 @@ export function RecordObservationDialog(props: {
   inoculatedOn: CalendarDay;
   models: readonly Model[];
   observations: readonly ExperimentObservation[];
-  units: readonly Unit[];
-  /** The photographs the experiment already holds. */
-  placed: readonly PlacedPhoto[];
+  /** The experiment's units a photograph may be placed on. */
+  slots: PhotoSlots;
   open: boolean;
   onClose: () => void;
 }) {
@@ -52,8 +48,7 @@ function RecordObservationSession({
   inoculatedOn,
   models,
   observations,
-  units,
-  placed,
+  slots,
   open,
   onClose,
   afterClose,
@@ -69,11 +64,9 @@ function RecordObservationSession({
     note: "",
   }));
   const photos = useObservationPhotos({
-    units: units.filter((unit) =>
-      unitIsAvailableOn(unit.events, value.observedOn, observations),
-    ),
-    assigned: NO_UNITS,
-    placed,
+    experiment,
+    slots,
+    day: value.observedOn,
   });
 
   return (

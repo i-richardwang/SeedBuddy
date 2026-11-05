@@ -1,6 +1,6 @@
 /**
  * Whether a photograph could be read clearly is said of the canonical image,
- * wherever it is shown. Marking or clearing it changes no reading: the grid,
+ * wherever it is shown. Marking or clearing it changes no reading: the units' table,
  * the spreadsheet and the dataset pages read the mark beside the readings
  * they have.
  */

@@ -112,6 +112,37 @@ describe("datasets", () => {
     ).toMatchObject({ added: 0, existing: 1 });
   });
 
+  test("adds every photograph of an observation, named by the observation", async () => {
+    const { experiment, observation, digests } = await observeImages(
+      "whole day",
+      ["day-one", "day-two", "day-three"],
+    );
+    const ref = { experiment: experiment.id, observation: observation.id };
+    const { dataset, ...counts } =
+      await addExperimentObservationImagesToNewDataset({
+        name: "whole-day",
+        images: ref,
+      });
+    expect(counts).toEqual({ added: 3, existing: 0 });
+    expect(
+      (await listImageRecords(dataset.id))
+        .map(({ image }) => image.digest)
+        .sort(),
+    ).toEqual([...digests].sort());
+    expect(
+      await addExperimentObservationImages({
+        dataset: dataset.id,
+        images: ref,
+      }),
+    ).toMatchObject({ added: 0, existing: 3 });
+    await expect(
+      addExperimentObservationImages({
+        dataset: dataset.id,
+        images: { experiment: experiment.id, observation: crypto.randomUUID() },
+      }),
+    ).rejects.toMatchObject({ code: "experiment_observation_image_not_found" });
+  });
+
   test("an unclear photograph joins like any other and shows its mark", async () => {
     const { images, digests } = await observeImages("Unclear joining", [
       "uj-fogged",

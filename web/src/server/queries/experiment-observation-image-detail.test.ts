@@ -3,8 +3,8 @@ import { expect, test } from "bun:test";
 import { storeAnnotation } from "../annotations/documents";
 import { createObservation } from "../experiments/observations";
 import { createModel, setCurrentVersion } from "../models/registry";
-import { experimentGridDetail } from "../queries/experiment-grid-detail";
 import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
+import { experimentRecordsDetail } from "../queries/experiment-records-detail";
 import {
   assignImages,
   createExperiment,
@@ -35,7 +35,7 @@ test("a trained version reads only once it is made current, and the one left beh
   });
   const digest = await imageDigest("retrained-d7");
   const imageOf = async () =>
-    (await experimentGridDetail(experiment.id))!.images.find(
+    (await experimentRecordsDetail(experiment.id))!.images.find(
       (image) => image.digest === digest,
     )!;
   const ref = {
@@ -86,7 +86,7 @@ test("an untrained model is observed and read by a reviewer alone", async () => 
   });
   const digest = await imageDigest("untrained-d14");
   const cell = async () =>
-    (await experimentGridDetail(experiment.id))!.images.find(
+    (await experimentRecordsDetail(experiment.id))!.images.find(
       (image) => image.digest === digest,
     )!;
 

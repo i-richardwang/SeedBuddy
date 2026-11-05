@@ -12,6 +12,7 @@ export function useCrumbs(): Crumb[] {
     return spec({
       loaderData: match.loaderData,
       params: match.params as Record<string, string>,
+      search: match.search as Record<string, unknown>,
     });
   }
   return [];

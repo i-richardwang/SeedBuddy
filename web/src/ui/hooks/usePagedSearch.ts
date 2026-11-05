@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { paginates } from "../kit/Pagination";
+
 const PAGE_SIZE = 20;
 
 type SearchOptions<T, F> = {
@@ -64,14 +66,13 @@ export function usePagedSearch<T, F>(
     },
     matches,
     shown: matches.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE),
-    pagination:
-      matches.length > PAGE_SIZE
-        ? {
-            current,
-            pageSize: PAGE_SIZE,
-            total: matches.length,
-            onChange: setPage,
-          }
-        : null,
+    pagination: paginates({ pageSize: PAGE_SIZE, total: matches.length })
+      ? {
+          current,
+          pageSize: PAGE_SIZE,
+          total: matches.length,
+          onChange: setPage,
+        }
+      : null,
   };
 }

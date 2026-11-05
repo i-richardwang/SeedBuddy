@@ -10,10 +10,32 @@
   "culture_event_nonviable": "无活性",
   "culture_event_not_recorded": "培养状态未记录",
   "culture_event_not_removed": "培养状态未移除",
+  "culture_event_passed_over": "{reason}，已跳过：{units}",
   "culture_event_record": "记录培养状态",
   "culture_event_record_action": "记录",
+  "culture_event_record_units": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "为 {formattedCount} 个试验单元记录培养状态"
+      }
+    }
+  ],
+  "culture_event_recorded_count": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "已为 {formattedCount} 个试验单元记录培养状态"
+      }
+    }
+  ],
+  "culture_event_refusal_already_left": "已记录结束培养",
+  "culture_event_refusal_later_records": "之后还有记录",
+  "culture_event_refusal_left_before": "此前已结束培养",
+  "culture_event_refusal_recorded": "当天已有该状态",
   "culture_event_remove": "移除培养状态",
   "culture_event_removed": "已移除{event}",
+  "culture_event_units_changed": "选择之后试验单元有变动，表格已更新，请重新选择。",
   "dataset_add_menu": "加入训练集…",
   "experiment_cell_excluded_event": "本次观测不计入统计",
   "experiment_cell_excluded_unclear": "该单元有不清晰照片，所有观测都不计入统计",
@@ -42,7 +64,6 @@
   "experiment_field_notes": "备注",
   "experiment_field_plant_material": "植物材料",
   "experiment_field_plant_material_placeholder": "菊花‘金杯’",
-  "experiment_grid_label": "{experiment} 的观测",
   "experiment_group_analysis": "统计",
   "experiment_group_culture": "培养",
   "experiment_menu_delete": "删除实验…",
@@ -53,7 +74,23 @@
   "experiment_not_deleted": "实验未删除",
   "experiment_not_saved": "实验未保存",
   "experiment_not_started": "实验未创建",
+  "experiment_select_all_units": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "选择全部 {formattedCount} 个试验单元"
+      }
+    }
+  ],
   "experiment_selection": "已选试验单元",
+  "experiment_selection_all": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "已选择全部 {formattedCount} 个试验单元"
+      }
+    }
+  ],
   "experiment_selection_clear": "取消选择",
   "experiment_selection_count": [
     {
@@ -67,6 +104,8 @@
   "experiment_summary": "汇总",
   "experiment_treatment_not_changed": "处理未更改",
   "experiment_units_all_treatments": "全部处理",
+  "experiment_units_not_loaded": "试验单元未加载",
+  "experiment_units_table_label": "{experiment} 的试验单元",
   "experiments_description": "按处理布置试验单元，在每个观测日拍照，读出萌发与再生的结果。",
   "experiments_empty": "还没有实验",
   "experiments_empty_description": "新建实验，布置处理与试验单元。",
@@ -99,8 +138,10 @@
   "observation_menu_manual_readings": "录入计数…",
   "observation_model_label": "模型",
   "observation_not_deleted": "观察未删除",
+  "observation_not_loaded": "观测日未加载",
   "observation_not_recorded": "观察未记录",
   "observation_not_saved": "观测日未保存",
+  "observation_photos_check_failed": "未能核对照片是否已在本实验中",
   "observation_photos_conflicting": [
     {
       "declarations": ["input count", "local formattedCount = count: number"],

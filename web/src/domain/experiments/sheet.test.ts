@@ -1,9 +1,16 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ExperimentGridDetail } from "./read-model";
+import type { ExperimentRecords } from "./read-model";
 import type { Experiment } from "./schema";
-import { experimentSheet, unitRow } from "./sheet";
-import { cell, counted, event, grid, observation, photograph } from "./testing";
+import { sheetRows, unitRow } from "./sheet";
+import {
+  counted,
+  event,
+  observation,
+  photograph,
+  records,
+  rowCell,
+} from "./testing";
 
 const experiment: Experiment = {
   id: "experiment",
@@ -21,9 +28,9 @@ const day1 = observation(1, ["ungerminated", "germinated"]);
 const day2 = observation(2, ["germinated"]);
 
 function scenario(
-  overrides: Partial<ExperimentGridDetail> = {},
-): ExperimentGridDetail {
-  return grid({
+  overrides: Partial<ExperimentRecords> = {},
+): ExperimentRecords {
+  return records({
     experiment,
     treatments: [
       { id: "control", name: "Control", factor: null, note: "", position: 1 },
@@ -41,13 +48,14 @@ function scenario(
 }
 
 describe("the sheet an agent reads", () => {
-  test("has a cell for every unit on every observation, in the grid's order", () => {
-    const sheet = experimentSheet(scenario());
+  test("has a cell for every unit on every observation, in the order the records hold them", () => {
+    const sheet = sheetRows(scenario());
     expect(
-      sheet.cells.map(({ unit, observation }) => `${unit}/${observation}`),
+      sheet.flatMap(({ unit, cells }) =>
+        cells.map(({ observation }) => `${unit.id}/${observation}`),
+      ),
     ).toEqual(["c1/day-1", "c1/day-2", "t1/day-1", "t1/day-2"]);
-    expect(cell(sheet, "c1", day1)).toEqual({
-      unit: "c1",
+    expect(rowCell(sheet, "c1", day1)).toEqual({
       observation: day1.id,
       reading: null,
       exclusion: null,
@@ -57,7 +65,7 @@ describe("the sheet an agent reads", () => {
   });
 
   test("resolves a cell to the reading the analysis uses, over the evidence it came from", () => {
-    const sheet = experimentSheet(
+    const sheet = sheetRows(
       scenario({
         images: [
           photograph("c1", day1, {
@@ -70,7 +78,7 @@ describe("the sheet an agent reads", () => {
         ],
       }),
     );
-    const first = cell(sheet, "c1", day1);
+    const first = rowCell(sheet, "c1", day1);
     expect(first.reading).toEqual({ count: 10, source: "detection" });
     expect(first.image).toMatchObject({
       id: "c1-day-1",
@@ -79,14 +87,14 @@ describe("the sheet an agent reads", () => {
       detectionTally: { ungerminated: 6, germinated: 4 },
     });
     expect(first.image).not.toHaveProperty("unit");
-    expect(cell(sheet, "c1", day2).reading).toEqual({
+    expect(rowCell(sheet, "c1", day2).reading).toEqual({
       count: 5,
       source: "review",
     });
   });
 
   test("a count entered by hand outranks the photograph and stays beside it", () => {
-    const sheet = experimentSheet(
+    const sheet = sheetRows(
       scenario({
         images: [
           photograph("t1", day2, {
@@ -96,19 +104,19 @@ describe("the sheet an agent reads", () => {
         manualReadings: [counted("t1", day2, { germinated: 7 })],
       }),
     );
-    expect(cell(sheet, "t1", day2)).toMatchObject({
+    expect(rowCell(sheet, "t1", day2)).toMatchObject({
       reading: { count: 7, source: "manual" },
       image: { detectionTally: { ungerminated: 6, germinated: 4 } },
       manual: { tally: { germinated: 7 } },
     });
-    expect(cell(sheet, "t1", day2).manual).not.toHaveProperty("unit");
+    expect(rowCell(sheet, "t1", day2).manual).not.toHaveProperty("unit");
   });
 
   test("a count that leaves a counted class unanswered reads nothing by itself", () => {
-    const sheet = experimentSheet(
+    const sheet = sheetRows(
       scenario({ manualReadings: [counted("t1", day1, { germinated: 7 })] }),
     );
-    expect(cell(sheet, "t1", day1)).toMatchObject({
+    expect(rowCell(sheet, "t1", day1)).toMatchObject({
       reading: null,
       manual: { tally: { germinated: 7 } },
     });
@@ -116,7 +124,7 @@ describe("the sheet an agent reads", () => {
 
   test("says why a day is out of the analysis, with or without a reading", () => {
     const contaminated = event("contaminated", day1);
-    const sheet = experimentSheet(
+    const sheet = sheetRows(
       scenario({
         units: [
           { id: "c1", code: "Control-1", treatment: "control", events: [] },
@@ -138,21 +146,21 @@ describe("the sheet an agent reads", () => {
         ],
       }),
     );
-    expect(cell(sheet, "t1", day1)).toMatchObject({
+    expect(rowCell(sheet, "t1", day1)).toMatchObject({
       reading: { count: 10, source: "detection" },
       exclusion: { reason: "event", event: contaminated },
     });
-    expect(cell(sheet, "t1", day2)).toMatchObject({
+    expect(rowCell(sheet, "t1", day2)).toMatchObject({
       reading: null,
       exclusion: { reason: "event", event: contaminated },
     });
     // An unclear photograph takes its unit out on every day, where the experiment does not count it.
-    expect(cell(sheet, "c1", day1).exclusion).toEqual({ reason: "unclear" });
-    expect(cell(sheet, "c1", day2).exclusion).toEqual({ reason: "unclear" });
+    expect(rowCell(sheet, "c1", day1).exclusion).toEqual({ reason: "unclear" });
+    expect(rowCell(sheet, "c1", day2).exclusion).toEqual({ reason: "unclear" });
   });
 
   test("where unclear photographs count, the number is used as it stands", () => {
-    const sheet = experimentSheet(
+    const sheet = sheetRows(
       scenario({
         experiment: { ...experiment, countsUnclear: true },
         images: [
@@ -163,7 +171,7 @@ describe("the sheet an agent reads", () => {
         ],
       }),
     );
-    expect(cell(sheet, "c1", day1)).toMatchObject({
+    expect(rowCell(sheet, "c1", day1)).toMatchObject({
       reading: { count: 10, source: "detection" },
       exclusion: null,
     });
@@ -189,9 +197,10 @@ describe("a unit's row of the sheet", () => {
       unit: { id: "t1" },
       observations: [day1, day2],
     });
-    expect(
-      row!.cells.map(({ unit, observation }) => `${unit}/${observation}`),
-    ).toEqual(["t1/day-1", "t1/day-2"]);
+    expect(row!.cells.map(({ observation }) => observation)).toEqual([
+      "day-1",
+      "day-2",
+    ]);
     expect(row!.cells[0]!.reading).toEqual({ count: 10, source: "detection" });
   });
 

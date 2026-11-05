@@ -4,7 +4,6 @@ import type {
   ExperimentSummary,
   Statistic,
   TreatmentDaySummary,
-  Unit,
 } from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
@@ -52,13 +51,11 @@ import { TreatmentName } from "./TreatmentName";
  */
 export function TreatmentSummary({
   treatments,
-  units,
   observations,
   summary,
   empty,
 }: {
   treatments: readonly Treatment[];
-  units: readonly Unit[];
   observations: readonly ExperimentObservation[];
   summary: ExperimentSummary;
   empty: ReactNode;
@@ -84,7 +81,6 @@ export function TreatmentSummary({
       <Card>
         <SummaryChart
           treatments={treatments}
-          units={units}
           observations={observations}
           inView={inView}
           summary={summary}
@@ -220,32 +216,26 @@ const RATE_TICK = 0.25;
  */
 function SummaryChart({
   treatments,
-  units,
   observations,
   inView,
   summary,
   onChange,
 }: {
   treatments: readonly Treatment[];
-  units: readonly Unit[];
   observations: readonly ExperimentObservation[];
   inView: ExperimentObservation;
   summary: ExperimentSummary;
   onChange: (observation: string) => void;
 }) {
   const measure = summaryMeasure(summary, inView.id);
-  const cells = treatments.map((treatment) =>
-    summaryCell(summary, treatment.id, inView.id),
-  );
-  const codes = new Map(units.map((unit) => [unit.id, unit.code]));
   const statistics = new Map(
-    treatments.map((treatment, index) => [
+    treatments.map((treatment) => [
       treatment.id,
-      { cell: cells[index], statistic: statisticOf(cells[index], measure) },
+      statisticOf(summaryCell(summary, treatment.id, inView.id), measure),
     ]),
   );
   const items: BarChartItem[] = treatments.map((treatment) => {
-    const statistic = statistics.get(treatment.id)?.statistic ?? null;
+    const statistic = statistics.get(treatment.id);
     return {
       key: treatment.id,
       label: treatment.name,
@@ -293,9 +283,8 @@ function SummaryChart({
       valueTicks={ticks}
       yAxisDomain={[0, measure === "rate" ? rateTop : "auto"]}
       tooltip={(item) => {
-        const found = statistics.get(item.key);
-        if (!found?.statistic || !found.cell) return null;
-        const { statistic, cell } = found;
+        const statistic = statistics.get(item.key);
+        if (!statistic) return null;
         return {
           title: (
             <span className="flex items-center justify-between gap-4">
@@ -311,18 +300,6 @@ function SummaryChart({
               label: m.summary_tooltip_mean(),
               value: formatStatistic(statistic, measure),
             },
-            ...cell.units.flatMap((unit) => {
-              const value = measure === "rate" ? unit.rate : unit.count;
-              return value === null
-                ? []
-                : [
-                    {
-                      color: item.color,
-                      label: codes.get(unit.unit) ?? unit.unit,
-                      value: formatMeasure(value, measure),
-                    },
-                  ];
-            }),
           ],
         };
       }}

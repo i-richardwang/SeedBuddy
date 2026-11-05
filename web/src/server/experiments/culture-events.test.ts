@@ -6,10 +6,11 @@ import {
   ObservationImageConflictError,
   UnitConflictError,
   UnitNotFoundError,
+  UnitSelectionConflictError,
 } from "../../domain/experiments/errors";
 import { database } from "../infra/db/client";
 import { experimentCultureEvents } from "../infra/db/schema";
-import { experimentGridDetail } from "../queries/experiment-grid-detail";
+import { experimentRecordsDetail } from "../queries/experiment-records-detail";
 import {
   createExperiment,
   INOCULATED,
@@ -59,7 +60,7 @@ test("at most one terminal event", async () => {
 
   await deleteCultureEvent({
     experiment: experiment.id,
-    event: recorded[0]!.value[0]!.id,
+    event: recorded[0]!.value.recorded[0]!.event.id,
   });
   await expect(
     recordCultureEvents({
@@ -68,7 +69,10 @@ test("at most one terminal event", async () => {
       type: "missing",
       observation: day7.id,
     }),
-  ).resolves.toMatchObject([{ type: "missing" }]);
+  ).resolves.toMatchObject({
+    recorded: [{ unit: units.get("A-1")!, event: { type: "missing" } }],
+    passedOver: [],
+  });
 });
 
 test("culture events take effect until they are removed", async () => {
@@ -86,12 +90,15 @@ test("culture events take effect until they are removed", async () => {
     ...reading(version),
   });
 
-  const [event] = await recordCultureEvents({
-    experiment: experiment.id,
-    units: [units.get("A-1")!],
-    type: "contaminated",
-    observation: day7.id,
-  });
+  const [contamination] = (
+    await recordCultureEvents({
+      experiment: experiment.id,
+      units: [units.get("A-1")!],
+      type: "contaminated",
+      observation: day7.id,
+    })
+  ).recorded;
+  const event = contamination!.event;
   expect([event!.type, event!.observation]).toEqual(["contaminated", day7.id]);
   await expect(
     recordCultureEvents({
@@ -110,12 +117,14 @@ test("culture events take effect until they are removed", async () => {
     note: "",
     ...reading(version),
   });
-  const [terminalEvent] = await recordCultureEvents({
-    experiment: experiment.id,
-    units: [units.get("A-1")!],
-    type: "discarded",
-    observation: day7.id,
-  });
+  const [terminal] = (
+    await recordCultureEvents({
+      experiment: experiment.id,
+      units: [units.get("A-1")!],
+      type: "discarded",
+      observation: day7.id,
+    })
+  ).recorded;
   const [futurePhoto] = await storeTexts(["terminal-a1"]);
   await expect(
     assignObservationImages({
@@ -132,7 +141,7 @@ test("culture events take effect until they are removed", async () => {
   ).rejects.toThrow(ObservationImageConflictError);
   await deleteCultureEvent({
     experiment: experiment.id,
-    event: terminalEvent!.id,
+    event: terminal!.event.id,
   });
   await assignObservationImages({
     experiment: experiment.id,
@@ -198,13 +207,13 @@ test("the same culture event can be recorded on several units", async () => {
     ...reading(version),
   });
 
-  const events = await recordCultureEvents({
+  const { recorded } = await recordCultureEvents({
     experiment: experiment.id,
     units: [units.get("A-1")!, units.get("A-2")!],
     type: "contaminated",
     observation: day7.id,
   });
-  expect(events.map((event) => event!.type)).toEqual([
+  expect(recorded.map(({ event }) => event.type)).toEqual([
     "contaminated",
     "contaminated",
   ]);
@@ -218,8 +227,81 @@ test("the same culture event can be recorded on several units", async () => {
     }),
   ).rejects.toThrow(UnitConflictError);
   expect(
-    (await experimentGridDetail(experiment.id))?.units.filter((unit) =>
+    (await experimentRecordsDetail(experiment.id))?.units.filter((unit) =>
       unit.events.some((event) => event!.type === "contaminated"),
     ),
   ).toHaveLength(2);
+});
+
+test("an event for a treatment's units passes over those that cannot take it", async () => {
+  const version = await trainedVersion("exp-selected-events");
+  const experiment = await createExperiment({
+    name: "Selected events",
+    inoculatedOn: INOCULATED,
+    treatments: [
+      { name: "A", replicates: 3 },
+      { name: "B", replicates: 1 },
+    ],
+  });
+  const units = await unitsOf(experiment.id);
+  const [a] = (await experimentRecordsDetail(experiment.id))!.treatments;
+  const day7 = await createObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-08",
+    note: "",
+    ...reading(version),
+  });
+  const day14 = await createObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-15",
+    note: "",
+    ...reading(version),
+  });
+  await recordCultureEvents({
+    experiment: experiment.id,
+    units: [units.get("A-1")!],
+    type: "discarded",
+    observation: day7.id,
+  });
+  await recordCultureEvents({
+    experiment: experiment.id,
+    units: [units.get("A-2")!],
+    type: "contaminated",
+    observation: day14.id,
+  });
+
+  const result = await recordCultureEvents({
+    experiment: experiment.id,
+    units: { treatment: a!.id, expected: 3 },
+    type: "contaminated",
+    observation: day14.id,
+  });
+  expect(result.recorded.map(({ unit }) => unit)).toEqual([units.get("A-3")!]);
+  expect(result.passedOver).toEqual([
+    { unit: units.get("A-1")!, code: "A-1", reason: "left_before" },
+    { unit: units.get("A-2")!, code: "A-2", reason: "recorded" },
+  ]);
+
+  // A choice of every unit made over three is refused now the experiment has four.
+  await expect(
+    recordCultureEvents({
+      experiment: experiment.id,
+      units: { treatment: null, expected: 3 },
+      type: "nonviable",
+      observation: day14.id,
+    }),
+  ).rejects.toBeInstanceOf(UnitSelectionConflictError);
+  // A-2 and A-3 have events after the first day, so cannot leave on it.
+  const all = await recordCultureEvents({
+    experiment: experiment.id,
+    units: { treatment: null, expected: 4 },
+    type: "harvested",
+    observation: day7.id,
+  });
+  expect(all.recorded.map(({ unit }) => unit)).toEqual([units.get("B-1")!]);
+  expect(all.passedOver).toEqual([
+    { unit: units.get("A-1")!, code: "A-1", reason: "already_left" },
+    { unit: units.get("A-2")!, code: "A-2", reason: "later_records" },
+    { unit: units.get("A-3")!, code: "A-3", reason: "later_records" },
+  ]);
 });

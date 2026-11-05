@@ -72,7 +72,7 @@ export const datasetOperations = [
     transaction: "operation",
     name: "add-images-to-dataset",
     description:
-      "Add experiment photographs to a dataset that trains their observation's model, by the observation image id each cell carries. All images must be observed for that model; images already in the dataset are counted as existing, so repeating a call is safe. Training splits are assigned when a snapshot is taken",
+      "Add experiment photographs to a dataset that trains their observation's model: named by the observation image id each cell carries, or every photograph of one observation given as `{experiment, observation}`. All images must be observed for that model; images already in the dataset are counted as existing, so repeating a call is safe. Training splits are assigned when a snapshot is taken",
     destructive: false,
     input: datasetImageAdditionSchema,
     output: datasetImageAdditionResultSchema,

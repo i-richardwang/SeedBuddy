@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { pairInOrder, replicateCodes, suggestUnit, unitOrder } from "./naming";
+import { pairInOrder, replicateCodes, suggestUnit } from "./naming";
 
 describe("unit naming", () => {
   test("codes a treatment's replicates in one series", () => {
@@ -9,23 +9,6 @@ describe("unit naming", () => {
 
   test("continues the series past the codes already used", () => {
     expect(replicateCodes("T1", 2, ["T1-1", "t1-3"])).toEqual(["T1-2", "T1-4"]);
-  });
-
-  test("orders units by treatment, then by code", () => {
-    const units = [
-      { code: "T1-10", treatment: "t1" },
-      { code: "T1-2", treatment: "t1" },
-      { code: "CK-1", treatment: "ck" },
-    ];
-    const treatments = [
-      { id: "ck", position: 1 },
-      { id: "t1", position: 2 },
-    ];
-    expect(unitOrder(units, treatments).map((unit) => unit.code)).toEqual([
-      "CK-1",
-      "T1-2",
-      "T1-10",
-    ]);
   });
 });
 

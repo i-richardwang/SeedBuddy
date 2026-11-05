@@ -71,6 +71,8 @@
   "ui_pagination": "Pagination",
   "ui_pagination_next": "Next page",
   "ui_pagination_page": "Page {page}",
+  "ui_pagination_page_size": "Rows per page",
+  "ui_pagination_page_size_option": "{size} / page",
   "ui_pagination_previous": "Previous page",
   "ui_shell_collapse": "Collapse sidebar",
   "ui_shell_expand": "Expand sidebar",

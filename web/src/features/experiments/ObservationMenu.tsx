@@ -2,20 +2,22 @@ import { FolderPlus, Images, Pencil, PencilLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { NamedDataset } from "../../domain/datasets/schema";
-import type { PlacedPhoto } from "../../domain/experiments/photos";
 import type {
-  ObservationImageCell,
-  Unit,
+  ObservationFrame,
+  PhotoSlots,
 } from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
-  ManualReading,
   Treatment,
 } from "../../domain/experiments/schema";
 import type { Model } from "../../domain/models/schema";
-import { removeObservation } from "../../functions/experiments";
+import { getModelDatasets } from "../../functions/datasets";
+import { getPhotoSlots, removeObservation } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
+import { found } from "../../ui/found";
+import type { ShownDialog } from "../../ui/hooks/useDialog";
+import { useLoadedDialog } from "../../ui/hooks/useLoadedDialog";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { TableHeadMenu } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
@@ -23,90 +25,107 @@ import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { AddPhotosDialog } from "./AddPhotosDialog";
 import { observationQuestion } from "./copy";
-import { EnterManualReadingsDialog } from "./EnterManualReadingsDialog";
+import {
+  EnterManualReadingsDialog,
+  type ManualEntry,
+  readManualEntry,
+} from "./EnterManualReadingsDialog";
 import { observationLabel } from "./labels";
 import { ObservationDialog } from "./ObservationDialog";
 
-type Action = "images" | "readings" | "dataset" | "edit";
+/** What each action on the day reads when it opens, and no more. */
+type DayReads = {
+  images: PhotoSlots;
+  readings: ManualEntry;
+  dataset: NamedDataset[];
+};
 
 /**
  * An observation day's column heading, opening what can be done to that day.
  * The day heads the column; what it asks, when that needs saying, sits on a
- * line under it.
+ * line under it. Each action reads what it needs of the day when it opens,
+ * not with the table.
  */
 export function ObservationMenu({
   experiment,
   inoculatedOn,
   observation,
   observations,
-  units,
-  images,
-  manualReadings,
   treatments,
-  placed,
+  treatment,
   models,
-  datasets,
 }: {
   experiment: string;
   inoculatedOn: string;
-  observation: ExperimentObservation;
+  observation: ObservationFrame;
   /** Every observation of the experiment, whose days this one cannot move to. */
   observations: readonly ExperimentObservation[];
-  /** The units that can still be photographed at this observation. */
-  units: Unit[];
-  /** The images taken at this observation. */
-  images: ObservationImageCell[];
-  /** The counts entered by hand at this observation. */
-  manualReadings: ManualReading[];
   treatments: readonly Treatment[];
-  /** The photographs the experiment holds across all its observations. */
-  placed: readonly PlacedPhoto[];
+  /** The treatment the page is narrowed to, which counts are entered for first. */
+  treatment: string | null;
   models: readonly Model[];
-  /** The datasets training the observation's model. */
-  datasets: NamedDataset[];
 }) {
   const confirmDestructive = useConfirmDestructive();
-  const [open, setOpen] = useState<Action | null>(null);
-  const close = () => setOpen(null);
+  const [editing, setEditing] = useState(false);
+  const day = useLoadedDialog<DayReads>();
+  const ref = { experiment, observation: observation.id };
   const name = observationLabel(observation);
   const question = observationQuestion(
     observation,
     models.find((model) => model.id === observation.modelId),
     { nameModel: new Set(observations.map((item) => item.modelId)).size > 1 },
   );
-  const assigned = new Set(images.map((image) => image.unit));
-  const vacant = units.filter((unit) => !assigned.has(unit.id));
+  const addPhotos = () =>
+    day.show(
+      "images",
+      async () => found(await getPhotoSlots({ data: ref })),
+      m.observation_not_loaded(),
+    );
+  // Counts are entered only on a day with units on the bench, so the
+  // experiment has a treatment to begin with.
+  const enterCounts = () =>
+    day.show(
+      "readings",
+      () => readManualEntry(ref, treatment ?? treatments[0]!.id),
+      m.observation_not_loaded(),
+    );
+  const addToDataset = () =>
+    day.show(
+      "dataset",
+      () => getModelDatasets({ data: { model: observation.modelId } }),
+      m.observation_not_loaded(),
+    );
 
   const items: DropdownItem[] = [];
-  if (vacant.length > 0) {
+  if (observation.vacant > 0) {
     items.push({
       key: "images",
       icon: Images,
       label: m.observation_menu_add_photos(),
-      onClick: () => setOpen("images"),
+      onClick: addPhotos,
     });
   }
-  if (units.length > 0) {
+  if (observation.available > 0) {
     items.push({
       key: "readings",
       icon: PencilLine,
       label: m.observation_menu_manual_readings(),
-      onClick: () => setOpen("readings"),
+      onClick: enterCounts,
     });
   }
-  if (images.length > 0) {
+  if (observation.photographed > 0) {
     items.push({
       key: "dataset",
       icon: FolderPlus,
       label: m.observation_menu_add_to_dataset(),
-      onClick: () => setOpen("dataset"),
+      onClick: addToDataset,
     });
   }
   items.push({
     key: "edit",
     icon: Pencil,
     label: m.observation_menu_edit(),
-    onClick: () => setOpen("edit"),
+    onClick: () => setEditing(true),
   });
   if (!observation.hasRecords) {
     items.push(
@@ -143,6 +162,7 @@ export function ObservationMenu({
             : name,
         })}
         items={items}
+        busy={day.loading}
       >
         <span className="flex flex-col items-start">
           {name}
@@ -154,37 +174,16 @@ export function ObservationMenu({
         </span>
       </TableHeadMenu>
 
-      <AddPhotosDialog
-        experiment={experiment}
-        observation={observation}
-        units={units}
-        assigned={assigned}
-        placed={placed}
-        open={open === "images"}
-        onClose={close}
-      />
-
-      <EnterManualReadingsDialog
-        experiment={experiment}
-        observation={observation}
-        units={units}
-        treatments={treatments}
-        images={images}
-        manualReadings={manualReadings}
-        open={open === "readings"}
-        onClose={close}
-      />
-
-      <AddToDatasetDialog
-        open={open === "dataset"}
-        images={images.map((image) => ({
-          experiment,
-          observationImage: image.id,
-        }))}
-        datasets={datasets}
-        heading={m.observation_add_to_dataset()}
-        onClose={close}
-      />
+      {day.last ? (
+        <ObservationDayDialog
+          experiment={experiment}
+          observation={observation}
+          treatments={treatments}
+          dialog={day.last}
+          open={day.open}
+          onClose={day.close}
+        />
+      ) : null}
 
       <ObservationDialog
         experiment={experiment}
@@ -192,9 +191,60 @@ export function ObservationMenu({
         models={models}
         observation={observation}
         observations={observations}
-        open={open === "edit"}
-        onClose={close}
+        open={editing}
+        onClose={() => setEditing(false)}
       />
     </>
   );
+}
+
+/** The dialog of the action last opened on the day, given what it read. */
+function ObservationDayDialog({
+  experiment,
+  observation,
+  treatments,
+  dialog,
+  open,
+  onClose,
+}: {
+  experiment: string;
+  observation: ExperimentObservation;
+  treatments: readonly Treatment[];
+  dialog: ShownDialog<DayReads>;
+  open: boolean;
+  onClose: () => void;
+}) {
+  switch (dialog.key) {
+    case "images":
+      return (
+        <AddPhotosDialog
+          experiment={experiment}
+          observation={observation}
+          slots={dialog.value}
+          open={open}
+          onClose={onClose}
+        />
+      );
+    case "readings":
+      return (
+        <EnterManualReadingsDialog
+          experiment={experiment}
+          observation={observation}
+          treatments={treatments}
+          entry={dialog.value}
+          open={open}
+          onClose={onClose}
+        />
+      );
+    case "dataset":
+      return (
+        <AddToDatasetDialog
+          open={open}
+          images={{ experiment, observation: observation.id }}
+          datasets={dialog.value}
+          heading={m.observation_add_to_dataset()}
+          onClose={onClose}
+        />
+      );
+  }
 }

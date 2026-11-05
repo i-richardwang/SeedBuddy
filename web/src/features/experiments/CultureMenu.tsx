@@ -77,10 +77,11 @@ export function CultureMenu({
       </DropdownMenu>
       <RecordCultureEventDialog
         experiment={experiment}
-        units={[unit]}
+        choice={{ units: [unit] }}
         observations={observations}
         open={open === "record"}
         onClose={close}
+        onDone={close}
       />
       <RemoveCultureEventDialog
         experiment={experiment}

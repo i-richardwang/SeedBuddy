@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { type PlacedPhoto, photoConflicts, placedPhotos } from "./photos";
+import { type PlacedPhoto, photoConflicts } from "./photos";
 
 const digest = (char: string) => char.repeat(64);
 
@@ -34,39 +34,5 @@ describe("photographs an experiment holds", () => {
     expect([...conflicts]).toEqual([
       [2, { kind: "repeated", filename: "IMG_0413.jpg" }],
     ]);
-  });
-
-  test("a grid names each photograph by its unit's code and its day", () => {
-    expect(
-      placedPhotos({
-        units: [{ id: "u1", code: "A-1", treatment: "t1", events: [] }],
-        observations: [
-          {
-            id: "o1",
-            ordinal: 1,
-            observedOn: "2026-09-06",
-            note: "",
-            modelId: "seed",
-            countedClasses: ["seed"],
-            hasRecords: true,
-          },
-        ],
-        images: [
-          {
-            id: "c1",
-            unit: "u1",
-            observation: "o1",
-            digest: digest("a"),
-            filename: "IMG_0412.jpg",
-            state: "pending",
-            detectionTally: null,
-            proposalTally: null,
-            annotationTally: null,
-            error: null,
-            unclear: false,
-          },
-        ],
-      }),
-    ).toEqual(placed);
   });
 });

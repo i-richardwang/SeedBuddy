@@ -10,7 +10,7 @@ export type ManualReadingDraft = Record<string, number | null>;
 /** A unit's draft as the form opens: the count it already has, where it has one. */
 export function manualReadingDraft(
   classes: readonly string[],
-  manual: ManualReading | undefined,
+  manual: ManualReading | null,
 ): ManualReadingDraft {
   return Object.fromEntries(
     classes.map((name) => [

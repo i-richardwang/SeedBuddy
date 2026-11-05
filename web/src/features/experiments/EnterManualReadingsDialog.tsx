@@ -1,19 +1,20 @@
 import { useState } from "react";
 
-import { cellReadingFromImage } from "../../domain/experiments/cell-reading";
-import type {
-  ObservationImageCell,
-  Unit,
-} from "../../domain/experiments/read-model";
+import type { ManualEntryRow } from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
   ManualReading,
+  ObservationRef,
   Treatment,
 } from "../../domain/experiments/schema";
-import { updateManualReadings } from "../../functions/experiments";
+import {
+  getManualEntry,
+  updateManualReadings,
+} from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { FormDialog } from "../../ui/FormDialog";
+import { found } from "../../ui/found";
 import {
   type AsyncAction,
   useAsyncAction,
@@ -21,6 +22,7 @@ import {
 import { Alert } from "../../ui/kit/Alert";
 import { Form } from "../../ui/kit/Form";
 import { InputNumber } from "../../ui/kit/Input";
+import { Select } from "../../ui/kit/Select";
 import {
   Table,
   TableBody,
@@ -43,33 +45,43 @@ import { TreatmentName } from "./TreatmentName";
 
 const FORM_ID = "enter-manual-readings";
 
+/** One treatment's units on the day, as counts are entered for them. */
+export interface ManualEntry {
+  treatment: string;
+  rows: ManualEntryRow[];
+}
+
+/** Reads one treatment's units on the day, to enter their counts. */
+export async function readManualEntry(
+  ref: ObservationRef,
+  treatment: string,
+): Promise<ManualEntry> {
+  const rows = await getManualEntry({ data: { ...ref, treatment } });
+  return { treatment, rows: found(rows) };
+}
+
 /**
- * Enters the counts of the units on one observation day by hand, a row per
- * unit and a field per class the day counts: for a day that was not
- * photographed, or whose dishes were counted at the bench. Beside the fields
- * stands what the day's photograph reads, where there is one, so a count
- * entered over it is entered knowingly. A unit's row left empty keeps no
- * count.
+ * Enters the counts of the units on one observation day by hand, one
+ * treatment's units at a time, a row per unit and a field per class the day
+ * counts: for a day that was not photographed, or whose dishes were counted
+ * at the bench. Beside the fields stands what the day's photograph reads,
+ * where there is one, so a count entered over it is entered knowingly. What
+ * is typed for one treatment stays while another is shown, and saving
+ * records every treatment's. A unit's row left empty keeps no count.
  */
 export function EnterManualReadingsDialog({
   experiment,
   observation,
-  units,
   treatments,
-  images,
-  manualReadings,
+  entry,
   open,
   onClose,
 }: {
   experiment: string;
   observation: ExperimentObservation;
-  /** The units that can be counted at this observation, in the grid's order. */
-  units: readonly Unit[];
   treatments: readonly Treatment[];
-  /** The photographs taken at this observation. */
-  images: readonly ObservationImageCell[];
-  /** The counts already entered for this observation. */
-  manualReadings: readonly ManualReading[];
+  /** The treatment the dialog opens on, read. */
+  entry: ManualEntry;
   open: boolean;
   onClose: () => void;
 }) {
@@ -84,16 +96,13 @@ export function EnterManualReadingsDialog({
       okText={m.manual_readings_save()}
       formId={FORM_ID}
       busy={action.busy}
-      okDisabled={units.length === 0}
       width="wide"
     >
       <ManualReadingsForm
         experiment={experiment}
         observation={observation}
-        units={units}
         treatments={treatments}
-        images={images}
-        manualReadings={manualReadings}
+        entry={entry}
         action={action}
         onDone={onClose}
       />
@@ -104,37 +113,58 @@ export function EnterManualReadingsDialog({
 function ManualReadingsForm({
   experiment,
   observation,
-  units,
   treatments,
-  images,
-  manualReadings,
+  entry,
   action,
   onDone,
 }: {
   experiment: string;
   observation: ExperimentObservation;
-  units: readonly Unit[];
   treatments: readonly Treatment[];
-  images: readonly ObservationImageCell[];
-  manualReadings: readonly ManualReading[];
+  entry: ManualEntry;
   action: AsyncAction;
   onDone: () => void;
 }) {
   const classes = observation.countedClasses;
-  const existing = new Map(manualReadings.map((item) => [item.unit, item]));
-  const photographs = new Map(images.map((image) => [image.unit, image]));
-  const treatmentOf = new Map(treatments.map((item) => [item.id, item]));
-  const codeOf = new Map(units.map((unit) => [unit.id, unit.code]));
+  const loading = useAsyncAction();
+  const [shown, setShown] = useState(entry.treatment);
+  // Every treatment read so far, and what was typed for its units.
+  const [read, setRead] = useState<ReadonlyMap<string, ManualEntryRow[]>>(
+    () => new Map([[entry.treatment, entry.rows]]),
+  );
   const [drafts, setDrafts] = useState<ReadonlyMap<string, ManualReadingDraft>>(
-    () =>
-      new Map(
-        units.map((unit) => [
-          unit.id,
-          manualReadingDraft(classes, existing.get(unit.id)),
-        ]),
-      ),
+    () => draftsOf(classes, entry.rows),
   );
   const [incomplete, setIncomplete] = useState<readonly string[]>([]);
+  const rows = read.get(shown) ?? [];
+  const everyRow = [...read.values()].flat();
+  const existing = new Map(
+    everyRow.flatMap((row): [string, ManualReading][] =>
+      row.manual ? [[row.unit.id, row.manual]] : [],
+    ),
+  );
+  const codeOf = new Map(everyRow.map((row) => [row.unit.id, row.unit.code]));
+  const show = (treatment: string) => {
+    if (read.has(treatment)) {
+      setShown(treatment);
+      return;
+    }
+    void loading.run(
+      () =>
+        readManualEntry({ experiment, observation: observation.id }, treatment),
+      m.experiment_units_not_loaded(),
+      {
+        invalidate: false,
+        onSuccess: ({ rows }) => {
+          setRead((previous) => new Map(previous).set(treatment, rows));
+          setDrafts(
+            (previous) => new Map([...draftsOf(classes, rows), ...previous]),
+          );
+          setShown(treatment);
+        },
+      },
+    );
+  };
   const setValue = (unit: string, name: string, value: number | null) => {
     setDrafts((previous) => {
       const next = new Map(previous);
@@ -185,13 +215,31 @@ function ManualReadingsForm({
           })}
         />
       ) : null}
-      <Table aria-label={m.manual_readings_label()} size="small">
+      <Table
+        aria-label={m.manual_readings_label()}
+        size="small"
+        toolbar={
+          treatments.length > 1 ? (
+            <Select
+              aria-label={m.treatment_label()}
+              className="w-48"
+              size="small"
+              disabled={action.busy || loading.busy}
+              options={treatments.map((item) => ({
+                value: item.id,
+                label: <TreatmentName treatment={item} />,
+              }))}
+              value={shown}
+              onChange={show}
+            />
+          ) : undefined
+        }
+      >
         <TableHeader>
           <tr>
             <TableHead className="min-w-24">
               {m.experiment_column_unit()}
             </TableHead>
-            <TableHead className="min-w-32">{m.treatment_label()}</TableHead>
             {classes.map((name) => (
               <TableHead key={name} className="min-w-28">
                 {classLabel(name)}
@@ -203,19 +251,11 @@ function ManualReadingsForm({
           </tr>
         </TableHeader>
         <TableBody>
-          {units.map((unit) => {
+          {rows.map(({ unit, photographed }) => {
             const draft = drafts.get(unit.id) ?? {};
-            const owner = treatmentOf.get(unit.treatment);
-            const photographed = cellReadingFromImage(
-              photographs.get(unit.id),
-              observation,
-            );
             return (
               <TableRow key={unit.id}>
                 <TableCell cellSlot="title">{unit.code}</TableCell>
-                <TableCell>
-                  {owner ? <TreatmentName treatment={owner} /> : null}
-                </TableCell>
                 {classes.map((name) => (
                   <TableCell key={name}>
                     <InputNumber
@@ -247,5 +287,15 @@ function ManualReadingsForm({
         </TableBody>
       </Table>
     </Form>
+  );
+}
+
+/** The drafts of the units read, as the form opens on them: their counts already entered. */
+function draftsOf(
+  classes: readonly string[],
+  rows: readonly ManualEntryRow[],
+): Map<string, ManualReadingDraft> {
+  return new Map(
+    rows.map((row) => [row.unit.id, manualReadingDraft(classes, row.manual)]),
   );
 }

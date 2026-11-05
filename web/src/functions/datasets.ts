@@ -8,17 +8,27 @@ import {
   datasetUpdateSchema,
   newDatasetImageAdditionSchema,
 } from "../domain/datasets/schema";
+import { modelRefSchema } from "../domain/models/schema";
 import {
   addExperimentObservationImages,
   addExperimentObservationImagesToNewDataset,
   removeDatasetImages,
   updateDataset as updateDatasetService,
 } from "../server/datasets/public";
-import { datasetDetail, datasetImageDetail } from "../server/queries/public";
+import {
+  datasetDetail,
+  datasetImageDetail,
+  modelDatasetsDetail,
+} from "../server/queries/public";
 
 export const getDatasetDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema)
   .handler(({ data }) => datasetDetail(data.dataset));
+
+/** The datasets that train a model, which its photographs may join. */
+export const getModelDatasets = createServerFn({ method: "GET" })
+  .validator(modelRefSchema)
+  .handler(({ data }) => modelDatasetsDetail(data.model));
 
 export const getDatasetImageDetail = createServerFn({ method: "GET" })
   .validator(datasetImageRefSchema)

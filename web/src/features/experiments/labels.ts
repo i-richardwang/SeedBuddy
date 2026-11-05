@@ -1,4 +1,7 @@
-import type { CultureEventType } from "../../domain/experiments/culture-events";
+import type {
+  CultureEventRefusal,
+  CultureEventType,
+} from "../../domain/experiments/culture-events";
 import type {
   Exclusion,
   ReviewState,
@@ -24,6 +27,18 @@ const CULTURE_EVENT_LABELS = {
 
 export function cultureEventLabel(type: CultureEventType): string {
   return CULTURE_EVENT_LABELS[type]();
+}
+
+const CULTURE_EVENT_REFUSAL_LABELS = {
+  recorded: m.culture_event_refusal_recorded,
+  already_left: m.culture_event_refusal_already_left,
+  left_before: m.culture_event_refusal_left_before,
+  later_records: m.culture_event_refusal_later_records,
+} as const satisfies Record<CultureEventRefusal, () => string>;
+
+/** Why a unit was passed over when an event was recorded. */
+export function cultureEventRefusalLabel(reason: CultureEventRefusal): string {
+  return CULTURE_EVENT_REFUSAL_LABELS[reason]();
 }
 
 const IMAGE_REVIEW_LABELS = {

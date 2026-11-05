@@ -17,8 +17,8 @@ import { storeAnnotation } from "../annotations/documents";
 import { database } from "../infra/db/client";
 import { experimentObservations } from "../infra/db/schema";
 import { readModel } from "../models/registry";
-import { experimentGridDetail } from "../queries/experiment-grid-detail";
 import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
+import { experimentRecordsDetail } from "../queries/experiment-records-detail";
 import { listExperimentOverviews } from "../queries/list-experiment-overviews";
 import {
   assignImages,
@@ -161,19 +161,20 @@ test("observations of one experiment read with different models", async () => {
   await assignImages(experiment.id, day7.id, units, { "A-1": "stage-d7" });
   await assignImages(experiment.id, day14.id, units, { "A-1": "stage-d14" });
   const digest = await imageDigest("stage-d14");
-  const grid = (await experimentGridDetail(experiment.id))!;
+  const records = (await experimentRecordsDetail(experiment.id))!;
   expect(
-    grid.observations.map((item) => [item.observedOn, item.modelId]),
+    records.observations.map((item) => [item.observedOn, item.modelId]),
   ).toEqual([
     ["2026-08-08", callus.modelId],
     ["2026-08-15", seeds.modelId],
   ]);
   const ref = {
     experiment: experiment.id,
-    observationImage: grid.images.find((image) => image.digest === digest)!.id,
+    observationImage: records.images.find((image) => image.digest === digest)!
+      .id,
   };
   const cell = async () =>
-    (await experimentGridDetail(experiment.id))!.images.find(
+    (await experimentRecordsDetail(experiment.id))!.images.find(
       (image) => image.digest === digest,
     )!;
   const reread = async (modelId: string) =>
@@ -237,7 +238,7 @@ test("an observation can be scheduled before any image exists", async () => {
   ).resolves.toMatchObject({ observedOn: "2026-08-15" });
 
   await deleteExperiment({ experiment: experiment.id });
-  expect(await experimentGridDetail(experiment.id)).toBeNull();
+  expect(await experimentRecordsDetail(experiment.id)).toBeNull();
 });
 
 test("observations are dated once and ordered by the day they happened", async () => {
@@ -294,19 +295,19 @@ test("observations are dated once and ordered by the day they happened", async (
     "A-2": "s-a2-14",
   });
 
-  const grid = await experimentGridDetail(experiment.id);
+  const records = await experimentRecordsDetail(experiment.id);
   expect(
-    grid?.observations.map(({ id, observedOn }) => [id, observedOn]),
+    records?.observations.map(({ id, observedOn }) => [id, observedOn]),
   ).toEqual([
     [day7.id, "2026-08-08"],
     [day14.id, "2026-08-15"],
     [day21.id, "2026-08-22"],
   ]);
-  expect(grid?.units.map((unit) => unit.code)).toEqual([
+  expect(records?.units.map((unit) => unit.code)).toEqual([
     ...Array.from({ length: 10 }, (_, index) => `A-${index + 1}`),
     "B-1",
   ]);
-  expect(grid?.images).toHaveLength(4);
+  expect(records?.images).toHaveLength(4);
 
   const summary = (await listExperimentOverviews()).find(
     ({ experiment: item }) => item.id === experiment.id,
@@ -405,7 +406,9 @@ test("observation dates can be corrected and empty days removed", async () => {
     "2026-08-09",
     "Images checked",
   ]);
-  expect((await experimentGridDetail(experiment.id))?.images).toHaveLength(2);
+  expect((await experimentRecordsDetail(experiment.id))?.images).toHaveLength(
+    2,
+  );
 
   await deleteObservation({
     experiment: experiment.id,
@@ -461,9 +464,10 @@ test("correcting dates cannot move records beyond a unit's removal", async () =>
         countedClasses: observation.countedClasses,
       }),
     ).rejects.toThrow(UnitConflictError);
-    const grid = (await experimentGridDetail(experiment.id))!;
+    const records = (await experimentRecordsDetail(experiment.id))!;
     expect(
-      grid.observations.find((item) => item.id === observation.id)!.observedOn,
+      records.observations.find((item) => item.id === observation.id)!
+        .observedOn,
     ).toBe(observation.observedOn);
   }
   const corrected = await updateObservation({

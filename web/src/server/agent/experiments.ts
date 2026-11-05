@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import {
   cultureEventRefSchema,
-  cultureEventSchema,
   cultureEventsRequestSchema,
+  cultureEventsResultSchema,
 } from "../../domain/experiments/culture-events";
 import {
   ExperimentNotFoundError,
@@ -12,6 +12,8 @@ import {
 import {
   experimentOverviewSchema,
   experimentSheetSchema,
+  experimentSummarySchema,
+  unitPageRequestSchema,
   unitRowOverviewSchema,
   unitSchema,
 } from "../../domain/experiments/read-model";
@@ -67,6 +69,7 @@ import {
 import { clearImageUnclear, markImageUnclear } from "../images/public";
 import {
   experimentSheetDetail,
+  experimentSummaryDetail,
   listExperimentOverviews,
   unitRowOverview,
 } from "../queries/public";
@@ -91,15 +94,29 @@ export const experimentOperations = [
   query({
     name: "get-experiment",
     description:
-      "Read an experiment's sheet: its design, and a cell for every unit on every observation with the reading the analysis uses and who stood behind it, why the day is out of the analysis if it is, and the photograph and count entered by hand the reading came from",
-    input: experimentRefSchema,
+      "Read a page of an experiment's sheet: its design, and for each unit on the page, of one treatment or of all, a cell on every observation with the reading the analysis uses and who stood behind it, why the day is out of the analysis if it is, and the photograph and count entered by hand the reading came from. Units come in the experiment's order; `units.total` counts the units pages are drawn from and `units.pages` the pages they fill, and a page past the last holds no rows. A treatment the experiment does not have is refused",
+    input: experimentRefSchema.extend(unitPageRequestSchema.shape),
     output: experimentSheetSchema,
-    handler: async ({ experiment }) => {
-      const sheet = await experimentSheetDetail(experiment);
+    handler: async ({ experiment, ...page }) => {
+      const sheet = await experimentSheetDetail(experiment, page);
       if (!sheet) {
         throw new ExperimentNotFoundError(`Unknown experiment: ${experiment}`);
       }
       return sheet;
+    },
+  }),
+  query({
+    name: "get-experiment-summary",
+    description:
+      "Read an experiment summarised by treatment on every observation: how many units are in the analysis, and the mean, SD and SE of their counts and of their rates against each unit's count on the first observation",
+    input: experimentRefSchema,
+    output: experimentSummarySchema,
+    handler: async ({ experiment }) => {
+      const summary = await experimentSummaryDetail(experiment);
+      if (!summary) {
+        throw new ExperimentNotFoundError(`Unknown experiment: ${experiment}`);
+      }
+      return summary;
     },
   }),
   query({
@@ -198,7 +215,7 @@ export const experimentOperations = [
     transaction: "operation",
     name: "move-units",
     description:
-      "Move units to another treatment together; each keeps its code and records, and a treatment's last replicate stays",
+      "Move units named one by one to another treatment together; each keeps its code and records. Refused when a treatment they leave would keep no unit",
     destructive: true,
     input: unitsTreatmentUpdateSchema,
     output: z.array(unitSchema),
@@ -306,10 +323,10 @@ export const experimentOperations = [
     transaction: "operation",
     name: "record-culture-events",
     description:
-      "Record one culture event on units at an observation: contaminated, discarded, and missing take a unit out of the analysis from that observation on; discarded, harvested, and missing take it off the bench afterwards",
+      "Record one culture event on units at an observation: contaminated, discarded, and missing take a unit out of the analysis from that observation on; discarded, harvested, and missing take it off the bench afterwards. `units` names units one by one, each of which must take the event, or selects `{treatment, expected}`: every unit of a treatment, or of the experiment for a null treatment, refused unless it holds `expected` units; of those, units that cannot take the event that day are passed over and answered with why",
     destructive: false,
     input: cultureEventsRequestSchema,
-    output: z.array(cultureEventSchema),
+    output: cultureEventsResultSchema,
     handler: (input, db) => recordCultureEvents(input, db),
   }),
   command({

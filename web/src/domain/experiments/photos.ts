@@ -1,8 +1,7 @@
 import { z } from "zod";
 
 import { imageDigestSchema } from "../images/schema";
-import type { ExperimentGridDetail } from "./read-model";
-import { calendarDaySchema } from "./schema";
+import { calendarDaySchema, experimentIdSchema } from "./schema";
 
 /** A photograph an experiment holds, named by the unit and day it shows. */
 export const placedPhotoSchema = z.strictObject({
@@ -14,29 +13,19 @@ export const placedPhotoSchema = z.strictObject({
 
 export type PlacedPhoto = z.infer<typeof placedPhotoSchema>;
 
+/** The most photographs one question about a batch names. */
+export const MAX_PLACED_PHOTOS_ASKED = 500;
+
+/** Which of a batch's photographs, by digest, the experiment already holds. */
+export const placedPhotosRequestSchema = z.strictObject({
+  experiment: experimentIdSchema,
+  digests: z.array(imageDigestSchema).max(MAX_PLACED_PHOTOS_ASKED),
+});
+
 /** Why a photograph in a batch cannot take a unit. */
 export type PhotoConflict =
   | { kind: "placed"; placed: PlacedPhoto }
   | { kind: "repeated"; filename: string };
-
-/** The photographs a grid holds, each with the unit and day it shows. */
-export function placedPhotos(
-  grid: Pick<ExperimentGridDetail, "units" | "observations" | "images">,
-): PlacedPhoto[] {
-  const codes = new Map(grid.units.map((unit) => [unit.id, unit.code]));
-  const days = new Map(
-    grid.observations.map((observation) => [
-      observation.id,
-      observation.observedOn,
-    ]),
-  );
-  return grid.images.map((image) => ({
-    digest: image.digest,
-    filename: image.filename,
-    unit: codes.get(image.unit)!,
-    observedOn: days.get(image.observation)!,
-  }));
-}
 
 /**
  * An experiment holds each photograph once. A photograph it already holds

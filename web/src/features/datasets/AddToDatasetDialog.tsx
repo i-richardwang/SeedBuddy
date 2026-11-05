@@ -3,8 +3,8 @@ import { useState } from "react";
 import {
   DATASET_NAME_PATTERN,
   type NamedDataset,
+  type ObservationPhotographs,
 } from "../../domain/datasets/schema";
-import type { ObservationImageRef } from "../../domain/experiments/schema";
 import {
   createDatasetFromImages,
   createDatasetMemberships,
@@ -32,7 +32,7 @@ export function AddToDatasetDialog({
   onClose,
 }: {
   open: boolean;
-  images: ObservationImageRef[];
+  images: ObservationPhotographs;
   datasets: NamedDataset[];
   heading?: string;
   onClose: () => void;
@@ -63,7 +63,7 @@ function AddToDatasetForm({
   action: { busy, run },
   onDone,
 }: {
-  images: ObservationImageRef[];
+  images: ObservationPhotographs;
   datasets: NamedDataset[];
   action: AsyncAction;
   onDone: () => void;

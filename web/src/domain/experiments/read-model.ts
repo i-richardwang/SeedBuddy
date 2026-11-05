@@ -2,19 +2,21 @@ import { z } from "zod";
 
 import { reviewSchema } from "../annotation/readings";
 import { REVIEW_SOURCES } from "../annotation/schema";
-import type { Dataset } from "../datasets/schema";
 import { imageDigestSchema } from "../images/schema";
 import { inferenceTaskFailureSchema } from "../inference/tasks";
 import { tallySchema } from "../models/classes";
-import type { Model } from "../models/schema";
 import { modelSchema } from "../models/schema";
 import { cultureEventSchema } from "./culture-events";
 import {
   calendarDaySchema,
+  DEFAULT_UNIT_PAGE_SIZE,
+  experimentIdSchema,
   experimentNameSchema,
   experimentObservationSchema,
   experimentSchema,
   imageAnalysisStateSchema,
+  MAX_UNIT_PAGE_SIZE,
+  type ManualReading,
   manualReadingSchema,
   observationIdSchema,
   observationImageIdSchema,
@@ -51,17 +53,27 @@ const observationImageCellSchema = z.strictObject({
 
 export type ObservationImageCell = z.infer<typeof observationImageCellSchema>;
 
-const experimentGridSchema = z.strictObject({
+/** An experiment's design: what its records are read against. */
+const experimentDesignSchema = z.strictObject({
   experiment: experimentSchema,
   treatments: z.array(treatmentSchema),
-  units: z.array(unitSchema),
   observations: z.array(experimentObservationSchema),
-  images: z.array(observationImageCellSchema),
-  /** The counts people entered by hand, each in the cell of its unit and observation. */
-  manualReadings: z.array(manualReadingSchema),
 });
 
-export type ExperimentGridDetail = z.infer<typeof experimentGridSchema>;
+export type ExperimentDesign = z.infer<typeof experimentDesignSchema>;
+
+/**
+ * The records of an experiment's units, or of some of them: the units with
+ * their culture events, and the photographs and counts entered for them,
+ * under the design they are read against. Every reading and summary is
+ * resolved from records; a page reads the records of the units it shows.
+ */
+export interface ExperimentRecords extends ExperimentDesign {
+  units: Unit[];
+  images: ObservationImageCell[];
+  /** The counts people entered by hand, each in the cell of its unit and observation. */
+  manualReadings: ManualReading[];
+}
 
 /**
  * A unit's day: its photograph of the day, with its size so it can be framed
@@ -86,20 +98,28 @@ const unitNavigationEntrySchema = z.strictObject({
 });
 
 /** Whether a person has reviewed a photograph's boxes. */
-const IMAGE_REVIEWS = ["reviewed", "unreviewed"] as const;
-
-export type ReviewState = (typeof IMAGE_REVIEWS)[number];
+export type ReviewState = "reviewed" | "unreviewed";
 
 /**
- * A unit as the series steps through it on the observation in view, with
- * whether its photograph of that day has been reviewed; a unit without one
- * that day has none.
+ * Where a unit stands among the units the workbench steps through: those of
+ * one treatment, or all, in the experiment's order. `nextToReview` is the
+ * first unit after this one, coming round from the start, whose photograph
+ * of the day in view awaits review, and `toReview` counts every other such
+ * unit.
  */
-const unitStepSchema = unitNavigationEntrySchema.extend({
-  image: z.enum(IMAGE_REVIEWS).nullable(),
+const unitNavigationSchema = z.strictObject({
+  treatment: treatmentIdSchema.nullable(),
+  position: z.number().int().min(1),
+  total: z.number().int().min(1),
+  previous: unitNavigationEntrySchema.nullable(),
+  next: unitNavigationEntrySchema.nullable(),
+  nextToReview: unitNavigationEntrySchema.nullable(),
+  toReview: z.number().int().min(0),
 });
 
-export type UnitStep = z.infer<typeof unitStepSchema>;
+export type UnitNavigation = z.infer<typeof unitNavigationSchema>;
+
+export type UnitNavigationEntry = z.infer<typeof unitNavigationEntrySchema>;
 
 /**
  * An observation image with its review for the observation's model, and the
@@ -124,7 +144,9 @@ const unitDetailSchema = z.strictObject({
   experiment: experimentSchema,
   unit: unitSchema,
   treatments: z.array(treatmentSchema),
-  navigation: z.array(unitStepSchema),
+  navigation: unitNavigationSchema,
+  /** Whether the unit may be deleted: nothing recorded, and another replicate stays. */
+  removable: z.boolean(),
   observations: z.array(unitObservationSchema),
   /** The observation in view: the one asked for, or the newest with a photograph. */
   observation: observationIdSchema.nullable(),
@@ -132,6 +154,14 @@ const unitDetailSchema = z.strictObject({
 });
 
 export type UnitDetail = z.infer<typeof unitDetailSchema>;
+
+/**
+ * What a unit's workbench came to: the unit's series, or, where the treatment
+ * named is not the unit's, the stepping it can show instead: through the
+ * units of the treatment named there, or through every unit for null.
+ */
+export type UnitDetailRead =
+  UnitDetail | { instead: Pick<UnitNavigation, "treatment"> };
 
 /** An experiment as the overview lists it: its design's size and how far its observations have come. */
 export const experimentOverviewSchema = z.strictObject({
@@ -143,11 +173,6 @@ export const experimentOverviewSchema = z.strictObject({
 });
 
 export type ExperimentOverview = z.infer<typeof experimentOverviewSchema>;
-
-export interface ExperimentDetail extends ExperimentGridDetail {
-  models: Model[];
-  datasets: Dataset[];
-}
 
 /** What a unit read on a day: the individuals found, and who stood behind the number. */
 const cellReadingSchema = z.strictObject({
@@ -183,29 +208,21 @@ const statisticSchema = z.strictObject({
 
 export type Statistic = z.infer<typeof statisticSchema>;
 
-/** One unit's numbers on a day, as the summary takes them. */
-const summaryUnitSchema = z.strictObject({
-  unit: unitIdSchema,
-  count: z.number().int().min(0),
-  rate: z.number().nullable(),
-});
-
 /**
- * One treatment on one observation. `units` are the treatment's units in the
- * analysis that day with a number; `count` and `rate` summarise them, and
- * are null where no unit has that number.
+ * One treatment on one observation: `count` and `rate` summarise the
+ * treatment's units in the analysis that day with that number, and are null
+ * where no unit has it.
  */
 const treatmentDaySummarySchema = z.strictObject({
   treatment: treatmentIdSchema,
   observation: observationIdSchema,
-  units: z.array(summaryUnitSchema),
   count: statisticSchema.nullable(),
   rate: statisticSchema.nullable(),
 });
 
 export type TreatmentDaySummary = z.infer<typeof treatmentDaySummarySchema>;
 
-const experimentSummarySchema = z.strictObject({
+export const experimentSummarySchema = z.strictObject({
   /** The observation rates are taken against: the first, or null before any. */
   baseline: observationIdSchema.nullable(),
   /** A summary for every treatment on every observation, treatments in the design's order. */
@@ -232,7 +249,6 @@ const cellManualSchema = manualReadingSchema.omit({
  * The photograph and the entered count are what the reading came from.
  */
 const sheetCellSchema = z.strictObject({
-  unit: unitIdSchema,
   observation: observationIdSchema,
   reading: cellReadingSchema.nullable(),
   exclusion: exclusionSchema.nullable(),
@@ -242,18 +258,166 @@ const sheetCellSchema = z.strictObject({
 
 export type SheetCell = z.infer<typeof sheetCellSchema>;
 
-export const experimentSheetSchema = z.strictObject({
-  experiment: experimentSchema,
-  treatments: z.array(treatmentSchema),
-  units: z.array(unitSchema),
-  observations: z.array(experimentObservationSchema),
-  /** A cell for every unit on every observation, units in the grid's order. */
+/** One unit and its cell on every observation, in the experiment's order. */
+const sheetRowSchema = z.strictObject({
+  unit: unitSchema,
   cells: z.array(sheetCellSchema),
-  /** The cells summarised by treatment on each observation. */
-  summary: experimentSummarySchema,
+});
+
+export type SheetRow = z.infer<typeof sheetRowSchema>;
+
+/** Which of an experiment's units a page shows: those of one treatment, or all, a page at a time. */
+export const unitPageRequestSchema = z.strictObject({
+  treatment: treatmentIdSchema.nullable().default(null),
+  /** Counted from 1; a page past the last holds no rows. */
+  page: z.number().int().min(1).default(1),
+  pageSize: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_UNIT_PAGE_SIZE)
+    .default(DEFAULT_UNIT_PAGE_SIZE),
+});
+
+export type UnitPageRequest = z.infer<typeof unitPageRequestSchema>;
+
+/**
+ * A page of the experiment's rows: the units of the treatment named, or of
+ * every treatment, in the experiment's order. `total` counts every unit the
+ * pages are drawn from and `pages` how many pages they fill, one at least.
+ */
+const unitPageSchema = z.strictObject({
+  rows: z.array(sheetRowSchema),
+  treatment: treatmentIdSchema.nullable(),
+  total: z.number().int().min(0),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1).max(MAX_UNIT_PAGE_SIZE),
+  pages: z.number().int().min(1),
+});
+
+export type UnitPage = z.infer<typeof unitPageSchema>;
+
+/** The parts of an experiment's page, one on show at a time. */
+export const EXPERIMENT_TABS = [
+  "units",
+  "summary",
+  "treatments",
+] as const satisfies readonly ExperimentView["tab"][];
+
+/** What the experiment's page shows under its frame: a page of units, the summary, or the treatments. */
+const experimentViewSchema = z.discriminatedUnion("tab", [
+  z.strictObject({ tab: z.literal("units"), units: unitPageRequestSchema }),
+  z.strictObject({ tab: z.literal("summary") }),
+  z.strictObject({ tab: z.literal("treatments") }),
+]);
+
+export type ExperimentView = z.infer<typeof experimentViewSchema>;
+
+/**
+ * What a view of the experiment came to: the page of units, the summary, or
+ * the treatments, which the frame already holds.
+ */
+export type ExperimentViewRead =
+  | { tab: "units"; units: UnitPage }
+  | { tab: "summary"; summary: ExperimentSummary }
+  | { tab: "treatments" };
+
+export const experimentPageRequestSchema = z.strictObject({
+  experiment: experimentIdSchema,
+  view: experimentViewSchema,
+});
+
+/**
+ * The sheet is the experiment as its numbers, a page of units at a time:
+ * the design, and each unit's cell on every observation resolved to the
+ * reading the analysis uses, over the evidence it came from.
+ */
+export const experimentSheetSchema = experimentDesignSchema.extend({
+  units: unitPageSchema,
 });
 
 export type ExperimentSheetDetail = z.infer<typeof experimentSheetSchema>;
+
+/** A treatment as the experiment's page frames it, with how many units it holds. */
+const treatmentFrameSchema = treatmentSchema.extend({
+  units: z.number().int().min(0),
+});
+
+export type TreatmentFrame = z.infer<typeof treatmentFrameSchema>;
+
+/**
+ * An observation as the experiment's page frames it, with what the day
+ * holds: the photographs taken that day, the units still on the bench that
+ * day, and how many of those are without a photograph.
+ */
+const observationFrameSchema = experimentObservationSchema.extend({
+  photographed: z.number().int().min(0),
+  available: z.number().int().min(0),
+  vacant: z.number().int().min(0),
+});
+
+export type ObservationFrame = z.infer<typeof observationFrameSchema>;
+
+/**
+ * How far the experiment's photographs have come: how many it holds and how
+ * many of them still wait for their reading.
+ */
+const experimentProgressSchema = z.strictObject({
+  photographs: z.number().int().min(0),
+  waiting: z.number().int().min(0),
+});
+
+export type ExperimentProgress = z.infer<typeof experimentProgressSchema>;
+
+/**
+ * What every view of an experiment stands in: the experiment, its design
+ * with the size of each part, whether anything is recorded, and how far its
+ * photographs have come.
+ */
+const experimentFrameSchema = z.strictObject({
+  experiment: experimentSchema,
+  treatments: z.array(treatmentFrameSchema),
+  observations: z.array(observationFrameSchema),
+  hasRecords: z.boolean(),
+  progress: experimentProgressSchema,
+});
+
+export type ExperimentFrame = z.infer<typeof experimentFrameSchema>;
+
+/**
+ * A unit a photograph may be placed on: its code, and the day it left the
+ * bench, after which it takes none.
+ */
+const photoSlotSchema = z.strictObject({
+  id: unitIdSchema,
+  code: unitCodeSchema,
+  leftOn: calendarDaySchema.nullable(),
+});
+
+export type PhotoSlot = z.infer<typeof photoSlotSchema>;
+
+/**
+ * The units a day's photographs are placed on, in the experiment's order,
+ * and those the day already holds a photograph of.
+ */
+const photoSlotsSchema = z.strictObject({
+  units: z.array(photoSlotSchema),
+  taken: z.array(unitIdSchema),
+});
+
+export type PhotoSlots = z.infer<typeof photoSlotsSchema>;
+
+/**
+ * A unit on the bench on the day its counts are entered: what the day's
+ * photograph of it reads, and the count already entered, if either.
+ */
+const manualEntryRowSchema = z.strictObject({
+  unit: z.strictObject({ id: unitIdSchema, code: unitCodeSchema }),
+  photographed: cellReadingSchema.nullable(),
+  manual: manualReadingSchema.nullable(),
+});
+
+export type ManualEntryRow = z.infer<typeof manualEntryRowSchema>;
 
 /** One unit's row of the sheet, with the treatment it belongs to. */
 export const unitRowOverviewSchema = z.strictObject({

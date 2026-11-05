@@ -3,16 +3,12 @@ import { randomUUID } from "node:crypto";
 
 import { and, eq, inArray } from "drizzle-orm";
 
-import {
-  observationOrdinals,
-  unitIsAvailableAt,
-} from "../../domain/experiments/culture-events";
+import { unitIsOnBench } from "../../domain/experiments/culture-events";
 import {
   ExperimentObservationImageConflictError,
   ExperimentObservationImageNotFoundError,
   ImageStorageConflictError,
   ObservationImageConflictError,
-  UnitNotFoundError,
 } from "../../domain/experiments/errors";
 import type {
   ExperimentObservation,
@@ -33,11 +29,12 @@ import {
 import { createObservation } from "./observations";
 import {
   atImageObservation,
+  atImageUnit,
   atObservationImage,
   listObservations,
-  listUnits,
   lockExperiment,
   requireObservation,
+  requireUnits,
 } from "./records";
 
 /** Adds an observation day and matches the photographs taken on it to their units, together. */
@@ -86,21 +83,13 @@ export async function assignObservationImages(
     await lockExperiment(experimentId, db);
     const observations = await listObservations(experimentId, db);
     const observation = requireObservation(observations, observationId);
-    const ordinals = observationOrdinals(observations);
-    const units = await listUnits(experimentId, db);
-    const byId = new Map(units.map((unit) => [unit.id, unit]));
-    const unknown = unitIds.filter((unit) => !byId.has(unit));
-    if (unknown.length > 0) {
-      throw new UnitNotFoundError(
-        `Units do not belong to this experiment: ${unknown.join(", ")}`,
-      );
-    }
-    const unavailable = unitIds
-      .map((unitId) => byId.get(unitId)!)
-      .filter((unit) => !unitIsAvailableAt(unit.events, observation, ordinals));
+    const units = await requireUnits(experimentId, unitIds, db);
+    const unavailable = units.filter(
+      (unit) => !unitIsOnBench(unit.events, observations, observation),
+    );
     if (unavailable.length > 0) {
       throw new ObservationImageConflictError(
-        `Images cannot be assigned to units removed before this observation: ${unavailable.map((unit) => unit.code).join(", ")}`,
+        `Images cannot be assigned to units that left the bench before this observation: ${unavailable.map((unit) => unit.code).join(", ")}`,
       );
     }
 
@@ -133,16 +122,7 @@ export async function assignObservationImages(
         observedOn: experimentObservations.observedOn,
       })
       .from(experimentObservationImages)
-      .innerJoin(
-        experimentUnits,
-        and(
-          eq(
-            experimentUnits.experimentId,
-            experimentObservationImages.experimentId,
-          ),
-          eq(experimentUnits.id, experimentObservationImages.unitId),
-        ),
-      )
+      .innerJoin(experimentUnits, atImageUnit())
       .innerJoin(experimentObservations, atImageObservation())
       .where(
         and(

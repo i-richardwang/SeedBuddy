@@ -10,10 +10,44 @@
   "culture_event_nonviable": "Nonviable",
   "culture_event_not_recorded": "Status not recorded",
   "culture_event_not_removed": "Status not removed",
+  "culture_event_passed_over": "Passed over ({reason}): {units}",
   "culture_event_record": "Record culture status",
   "culture_event_record_action": "Record",
+  "culture_event_record_units": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local formattedCount = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Record culture status for {formattedCount} unit",
+        "countPlural=other": "Record culture status for {formattedCount} units"
+      }
+    }
+  ],
+  "culture_event_recorded_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local formattedCount = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Recorded for {formattedCount} unit",
+        "countPlural=other": "Recorded for {formattedCount} units"
+      }
+    }
+  ],
+  "culture_event_refusal_already_left": "already off the bench",
+  "culture_event_refusal_later_records": "has records after that day",
+  "culture_event_refusal_left_before": "off the bench before that day",
+  "culture_event_refusal_recorded": "already recorded that day",
   "culture_event_remove": "Remove culture status",
   "culture_event_removed": "{event} removed",
+  "culture_event_units_changed": "The units changed after they were chosen. The table now shows them as they are; choose them again.",
   "dataset_add_menu": "Add to dataset…",
   "experiment_cell_excluded_event": "Excluded from analysis at this observation",
   "experiment_cell_excluded_unclear": "The unit has an unclear photo, so it is out of the analysis on every day",
@@ -42,7 +76,6 @@
   "experiment_field_notes": "Notes",
   "experiment_field_plant_material": "Plant material",
   "experiment_field_plant_material_placeholder": "Chrysanthemum 'Jinba'",
-  "experiment_grid_label": "Observations of {experiment}",
   "experiment_group_analysis": "Analysis",
   "experiment_group_culture": "Culture",
   "experiment_menu_delete": "Delete experiment…",
@@ -53,7 +86,23 @@
   "experiment_not_deleted": "Experiment not deleted",
   "experiment_not_saved": "Experiment not saved",
   "experiment_not_started": "Experiment not started",
+  "experiment_select_all_units": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "Select all {formattedCount} units"
+      }
+    }
+  ],
   "experiment_selection": "Selected units",
+  "experiment_selection_all": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "All {formattedCount} units are selected"
+      }
+    }
+  ],
   "experiment_selection_clear": "Clear selection",
   "experiment_selection_count": [
     {
@@ -73,6 +122,8 @@
   "experiment_summary": "Summary",
   "experiment_treatment_not_changed": "Treatment not changed",
   "experiment_units_all_treatments": "All treatments",
+  "experiment_units_not_loaded": "Units not loaded",
+  "experiment_units_table_label": "Units of {experiment}",
   "experiments_description": "Lay out treatments and units, take photos on each observation day, and read the results.",
   "experiments_empty": "No experiments yet",
   "experiments_empty_description": "Start an experiment to lay out its treatments and units.",
@@ -105,8 +156,10 @@
   "observation_menu_manual_readings": "Enter counts…",
   "observation_model_label": "Model",
   "observation_not_deleted": "Observation not deleted",
+  "observation_not_loaded": "Observation not loaded",
   "observation_not_recorded": "Observation not recorded",
   "observation_not_saved": "Observation not saved",
+  "observation_photos_check_failed": "Could not check whether the experiment already holds these photographs",
   "observation_photos_conflicting": [
     {
       "declarations": [

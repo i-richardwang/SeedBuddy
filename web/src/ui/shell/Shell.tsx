@@ -1,4 +1,8 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import {
+  defaultParseSearch,
+  Link,
+  useRouterState,
+} from "@tanstack/react-router";
 import {
   Beaker,
   CircleUser,
@@ -74,14 +78,23 @@ function settingsPlaces(user: WorkbenchUser): AppNavItem[] {
 /*
  * The router sets `aria-current="page"` on a link it counts as active, over
  * the kit's own marking; matching exactly keeps it off the ancestors a
- * breadcrumb links to.
+ * breadcrumb links to. The kit names an address as one string; its query is
+ * handed to the router as the search it was written from.
  */
 const routerLink = ({
   href,
   ...props
-}: AppShellLinkProps | AppNavLinkProps | BreadcrumbLinkProps) => (
-  <Link {...props} to={href} activeOptions={{ exact: true }} />
-);
+}: AppShellLinkProps | AppNavLinkProps | BreadcrumbLinkProps) => {
+  const query = href.indexOf("?");
+  return (
+    <Link
+      {...props}
+      to={query === -1 ? href : href.slice(0, query)}
+      search={query === -1 ? undefined : defaultParseSearch(href.slice(query))}
+      activeOptions={{ exact: true }}
+    />
+  );
+};
 
 const TopBarSlots = createContext<{
   actions: HTMLElement | null;

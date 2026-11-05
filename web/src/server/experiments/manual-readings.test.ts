@@ -16,13 +16,13 @@ import {
 } from "../../domain/experiments/errors";
 import { ClassInvalidError } from "../../domain/models/errors";
 import { createModel } from "../models/registry";
-import { experimentGridDetail } from "../queries/experiment-grid-detail";
-import { unitDetail } from "../queries/unit-detail";
+import { experimentRecordsDetail } from "../queries/experiment-records-detail";
 import {
   assignImages,
   createExperiment,
   INOCULATED,
   reading,
+  unitSeries,
   unitsOf,
 } from "../testing/experiments";
 import { countedImageResult, imageDigest } from "../testing/images";
@@ -84,14 +84,14 @@ test("a unit counted by hand has a number with no photograph, and the count outr
     ].sort(),
   );
 
-  const grid = (await experimentGridDetail(experiment.id))!;
+  const records = (await experimentRecordsDetail(experiment.id))!;
   expect(
-    grid.observations.map((item) => [item.observedOn, item.hasRecords]),
+    records.observations.map((item) => [item.observedOn, item.hasRecords]),
   ).toEqual([
     [INOCULATED, true],
     ["2026-08-15", true],
   ]);
-  const cells = observationCells(grid.images, grid.manualReadings);
+  const cells = observationCells(records.images, records.manualReadings);
   expect(unitReading(cells, units.get("A-1")!, day14)).toEqual({
     count: 17,
     source: "manual",
@@ -116,7 +116,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
       },
     ],
   });
-  const recounted = (await experimentGridDetail(experiment.id))!;
+  const recounted = (await experimentRecordsDetail(experiment.id))!;
   expect(
     unitReading(
       observationCells(recounted.images, recounted.manualReadings),
@@ -127,9 +127,9 @@ test("a unit counted by hand has a number with no photograph, and the count outr
   expect(recounted.images).toHaveLength(1);
 
   // The unit's page carries the count on a day it has no photograph of.
-  const series = (await unitDetail(
+  const series = (await unitSeries(
     { experiment: experiment.id, unit: units.get("A-2")! },
-    day14.id,
+    { observation: day14.id },
   ))!;
   expect(
     series.observations.map((item) => [item.image, item.manual?.tally]),
@@ -148,7 +148,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
       { unit: units.get("A-2")!, tally: null },
     ],
   });
-  const corrected = (await experimentGridDetail(experiment.id))!;
+  const corrected = (await experimentRecordsDetail(experiment.id))!;
   expect(
     corrected.manualReadings
       .filter((item) => item.observation === day14.id)
@@ -201,9 +201,9 @@ test("a count answers the day's question in the model's classes", async () => {
       readings: [{ unit, tally: { ungerminated: 4, germinated: 0 } }],
     }),
   ).rejects.toThrow(ObservationNotFoundError);
-  expect((await experimentGridDetail(experiment.id))!.manualReadings).toEqual(
-    [],
-  );
+  expect(
+    (await experimentRecordsDetail(experiment.id))!.manualReadings,
+  ).toEqual([]);
 });
 
 test("a count is a record: it keeps its observation and unit, and holds a unit on the bench", async () => {
@@ -316,9 +316,9 @@ test("a new model cannot reinterpret existing manual counts", async () => {
   await expect(updateObservation(update)).rejects.toThrow(
     ObservationModelCountsConflictError,
   );
-  const grid = (await experimentGridDetail(experiment.id))!;
-  expect(grid.observations[0]!.modelId).toBe(version.modelId);
-  expect(grid.manualReadings[0]!.tally).toEqual({
+  const records = (await experimentRecordsDetail(experiment.id))!;
+  expect(records.observations[0]!.modelId).toBe(version.modelId);
+  expect(records.manualReadings[0]!.tally).toEqual({
     ungerminated: 4,
     germinated: 1,
   });

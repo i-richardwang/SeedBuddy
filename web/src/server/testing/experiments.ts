@@ -1,26 +1,33 @@
 import { eq } from "drizzle-orm";
 
 import { filenameStem } from "../../domain/experiments/naming";
+import type { UnitDetail } from "../../domain/experiments/read-model";
 import type {
   Experiment,
   ExperimentObservation,
   ObservationImageRef,
+  UnitRef,
 } from "../../domain/experiments/schema";
 import {
   type ExperimentRequestInput,
   experimentRequestSchema,
 } from "../../domain/experiments/schema";
 import type { ModelVersion } from "../../domain/models/schema";
+import { recordCultureEvents } from "../experiments/culture-events";
 import { createExperiment as createExperimentRecord } from "../experiments/design";
+import { recordManualReadings } from "../experiments/manual-readings";
 import { assignObservationImages } from "../experiments/observation-images";
 import { createObservation } from "../experiments/observations";
 import { listUnits } from "../experiments/records";
-import { database } from "../infra/db/client";
+import { database, snapshot } from "../infra/db/client";
 import { experimentObservationImages } from "../infra/db/schema";
 import { readModel } from "../models/registry";
-import { experimentGridDetail } from "../queries/experiment-grid-detail";
-import { storeTexts } from "./images";
-import { baselineVersion } from "./models";
+import { experimentRecordsDetail } from "../queries/experiment-records-detail";
+import { type UnitView, unitDetail } from "../queries/unit-detail";
+import { countedImageResult, imageDigest, storeTexts } from "./images";
+import { seedDetectionResult } from "./inference";
+import { baselineVersion, trainedVersion } from "./models";
+import { ultralyticsWorker as worker } from "./workers";
 
 interface ObservedExperiment {
   experiment: Experiment;
@@ -127,10 +134,10 @@ async function listExperimentObservationImages(
 
 /** Observation-image references by source filename stem. */
 export async function listObservationImageRefs(experimentId: string) {
-  const grid = await experimentGridDetail(experimentId);
-  if (!grid) throw new Error(`missing experiment ${experimentId}`);
+  const records = await experimentRecordsDetail(experimentId);
+  if (!records) throw new Error(`missing experiment ${experimentId}`);
   return new Map(
-    grid.images.map((image) => [
+    records.images.map((image) => [
       filenameStem(image.filename),
       { experiment: experimentId, observationImage: image.id },
     ]),
@@ -158,8 +165,8 @@ export function reading(version: ModelVersion) {
 export async function unitsOf(
   experiment: string,
 ): Promise<Map<string, string>> {
-  const grid = await experimentGridDetail(experiment);
-  return new Map(grid!.units.map((unit) => [unit.code, unit.id]));
+  const records = await experimentRecordsDetail(experiment);
+  return new Map(records!.units.map((unit) => [unit.code, unit.id]));
 }
 
 export async function assignImages(
@@ -179,4 +186,79 @@ export async function assignImages(
       filename: `${code}.jpg`,
     })),
   });
+}
+
+/**
+ * Five units over two treatments, A-1..A-3 and B-1..B-2, observed twice.
+ * On the first day A-1, A-2 and B-1 are photographed and A-1 is read with
+ * four seeds; B-2 is discarded that day. On the second day A-3 has a count
+ * entered by hand.
+ */
+export async function observedTwice(name: string) {
+  const version = await trainedVersion(
+    `observed-${name.toLowerCase().replaceAll(" ", "-")}`,
+  );
+  const experiment = await createExperiment({
+    name,
+    inoculatedOn: INOCULATED,
+    treatments: [
+      { name: "A", replicates: 3 },
+      { name: "B", replicates: 2 },
+    ],
+  });
+  const units = await unitsOf(experiment.id);
+  const first = await createObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-08",
+    note: "",
+    ...reading(version),
+  });
+  const second = await createObservation({
+    experiment: experiment.id,
+    observedOn: "2026-08-15",
+    note: "",
+    ...reading(version),
+  });
+  await assignImages(experiment.id, first.id, units, {
+    "A-1": `${name}-a1`,
+    "A-2": `${name}-a2`,
+    "B-1": `${name}-b1`,
+  });
+  const read = await imageDigest(`${name}-a1`);
+  await seedDetectionResult(
+    { versionId: version.id, digest: read },
+    countedImageResult(version, read, 4),
+    worker,
+  );
+  await recordCultureEvents({
+    experiment: experiment.id,
+    units: [units.get("B-2")!],
+    observation: first.id,
+    type: "discarded",
+  });
+  await recordManualReadings({
+    experiment: experiment.id,
+    observation: second.id,
+    readings: [
+      {
+        unit: units.get("A-3")!,
+        tally: Object.fromEntries(
+          second.countedClasses.map((name) => [name, 2]),
+        ),
+      },
+    ],
+  });
+  return { experiment, units, first, second, version };
+}
+
+/** Reads a unit's detail, failing where the workbench would show another stepping instead. */
+export async function unitSeries(
+  ref: UnitRef,
+  view: UnitView = {},
+): Promise<UnitDetail | null> {
+  const read = await snapshot((db) => unitDetail(ref, view, db));
+  if (read && "instead" in read) {
+    throw new Error(`The workbench shows ${ref.unit} another way`);
+  }
+  return read;
 }

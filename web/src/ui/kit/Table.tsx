@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, LoaderCircle } from "lucide-react";
 import type { ComponentProps, MouseEvent, ReactNode } from "react";
 import {
   useCallback,
@@ -376,29 +376,35 @@ export function TableSelectionCell({
 
 /**
  * A column header that opens a menu of commands for the column. It reads in
- * the header's own size and color; the chevron brightens on hover.
+ * the header's own size and color; the chevron brightens on hover. While
+ * `busy`, a command chosen from it is at work: the chevron turns to a
+ * spinner and the menu stays shut.
  */
 export function TableHeadMenu({
   "aria-label": ariaLabel,
   children,
   items,
+  busy = false,
 }: {
   "aria-label": string;
   children: ReactNode;
   items: DropdownItem[];
+  busy?: boolean;
 }) {
   return (
-    <DropdownMenu items={items}>
+    <DropdownMenu items={items} disabled={busy}>
       <button
         aria-label={ariaLabel}
+        aria-busy={busy || undefined}
         className="ui-table-head-menu"
         type="button"
       >
         {children}
         <Icon
           className="ui-table-head-menu-icon"
-          icon={ChevronDown}
+          icon={busy ? LoaderCircle : ChevronDown}
           size={12}
+          spin={busy}
         />
       </button>
     </DropdownMenu>

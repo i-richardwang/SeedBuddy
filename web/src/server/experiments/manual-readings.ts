@@ -1,13 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import {
-  observationOrdinals,
-  unitIsAvailableAt,
-} from "../../domain/experiments/culture-events";
-import {
-  ManualReadingConflictError,
-  UnitNotFoundError,
-} from "../../domain/experiments/errors";
+import { unitIsOnBench } from "../../domain/experiments/culture-events";
+import { ManualReadingConflictError } from "../../domain/experiments/errors";
 import type {
   ExperimentObservation,
   ManualReading,
@@ -25,9 +19,9 @@ import { requireModel } from "../models/public";
 import {
   listManualReadings,
   listObservations,
-  listUnits,
   lockExperiment,
   requireObservation,
+  requireUnits,
 } from "./records";
 
 /**
@@ -80,16 +74,13 @@ export async function recordManualReadings(
     await lockExperiment(experimentId, db);
     const observations = await listObservations(experimentId, db);
     const observation = requireObservation(observations, observationId);
-    const ordinals = observationOrdinals(observations);
     const model = await requireModel(observation.modelId, db);
-    const units = await listUnits(experimentId, db);
+    const units = await requireUnits(
+      experimentId,
+      entries.map((entry) => entry.unit),
+      db,
+    );
     const byId = new Map(units.map((unit) => [unit.id, unit]));
-    const unknown = entries.filter((entry) => !byId.has(entry.unit));
-    if (unknown.length > 0) {
-      throw new UnitNotFoundError(
-        `Units do not belong to this experiment: ${unknown.map((entry) => entry.unit).join(", ")}`,
-      );
-    }
     const counted = entries.flatMap((entry) =>
       entry.tally ? [{ unit: byId.get(entry.unit)!, tally: entry.tally }] : [],
     );
@@ -97,11 +88,11 @@ export async function recordManualReadings(
       entry.tally ? [] : [entry.unit],
     );
     const unavailable = counted.filter(
-      ({ unit }) => !unitIsAvailableAt(unit.events, observation, ordinals),
+      ({ unit }) => !unitIsOnBench(unit.events, observations, observation),
     );
     if (unavailable.length > 0) {
       throw new ManualReadingConflictError(
-        `Counts cannot be entered for units removed before this observation: ${unavailable.map(({ unit }) => unit.code).join(", ")}`,
+        `Counts cannot be entered for units that left the bench before this observation: ${unavailable.map(({ unit }) => unit.code).join(", ")}`,
       );
     }
     for (const { unit, tally } of counted) {
@@ -141,8 +132,9 @@ export async function recordManualReadings(
           set: { tally: sql`excluded.tally`, recordedAt },
         });
     }
-    return (await listManualReadings(experimentId, db)).filter(
-      (reading) => reading.observation === observationId,
-    );
+    return listManualReadings(experimentId, db, {
+      units: "all",
+      observation: observationId,
+    });
   });
 }

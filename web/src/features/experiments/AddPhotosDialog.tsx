@@ -1,5 +1,4 @@
-import type { PlacedPhoto } from "../../domain/experiments/photos";
-import type { Unit } from "../../domain/experiments/read-model";
+import type { PhotoSlots } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { updateObservationImages } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
@@ -17,12 +16,8 @@ const FORM_ID = "add-photos";
 interface AddPhotosDialogProps {
   experiment: string;
   observation: ExperimentObservation;
-  /** The units that can still be photographed at this observation. */
-  units: readonly Unit[];
-  /** Units that already have a photograph that day. */
-  assigned: ReadonlySet<string>;
-  /** The photographs the experiment already holds. */
-  placed: readonly PlacedPhoto[];
+  /** The experiment's units, and those the day already holds a photograph of. */
+  slots: PhotoSlots;
   open: boolean;
   onClose: () => void;
 }
@@ -39,15 +34,17 @@ export function AddPhotosDialog(props: AddPhotosDialogProps) {
 function AddPhotosSession({
   experiment,
   observation,
-  units,
-  assigned,
-  placed,
+  slots,
   open,
   onClose,
   afterClose,
 }: AddPhotosDialogProps & { afterClose: () => void }) {
   const action = useAsyncAction();
-  const photos = useObservationPhotos({ units, assigned, placed });
+  const photos = useObservationPhotos({
+    experiment,
+    slots,
+    day: observation.observedOn,
+  });
 
   return (
     <FormDialog

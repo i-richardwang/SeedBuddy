@@ -34,9 +34,9 @@ export interface Uploads {
 /**
  * Images stored ahead of the record that will refer to them. Bytes go up
  * as soon as they are dropped, so assigning them afterwards is a decision rather
- * than a wait.
+ * than a wait. `onStored` hears of each image once the store holds it.
  */
-export function useUploads(): Uploads {
+export function useUploads(onStored?: (digest: string) => void): Uploads {
   const [images, setImages] = useState<ListedImage[]>([]);
   const nextId = useRef(0);
   const queue = useRef<ListedImage[]>([]);
@@ -90,6 +90,7 @@ export function useUploads(): Uploads {
               );
               if (signal.aborted) break;
               update(id, { status: "stored", digest });
+              onStored?.(digest);
             } catch (cause) {
               if (!signal.aborted) {
                 update(id, { status: "failed", reason: errorMessage(cause) });
@@ -101,7 +102,7 @@ export function useUploads(): Uploads {
         })();
       }
     },
-    [update],
+    [update, onStored],
   );
 
   const remove = useCallback((id: number) => {

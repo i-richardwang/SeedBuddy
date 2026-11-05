@@ -5,10 +5,13 @@ import {
   type CultureEvent,
   cultureEventExcludesFromAnalysis,
   cultureEventIsTerminal,
+  cultureEventRefusal,
   excludingEvent,
+  hasRecordsAfter,
   latestCultureEvent,
-  unitIsAvailableAt,
-  unitIsAvailableOn,
+  onBenchOn,
+  unitIsOnBench,
+  unitLeftOn,
 } from "./culture-events";
 import type { ExperimentObservation } from "./schema";
 
@@ -67,36 +70,76 @@ describe("unit event effects", () => {
   test("an event that takes the unit off the bench applies afterwards", () => {
     const events = [event({ type: "harvested" })];
 
-    expect(unitIsAvailableAt(events, observations[0]!, ordinals)).toBeTrue();
+    expect(unitIsOnBench(events, observations, observations[0]!)).toBeTrue();
     expect(excludingEvent(events, observations[0]!, ordinals)).toBeNull();
-    expect(unitIsAvailableAt(events, observations[1]!, ordinals)).toBeFalse();
+    expect(unitIsOnBench(events, observations, observations[1]!)).toBeFalse();
     expect(excludingEvent(events, observations[1]!, ordinals)).not.toBeNull();
   });
 
   test("a day not yet recorded follows the same rule by its date", () => {
     const events = [event({ type: "harvested" })];
 
-    expect(unitIsAvailableOn(events, "2026-08-08", observations)).toBeTrue();
-    expect(unitIsAvailableOn(events, "2026-08-09", observations)).toBeFalse();
+    const left = unitLeftOn(events, observations);
+    expect(left).toBe(observations[0]!.observedOn);
+    expect(onBenchOn(left, "2026-08-08")).toBeTrue();
+    expect(onBenchOn(left, "2026-08-09")).toBeFalse();
     expect(
-      unitIsAvailableOn(
-        [event({ type: "contaminated" })],
-        "2026-08-09",
-        observations,
-      ),
+      unitLeftOn([event({ type: "contaminated" })], observations),
+    ).toBeNull();
+    expect(onBenchOn(null, "2026-08-09")).toBeTrue();
+  });
+
+  test("a unit's refusal names why it cannot take the event", () => {
+    const [first, second] = observations as [
+      ExperimentObservation,
+      ExperimentObservation,
+    ];
+    const refusal = (
+      events: CultureEvent[],
+      type: CultureEvent["type"],
+      day: ExperimentObservation,
+    ) => cultureEventRefusal({ events, recorded: [] }, observations, day, type);
+    const contaminated = [event({ type: "contaminated" })];
+    expect(refusal(contaminated, "contaminated", first)).toBe("recorded");
+    expect(refusal(contaminated, "contaminated", second)).toBeNull();
+    const harvested = [event({ type: "harvested" })];
+    expect(refusal(harvested, "missing", first)).toBe("already_left");
+    expect(refusal(harvested, "contaminated", second)).toBe("left_before");
+    expect(refusal(harvested, "contaminated", first)).toBeNull();
+  });
+
+  test("a unit cannot leave before a day it has records on", () => {
+    const [first, second] = observations as [
+      ExperimentObservation,
+      ExperimentObservation,
+    ];
+    const after = (events: CultureEvent[], recorded: string[]) =>
+      hasRecordsAfter({ events, recorded }, observations, first);
+    expect(after([], [second.id])).toBeTrue();
+    expect(after([], [first.id])).toBeFalse();
+    expect(
+      after([event({ type: "contaminated", observation: second.id })], []),
     ).toBeTrue();
+    expect(
+      cultureEventRefusal(
+        { events: [], recorded: [second.id] },
+        observations,
+        first,
+        "harvested",
+      ),
+    ).toBe("later_records");
   });
 
   test("an event the unit survives leaves it on the bench", () => {
     const events = [event({ type: "contaminated" })];
 
-    expect(unitIsAvailableAt(events, observations[1]!, ordinals)).toBeTrue();
+    expect(unitIsOnBench(events, observations, observations[1]!)).toBeTrue();
   });
 
   test("analysis exclusion starts in the recorded observation", () => {
     const events = [event({ type: "contaminated" })];
 
-    expect(unitIsAvailableAt(events, observations[0]!, ordinals)).toBeTrue();
+    expect(unitIsOnBench(events, observations, observations[0]!)).toBeTrue();
     expect(excludingEvent(events, observations[0]!, ordinals)).not.toBeNull();
     expect(excludingEvent(events, observations[1]!, ordinals)).not.toBeNull();
   });

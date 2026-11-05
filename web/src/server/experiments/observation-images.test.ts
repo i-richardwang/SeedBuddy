@@ -9,8 +9,8 @@ import {
 } from "../../domain/experiments/errors";
 import { imageBlobKey } from "../images/keys";
 import { blobExists } from "../infra/blobs/store";
-import { experimentGridDetail } from "../queries/experiment-grid-detail";
 import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
+import { experimentRecordsDetail } from "../queries/experiment-records-detail";
 import {
   assignImages,
   createExperiment,
@@ -142,7 +142,9 @@ test("image assignment rejects duplicate units and reused images", async () => {
       },
     ]);
   }
-  expect((await experimentGridDetail(experiment.id))?.images).toHaveLength(1);
+  expect((await experimentRecordsDetail(experiment.id))?.images).toHaveLength(
+    1,
+  );
 });
 
 test("a filled cell can be given a different image", async () => {
@@ -208,8 +210,8 @@ test("a filled cell can be given a different image", async () => {
     ).assigned,
   ).toBe(1);
 
-  const grid = await experimentGridDetail(experiment.id);
-  const byUnit = new Map(grid!.images.map((image) => [image.unit, image]));
+  const records = await experimentRecordsDetail(experiment.id);
+  const byUnit = new Map(records!.images.map((image) => [image.unit, image]));
   expect(byUnit.get(units.get("A-1")!)?.digest).toBe(third);
   expect(byUnit.get(units.get("A-1")!)?.filename).toBe("third.jpg");
   expect(byUnit.get(units.get("A-2")!)?.digest).toBe(other);
@@ -226,7 +228,7 @@ test("a filled cell can be given a different image", async () => {
       },
     ],
   });
-  const after = await experimentGridDetail(experiment.id);
+  const after = await experimentRecordsDetail(experiment.id);
   const afterByUnit = new Map(
     after!.images.map((image) => [image.unit, image]),
   );
@@ -265,12 +267,10 @@ test("an assignment can be unassigned and the image given to another unit", asyn
       },
     ],
   });
-  const imageGrid = (await experimentGridDetail(experiment.id))!;
-  const unitCodes = new Map(
-    imageGrid.units.map((unit) => [unit.id, unit.code]),
-  );
+  const after = (await experimentRecordsDetail(experiment.id))!;
+  const unitCodes = new Map(after.units.map((unit) => [unit.id, unit.code]));
   const images = new Map(
-    imageGrid.images.map((image) => [unitCodes.get(image.unit)!, image.id]),
+    after.images.map((image) => [unitCodes.get(image.unit)!, image.id]),
   );
 
   await expect(
@@ -307,8 +307,10 @@ test("an assignment can be unassigned and the image given to another unit", asyn
     ],
   });
 
-  const grid = await experimentGridDetail(experiment.id);
-  expect(grid?.images.map((image) => image.unit)).toEqual([units.get("A-2")!]);
+  const records = await experimentRecordsDetail(experiment.id);
+  expect(records?.images.map((image) => image.unit)).toEqual([
+    units.get("A-2")!,
+  ]);
   expect(await blobExists(imageBlobKey(await imageDigest("w-a2")))).toBeTrue();
 });
 
@@ -334,7 +336,7 @@ test("analyzes images for the observation's model and exposes tallies", async ()
   const d2 = await imageDigest("c-d2");
 
   const stateOf = async (digest: string) =>
-    (await experimentGridDetail(experiment.id))?.images.find(
+    (await experimentRecordsDetail(experiment.id))?.images.find(
       (image) => image.digest === digest,
     )?.state;
   expect([await stateOf(d1), await stateOf(d2)]).toEqual([
@@ -351,10 +353,10 @@ test("analyzes images for the observation's model and exposes tallies", async ()
     { versionId: version.id, digest: d2 },
     "no unit found",
   );
-  const grid = await experimentGridDetail(experiment.id);
-  const codes = new Map(grid!.units.map((unit) => [unit.id, unit.code]));
+  const records = await experimentRecordsDetail(experiment.id);
+  const codes = new Map(records!.units.map((unit) => [unit.id, unit.code]));
   expect(
-    grid?.images
+    records?.images
       .map((image) => [
         codes.get(image.unit)!,
         image.state,
@@ -367,12 +369,10 @@ test("analyzes images for the observation's model and exposes tallies", async ()
     ["D-2", "failed", null, "no unit found"],
   ]);
 
-  const imageGrid = (await experimentGridDetail(experiment.id))!;
-  const unitCodes = new Map(
-    imageGrid.units.map((unit) => [unit.id, unit.code]),
-  );
+  const after = (await experimentRecordsDetail(experiment.id))!;
+  const unitCodes = new Map(after.units.map((unit) => [unit.id, unit.code]));
   const images = new Map(
-    imageGrid.images.map((image) => [unitCodes.get(image.unit)!, image.id]),
+    after.images.map((image) => [unitCodes.get(image.unit)!, image.id]),
   );
   const failed = {
     experiment: experiment.id,
@@ -418,9 +418,9 @@ test("an observation day is recorded with its photographs, or not at all", async
     ],
   });
   expect(day.hasRecords).toBeTrue();
-  const grid = await experimentGridDetail(experiment.id);
-  expect(grid?.observations.map((item) => item.id)).toEqual([day.id]);
-  expect(grid?.images.map((image) => image.observation)).toEqual([
+  const records = await experimentRecordsDetail(experiment.id);
+  expect(records?.observations.map((item) => item.id)).toEqual([day.id]);
+  expect(records?.images.map((image) => image.observation)).toEqual([
     day.id,
     day.id,
   ]);
@@ -437,7 +437,7 @@ test("an observation day is recorded with its photographs, or not at all", async
     }),
   ).rejects.toThrow(ExperimentObservationImageConflictError);
   expect(
-    (await experimentGridDetail(experiment.id))?.observations,
+    (await experimentRecordsDetail(experiment.id))?.observations,
     "a refused photograph leaves no empty day behind",
   ).toHaveLength(1);
 });

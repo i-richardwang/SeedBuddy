@@ -13,7 +13,8 @@ import { observationOrdinals } from "../../domain/experiments/culture-events";
 import type {
   ReviewState,
   UnitDetail,
-  UnitStep,
+  UnitNavigationEntry,
+  UnitPageRequest,
 } from "../../domain/experiments/read-model";
 import type { ObservationImageRef } from "../../domain/experiments/schema";
 import { createImageAnalysisRetry } from "../../functions/experiments";
@@ -62,10 +63,10 @@ import { TreatmentName } from "./TreatmentName";
 import { UnitMenu } from "./UnitMenu";
 
 /**
- * One unit's photograph on one observation day. The footer steps along both
- * of the grid's axes: through the units on the same day, the way a day's
- * photographs are reviewed, and through the days of the same unit, the way a
- * dish is followed over time. Confirming a review moves on to the next unit
+ * One unit's photograph on one observation day. The footer steps two ways:
+ * through the units on the same day, the way a day's photographs are
+ * reviewed, and through the days of the same unit, the way a dish is
+ * followed over time. Confirming a review moves on to the next unit
  * still to review that day. The frame and its footer stay through every
  * step; only what they hold is replaced.
  *
@@ -78,6 +79,7 @@ import { UnitMenu } from "./UnitMenu";
 export function UnitWorkbench({
   series,
   datasets,
+  table,
   show,
   onShowChange,
   compare,
@@ -85,6 +87,8 @@ export function UnitWorkbench({
 }: {
   series: UnitDetail;
   datasets: NamedDataset[];
+  /** The page of the experiment's units table that holds the unit. */
+  table: UnitPageRequest;
   show?: ReviewSource;
   onShowChange: (source: ReviewSource | undefined) => void;
   /** The day the day in view stands beside, if any. */
@@ -102,7 +106,6 @@ export function UnitWorkbench({
   );
 
   const treatment = treatments.find((item) => item.id === unit.treatment)!;
-  const at = navigation.findIndex((item) => item.id === unit.id);
   const title = m.unit_title({
     code: unit.code,
     experiment: experiment.name,
@@ -132,13 +135,19 @@ export function UnitWorkbench({
     [compare],
   );
   const { pending, step, warm } = useStep(picturesOf);
-  const unitTarget = (target: UnitStep | undefined) =>
-    target &&
-    linkOptions({
-      to: "/experiments/$experiment/$unit",
-      params: { experiment: experiment.id, unit: target.id },
-      search: { observation: series.observation ?? undefined, compare },
-    });
+  // A step keeps the day in view and the day beside it; the route keeps
+  // the rest of where the unit was opened from.
+  const unitTarget = (target: UnitNavigationEntry | null) =>
+    target
+      ? linkOptions({
+          to: "/experiments/$experiment/$unit",
+          params: { experiment: experiment.id, unit: target.id },
+          search: {
+            observation: series.observation ?? undefined,
+            compare,
+          },
+        })
+      : undefined;
   const dayAt = days.findIndex(
     (item) => item.observation.id === series.observation,
   );
@@ -151,8 +160,8 @@ export function UnitWorkbench({
           search: { observation, compare },
         });
   const neighbors = [
-    unitTarget(navigation[at - 1]),
-    unitTarget(navigation[at + 1]),
+    unitTarget(navigation.previous),
+    unitTarget(navigation.next),
     dayTarget(days[dayAt - 1]?.observation.id),
     dayTarget(days[dayAt + 1]?.observation.id),
   ];
@@ -163,15 +172,12 @@ export function UnitWorkbench({
   useEffect(() => warmNeighbors(), [unit.id, series.observation]);
   const toward = (target: (typeof neighbors)[number]) =>
     target ? () => step(target) : undefined;
-  const toUnit = (target: UnitStep | undefined) => toward(unitTarget(target));
+  const toUnit = (target: UnitNavigationEntry | null) =>
+    toward(unitTarget(target));
   const toDay = (observation: string | undefined) =>
     toward(dayTarget(observation));
-  const previousUnit = toUnit(navigation[at - 1]);
-  const nextUnit = toUnit(navigation[at + 1]);
-  const toReview = [
-    ...navigation.slice(at + 1),
-    ...navigation.slice(0, at),
-  ].filter((item) => item.image === "unreviewed");
+  const previousUnit = toUnit(navigation.previous);
+  const nextUnit = toUnit(navigation.next);
   const toggleCompare =
     reference || photographed.length > 1
       ? () =>
@@ -194,15 +200,10 @@ export function UnitWorkbench({
       experiment={experiment.id}
       unit={unit}
       treatments={treatments}
-      canRemove={
-        unit.events.length === 0 &&
-        !series.observations.some((item) => item.image || item.manual) &&
-        navigation.some(
-          (item) => item.treatment === unit.treatment && item.id !== unit.id,
-        )
-      }
+      canRemove={series.removable}
       image={shown}
       datasets={datasets}
+      table={table}
     />
   );
   const steps = (
@@ -211,11 +212,14 @@ export function UnitWorkbench({
         previous={{ label: m.unit_previous(), onClick: previousUnit }}
         next={{ label: m.unit_next(), onClick: nextUnit }}
       >
-        {m.ui_step_position({ index: at + 1, total: navigation.length })}
+        {m.ui_step_position({
+          index: navigation.position,
+          total: navigation.total,
+        })}
       </Stepper>
-      {toReview.length > 0 ? (
+      {navigation.toReview > 0 ? (
         <Text as="span" size="sm" type="tertiary" className="whitespace-nowrap">
-          {m.unit_unreviewed_count({ count: toReview.length })}
+          {m.unit_unreviewed_count({ count: navigation.toReview })}
         </Text>
       ) : null}
       <span className="flex-1" />
@@ -361,7 +365,7 @@ export function UnitWorkbench({
         unclear={shown.unclear}
         show={show}
         onShowChange={onShowChange}
-        onNext={toUnit(toReview[0])}
+        onNext={toUnit(navigation.nextToReview)}
         stepping={pending}
         context={{
           menu,

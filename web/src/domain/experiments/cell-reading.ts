@@ -26,7 +26,7 @@ export function resolveCountedClasses(
   return modelClasses.filter((name) => requested.includes(name));
 }
 
-export function cellKey(unit: string, observation: string): string {
+function cellKey(unit: string, observation: string): string {
   return `${unit}:${observation}`;
 }
 

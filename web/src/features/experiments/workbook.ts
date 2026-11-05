@@ -13,7 +13,7 @@ import {
 } from "../../domain/experiments/culture-events";
 import type {
   Exclusion,
-  ExperimentGridDetail,
+  ExperimentRecords,
   ExperimentSummary,
   Statistic,
   Unit,
@@ -25,8 +25,8 @@ import {
   formatFactor,
   type Treatment,
 } from "../../domain/experiments/schema";
-import { gridSummary } from "../../domain/experiments/sheet";
 import {
+  recordsSummary,
   type SummaryMeasure,
   summaryCell,
   summaryMeasure,
@@ -51,7 +51,7 @@ import { formatDay } from "../../ui/Day";
 import { observationQuestion } from "./copy";
 import { exclusionLabel, summaryMeasureLabel } from "./labels";
 
-export type ExperimentWorkbookSource = ExperimentGridDetail & {
+export type ExperimentWorkbookSource = ExperimentRecords & {
   models: readonly Model[];
 };
 
@@ -86,20 +86,23 @@ export function experimentWorkbookFilename(experiment: Experiment): string {
 }
 
 /**
- * The experiment as a file of two sheets: the grid, and the summary of it by
- * treatment.
+ * The experiment as a file of two sheets: its units' records by observation
+ * day, and the summary of them by treatment.
  */
 export function experimentWorkbook(
   source: ExperimentWorkbookSource,
   exportedOn: CalendarDay,
 ): Workbook {
   return {
-    sheets: [gridSheet(source, exportedOn), summarySheet(source, exportedOn)],
+    sheets: [
+      recordsSheet(source, exportedOn),
+      summarySheet(source, exportedOn),
+    ],
   };
 }
 
 /**
- * The grid as a spreadsheet: a row per unit with its design repeated, the
+ * The units' records as a spreadsheet: a row per unit with its design repeated, the
  * days across the top, and every count left as a number for whatever charts or
  * computes on it. A count is a count whoever stood behind it, read from the
  * photograph or entered by hand.
@@ -110,7 +113,7 @@ export function experimentWorkbook(
  * and a unit with a photograph found unclear, where the experiment does not
  * count such photographs, says so in place of every count it has.
  */
-export function gridSheet(
+export function recordsSheet(
   source: ExperimentWorkbookSource,
   exportedOn: CalendarDay,
 ): WorkbookSheet {
@@ -167,7 +170,7 @@ export function summarySheet(
   exportedOn: CalendarDay,
 ): WorkbookSheet {
   const { experiment, treatments, observations } = source;
-  const summary = gridSummary(source);
+  const summary = recordsSummary(source);
   const baseline = observations.find(
     (observation) => observation.id === summary.baseline,
   );

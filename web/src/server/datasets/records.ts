@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import type { AnnotationDocument } from "../../domain/annotation/schema";
 import type {
@@ -16,7 +16,7 @@ import {
   snapshot,
 } from "../infra/db/client";
 import { datasetImages, datasets, images } from "../infra/db/schema";
-import { readingsSubquery } from "../readings/public";
+import { imageDetection, imageReadings } from "../readings/public";
 import {
   type DatasetImage,
   datasetMembershipOrder,
@@ -30,8 +30,9 @@ import {
 /**
  * A dataset image with the documents that decide its state, loaded in one
  * query. The annotation is the review for the dataset's model; the detection
- * is the newest the model's versions recorded for the image; the proposal is
- * the newest an agent drew for it.
+ * is the one a reviewer is shown, the current version's once it has detected
+ * the image, else the newest version's that has; the proposal is the newest
+ * an agent drew for it.
  */
 export interface ImageRecord {
   image: DatasetImage;
@@ -66,24 +67,32 @@ export function summarizeDatasetImage(
 
 /** Memberships with their images and the documents that decide their state. */
 function recordQuery(db: Executor) {
-  const readings = readingsSubquery(db, {
+  const readings = imageReadings({
+    imageId: datasetImages.imageId,
     modelId: datasets.modelId,
+  });
+  const detection = imageDetection({
+    imageId: datasetImages.imageId,
     version: shownDetectingVersion(datasetImages.imageId, datasets.modelId),
   });
-  return db
-    .select({
-      membership: datasetImages,
-      image: images,
-      modelId: datasets.modelId,
-      detection: readings.detection,
-      proposal: sql<AnnotationDocument | null>`${readings.proposal}->'document'`,
-      annotation: readings.annotation,
-      unclear: markedUnclear(datasetImages.imageId),
-    })
-    .from(datasetImages)
-    .innerJoin(images, eq(images.id, datasetImages.imageId))
-    .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
-    .leftJoinLateral(readings, eq(readings.imageId, datasetImages.imageId));
+  return detection.join(
+    readings.join(
+      db
+        .select({
+          membership: datasetImages,
+          image: images,
+          modelId: datasets.modelId,
+          detection: detection.detection,
+          proposal: readings.proposalDocument,
+          annotation: readings.annotation,
+          unclear: markedUnclear(datasetImages.imageId),
+        })
+        .from(datasetImages)
+        .innerJoin(images, eq(images.id, datasetImages.imageId))
+        .innerJoin(datasets, eq(datasets.id, datasetImages.datasetId))
+        .$dynamic(),
+    ),
+  );
 }
 
 function toRecord(

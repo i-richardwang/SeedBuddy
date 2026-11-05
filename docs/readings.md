@@ -44,12 +44,12 @@ A cell is one unit on one observation. It holds the photograph taken of the unit
 
 An annotated photograph yields a tally: how many instances of each class its boxes contain. An image can hold three annotation layers, and they rank: a reviewer's
 review outranks an AI agent's proposal, which outranks the model’s
-detection. Only a review marks the image reviewed; the grid distinguishes it from automated annotations. The grid and resolved sheet use detections from the current model version. The image review page can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the grid’s detection.
+detection. Only a review marks the image reviewed; the units table distinguishes it from automated annotations. The units table and resolved sheet use detections from the current model version. The image review page can display the newest version that has detected the image while the current version’s result is pending; that displayed fallback does not become the units table’s detection.
 
 A count entered by hand is a tally too, kept by class, for a day that was
 not photographed or a dish that was counted at the bench, such as when its
-seedlings were moved. It is entered for a whole observation at a time, a row
-per unit and a field per class the day counts. When it supplies every counted class, it takes precedence over the photograph. The grid marks it as a count entered by hand. Counts and observation edits follow the [record lifetime rules](domain.md#experimental-design).
+seedlings were moved. It is entered for an observation one treatment at a
+time, a row per unit and a field per class the day counts. When it supplies every counted class, it takes precedence over the photograph. The units table marks it as a count entered by hand. Counts and observation edits follow the [record lifetime rules](domain.md#experimental-design).
 
 A photograph's tally leaves out a class it found none of, and that class
 counts zero. A person's count may not: a class the day counts and the count
@@ -59,7 +59,7 @@ give, the cell reads from its photograph instead, or has no number.
 
 A count is how many instances of the classes its day counts a unit's tally holds. The tally keeps every class whatever the day counts; changing the classes recounts the same tallies and reads nothing again.
 
-## What the grid shows
+## What the units table shows
 
 A row is a unit, beside the treatment it belongs to. A column is the day. Under
 the date it names the model only when the days do not all read for the same
@@ -73,8 +73,8 @@ one shows which. Hovering says why. A photograph not yet read appears as a photo
 
 ## What the spreadsheet carries
 
-The experiment page's **Export spreadsheet** command downloads an `.xlsx` file of two sheets: the grid, and the summary of it
-by treatment. The grid's block at the top names the experiment,
+The experiment page's **Export spreadsheet** command downloads an `.xlsx` file of two sheets: the units' records, and the summary of them
+by treatment. The records sheet's block at the top names the experiment,
 its plant material, explant type and base medium, the day it was inoculated and
 the day the file was taken. Below that the design repeats down every row —
 treatment, factor, unit — so the table sorts, filters and pivots on it, and each
@@ -92,15 +92,16 @@ unclear.
 ## What an agent reads
 
 An agent reads the experiment as a sheet (`domain/experiments/sheet.ts`): the
-design, a cell for every unit on every observation, and the summary by
-treatment. Each cell is resolved here, by the same functions the grid and the
+design, and a page of rows, each a unit's cell on every observation; the
+summary by treatment is read on its own. A unit's row is resolved from that
+unit's records alone, so a page of rows, one row or every row reads the same
+cells. Each cell is resolved here, by the same functions the units table and the
 spreadsheet use: the reading counted in the statistics and who stood behind it, why
 the day is out of the statistics if it is, and under them the photograph and the
 count entered by hand the reading came from. An agent therefore never ranks annotation layers,
 applies the exclusion rules, or averages a treatment itself, and a change to
-any of them changes what every reader sees at once. The workbench grid is a
-different view: it also shows what the workbench is still doing with a
-photograph, which the sheet does not.
+any of them changes what every reader sees at once. The units table shows
+these same rows, a page at a time.
 
 ## What the summary says
 
@@ -123,7 +124,7 @@ first observation itself has none, and a day read for another model has
 counts alone. A day is read by its rate where any treatment has one, and by
 its count otherwise.
 
-The [experiment page](interface.md#pages-and-interaction-ownership) presents the summary. The spreadsheet carries it as its second sheet, with n, mean, SD and SE under each date; the agent’s sheet carries it under the cells. Whether the
+The [experiment page](interface.md#pages-and-interaction-ownership) presents the summary. The spreadsheet carries it as its second sheet, with n, mean, SD and SE under each date; an agent reads it with `get-experiment-summary`. It is always taken over every unit, whatever page of them is on show. Whether the
 treatments differ significantly is a question the summary does not answer:
 the test and the multiple-comparison method are the researcher's to choose,
 so that work is done on the exported numbers.
