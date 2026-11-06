@@ -191,6 +191,7 @@ def materialize_snapshot(
                     instances=image.annotation.instances,
                     split=image.split,
                     file_path=path,
+                    coverage=image.coverage,
                 )
             )
         LOGGER.info(
@@ -204,6 +205,7 @@ def materialize_snapshot(
             snapshot.classes,
             output,
             link_images=True,
+            mode=snapshot.mode,
         )
     return dataset
 
@@ -267,6 +269,7 @@ def _train_bundle(
             dataset_description="Reviewed training snapshot",
             evaluation_description="Validation split of the training snapshot",
         ),
+        mode=exported["mode"],
     )
     return write_bundle(result.best_weights, document, root / "bundle")
 

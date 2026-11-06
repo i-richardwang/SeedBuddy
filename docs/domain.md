@@ -26,6 +26,8 @@ Images, counts entered by hand and culture events prevent deletion of their unit
 
 Model identifiers are unique and classes are fixed at creation. Versions, observations, reviews, datasets and training runs prevent deletion of a model. The built-in `seed-detector` begins with `traditional-v1`, which finds seeds and labels them `ungerminated` for review.
 
+A model's area says where in a photograph its task looks: `image` is the whole photograph, `dish` the culture dish its [analysis](images.md#dish-analysis) found, kept with a margin. The area and the annotation instructions are the model's settings, editable on the Models page and through `update-model-settings`; `seed-detector` ships as `dish`, a new model as `image`. The area governs what is created from now on and never what already exists: an AI annotation run freezes its coverage, a training snapshot freezes its area and each image's coverage, and a trained version records the frame it was trained on as its inference mode and reads in that mode whatever the model's area is set to since. A photograph whose analysis found no dish is used whole wherever a dish task meets it, and the fallback is logged.
+
 Training publishes a candidate without selecting it. Candidate comparison uses the snapshot's held-out validation images, compares count error against reviewed counts per class and overall, and scores only images both versions have read. Selecting a version through the workbench or `use-model-version` reads the model's observations with that version. Returning to a version reuses its stored detections. Reviews and proposals belong to the image and model, so version selection leaves them intact.
 
 ## Dataset transfer

@@ -53,11 +53,13 @@ def _fixture(name: str):
                 "modelId": "model-one",
                 "createdAt": "2026-08-27T00:00:00.000Z",
                 "classes": ["seed"],
+                "area": "image",
                 "images": [
                     {
                         **_fixture("annotation.json")["image"],
                         "digest": digest,
                         "split": split,
+                        "coverage": None,
                         "annotation": {
                             **_fixture("annotation.json"),
                             "image": {
@@ -108,12 +110,19 @@ def test_snapshot_semantic_errors_preserve_nested_caller_context():
         "modelId": "model-one",
         "createdAt": "2026-08-27T00:00:00.000Z",
         "classes": ["seed"],
+        "area": "image",
         "images": [
-            {**annotation["image"], "split": "train", "annotation": annotation},
+            {
+                **annotation["image"],
+                "split": "train",
+                "coverage": None,
+                "annotation": annotation,
+            },
             {
                 **annotation["image"],
                 "digest": "d" * 64,
                 "split": "val",
+                "coverage": None,
                 "annotation": {
                     **_fixture("annotation.json"),
                     "image": {**annotation["image"], "digest": "d" * 64},

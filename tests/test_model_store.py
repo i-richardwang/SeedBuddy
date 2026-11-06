@@ -24,7 +24,7 @@ def test_inference_worker_downloads_a_published_yolo_artifact(
     monkeypatch.setattr(ultralytics_module, "load_yolo", lambda: FakeYolo)
     reference = UltralyticsDetector(
         _weights(tmp_path),
-        YoloInferenceSettings(0.42, 768, 500, False),
+        YoloInferenceSettings(0.42, 768, 500, False, "whole_image"),
         ("seed",),
         device=None,
     )
@@ -40,6 +40,7 @@ def test_inference_worker_downloads_a_published_yolo_artifact(
             "imageSize": 768,
             "maxDetections": 500,
             "endToEnd": False,
+            "mode": "whole_image",
         },
         "validation": {
             "precision": 0.6,

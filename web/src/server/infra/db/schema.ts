@@ -31,10 +31,14 @@ import { USER_ROLES } from "../../../domain/auth/schema";
 import type { DetectionResult } from "../../../domain/detection/schema";
 import { CULTURE_EVENT_TYPES } from "../../../domain/experiments/culture-events";
 import type { TreatmentFactor } from "../../../domain/experiments/schema";
-import type { DishAnalysis } from "../../../domain/images/coverage";
+import type {
+  DishAnalysis,
+  ImageCoverage,
+} from "../../../domain/images/coverage";
 import type { ImageRegion } from "../../../domain/images/geometry";
 import type { RuntimeDescriptor } from "../../../domain/inference/schema";
 import type { InferenceFailure } from "../../../domain/inference/tasks";
+import { MODEL_AREAS } from "../../../domain/models/area";
 import type { ModelBundle } from "../../../domain/models/bundle";
 import type { Tally } from "../../../domain/models/classes";
 import type {
@@ -408,6 +412,8 @@ export const models = pgTable(
     name: text("name").notNull(),
     task: text("task").notNull(),
     classes: jsonb("classes").$type<string[]>().notNull(),
+    /** Where in a photograph the task looks; snapshots and runs freeze it as they are made. */
+    area: text("area", { enum: MODEL_AREAS }).notNull(),
     annotation: jsonb("annotation").$type<ModelAnnotation>().notNull(),
     /**
      * The version a person chose to read the model's images. A trained
@@ -422,6 +428,7 @@ export const models = pgTable(
       columns: [table.currentVersionId, table.id],
       foreignColumns: [modelVersions.id, modelVersions.modelId],
     }),
+    check("models_area_check", sql`${table.area} in ('image', 'dish')`),
   ],
 );
 
@@ -1150,6 +1157,8 @@ export const datasetSnapshots = pgTable(
     id: text("id").primaryKey(),
     datasetId: uuid("dataset_id").notNull(),
     modelId: text("model_id").notNull(),
+    /** The model's area as the snapshot froze it; its images are framed to it. */
+    area: text("area", { enum: MODEL_AREAS }).notNull(),
     createdAt: instant("created_at"),
   },
   (table) => [
@@ -1160,11 +1169,16 @@ export const datasetSnapshots = pgTable(
     }),
     unique("dataset_snapshots_id_model").on(table.id, table.modelId),
     index("dataset_snapshots_dataset_idx").on(table.datasetId),
+    check(
+      "dataset_snapshots_area_check",
+      sql`${table.area} in ('image', 'dish')`,
+    ),
   ],
 );
 
 /**
- * The reviewed images a snapshot froze, with the annotation as reviewed. The
+ * The reviewed images a snapshot froze, with the annotation as reviewed and
+ * the dish coverage the image is framed to, null for the whole image. The
  * image reference keeps the bytes alive for as long as the snapshot exists.
  */
 export const datasetSnapshotImages = pgTable(
@@ -1176,6 +1190,7 @@ export const datasetSnapshotImages = pgTable(
       .notNull()
       .references(() => images.id),
     split: text("split", { enum: IMAGE_SPLITS }).notNull(),
+    coverage: jsonb("coverage").$type<ImageCoverage>(),
     annotation: jsonb("annotation").$type<AnnotationDocument>().notNull(),
   },
   (table) => [

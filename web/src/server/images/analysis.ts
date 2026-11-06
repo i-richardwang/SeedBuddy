@@ -58,15 +58,21 @@ export function createImageAnalyzer(
 
 export const analyzeImage = createImageAnalyzer();
 
-/** Run admission reads only current image metadata; unavailable analysis keeps every core. */
+/**
+ * The dish coverage an image's analysis supports right now, or why a dish
+ * task falls back to the whole image: analysis still pending or from an
+ * older recipe, no dish found, or a circle the image cannot hold.
+ */
+export interface DishCoverageResolution {
+  coverage: ImageCoverage | null;
+  fallback: "pending" | "obsolete" | "no-candidate" | "invalid-circle" | null;
+}
+
 export function resolveDishCoverage(image: {
   width: number;
   height: number;
   dishAnalysis: DishAnalysis | null;
-}): {
-  coverage: ImageCoverage | null;
-  fallback: "pending" | "obsolete" | "no-candidate" | "invalid-circle" | null;
-} {
+}): DishCoverageResolution {
   const analysis = image.dishAnalysis;
   if (!analysis) return { coverage: null, fallback: "pending" };
   if (analysis.recipe !== DISH_RECIPE_ID)

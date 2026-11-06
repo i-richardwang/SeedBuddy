@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from vitroctl.contracts.coverage import ImageCoverage, decode_coverage
 from vitroctl.contracts.validation import outbound, validate_wire_contract
 from vitroctl.worker.model_store import ModelManifest
 from vitroctl.worker.session import WorkerClient
@@ -20,6 +21,8 @@ def timestamp(value: str) -> float:
 class Assignment:
     manifest: ModelManifest
     image: str
+    #: The dish a ``dish`` version reads the image within; None reads it whole.
+    coverage: ImageCoverage | None
     attempt: int
     lease_expires_at: str
     deadline_at: str
@@ -35,6 +38,7 @@ class Assignment:
         result = cls(
             ModelManifest.decode(value["manifest"], f"{context}.manifest"),
             value["image"],
+            decode_coverage(value["coverage"], f"{context}.coverage"),
             value["attempt"],
             value["leaseExpiresAt"],
             value["deadlineAt"],

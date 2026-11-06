@@ -47,7 +47,9 @@ def _execute(
                     assignment.version_id, detector.artifact_digest, detector.runtime
                 )
                 image_path = image.result()
-                result = detector.predict(image_path, assignment.image, producer)
+                result = detector.predict(
+                    image_path, assignment.image, producer, assignment.coverage
+                )
                 result.require_image(assignment.image)
                 connection.send(("result", result.to_dict()))
             except Exception as error:  # noqa: BLE001 - errors cross the process boundary

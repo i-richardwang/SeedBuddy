@@ -85,6 +85,13 @@
       "when": 1793864277275,
       "tag": "0011_reading_tallies_unit_order_and_day_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793938088007,
+      "tag": "0012_dish_framed_training_inference",
+      "breakpoints": true
     }
   ]
 }

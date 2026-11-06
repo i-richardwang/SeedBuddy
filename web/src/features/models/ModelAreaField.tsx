@@ -1,23 +1,23 @@
-import type { ModelAnnotation } from "../../domain/models/schema";
+import type { ModelArea } from "../../domain/models/area";
 import { m } from "../../paraglide/messages";
 import { Form } from "../../ui/kit/Form";
 import { Switch } from "../../ui/kit/Switch";
 
-/** Whether AI annotation keeps to the dish, as a switch row in a dialog form. */
-export function AnnotationAreaField({
+/** Whether the task keeps to the dish, as a switch row in a dialog form. */
+export function ModelAreaField({
   value,
   onChange,
   disabled,
 }: {
-  value: ModelAnnotation["area"];
-  onChange: (area: ModelAnnotation["area"]) => void;
+  value: ModelArea;
+  onChange: (area: ModelArea) => void;
   disabled: boolean;
 }) {
   return (
     <Form.Field
       layout="horizontal"
-      label={m.model_annotation_dish_label()}
-      desc={m.model_annotation_dish_description()}
+      label={m.model_area_dish_label()}
+      desc={m.model_area_dish_description()}
     >
       <Switch
         checked={value === "dish"}

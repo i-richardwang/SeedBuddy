@@ -19,10 +19,11 @@ import {
 } from "../../domain/models/errors";
 import {
   DEFAULT_MODEL_ANNOTATION,
+  DEFAULT_MODEL_AREA,
   type Model,
-  type ModelAnnotationRequest,
   type ModelRef,
   type ModelRequest,
+  type ModelSettingsRequest,
   type ModelVersion,
   type ModelVersionRef,
   modelSchema,
@@ -48,6 +49,7 @@ export function toModel(row: typeof models.$inferSelect): Model {
     name: row.name,
     task: row.task,
     classes: row.classes,
+    area: row.area,
     annotation: row.annotation,
   });
 }
@@ -120,8 +122,9 @@ async function insertModel(model: Model, db: Executor): Promise<Model | null> {
 
 /**
  * Declares a model the deployment always has: the same one again is welcome.
- * Its annotation instructions are the deployment's to edit, so registration
- * supplies a starting point and never overrides what was changed since.
+ * Its area and annotation are the deployment's settings to edit, so
+ * registration supplies a starting point and never overrides what was
+ * changed since.
  */
 export async function registerModel(
   model: Model,
@@ -132,7 +135,11 @@ export async function registerModel(
   const existing = await readModel(model.id, db);
   if (
     !existing ||
-    !sameModel(existing, { ...model, annotation: existing.annotation })
+    !sameModel(existing, {
+      ...model,
+      area: existing.area,
+      annotation: existing.annotation,
+    })
   ) {
     throw new Error(
       `Model ${model.id} is already registered with different contents`,
@@ -157,6 +164,7 @@ export async function createModel(
     schemaVersion: 1,
     task: "object_detection",
     ...request,
+    area: request.area ?? DEFAULT_MODEL_AREA,
     annotation: { ...DEFAULT_MODEL_ANNOTATION, ...request.annotation },
   });
   db ??= await database();
@@ -171,15 +179,20 @@ export async function createModel(
   return toModel(created);
 }
 
-/** Changes how agents annotate the task. Its classes and records are untouched. */
-export async function setModelAnnotation(
-  request: ModelAnnotationRequest,
+/**
+ * Changes where the task looks and how agents annotate it. Its classes and
+ * records are untouched, and so is everything already frozen from the old
+ * settings: runs keep their coverage, snapshots their frame, and trained
+ * versions read as they were trained.
+ */
+export async function setModelSettings(
+  request: ModelSettingsRequest,
   db?: Executor,
 ): Promise<Model> {
   db ??= await database();
   const [row] = await db
     .update(models)
-    .set({ annotation: request.annotation })
+    .set({ area: request.area, annotation: request.annotation })
     .where(eq(models.id, request.model))
     .returning();
   if (!row) throw new ModelNotFoundError(`Unknown model: ${request.model}`);
@@ -296,6 +309,6 @@ export async function installBuiltinModels(db: Executor): Promise<void> {
 }
 
 function modelColumns(model: Model) {
-  const { id, name, task, classes, annotation } = model;
-  return { id, name, task, classes: [...classes], annotation };
+  const { id, name, task, classes, area, annotation } = model;
+  return { id, name, task, classes: [...classes], area, annotation };
 }

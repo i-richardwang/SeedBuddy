@@ -7,6 +7,13 @@ from typing import Any, Literal
 
 from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.contracts.annotation_set import ImageDocuments, validate_annotation_set
+from vitroctl.contracts.coverage import (
+    ImageCoverage,
+    ModelArea,
+    decode_coverage,
+    validate_framing,
+)
+from vitroctl.contracts.inference import InferenceMode, inference_mode_for_area
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.training.recipe import TrainingRecipe
 
@@ -69,13 +76,21 @@ class SnapshotImage:
     width: int
     height: int
     split: str
+    #: The dish the image is framed to, as the workbench froze it; None is whole.
+    coverage: ImageCoverage | None
     annotation: AnnotationDocument
 
 
 @dataclass(frozen=True)
 class TrainingSnapshot:
     classes: tuple[str, ...]
+    #: The model's area when the snapshot froze; the mode its version reads in.
+    area: ModelArea
     images: tuple[SnapshotImage, ...]
+
+    @property
+    def mode(self) -> InferenceMode:
+        return inference_mode_for_area(self.area)
 
     @classmethod
     def from_document(cls, value: Any, context: str = "snapshot") -> TrainingSnapshot:
@@ -102,8 +117,11 @@ class TrainingSnapshot:
             classes,
             context,
         )
+        area: ModelArea = value["area"]
+        validate_framing(area, (image.coverage for image in images), context)
         return cls(
             classes=classes,
+            area=area,
             images=images,
         )
 
@@ -114,6 +132,7 @@ def _snapshot_image(value: Any, context: str) -> SnapshotImage:
         width=value["width"],
         height=value["height"],
         split=value["split"],
+        coverage=decode_coverage(value["coverage"], f"{context}.coverage"),
         annotation=AnnotationDocument.decode(
             value["annotation"], f"{context}.annotation"
         ),

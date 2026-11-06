@@ -26,7 +26,7 @@ Domain exceptions inherit shared categories from `domain/errors.ts` and carry st
 
 ## Python boundaries
 
-`image_geometry` owns dish circle detection without model or annotation dependencies; traditional detection uses it, and the workbench reads the same [recipe](images.md) to bound AI annotation to the dish. AI annotation itself runs on the workbench and the agents people connect to it; see [AI annotation](ai-annotation.md).
+`image_geometry` owns dish circle detection and the pixel window a frozen dish coverage frames, without model or annotation dependencies; traditional detection uses the former, YOLO export and inference the latter, and the workbench reads the same [recipe](images.md) to bound AI annotation to the dish. AI annotation itself runs on the workbench and the agents people connect to it; see [AI annotation](ai-annotation.md).
 
 `vitroflow` depends on neither `vitroctl` nor the workbench. It ships its own `dish-recipe.json` as package data. A test pins those bytes to `src/vitroctl/image_geometry/dish-recipe.json`; its independent detector reads that recipe and uses the same half-up thumbnail dimension rule as `image_geometry/recipe.py`.
 
@@ -41,7 +41,7 @@ The allowed internal dependencies are defined by layer:
 | `datasets` | `contracts`, `detector_contracts`, `io` |
 | `training` | `contracts` |
 | `traditional` | `contracts`, `datasets`, `detector_contracts`, `image_geometry`, `io` |
-| `ultralytics` | `contracts`, `datasets`, `detector_contracts`, `io` |
+| `ultralytics` | `contracts`, `datasets`, `detector_contracts`, `image_geometry`, `io` |
 | `worker` | `contracts`, `detector_contracts`, `io`, `models`, `traditional`, `training`, `ultralytics` |
 | `host` | `io`, `worker` |
 | `models` | `contracts`, `io` |

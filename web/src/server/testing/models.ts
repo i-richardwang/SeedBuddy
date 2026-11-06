@@ -2,12 +2,17 @@ import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
+import type { ModelArea } from "../../domain/models/area";
 import {
   SEED_DETECTOR,
   SEED_DETECTOR_BASELINE_VERSION_ID,
 } from "../../domain/models/builtins";
+import { inferenceModeForArea } from "../../domain/models/inference";
 import type { ModelVersion } from "../../domain/models/schema";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import {
+  DEFAULT_MODEL_ANNOTATION,
+  DEFAULT_MODEL_AREA,
+} from "../../domain/models/schema";
 import { YOLO26N_WHOLE_RECIPE } from "../../domain/training/recipes";
 import { createDataset, readDatasetByName } from "../datasets/datasets";
 import { database, operationTime, transaction } from "../infra/db/client";
@@ -49,6 +54,7 @@ export async function traditionalVersion(
       name: `${modelId} detector`,
       task: "object_detection",
       classes: SEED_DETECTOR.classes,
+      area: DEFAULT_MODEL_AREA,
       annotation: DEFAULT_MODEL_ANNOTATION,
     },
     db,
@@ -72,11 +78,13 @@ export async function traditionalVersion(
 
 /**
  * Registers a trained version of `modelId`, as a training run would publish
- * it: a candidate, which reads nothing until a test makes it current.
+ * it: a candidate, which reads nothing until a test makes it current. The
+ * area is the one its snapshot froze, and so the frame it reads in.
  */
 export async function registerTrainedVersion(
   modelId: string,
   slug = "yolo-v1",
+  area: ModelArea = "image",
 ): Promise<ModelVersion> {
   const datasetName = `${modelId}.${slug}.dataset`;
   const snapshotId = `${modelId}.${slug}.snapshot`;
@@ -101,6 +109,7 @@ export async function registerTrainedVersion(
         imageSize: 768,
         maxDetections: 500,
         endToEnd: false,
+        mode: inferenceModeForArea(area),
       },
       validation: {
         precision: 0.6,
@@ -122,6 +131,7 @@ export async function registerTrainedVersion(
         id: snapshotId,
         datasetId,
         modelId,
+        area,
         createdAt: await operationTime(db),
       })
       .onConflictDoNothing();
@@ -158,6 +168,7 @@ export async function trainedVersion(
       name: `${modelId} detector`,
       task: "object_detection",
       classes,
+      area: DEFAULT_MODEL_AREA,
       annotation: DEFAULT_MODEL_ANNOTATION,
     },
     db,

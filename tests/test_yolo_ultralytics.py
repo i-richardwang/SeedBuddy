@@ -49,7 +49,7 @@ def test_yolo_resolves_exported_dataset_from_its_yaml(
     ).annotated
 
     output = tmp_path / "dataset"
-    export_yolo_dataset(annotated, SEED_CLASSES, data_root, output)
+    export_yolo_dataset(annotated, SEED_CLASSES, data_root, output, mode="whole_image")
 
     loaded = data_utils.check_det_dataset(str((output / "dataset.yaml").resolve()))
 

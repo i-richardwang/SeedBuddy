@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { ModelAnnotation } from "../../domain/models/schema";
+import type { ModelArea } from "../../domain/models/area";
 import { createModel } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { FormDialog } from "../../ui/FormDialog";
@@ -10,7 +10,7 @@ import {
 } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { Input, TextArea } from "../../ui/kit/Input";
-import { AnnotationAreaField } from "./AnnotationAreaField";
+import { ModelAreaField } from "./ModelAreaField";
 
 const FORM_ID = "model";
 
@@ -54,7 +54,7 @@ function ModelForm({
   const [name, setName] = useState("");
   const [classes, setClasses] = useState("");
   const [instructions, setInstructions] = useState("");
-  const [area, setArea] = useState<ModelAnnotation["area"]>("image");
+  const [area, setArea] = useState<ModelArea>("image");
 
   const submit = () => {
     void run(
@@ -64,7 +64,8 @@ function ModelForm({
             id,
             name,
             classes: classList(classes),
-            annotation: { instructions, area },
+            area,
+            annotation: { instructions },
           },
         }),
       m.model_not_created(),
@@ -111,7 +112,7 @@ function ModelForm({
           disabled={busy}
         />
       </Form.Field>
-      <AnnotationAreaField value={area} onChange={setArea} disabled={busy} />
+      <ModelAreaField value={area} onChange={setArea} disabled={busy} />
     </Form>
   );
 }

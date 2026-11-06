@@ -26,11 +26,19 @@
             "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
           },
           "uniqueItems": true
+        },
+        "area": {
+          "type": "string",
+          "enum": [
+            "image",
+            "dish"
+          ]
         }
       },
       "required": [
         "id",
-        "classes"
+        "classes",
+        "area"
       ],
       "additionalProperties": false
     },
@@ -71,6 +79,56 @@
                   "train",
                   "val"
                 ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "dish"
+                  },
+                  "circle": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "y": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "radius": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "radius"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "margin": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "kind",
+                  "circle",
+                  "margin"
+                ],
+                "additionalProperties": false
               },
               {
                 "type": "null"
@@ -387,6 +445,7 @@
           "filename",
           "bytes",
           "split",
+          "coverage",
           "detection",
           "annotation",
           "unclear"

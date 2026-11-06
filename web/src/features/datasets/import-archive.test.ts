@@ -14,7 +14,11 @@ function manifest(images: DatasetManifest["images"]): DatasetManifest {
   return {
     schemaVersion: 1,
     dataset: "archive-test",
-    model: { id: "seed-detector", classes: ["ungerminated", "germinated"] },
+    model: {
+      id: "seed-detector",
+      classes: ["ungerminated", "germinated"],
+      area: "image",
+    },
     images,
   };
 }
@@ -69,6 +73,7 @@ test("an archive contains each declared image exactly once", async () => {
     filename: "seed.avif",
     bytes: 1,
     split: null,
+    coverage: null,
     detection: null,
     annotation: null,
     unclear: false,

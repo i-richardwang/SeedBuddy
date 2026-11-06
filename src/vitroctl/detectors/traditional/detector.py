@@ -7,6 +7,7 @@ from pathlib import Path
 
 from vitroctl.contracts import annotation
 from vitroctl.contracts.annotation import BoundingBox
+from vitroctl.contracts.coverage import ImageCoverage
 from vitroctl.detectors import contract
 from vitroctl.detectors.contract import (
     DetectionDiagnostics,
@@ -84,8 +85,14 @@ class TraditionalDetector:
         )
 
     def predict(
-        self, image_path: Path, digest: str, producer: DetectionProducer
+        self,
+        image_path: Path,
+        digest: str,
+        producer: DetectionProducer,
+        coverage: ImageCoverage | None,
     ) -> DetectionResult:
+        if coverage is not None:
+            raise ValueError("The traditional detector finds the dish itself")
         result = count_seeds(image_path, config=self.config, model=self.model)
         side = result.dish_radius * _BOX_SIDE_FRACTION
         instances = []

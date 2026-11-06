@@ -19,9 +19,10 @@ regions some source-pixel boxes touch, in which case every other region keeps
 its input boxes. When beginning from an AI proposal, untouched regions also keep
 which of their boxes await confirmation. The touched regions are replaced in full,
 including that mark. Model settings own classes, instructions, region
-geometry and the annotation area (`image` or `dish`). The server freezes these
-settings and the resulting coverage at creation. Seed detection defaults to
-`dish`; other models default to `image`.
+geometry and the model's area (`image` or `dish`), the one setting that AI
+annotation shares with [training and inference](vitroctl.md#dish-framing). The
+server freezes these settings and the resulting coverage at creation. Seed
+detection defaults to `dish`; other models default to `image`.
 
 An agent a person connects to the annotation server, such as Claude Code or
 Codex, finds the images waiting for it and annotates them from its own
@@ -123,8 +124,8 @@ shared overview is limited to a 1024-pixel longest side. Display magnification
 changes presentation, not final coordinates. Runs are limited to 4096 regions;
 increase core size for larger images.
 
-The image asset module prepares regional evidence on first access in both
-annotation area modes, outside database transactions. A cold preparation decodes
+The image asset module prepares regional evidence on first access for image
+and dish runs alike, outside database transactions. A cold preparation decodes
 the canonical AVIF once and uses those pixels for lossless PNG regions and an
 unmarked base overview. A scoped or dish run prepares only the regions it assigns;
 their assets are shared with whole-image runs. Region geometry is shared with task
@@ -144,7 +145,9 @@ Collection removes derived assets when their source Image is unreferenced.
 ## Dish coverage
 
 A dish run covers the dish its image's stored [analysis](images.md) found.
-Coverage expands the detected radius by 15%. A core is omitted only when its
+Coverage expands the detected radius by 15%; the same coverage frames the
+image for a `dish` model's training snapshots and trained versions, see
+[dish framing](vitroctl.md#dish-framing). A core is omitted only when its
 rectangle is wholly outside that coverage; crossing and tangent cores remain.
 Grid IDs, patches, halos and box ownership stay unchanged. Evidence and boxes are
 never masked or clipped to the circle. `scope` intersects coverage with the redraw regions. Progress counts assigned tasks. Cores outside dish coverage retain their input boxes as part of the unreviewed proposal, awaiting human confirmation; only input boxes already marked uncertain retain an uncertainty check.

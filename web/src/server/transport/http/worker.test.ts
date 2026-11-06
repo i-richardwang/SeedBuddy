@@ -8,6 +8,7 @@ import {
   DetectionOutcomeInvalidError,
   ProducerMismatchError,
 } from "../../../domain/inference/errors";
+import { inferenceModeForArea } from "../../../domain/models/inference";
 import { MAX_MODEL_MANIFEST_BYTES } from "../../../domain/models/transfer";
 import {
   TrainingArtifactInvalidError,
@@ -579,11 +580,13 @@ test.each([...TRAINING_PRESETS])(
       created.datasetSnapshotId,
       await database(),
     );
+    expect(frozen!.area).toBe("dish");
     const bundle = trainingBundle(
       new TextEncoder().encode("weights"),
       publication,
       frozen!.classes,
       frozen!.id,
+      inferenceModeForArea(frozen!.area),
     );
     const artifactQuery = new URLSearchParams({ ...SESSION, attempt: "1" });
     const partQuery = new URLSearchParams({

@@ -1,4 +1,5 @@
 import type { ModelBundle } from "../../domain/models/bundle";
+import { inferenceModeForArea } from "../../domain/models/inference";
 import {
   TrainingArtifactInvalidError,
   TrainingRunConflictError,
@@ -22,6 +23,7 @@ import {
 import { readTrainingArtifactParts } from "./artifacts";
 import { lockTrainingRun, transitionTrainingRun } from "./runs";
 import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
+import { readSnapshotArea } from "./snapshots";
 
 /** Completed deliveries are read-only retries, identified by attempt and full bundle. */
 async function completedPublication(
@@ -59,6 +61,13 @@ export async function completeTrainingRun(
   if (document.provenance.dataset.snapshotId !== current.datasetSnapshotId)
     throw new TrainingArtifactInvalidError(
       "Bundle does not describe this training snapshot",
+    );
+  const mode = inferenceModeForArea(
+    await readSnapshotArea(current.datasetSnapshotId, db),
+  );
+  if (document.inference.mode !== mode)
+    throw new TrainingArtifactInvalidError(
+      `Bundle reads in ${document.inference.mode} mode; the snapshot was framed for ${mode}`,
     );
   const completed = await completedPublication(current, document, owner, db);
   if (completed) return completed;

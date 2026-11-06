@@ -6,13 +6,12 @@ import {
 } from "../annotation-runs/public";
 import { storeAnnotation } from "../annotations/documents";
 import { addExperimentObservationImagesToNewDataset } from "../datasets/datasets";
-import { createModel, setModelAnnotation } from "../models/public";
+import { createModel, setModelSettings } from "../models/public";
 import { observeImagesForModel } from "../testing/experiments";
 import { pendingAnnotationsDetail } from "./pending-annotations-detail";
 
 test("an image waits once per model until someone reads it or while a run on it is in progress, which comes first", async () => {
   const annotation = {
-    area: "image" as const,
     instructions: "Box every seed.",
     coreSize: 512,
     halo: 32,
@@ -60,8 +59,9 @@ test("an image waits once per model until someone reads it or while a run on it 
   await cancelAnnotationRun(redraw);
   expect(await listed()).toEqual([observed.digests[1]!]);
 
-  await setModelAnnotation({
+  await setModelSettings({
     model: model.id,
+    area: "image",
     annotation: { ...annotation, instructions: "" },
   });
   expect(await pendingAnnotationsDetail(model.id)).toEqual({

@@ -37,9 +37,9 @@ export const SEED_DETECTOR = modelSchema.parse({
   name: "Seed germination",
   task: "object_detection",
   classes: SEED_ANNOTATION_CONFIG.classes,
+  area: SEED_ANNOTATION_CONFIG.area,
   annotation: {
     ...DEFAULT_MODEL_ANNOTATION,
-    area: SEED_ANNOTATION_CONFIG.area,
     instructions: SEED_ANNOTATION_CONFIG.rules,
   },
 });

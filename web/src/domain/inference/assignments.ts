@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { resourceIdSchema } from "../identifiers/schema";
+import { imageCoverageSchema } from "../images/coverage";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";
 import {
@@ -17,9 +18,16 @@ export const inferenceModelManifestSchema = z.strictObject({
   artifact: modelArtifactSchema,
 });
 
+/**
+ * One execution of a version over an image. A `dish` version is handed the
+ * dish coverage the image's analysis holds when the task is claimed, and
+ * reads the frame it bounds; null reads the whole image, as a `whole_image`
+ * version always does.
+ */
 export const inferenceAssignmentSchema = z.strictObject({
   manifest: inferenceModelManifestSchema,
   image: imageDigestSchema,
+  coverage: imageCoverageSchema.nullable(),
   attempt: z.number().int().positive(),
   leaseExpiresAt: timestampSchema,
   deadlineAt: timestampSchema,

@@ -88,7 +88,7 @@ def test_traditional_detector_adapts_detections_to_boxes(monkeypatch) -> None:
         lambda *args, **kwargs: result,
     )
 
-    document = detector.predict(Path("a.jpg"), "c" * 64, producer).to_dict()
+    document = detector.predict(Path("a.jpg"), "c" * 64, producer, None).to_dict()
 
     assert document["schemaVersion"] == 1
     assert document["image"] == {"digest": "c" * 64, "width": 100, "height": 80}

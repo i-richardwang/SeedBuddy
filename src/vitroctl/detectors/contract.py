@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from vitroctl.contracts.annotation import BoundingBox, validate_instances
+from vitroctl.contracts.coverage import ImageCoverage
 
 DETECTION_SCHEMA_VERSION = 1
 
@@ -159,7 +160,12 @@ class DetectionResult:
 
 
 class Detector(Protocol):
-    """An executable model version that emits the canonical detection contract."""
+    """An executable model version that emits the canonical detection contract.
+
+    ``coverage`` is the dish the workbench framed the image to for a version
+    that reads in ``dish`` mode; every box in the result is in image pixels
+    whatever frame was read.
+    """
 
     @property
     def runtime(self) -> RuntimeDescriptor: ...
@@ -168,7 +174,11 @@ class Detector(Protocol):
     def artifact_digest(self) -> str: ...
 
     def predict(
-        self, image_path: Path, digest: str, producer: DetectionProducer
+        self,
+        image_path: Path,
+        digest: str,
+        producer: DetectionProducer,
+        coverage: ImageCoverage | None,
     ) -> DetectionResult: ...
 
 

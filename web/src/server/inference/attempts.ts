@@ -8,8 +8,10 @@ import {
 } from "../../domain/inference/assignments";
 import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { InferenceFailure } from "../../domain/inference/tasks";
+import type { ModelVersion } from "../../domain/models/schema";
 import type { AttemptOwner, WorkerIdentity } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
+import { resolveDishCoverage } from "../images/public";
 import {
   type Executor,
   operationTime,
@@ -17,6 +19,7 @@ import {
   transaction,
 } from "../infra/db/client";
 import {
+  images,
   inferenceAttempts,
   inferenceTasks,
   modelVersions,
@@ -42,6 +45,41 @@ import {
   taskKey,
 } from "./tasks";
 
+/**
+ * The dish a `dish` version reads the image within, from the analysis the
+ * image holds now. Without one the version reads the whole image, as a run
+ * or snapshot of the same image would have, and the claim says why.
+ */
+async function taskCoverage(db: Executor, task: Task, version: ModelVersion) {
+  if (
+    version.artifact.kind !== "ultralytics" ||
+    version.artifact.inference.mode !== "dish"
+  )
+    return null;
+  const image = single(
+    await db
+      .select({
+        width: images.width,
+        height: images.height,
+        dishAnalysis: images.dishAnalysis,
+      })
+      .from(images)
+      .where(eq(images.id, task.imageId)),
+    "images",
+  );
+  const { coverage, fallback } = resolveDishCoverage(image);
+  if (fallback)
+    console.info(
+      `${JSON.stringify({
+        event: "inference-task.full-image-coverage",
+        imageId: task.imageId,
+        modelVersionId: task.modelVersionId,
+        reason: fallback,
+      })}\n`,
+    );
+  return coverage;
+}
+
 async function assignment(
   db: Executor,
   task: Task,
@@ -60,6 +98,7 @@ async function assignment(
   return inferenceAssignmentSchema.parse({
     manifest: inferenceModelManifest(version, model),
     image: task.imageId,
+    coverage: await taskCoverage(db, task, version),
     attempt: attempt.attempt,
     leaseExpiresAt: attempt.leaseExpiresAt.toISOString(),
     deadlineAt: attempt.deadlineAt.toISOString(),

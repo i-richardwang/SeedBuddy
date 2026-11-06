@@ -10,6 +10,7 @@ from typing import Any
 
 from vitroctl.cli.connection import client, connection_options
 from vitroctl.cli.output import json_output
+from vitroctl.contracts.inference import inference_mode_for_area
 from vitroctl.contracts.validation import outbound
 from vitroctl.datasets.manifest import load_dataset_manifest, manifest_path
 from vitroctl.detectors.ultralytics import export_yolo_dataset, train_yolo_detector
@@ -70,6 +71,7 @@ def _run(args: argparse.Namespace) -> int:
             data_root,
             exported_path,
             seed=recipe.parameters["seed"],
+            mode=inference_mode_for_area(manifest.area),
         )
     result = train_yolo_detector(
         exported_path / "dataset.yaml",
@@ -96,7 +98,9 @@ def _run(args: argparse.Namespace) -> int:
         dataset_description=f"Pulled dataset {manifest.dataset}; exact input and exported splits in input.json and dataset/manifest.json",
         evaluation_description="Exported validation split",
     )
-    document = training_bundle(result, list(manifest.classes), provenance)
+    document = training_bundle(
+        result, list(manifest.classes), provenance, mode=exported["mode"]
+    )
     print(write_bundle(result.best_weights, document, output / "bundle"))
     return 0
 

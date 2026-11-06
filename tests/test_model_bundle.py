@@ -138,6 +138,7 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
         dataset="local",
         annotated=(),
         classes=("seed",),
+        area="image",
         to_dict=lambda: {"images": [], "classes": ["seed"]},
     )
     monkeypatch.setattr(training, "load_dataset_manifest", lambda _: manifest)
@@ -146,7 +147,7 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
         destination.mkdir(parents=True)
         (destination / "dataset.yaml").write_text("train: images/train")
         (destination / "manifest.json").write_text(
-            json.dumps({"class_names": ["seed"], "images": []})
+            json.dumps({"class_names": ["seed"], "mode": "whole_image", "images": []})
         )
 
     monkeypatch.setattr(training, "export_yolo_dataset", export)
@@ -218,7 +219,10 @@ def test_training_bundle_refuses_unusable_validation(tmp_path):
     summary.write_text(json.dumps({"inference": {"ready": False}}))
     with pytest.raises(ValueError, match="usable validation"):
         training_bundle(
-            YoloTrainingResult(tmp_path / "best.pt", summary, {}), ["seed"], {}
+            YoloTrainingResult(tmp_path / "best.pt", summary, {}),
+            ["seed"],
+            {},
+            mode="whole_image",
         )
 
 
@@ -332,7 +336,8 @@ def test_training_bundle_uses_result_context_and_one_metric_source(tmp_path, rec
         dataset_description="dataset",
         evaluation_description="validation",
     )
-    document = training_bundle(result, ["seed"], provenance)
+    document = training_bundle(result, ["seed"], provenance, mode="dish")
+    assert document["inference"]["mode"] == "dish"
     assert document["provenance"]["codeRevision"] == "supplied revision"
     assert document["provenance"]["effectiveParameters"] == {"batch": 2}
     assert document["provenance"]["evaluation"]["metrics"] is document["validation"]

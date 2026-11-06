@@ -126,3 +126,17 @@ test("completed publication retries and conflicts leave upload storage unchanged
   ).rejects.toThrow(/superseded/);
   expect(await storage()).toEqual(before);
 });
+
+test("a bundle must read in the mode its snapshot was framed for", async () => {
+  const { dataset, owner, run, bundle } =
+    await preparedPublication("publication-mode");
+  expect(bundle.inference.mode).toBe("whole_image");
+  const framed = {
+    ...bundle,
+    inference: { ...bundle.inference, mode: "dish" as const },
+  };
+  await expect(completeTrainingRun(run.id, framed, owner)).rejects.toThrow(
+    /dish mode; the snapshot was framed for whole_image/,
+  );
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
+});

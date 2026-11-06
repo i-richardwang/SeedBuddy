@@ -14,6 +14,7 @@ function snapshotImage(digest: string, split: "train" | "val") {
     width: 100,
     height: 80,
     split,
+    coverage: null,
     annotation: {
       schemaVersion: 1 as const,
       image: { digest, width: 100, height: 80 },
@@ -68,6 +69,7 @@ test("snapshot dimensions describe the canonical images", () => {
     datasetId: "seeds",
     modelId: "seeds",
     classes: ["seed"],
+    area: "image" as const,
     createdAt: "2026-08-28T00:00:00.000Z",
     images,
   };
@@ -101,6 +103,7 @@ test("snapshot annotations use only the model's classes", () => {
       datasetId: "seeds",
       modelId: "seeds",
       classes: ["seed"],
+      area: "image",
       createdAt: "2026-08-28T00:00:00.000Z",
       images: [
         {

@@ -1,6 +1,7 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
+import type { ModelArea } from "../../domain/models/area";
 import { TrainingRunConflictError } from "../../domain/training/errors";
 import {
   type DatasetSnapshot,
@@ -91,6 +92,7 @@ async function snapshotImages(snapshotId: string, db: Executor) {
       width: images.width,
       height: images.height,
       split: datasetSnapshotImages.split,
+      coverage: datasetSnapshotImages.coverage,
       annotation: datasetSnapshotImages.annotation,
     })
     .from(datasetSnapshotImages)
@@ -115,15 +117,31 @@ export async function readDatasetSnapshot(
     datasetId: row.datasetId,
     modelId: row.modelId,
     classes: model.classes,
+    area: row.area,
     createdAt: row.createdAt.toISOString(),
     images: await snapshotImages(snapshotId, db),
   });
 }
 
+/** The area a snapshot froze, which the version trained on it reads in. */
+export async function readSnapshotArea(
+  snapshotId: string,
+  db: Executor,
+): Promise<ModelArea> {
+  const [row] = await db
+    .select({ area: datasetSnapshots.area })
+    .from(datasetSnapshots)
+    .where(eq(datasetSnapshots.id, snapshotId));
+  if (!row) throw new Error(`Missing datasetSnapshots row: ${snapshotId}`);
+  return row.area;
+}
+
 /**
- * Freezes the reviewed annotations into a snapshot named by their content.
- * Images are referenced, not copied: the snapshot rows keep the bytes alive.
- * An identical set returns the existing snapshot.
+ * Freezes the reviewed annotations into a snapshot named by their content,
+ * framed to the model's area as it is now: a dish model's images carry the
+ * coverage their analysis holds today, with any that fall back to the whole
+ * image logged. Images are referenced, not copied: the snapshot rows keep
+ * the bytes alive. An identical set returns the existing snapshot.
  */
 export async function createDatasetSnapshot(
   datasetId: string,
@@ -132,6 +150,7 @@ export async function createDatasetSnapshot(
 ): Promise<DatasetSnapshot> {
   const dataset = await readDataset(datasetId, db);
   if (!dataset) throw new DatasetNotFoundError(`Unknown dataset: ${datasetId}`);
+  const { area } = await requireModel(dataset.modelId, db);
   const reviewed = await listReviewedRecords(datasetId, db);
   if (reviewed.length < MIN_SNAPSHOT_IMAGES) {
     throw new TrainingRunConflictError(
@@ -140,30 +159,49 @@ export async function createDatasetSnapshot(
   }
   const splits = await assignSplits(datasetId, reviewed, db);
   const members = reviewed
-    .map(({ image, annotation }) => {
+    .map(({ image, annotation, dish }) => {
       const split = splits.get(image.digest);
       if (!split) throw new Error(`Image ${image.digest} has no split`);
-      return { digest: image.digest, split, annotation };
+      const coverage = area === "dish" ? dish.coverage : null;
+      return { digest: image.digest, split, coverage, annotation };
     })
     .sort((a, b) => a.digest.localeCompare(b.digest));
-  const snapshotId = `snapshot-${documentDigest({ datasetId, modelId: dataset.modelId, members })}`;
+  const snapshotId = `snapshot-${documentDigest({ datasetId, modelId: dataset.modelId, area, members })}`;
   const existing = await readDatasetSnapshot(snapshotId, db);
   if (existing) return existing;
   await db.insert(datasetSnapshots).values({
     id: snapshotId,
     datasetId,
     modelId: dataset.modelId,
+    area,
     createdAt: at,
   });
   await db.insert(datasetSnapshotImages).values(
-    members.map(({ digest, split, annotation }) => ({
+    members.map(({ digest, split, coverage, annotation }) => ({
       snapshotId,
       modelId: dataset.modelId,
       imageId: digest,
       split,
+      coverage,
       annotation,
     })),
   );
+  const fallbacks =
+    area === "dish"
+      ? reviewed.flatMap(({ image, dish }) =>
+          dish.fallback
+            ? [{ imageId: image.digest, reason: dish.fallback }]
+            : [],
+        )
+      : [];
+  if (fallbacks.length)
+    console.info(
+      `${JSON.stringify({
+        event: "training-snapshot.full-image-coverage",
+        snapshotId,
+        images: fallbacks,
+      })}\n`,
+    );
   return requireSnapshot(snapshotId, db);
 }
 

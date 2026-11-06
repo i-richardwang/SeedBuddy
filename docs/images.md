@@ -1,6 +1,6 @@
 # Images
 
-Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF. Those bytes determine the digest, dimensions, browser view, inference input and training input. Every image is stored once under its digest. Ingestion also finds the culture dish in it; [AI annotation](ai-annotation.md) in `dish` mode is bounded to that dish.
+Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF. Those bytes determine the digest, dimensions, browser view, inference input and training input. Every image is stored once under its digest. Ingestion also finds the culture dish in it; a model whose area is `dish` bounds its [AI annotation](ai-annotation.md) to that dish and frames its [training and inference](vitroctl.md#dish-framing) to it.
 
 Python transfer admission owns `MAX_IMAGE_BYTES` in `src/vitroctl/datasets/transfer.py`; the [dataset transfer contract](domain.md#dataset-transfer) defines the size limit.
 

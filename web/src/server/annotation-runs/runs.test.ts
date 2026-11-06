@@ -2,10 +2,10 @@ import { expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 
 import type { StartAnnotationRun } from "../../domain/annotation-runs/schema";
-import { modelAnnotationRequestSchema } from "../../domain/models/schema";
+import { modelSettingsRequestSchema } from "../../domain/models/schema";
 import { database } from "../infra/db/client";
 import { annotationRuns } from "../infra/db/schema";
-import { createModel, setModelAnnotation } from "../models/public";
+import { createModel, setModelSettings } from "../models/public";
 import { readReview } from "../readings/public";
 import { observeImages } from "../testing/experiments";
 import { cancelAnnotationRun, createAnnotationRun } from "./runs";
@@ -42,16 +42,16 @@ test("the model's instructions and region are frozen into the run definition", a
     "no annotation instructions",
   );
   const annotation = {
-    area: "image" as const,
     instructions: "Box every seed.",
     coreSize: 16,
     halo: 8,
     displayScale: 4,
   };
-  await setModelAnnotation({ model: model.id, annotation });
+  await setModelSettings({ model: model.id, area: "image", annotation });
   expect(() =>
-    modelAnnotationRequestSchema.parse({
+    modelSettingsRequestSchema.parse({
       model: model.id,
+      area: "image",
       annotation: { ...annotation, halo: 17 },
     }),
   ).toThrow("Context cannot exceed core size");
@@ -78,7 +78,6 @@ test("a run stays open between conversations, and any agent continues it by its 
     name: "Open model",
     classes: ["ungerminated", "germinated"],
     annotation: {
-      area: "image",
       instructions: "Box every seed.",
       coreSize: 16,
       halo: 8,
@@ -128,9 +127,9 @@ test("dish runs freeze coverage and actual task totals while later model edits l
     id: crypto.randomUUID(),
     name: "Dish plan",
     classes: ["ungerminated", "germinated"],
+    area: "dish",
     annotation: {
       instructions: "Box each seed",
-      area: "dish",
       coreSize: 100,
       halo: 32,
       displayScale: 1,
@@ -149,9 +148,10 @@ test("dish runs freeze coverage and actual task totals while later model edits l
     .where(eq(annotationTasks.runId, run.id));
   expect(tasks).toHaveLength(run.progress.total);
   expect(tasks.some((task) => task.region.id === "tile-000-000")).toBe(false);
-  await setModelAnnotation({
+  await setModelSettings({
     model: model.id,
-    annotation: { ...model.annotation, area: "image" },
+    area: "image",
+    annotation: model.annotation,
   });
   expect((await stored(run.id)).definition).toEqual(before.definition);
   await cancelAnnotationRun(ref);

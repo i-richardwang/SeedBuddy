@@ -155,13 +155,18 @@ async function freezeDefinition(request: StartAnnotationRun, db: Executor) {
     throw new AnnotationRunConflictError(
       "The model has no annotation instructions; add them on the Models page",
     );
-  const dish = region.area === "dish" ? resolveDishCoverage(image) : null;
+  const dish = model.area === "dish" ? resolveDishCoverage(image) : null;
   const definition = annotationDefinitionSchema.parse({
     image: frame,
     coverage: dish?.coverage ?? null,
     ...initial,
     scope: request.scope,
-    config: { classes: model.classes, rules: instructions, ...region },
+    config: {
+      classes: model.classes,
+      rules: instructions,
+      area: model.area,
+      ...region,
+    },
   });
   return { definition, fallback: dish?.fallback ?? null };
 }

@@ -1,12 +1,13 @@
-import { NotebookPen, Trash2 } from "lucide-react";
+import { Settings2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import type { ModelArea } from "../../domain/models/area";
 import {
   MODEL_RECORD_KINDS,
   type ModelRecords,
 } from "../../domain/models/contracts";
-import type { Model, ModelAnnotation } from "../../domain/models/schema";
-import { removeModel, updateModelAnnotation } from "../../functions/models";
+import type { Model } from "../../domain/models/schema";
+import { removeModel, updateModelSettings } from "../../functions/models";
 import { m } from "../../paraglide/messages";
 import { PageMenu } from "../../ui/ActionsMenu";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
@@ -21,11 +22,11 @@ import { Form } from "../../ui/kit/Form";
 import { TextArea } from "../../ui/kit/Input";
 import { toast } from "../../ui/kit/Toast";
 import { modelName } from "../../ui/model-names";
-import { AnnotationAreaField } from "./AnnotationAreaField";
+import { ModelAreaField } from "./ModelAreaField";
 
-const FORM_ID = "model-annotation";
+const FORM_ID = "model-settings";
 
-/** A model page's secondary actions: its annotation guide, and deleting a model nothing has been recorded against. */
+/** A model page's secondary actions: its settings, and deleting a model nothing has been recorded against. */
 export function ModelMenu({
   model,
   records,
@@ -40,9 +41,9 @@ export function ModelMenu({
 
   const items: DropdownItem[] = [
     {
-      key: "annotation",
-      icon: NotebookPen,
-      label: m.model_menu_annotation(),
+      key: "settings",
+      icon: Settings2,
+      label: m.model_menu_settings(),
       onClick: () => setEditing(true),
     },
   ];
@@ -75,7 +76,7 @@ export function ModelMenu({
   return (
     <>
       <PageMenu label={m.item_actions({ name })} items={items} />
-      <ModelAnnotationDialog
+      <ModelSettingsDialog
         model={model}
         open={editing}
         onClose={() => setEditing(false)}
@@ -84,7 +85,7 @@ export function ModelMenu({
   );
 }
 
-function ModelAnnotationDialog({
+function ModelSettingsDialog({
   model,
   open,
   onClose,
@@ -98,17 +99,17 @@ function ModelAnnotationDialog({
     <FormDialog
       open={open}
       onClose={onClose}
-      title={m.model_annotation_title({ name: modelName(model) })}
+      title={m.model_settings_title({ name: modelName(model) })}
       okText={m.save_action()}
       formId={FORM_ID}
       busy={action.busy}
     >
-      <ModelAnnotationForm model={model} action={action} onDone={onClose} />
+      <ModelSettingsForm model={model} action={action} onDone={onClose} />
     </FormDialog>
   );
 }
 
-function ModelAnnotationForm({
+function ModelSettingsForm({
   model,
   action: { busy, run },
   onDone,
@@ -120,20 +121,19 @@ function ModelAnnotationForm({
   const [instructions, setInstructions] = useState(
     model.annotation.instructions,
   );
-  const [area, setArea] = useState<ModelAnnotation["area"]>(
-    model.annotation.area,
-  );
+  const [area, setArea] = useState<ModelArea>(model.area);
 
   const submit = () => {
     void run(
       () =>
-        updateModelAnnotation({
+        updateModelSettings({
           data: {
             model: model.id,
-            annotation: { ...model.annotation, instructions, area },
+            area,
+            annotation: { ...model.annotation, instructions },
           },
         }),
-      m.model_annotation_not_saved(),
+      m.model_settings_not_saved(),
       {
         onSuccess: onDone,
       },
@@ -158,7 +158,7 @@ function ModelAnnotationForm({
           autoFocus
         />
       </Form.Field>
-      <AnnotationAreaField value={area} onChange={setArea} disabled={busy} />
+      <ModelAreaField value={area} onChange={setArea} disabled={busy} />
     </Form>
   );
 }

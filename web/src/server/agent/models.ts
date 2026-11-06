@@ -6,10 +6,10 @@ import {
   modelUploadSchema,
 } from "../../domain/models/bundle";
 import {
-  modelAnnotationRequestSchema,
   modelRefSchema,
   modelRequestSchema,
   modelSchema,
+  modelSettingsRequestSchema,
   modelVersionRefSchema,
   modelVersionSchema,
 } from "../../domain/models/schema";
@@ -21,7 +21,7 @@ import {
   listModelVersions,
   prepareModelUpload,
   setCurrentVersion,
-  setModelAnnotation,
+  setModelSettings,
 } from "../models/public";
 import { command, query } from "./definition";
 
@@ -42,7 +42,7 @@ export const modelOperations = [
     transaction: "operation",
     name: "create-model",
     description:
-      "Name a recognition task the workbench does not have yet, with the classes a reviewer will draw. It can be observed and annotated straight away; a version to detect it comes later, from training",
+      "Name a recognition task the workbench does not have yet, with the classes a reviewer will draw and, for a task about the culture dish, area 'dish' so that AI annotation, training and detection keep to the dish each photo shows. It can be observed and annotated straight away; a version to detect it comes later, from training",
     destructive: false,
     input: modelRequestSchema,
     output: modelSchema,
@@ -50,13 +50,13 @@ export const modelOperations = [
   }),
   command({
     transaction: "operation",
-    name: "update-model-annotation",
+    name: "update-model-settings",
     description:
-      "Change how an AI agent annotates a recognition task: the instructions describing the bodies to box, and the source region each look takes. The classes stay fixed",
+      "Change where a recognition task looks ('dish' keeps AI annotation, training and detection to the culture dish; 'image' uses the whole photo) and how an AI agent annotates it: the instructions describing the bodies to box, and the source region each look takes. The classes stay fixed; runs, snapshots and versions already made keep the settings they were made with",
     destructive: true,
-    input: modelAnnotationRequestSchema,
+    input: modelSettingsRequestSchema,
     output: modelSchema,
-    handler: (input, db) => setModelAnnotation(input, db),
+    handler: (input, db) => setModelSettings(input, db),
   }),
   command({
     transaction: "operation",

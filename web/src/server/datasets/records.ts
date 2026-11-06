@@ -7,7 +7,11 @@ import type {
 } from "../../domain/datasets/read-model";
 import type { DatasetContents } from "../../domain/datasets/schema";
 import type { DetectionResult } from "../../domain/detection/schema";
-import { markedUnclear } from "../images/public";
+import {
+  type DishCoverageResolution,
+  markedUnclear,
+  resolveDishCoverage,
+} from "../images/public";
 import { shownDetectingVersion } from "../inference/public";
 import {
   database,
@@ -32,7 +36,7 @@ import {
  * query. The annotation is the review for the dataset's model; the detection
  * is the one a reviewer is shown, the current version's once it has detected
  * the image, else the newest version's that has; the proposal is the newest
- * an agent drew for it.
+ * an agent drew for it; the dish is what a dish task would frame it to today.
  */
 export interface ImageRecord {
   image: DatasetImage;
@@ -40,6 +44,7 @@ export interface ImageRecord {
   detection: DetectionResult | null;
   proposal: AnnotationDocument | null;
   annotation: AnnotationDocument | null;
+  dish: DishCoverageResolution;
   /** Whether a person marked the photograph unclear. */
   unclear: boolean;
 }
@@ -110,6 +115,7 @@ function toRecord(
     detection: row.detection,
     proposal: row.proposal,
     annotation: row.annotation,
+    dish: resolveDishCoverage(row.image),
     unclear: row.unclear,
   };
 }

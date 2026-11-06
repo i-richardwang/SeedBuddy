@@ -196,7 +196,6 @@ describe("annotation MCP authorization", () => {
       name: "Annotation over MCP",
       classes: ["ungerminated", "germinated"],
       annotation: {
-        area: "image",
         instructions: "Box every seed.",
         coreSize: 512,
         halo: 32,
