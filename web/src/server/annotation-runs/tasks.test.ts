@@ -10,7 +10,7 @@ import { storeAnnotation } from "../annotations/documents";
 import { storeImage } from "../images/public";
 import { database } from "../infra/db/client";
 import { annotationRuns } from "../infra/db/schema";
-import { createModel, setModelAnnotation } from "../models/public";
+import { createModel, setModelSettings } from "../models/public";
 import { readAnnotationReading } from "../readings/public";
 import { observeImages } from "../testing/experiments";
 import { readAnnotation } from "../testing/records";
@@ -146,10 +146,10 @@ test("twenty regions reuse frozen context across views and reconnects before fin
     classes: ["ungerminated", "germinated"],
   });
   ref.modelId = model.id;
-  await setModelAnnotation({
+  await setModelSettings({
     model: ref.modelId,
+    area: "image",
     annotation: {
-      area: "image",
       instructions: "Box all seeds",
       coreSize: 16,
       halo: 4,
@@ -160,10 +160,10 @@ test("twenty regions reuse frozen context across views and reconnects before fin
   expect(second.progress.total).toBe(20);
   const firstTask = (await nextAnnotationTask(ref)).taskId;
   const context = await readAnnotationContext(firstTask);
-  await setModelAnnotation({
+  await setModelSettings({
     model: ref.modelId,
+    area: "image",
     annotation: {
-      area: "image",
       instructions: "Changed future rules",
       coreSize: 32,
       halo: 4,
@@ -218,10 +218,10 @@ test("a run scoped to part of the image redraws only the regions it touches and 
     classes: ["ungerminated", "germinated"],
   });
   ref.modelId = model.id;
-  await setModelAnnotation({
+  await setModelSettings({
     model: ref.modelId,
+    area: "image",
     annotation: {
-      area: "image",
       instructions: "Box all seeds",
       coreSize: 16,
       halo: 4,
@@ -296,10 +296,10 @@ test("partial redraw keeps untouched boxes awaiting confirmation, replaces redra
     classes: ["ungerminated", "germinated"],
   });
   ref.modelId = model.id;
-  await setModelAnnotation({
+  await setModelSettings({
     model: ref.modelId,
+    area: "image",
     annotation: {
-      area: "image",
       instructions: "Box all seeds",
       coreSize: 16,
       halo: 4,

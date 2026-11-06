@@ -28,6 +28,13 @@
       },
       "uniqueItems": true
     },
+    "area": {
+      "type": "string",
+      "enum": [
+        "image",
+        "dish"
+      ]
+    },
     "createdAt": {
       "type": "string",
       "format": "date-time",
@@ -58,6 +65,56 @@
             "enum": [
               "train",
               "val"
+            ]
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "dish"
+                  },
+                  "circle": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "y": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "radius": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "radius"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "margin": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "kind",
+                  "circle",
+                  "margin"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "annotation": {
@@ -154,6 +211,7 @@
           "width",
           "height",
           "split",
+          "coverage",
           "annotation"
         ],
         "additionalProperties": false
@@ -166,6 +224,7 @@
     "datasetId",
     "modelId",
     "classes",
+    "area",
     "createdAt",
     "images"
   ],

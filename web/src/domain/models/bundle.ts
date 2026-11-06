@@ -10,9 +10,8 @@ import { classListSchema } from "./classes";
 import { inferenceSettingsSchema } from "./inference";
 import { MAX_MODEL_WEIGHTS_BYTES } from "./transfer";
 
-/** Executable settings supported by the whole-image adapter. Unsupported pipelines fail closed. */
+/** Executable settings supported by the Ultralytics adapter. Unsupported pipelines fail closed. */
 const bundleInferenceSchema = inferenceSettingsSchema.extend({
-  mode: z.literal("whole_image"),
   imageSize: z.number().int().positive().max(8192),
   maxDetections: z.number().int().positive().max(10000),
   iou: z.literal(0.7),

@@ -1,4 +1,4 @@
-export { resolveDishCoverage } from "./analysis";
+export { type DishCoverageResolution, resolveDishCoverage } from "./analysis";
 export { refreshImageAnalysis } from "./analysis-maintenance";
 export { collectImages } from "./collection";
 export { assertDocumentImage } from "./documents";

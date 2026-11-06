@@ -16,7 +16,8 @@
         "confidence": 0.42,
         "imageSize": 768,
         "maxDetections": 500,
-        "endToEnd": false
+        "endToEnd": false,
+        "mode": "whole_image"
       },
       "validation": {
         "precision": 0.6,
@@ -53,6 +54,7 @@
     }
   },
   "image": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "coverage": null,
   "attempt": 1,
   "serverTime": "2026-10-27T00:00:00.000Z",
   "leaseExpiresAt": "2026-10-27T00:01:30.000Z",

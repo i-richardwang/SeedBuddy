@@ -93,13 +93,21 @@
                     },
                     "endToEnd": {
                       "type": "boolean"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "whole_image",
+                        "dish"
+                      ]
                     }
                   },
                   "required": [
                     "confidence",
                     "imageSize",
                     "maxDetections",
-                    "endToEnd"
+                    "endToEnd",
+                    "mode"
                   ],
                   "additionalProperties": false
                 },
@@ -349,6 +357,56 @@
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
     },
+    "coverage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "dish"
+            },
+            "circle": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "radius": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "radius"
+              ],
+              "additionalProperties": false
+            },
+            "margin": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "kind",
+            "circle",
+            "margin"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "attempt": {
       "type": "integer",
       "exclusiveMinimum": 0,
@@ -373,6 +431,7 @@
   "required": [
     "manifest",
     "image",
+    "coverage",
     "attempt",
     "leaseExpiresAt",
     "deadlineAt",

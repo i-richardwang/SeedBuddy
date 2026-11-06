@@ -4,7 +4,9 @@ import { annotationSchema } from "../annotation/schema";
 import { detectionResultSchema } from "../detection/schema";
 import { resourceIdSchema } from "../identifiers/schema";
 import { MAX_IMAGE_BYTES } from "../images/canonical";
+import { imageCoverageSchema } from "../images/coverage";
 import { imageDigestSchema } from "../images/schema";
+import { modelAreaSchema } from "../models/area";
 import { classListSchema } from "../models/classes";
 import { IMAGE_SPLITS } from "../training/schema";
 import { DatasetManifestTooLargeError } from "./errors";
@@ -16,11 +18,12 @@ export const MAX_DATASET_MANIFEST_BYTES = 16 * 1024 * 1024;
 
 /**
  * A dataset as it travels between workbenches and data roots: the images by
- * digest, their membership, the reviews recorded for the model, and the
- * detection each image currently shows. Reviews, memberships and which
- * photographs a person found unclear are what an importing workbench keeps;
- * detections are what its own versions found and are carried for readers of
- * the manifest, never imported.
+ * digest, their membership, the reviews recorded for the model, the
+ * detection each image currently shows, and the dish coverage a `dish` model
+ * frames it to. Reviews, memberships and which photographs a person found
+ * unclear are what an importing workbench keeps; detections and coverage are
+ * what the exporting workbench's versions and analysis found, carried for
+ * readers of the manifest and for local training, never imported.
  */
 const datasetManifestImageSchema = z
   .strictObject({
@@ -30,6 +33,7 @@ const datasetManifestImageSchema = z
     filename: z.string().min(1),
     bytes: z.number().int().positive().max(MAX_IMAGE_BYTES),
     split: z.enum(IMAGE_SPLITS).nullable(),
+    coverage: imageCoverageSchema.nullable(),
     detection: detectionResultSchema.nullable(),
     annotation: annotationSchema.nullable(),
     unclear: z.boolean(),
@@ -67,6 +71,7 @@ export const datasetManifestSchema = z
     model: z.strictObject({
       id: resourceIdSchema,
       classes: classListSchema,
+      area: modelAreaSchema,
     }),
     images: z.array(datasetManifestImageSchema).max(MAX_DATASET_IMAGES),
   })

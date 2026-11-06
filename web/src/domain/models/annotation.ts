@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { modelAreaSchema } from "./area";
 import { classListSchema } from "./classes";
 
 export const annotationRegionSchema = z.strictObject({
@@ -13,8 +14,6 @@ export const DEFAULT_ANNOTATION_REGION = {
   halo: 32,
   displayScale: 1,
 } satisfies z.infer<typeof annotationRegionSchema>;
-
-export const annotationAreaSchema = z.enum(["image", "dish"]);
 
 export const SEED_ANNOTATION_CONFIG = {
   ...DEFAULT_ANNOTATION_REGION,
@@ -35,7 +34,7 @@ or mechanically shrink, expand or pad boxes.`,
 /** Complete visual task settings, shared by product assignments and standalone runs. */
 export const annotationConfigSchema = annotationRegionSchema
   .extend({
-    area: annotationAreaSchema,
+    area: modelAreaSchema,
     classes: classListSchema,
     rules: z.string().trim().min(1),
   })

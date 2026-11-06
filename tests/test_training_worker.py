@@ -7,6 +7,7 @@ import time
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import httpx
 import pytest
@@ -83,6 +84,7 @@ def _snapshot(images: list[dict[str, object]]) -> dict[str, object]:
         "datasetId": "set",
         "modelId": "set",
         "classes": ["ungerminated", "germinated"],
+        "area": "image",
         "createdAt": "2026-08-27T00:00:00.000Z",
         "images": images,
     }
@@ -96,6 +98,7 @@ def _snapshot_image(
         "width": 100,
         "height": 80,
         "split": split,
+        "coverage": None,
         "annotation": annotation_document(digest, boxes),
     }
 
@@ -488,7 +491,9 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
         dataset = output / "dataset.yaml"
         dataset.write_text("train: images/train\nval: images/val\n")
         (output / "manifest.json").write_text(
-            json.dumps({"class_names": ["ungerminated", "germinated"]})
+            json.dumps(
+                {"class_names": ["ungerminated", "germinated"], "mode": "whole_image"}
+            )
         )
         return dataset
 
@@ -1086,3 +1091,91 @@ def test_claim_rejects_another_worker_session():
             TrainingClient(worker).claim()
     finally:
         worker.close()
+
+
+def test_snapshot_frames_images_only_for_a_dish_area() -> None:
+    coverage = {
+        "kind": "dish",
+        "circle": {"x": 50.0, "y": 40.0, "radius": 30.0},
+        "margin": 0.15,
+    }
+    framed: dict[str, Any] = {
+        **_snapshot_image("1" * 64, "train", []),
+        "coverage": coverage,
+    }
+    whole: dict[str, Any] = _snapshot_image("2" * 64, "val", [])
+    snapshot = TrainingSnapshot.from_document(
+        {**_snapshot([framed, whole]), "area": "dish"}
+    )
+    assert snapshot.area == "dish"
+    assert snapshot.mode == "dish"
+    assert snapshot.images[0].coverage is not None
+    assert snapshot.images[0].coverage.to_dict() == coverage
+    assert snapshot.images[1].coverage is None
+    unframed = {**framed, "coverage": None}
+    assert TrainingSnapshot.from_document(_snapshot([unframed, whole])).mode == (
+        "whole_image"
+    )
+    with pytest.raises(
+        ValueError, match="frames an image to a dish under an image area"
+    ):
+        TrainingSnapshot.from_document(_snapshot([framed, whole]))
+
+
+def test_materialized_dataset_is_exported_in_the_snapshot_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    images = {}
+    for variant in range(2):
+        pixels = encoded_image(variant=variant)
+        images[write_blob(tmp_path / "unused", pixels)] = pixels
+    framed_digest, whole_digest = images
+    coverage = {
+        "kind": "dish",
+        "circle": {"x": 50.0, "y": 40.0, "radius": 30.0},
+        "margin": 0.15,
+    }
+    framed: dict[str, Any] = {
+        **_snapshot_image(framed_digest, "train", []),
+        "coverage": coverage,
+    }
+    snapshot = TrainingSnapshot.from_document(
+        {
+            **_snapshot([framed, _snapshot_image(whole_digest, "val", [])]),
+            "area": "dish",
+        }
+    )
+    exports: list[dict[str, Any]] = []
+
+    def export(dataset_images, classes, output, **options):
+        exports.append(
+            {"coverage": [image.coverage for image in dataset_images], **options}
+        )
+        Path(output).mkdir(parents=True)
+        (Path(output) / "dataset.yaml").write_text("")
+
+    monkeypatch.setattr(training_worker, "export_dataset_images", export)
+
+    class Client:
+        def fetch_snapshot(self, _claim: TrainingClaim):
+            return snapshot
+
+        def download_image(self, _claim: TrainingClaim, digest: str) -> bytes:
+            return images[digest]
+
+    cache = ImageCache(tmp_path / "images")
+    materialize_snapshot(
+        Client(),  # type: ignore[arg-type]
+        TrainingClaim.from_document(_run()),
+        tmp_path / "dataset",
+        images=cache,
+        cancelled=lambda: False,
+    )
+    cache.close()
+    [export_call] = exports
+    assert export_call["mode"] == "dish"
+    assert export_call["link_images"] is True
+    assert [c.to_dict() if c else None for c in export_call["coverage"]] == [
+        coverage,
+        None,
+    ]

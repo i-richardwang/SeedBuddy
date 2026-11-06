@@ -5,7 +5,8 @@
     "id": "seed-detector",
     "classes": [
       "seed"
-    ]
+    ],
+    "area": "image"
   },
   "images": [
     {
@@ -15,6 +16,7 @@
       "filename": "seed.jpg",
       "bytes": 4096,
       "split": "train",
+      "coverage": null,
       "detection": {
         "schemaVersion": 1,
         "image": {

@@ -44,7 +44,11 @@ function bundleDigest(bundle: ModelBundle): string {
   return documentDigest(bundle);
 }
 
-/** The adapter fingerprint; bundle identity additionally binds classes, runtime and provenance. */
+/**
+ * The adapter fingerprint: the weights and the numeric settings they run
+ * under. Bundle identity additionally binds classes, runtime and provenance;
+ * the frame a version reads in is recorded on its artifact, not hashed.
+ */
 function artifactDigest(weights: Uint8Array, bundle: ModelBundle): string {
   return createHash("sha256")
     .update(weights)
@@ -154,7 +158,10 @@ export async function registerUploadedModel(
         kind: "ultralytics",
         digest: row.artifactDigest,
         weights: row.bundle.weights,
-        inference: executableSettings(row.bundle),
+        inference: {
+          ...executableSettings(row.bundle),
+          mode: row.bundle.inference.mode,
+        },
         validation: row.bundle.validation,
         training: row.bundle.training,
       },

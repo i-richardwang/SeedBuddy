@@ -8,10 +8,15 @@ import { InferenceAttemptConflictError } from "../../domain/inference/errors";
 import type { Worker } from "../../domain/workers/schema";
 import { database } from "../infra/db/client";
 import { inferenceTasks } from "../infra/db/schema";
+import { setCurrentVersion } from "../models/registry";
 import { workerPresenceDetail } from "../queries/public";
 import { snapshotImages } from "../testing/datasets";
 import { observeImages } from "../testing/experiments";
-import { FIXTURE_EDGE } from "../testing/images";
+import {
+  analyzedWithDish,
+  FIXTURE_COVERAGE,
+  FIXTURE_EDGE,
+} from "../testing/images";
 import { registerTrainedVersion, traditionalVersion } from "../testing/models";
 import {
   recordTestHeartbeat,
@@ -375,3 +380,56 @@ test("renewal racing reclamation cannot both succeed and lose its lease", async 
 });
 
 type InferenceAssignment = z.infer<typeof inferenceAssignmentSchema>;
+
+test("a dish version is handed the image's dish at claim; whole-image and traditional versions read it whole", async () => {
+  const baseline = await traditionalVersion("dish-claim-detector", "dish-v0");
+  const { digests } = await observeImages(
+    "dish-claim",
+    ["dish-claim"],
+    baseline,
+  );
+  const digest = digests[0]!;
+  await analyzedWithDish(digest);
+  const w = await worker("dish-claim");
+  const claimVersion = async (versionId: string) => {
+    for (let n = 0; n < 1000; n++) {
+      const a = await claimInferenceTask(w, start);
+      if (!a) throw new Error(`No work for ${versionId}`);
+      if (a.image === digest && a.manifest.modelVersionId === versionId)
+        return a;
+      await completeInferenceTask(target(a), result(a, w), owner(a, w), start);
+    }
+    throw new Error("Could not reach the version's task");
+  };
+  const traditional = await claimVersion(baseline.id);
+  expect(traditional.coverage).toBeNull();
+  await completeInferenceTask(
+    target(traditional),
+    result(traditional, w),
+    owner(traditional, w),
+    start,
+  );
+
+  const framed = await registerTrainedVersion(
+    baseline.modelId,
+    "dish-v1",
+    "dish",
+  );
+  await setCurrentVersion({ model: baseline.modelId, version: framed.id });
+  const dish = await claimVersion(framed.id);
+  expect(
+    dish.manifest.artifact.kind === "ultralytics" &&
+      dish.manifest.artifact.inference.mode,
+  ).toBe("dish");
+  expect(dish.coverage).toEqual(FIXTURE_COVERAGE);
+  await completeInferenceTask(
+    target(dish),
+    result(dish, w),
+    owner(dish, w),
+    start,
+  );
+
+  const whole = await registerTrainedVersion(baseline.modelId, "whole-v1");
+  await setCurrentVersion({ model: baseline.modelId, version: whole.id });
+  expect((await claimVersion(whole.id)).coverage).toBeNull();
+});

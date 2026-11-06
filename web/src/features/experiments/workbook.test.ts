@@ -28,6 +28,7 @@ const SEEDS: Model = {
   name: "Seed germination",
   task: "object_detection",
   classes: ["ungerminated", "germinated"],
+  area: "image",
   annotation: DEFAULT_MODEL_ANNOTATION,
 };
 
@@ -37,6 +38,7 @@ const ROOTS: Model = {
   name: "Rooting",
   task: "object_detection",
   classes: ["rooted"],
+  area: "image",
   annotation: DEFAULT_MODEL_ANNOTATION,
 };
 

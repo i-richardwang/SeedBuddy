@@ -1,16 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import {
-  modelAnnotationRequestSchema,
   modelRefSchema,
   modelRequestSchema,
+  modelSettingsRequestSchema,
   modelVersionRefSchema,
 } from "../domain/models/schema";
 import {
   createModel as createModelService,
   deleteModel,
   setCurrentVersion,
-  setModelAnnotation,
+  setModelSettings,
 } from "../server/models/public";
 import {
   listModelOverviews,
@@ -38,9 +38,9 @@ export const createModel = createServerFn({ method: "POST" })
   .validator(modelRequestSchema)
   .handler(({ data }) => createModelService(data));
 
-export const updateModelAnnotation = createServerFn({ method: "POST" })
-  .validator(modelAnnotationRequestSchema)
-  .handler(({ data }) => setModelAnnotation(data));
+export const updateModelSettings = createServerFn({ method: "POST" })
+  .validator(modelSettingsRequestSchema)
+  .handler(({ data }) => setModelSettings(data));
 
 export const removeModel = createServerFn({ method: "POST" })
   .validator(modelRefSchema)

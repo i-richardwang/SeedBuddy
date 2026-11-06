@@ -1,9 +1,12 @@
 import type { AnnotationRef } from "../../domain/annotation/schema";
-import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
+import {
+  DEFAULT_MODEL_ANNOTATION,
+  DEFAULT_MODEL_AREA,
+} from "../../domain/models/schema";
 import { createAnnotationRun } from "../annotation-runs/runs";
 import { nextAnnotationTask, submitProposal } from "../annotation-runs/tasks";
 import { previewAnnotationTask } from "../annotation-runs/views";
-import { setModelAnnotation } from "../models/public";
+import { setModelSettings } from "../models/public";
 
 /**
  * An agent's proposal for the image under the model, reached the way an
@@ -11,8 +14,9 @@ import { setModelAnnotation } from "../models/public";
  * agent finds nothing in each region it is shown, so the run succeeds.
  */
 export async function agentProposal(ref: AnnotationRef) {
-  await setModelAnnotation({
+  await setModelSettings({
     model: ref.modelId,
+    area: DEFAULT_MODEL_AREA,
     annotation: {
       ...DEFAULT_MODEL_ANNOTATION,
       instructions: "Box every seed.",

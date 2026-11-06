@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Protocol
 
-from vitroctl.contracts.inference import YOLO_IOU
+from vitroctl.contracts.inference import YOLO_IOU, InferenceMode
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.io.files import atomic_directory, file_digest
 
@@ -55,9 +55,15 @@ def write_bundle(
 
 
 def training_bundle(
-    result: TrainingPublication, classes: list[str], provenance: dict[str, Any]
+    result: TrainingPublication,
+    classes: list[str],
+    provenance: dict[str, Any],
+    *,
+    mode: InferenceMode,
 ) -> dict[str, Any]:
-    """Derive both schema-required metric fields from the publication's validation."""
+    """Derive both schema-required metric fields from the publication's
+    validation, and record the frame the dataset was exported in, which the
+    version reads in from now on."""
     publication = json.loads(result.summary.read_text())
     inference = dict(publication["inference"])
     if inference.pop("ready") is not True:
@@ -66,7 +72,7 @@ def training_bundle(
         "schemaVersion": BUNDLE_SCHEMA_VERSION,
         "classes": classes,
         "weights": weights_descriptor(result.best_weights),
-        "inference": {**inference, "mode": "whole_image", "iou": YOLO_IOU},
+        "inference": {**inference, "mode": mode, "iou": YOLO_IOU},
         "training": publication["training"],
         "validation": publication["validation"],
         "provenance": {

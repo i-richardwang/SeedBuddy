@@ -18,7 +18,7 @@ export {
   readModelVersion,
   requireModel,
   setCurrentVersion,
-  setModelAnnotation,
+  setModelSettings,
   toModel,
   toModelVersion,
 } from "./registry";

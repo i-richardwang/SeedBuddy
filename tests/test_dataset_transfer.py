@@ -451,3 +451,31 @@ def test_manifest_requires_an_explicit_unclear_flag():
     document["images"][0].pop("unclear")
     with pytest.raises(ValueError, match="unclear"):
         DatasetManifest.from_document(document)
+
+
+def test_manifest_frames_images_to_the_dish_only_for_a_dish_model() -> None:
+    document = _manifest()
+    coverage = {
+        "kind": "dish",
+        "circle": {"x": 50.0, "y": 40.0, "radius": 30.0},
+        "margin": 0.15,
+    }
+    document["model"]["area"] = "dish"
+    document["images"][0]["coverage"] = coverage
+
+    manifest = DatasetManifest.from_document(document)
+    assert manifest.area == "dish"
+    assert manifest.images[0].coverage is not None
+    assert manifest.images[0].coverage.to_dict() == coverage
+    assert manifest.images[1].coverage is None
+    assert manifest.annotated[0].coverage == manifest.images[0].coverage
+    assert manifest.to_dict() == document
+
+    document["model"]["area"] = "image"
+    with pytest.raises(
+        ValueError, match="frames an image to a dish under an image area"
+    ):
+        DatasetManifest.from_document(document)
+    document["model"]["area"] = "plate"
+    with pytest.raises(ValueError, match=r"manifest.model.area"):
+        DatasetManifest.from_document(document)

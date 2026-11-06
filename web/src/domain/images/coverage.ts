@@ -36,7 +36,13 @@ export const dishCircleSchema = z.strictObject({
 });
 export type DishCircle = z.infer<typeof dishCircleSchema>;
 
-/** A conservative task filter, never a clipping boundary for image evidence. */
+/**
+ * The dish a task is bounded to: the circle analysis found, kept with a
+ * margin of its radius. AI annotation assigns only the regions it touches and
+ * never clips their evidence; training and inference frame the pixels to the
+ * square around it, clipped to the image. Frozen where it is used, so later
+ * analysis never changes what a run, snapshot or task was given.
+ */
 export const imageCoverageSchema = z.strictObject({
   kind: z.literal("dish"),
   circle: dishCircleSchema,

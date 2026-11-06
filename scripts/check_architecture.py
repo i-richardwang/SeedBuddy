@@ -25,6 +25,7 @@ DEPENDENCIES: dict[str, set[str]] = {
         "contracts",
         "datasets",
         "io",
+        "image_geometry",
     },
     "worker": {
         "detector_contracts",

@@ -46,18 +46,21 @@ export async function datasetManifest(
     return {
       schemaVersion: 1,
       dataset: dataset.name,
-      model: { id: model.id, classes: model.classes },
-      images: records.map(({ image, detection, annotation, unclear }) => ({
-        digest: image.digest,
-        width: image.width,
-        height: image.height,
-        filename: image.filename,
-        bytes: image.bytes,
-        split: image.split,
-        detection,
-        annotation,
-        unclear,
-      })),
+      model: { id: model.id, classes: model.classes, area: model.area },
+      images: records.map(
+        ({ image, detection, annotation, dish, unclear }) => ({
+          digest: image.digest,
+          width: image.width,
+          height: image.height,
+          filename: image.filename,
+          bytes: image.bytes,
+          split: image.split,
+          coverage: model.area === "dish" ? dish.coverage : null,
+          detection,
+          annotation,
+          unclear,
+        }),
+      ),
     };
   });
 }
@@ -73,8 +76,9 @@ function listed(digests: string[]): string {
  * of those images for that model: a manifest adds to a workbench, never
  * changes what a reviewer decided here. For the same reason the manifest
  * only adds marks of unclear photographs and never clears one made here.
- * Detections in the manifest are what another workbench's versions found and
- * are not recorded.
+ * Detections and coverage in the manifest are what another workbench's
+ * versions and analysis found and are not recorded; this workbench reads its
+ * own, and the model's area here is its own setting.
  */
 export async function importDataset(
   manifest: DatasetManifest,

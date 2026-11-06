@@ -35,6 +35,7 @@ import {
   registerModel,
   registerModelVersion,
   setCurrentVersion,
+  setModelSettings,
 } from "./registry";
 
 test("a version is registered once and its contents may not change", async () => {
@@ -45,6 +46,7 @@ test("a version is registered once and its contents may not change", async () =>
       name: "Registry detector",
       task: "object_detection",
       classes: ["seed"],
+      area: "image",
       annotation: DEFAULT_MODEL_ANNOTATION,
     },
     await database(),
@@ -106,6 +108,7 @@ test("every registered version is listed newest first", async () => {
       name: "Listing detector",
       task: "object_detection",
       classes: ["seed"],
+      area: "image",
       annotation: DEFAULT_MODEL_ANNOTATION,
     },
     await database(),
@@ -144,8 +147,26 @@ test("a task exists as soon as it is named, before anything can answer it", asyn
     name: "Germination detector",
     task: "object_detection",
     classes: ["germinated"],
+    area: "image",
     annotation: DEFAULT_MODEL_ANNOTATION,
   });
+  const framed = await setModelSettings({
+    model: model.id,
+    area: "dish",
+    annotation: { ...DEFAULT_MODEL_ANNOTATION, instructions: "Box seeds" },
+  });
+  expect(framed.area).toBe("dish");
+  expect(framed.annotation.instructions).toBe("Box seeds");
+  // Registration supplies a starting point; the deployment's settings stay.
+  expect(
+    await registerModel(
+      { ...model, area: "image", annotation: DEFAULT_MODEL_ANNOTATION },
+      await database(),
+    ),
+  ).toEqual(framed);
+  await expect(
+    registerModel({ ...model, classes: ["seed"] }, await database()),
+  ).rejects.toThrow(/different contents/);
   expect((await listModels()).map(({ id }) => id)).toContain(
     "germination-detector",
   );
@@ -241,6 +262,7 @@ contendedTest(
         name: "Contended detector",
         task: "object_detection",
         classes: ["seed"],
+        area: "image",
         annotation: DEFAULT_MODEL_ANNOTATION,
       },
       await database(),

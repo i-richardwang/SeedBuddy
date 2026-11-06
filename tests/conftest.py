@@ -79,6 +79,7 @@ def manifest_entry(
         "filename": f"{digest[:4]}.jpg",
         "bytes": size,
         "split": split,
+        "coverage": None,
         "detection": detection,
         "annotation": annotation,
         "unclear": unclear,
@@ -98,6 +99,7 @@ def manifest_document(
         "model": {
             "id": model_id,
             "classes": classes if classes is not None else list(SEED_CLASSES),
+            "area": "image",
         },
         "images": images,
     }

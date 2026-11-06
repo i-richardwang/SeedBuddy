@@ -7,7 +7,7 @@ function request(model: string, classes: string[]) {
   const body = JSON.stringify({
     schemaVersion: 1,
     dataset: "Transfer-refusal",
-    model: { id: model, classes },
+    model: { id: model, classes, area: "image" },
     images: [],
   });
   return new Request("http://localhost/transfer", {

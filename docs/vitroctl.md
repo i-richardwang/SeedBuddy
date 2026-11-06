@@ -143,6 +143,12 @@ Validation uses at most the actual per-device training batch, including after au
 
 Preset manifests are immutable and their filenames identify their versions.
 
+### Dish framing
+
+A snapshot of a `dish` model carries its `area` and, per image, the dish `coverage` the workbench froze when it was taken; a dataset manifest carries the same for local training. The exporter in `detectors/ultralytics/dataset.py` frames each covered image to the square around its dish, the circle's radius expanded by the coverage margin, rounded outward to whole pixels and clipped to the image. The frame is written losslessly as PNG, boxes are clipped to it and boxes wholly outside are dropped; an image without coverage is the canonical file itself, linked. The exported `manifest.json` records the `mode` and each image's `window`. `ImageCoverage` in `contracts/coverage.py` and `coverage_window` in `image_geometry/window.py` define this once for training and inference.
+
+The bundle records the exported mode as `inference.mode` (`whole_image` or `dish`), and the workbench refuses a bundle whose mode differs from the snapshot's area. A `dish` version is handed the image's current coverage with each inference claim and reads the same frame, offsetting its boxes back into image pixels and reporting the dish under `diagnostics.dish`; without coverage it reads the whole image. A `whole_image` version is never handed coverage. The frame is recorded on the version, not hashed into its artifact digest.
+
 For local training, `dataset` is the name of a pulled dataset. For managed training, it is the workbench dataset ID returned by `list-datasets`.
 
 ```bash
@@ -185,7 +191,7 @@ vitroctl models pack --weights output/experiment/weights/last.pt \
 vitroctl models import output/candidate --model seed-detector
 ```
 
-Packaging and CLI import load the weights on CPU to verify their ordered classes and require the declared Ultralytics version. The supported delivery pipeline is `mode: "whole_image"` with explicit `iou: 0.7`, recorded from `YOLO_IOU` in `contracts/inference.py`. Tiling or another IoU is rejected. Such pipelines require an adapter and contract extension before they can be registered. Registration validates metadata and byte identity; a reported accuracy metric is provenance, not a platform-certified score. Version selection follows the [model lifecycle](domain.md#models-and-versions).
+Packaging and CLI import load the weights on CPU to verify their ordered classes and require the declared Ultralytics version. The supported delivery pipelines are `mode: "whole_image"` and `mode: "dish"` ([dish framing](#dish-framing)) with explicit `iou: 0.7`, recorded from `YOLO_IOU` in `contracts/inference.py`. Tiling or another IoU is rejected. Such pipelines require an adapter and contract extension before they can be registered. Registration validates metadata and byte identity; a reported accuracy metric is provenance, not a platform-certified score. Version selection follows the [model lifecycle](domain.md#models-and-versions).
 
 The workbench uses content-derived upload identities and version identities covering the entire bundle and its origin. Repeating import safely returns the same version; changing inference settings creates another version even with identical weights. Upload reservations expire after 24 hours unless registered, and preparing the same bundle renews the reservation. Weight upload and registration each support retries. Delivered versions retain their immutable bytes independently of their training run.
 

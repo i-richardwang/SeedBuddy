@@ -1,4 +1,5 @@
 import type { ModelBundle } from "../../domain/models/bundle";
+import type { InferenceMode } from "../../domain/models/inference";
 import type { TrainingRecipe } from "../../domain/training/schema";
 import { contentDigest } from "../infra/digest";
 
@@ -16,6 +17,7 @@ export function trainingBundle(
   },
   classes: string[],
   snapshotId: string,
+  mode: InferenceMode = "whole_image",
 ): ModelBundle {
   const { confidence, imageSize, maxDetections, endToEnd } =
     publication.inference;
@@ -24,7 +26,7 @@ export function trainingBundle(
     classes,
     weights: { digest: contentDigest(weights), bytes: weights.byteLength },
     inference: {
-      mode: "whole_image",
+      mode,
       iou: 0.7,
       confidence,
       imageSize,

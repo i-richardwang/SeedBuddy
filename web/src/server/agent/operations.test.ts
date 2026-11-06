@@ -115,7 +115,7 @@ describe("agent operations", () => {
       "delete-culture-event",
       "update-dataset",
       "remove-images-from-dataset",
-      "update-model-annotation",
+      "update-model-settings",
       "delete-model",
       "use-model-version",
       "control-training-run",

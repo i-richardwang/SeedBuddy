@@ -9,14 +9,21 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
+import cv2
+
 from vitroctl.contracts.annotation import AnnotationInstance
+from vitroctl.contracts.coverage import ImageCoverage
+from vitroctl.contracts.inference import INFERENCE_MODES, InferenceMode
 from vitroctl.datasets.geometry import require_image_dimensions
 from vitroctl.datasets.manifest import AnnotatedImage, verified_blob
+from vitroctl.image_geometry.window import PixelWindow, coverage_window
 from vitroctl.io.files import atomic_directory
 from vitroctl.io.image_io import CANONICAL_EXTENSION, read_image
 
 DEFAULT_VALIDATION_FRACTION = 0.2
 DEFAULT_SEED = 0
+#: A framed image is written losslessly; only whole images keep their bytes.
+FRAMED_EXTENSION = ".png"
 
 
 class DatasetSplitError(ValueError):
@@ -29,10 +36,13 @@ class YoloManifestImage(TypedDict):
     image: str
     label: str
     instances: int
+    #: The image pixels the exported file holds; None for the whole image.
+    window: dict[str, int] | None
 
 
 class YoloDatasetManifest(TypedDict):
     class_names: list[str]
+    mode: InferenceMode
     seed: int
     validation_fraction: float
     images: list[YoloManifestImage]
@@ -44,6 +54,8 @@ class DatasetImage:
 
     ``split`` carries the stable assignment the server recorded for the image;
     images without one are assigned locally from the seed and validation fraction.
+    ``coverage`` is the dish the workbench framed the image to; the export
+    crops pixels and boxes alike to it, and None exports the whole image.
     """
 
     digest: str
@@ -52,22 +64,28 @@ class DatasetImage:
     instances: tuple[AnnotationInstance, ...]
     file_path: Path
     split: str | None
+    coverage: ImageCoverage | None
 
 
-def _label_text(image: DatasetImage, class_indices: dict[str, int]) -> str:
+def _label_rows(
+    image: DatasetImage, window: PixelWindow, class_indices: dict[str, int]
+) -> list[str]:
+    """One YOLO row per box within the exported window, normalised to it;
+    boxes are clipped to the window and dropped when wholly outside."""
     rows = []
     for instance in image.instances:
-        class_index = class_indices[instance.class_name]
-        box = instance.bbox
+        box = window.crop(instance.bbox)
+        if box is None:
+            continue
         center_x, center_y = box.center
         rows.append(
-            f"{class_index} "
-            f"{center_x / image.width:.8f} "
-            f"{center_y / image.height:.8f} "
-            f"{box.width / image.width:.8f} "
-            f"{box.height / image.height:.8f}"
+            f"{class_indices[instance.class_name]} "
+            f"{center_x / window.width:.8f} "
+            f"{center_y / window.height:.8f} "
+            f"{box.width / window.width:.8f} "
+            f"{box.height / window.height:.8f}"
         )
-    return "\n".join(rows) + ("\n" if rows else "")
+    return rows
 
 
 def _link_or_copy(source: Path, destination: Path) -> None:
@@ -105,6 +123,7 @@ def export_dataset_images(
     class_names: Sequence[str],
     output_dir: str | Path,
     *,
+    mode: InferenceMode,
     validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
     seed: int = DEFAULT_SEED,
     link_images: bool = False,
@@ -112,14 +131,21 @@ def export_dataset_images(
     """
     Publish schema-sourced classes and resolved image files as a YOLO dataset.
 
-    A caller that
-    owns immutable sources may link them instead of copying; the dataset
-    still outlives the sources, because a hard link is the file itself.
+    In ``dish`` mode an image with coverage is framed to the square around
+    its dish, written losslessly with its labels clipped to the frame; an
+    image without coverage, and every image in ``whole_image`` mode, is the
+    file itself. A caller that owns immutable sources may link whole images
+    instead of copying; the dataset still outlives the sources, because a
+    hard link is the file itself.
     """
     classes = tuple(class_names)
     class_indices = {name: index for index, name in enumerate(classes)}
     if not 0.0 < validation_fraction < 1.0:
         raise ValueError("Validation fraction must be between zero and one")
+    if mode not in INFERENCE_MODES:
+        raise ValueError(f"Unknown inference mode: {mode!r}")
+    if mode == "whole_image" and any(image.coverage for image in images):
+        raise ValueError("A whole_image export frames no image to a dish")
 
     splits = assign_splits(images, validation_fraction, seed)
     if set(splits.values()) != {"train", "val"}:
@@ -134,19 +160,34 @@ def export_dataset_images(
             require_image_dimensions(
                 pixels.shape, image.width, image.height, image.digest
             )
+            window = (
+                coverage_window(image.coverage, image.width, image.height)
+                if image.coverage is not None
+                else None
+            )
 
+            extension = CANONICAL_EXTENSION if window is None else FRAMED_EXTENSION
             image_destination = (
-                working / "images" / split / f"{image.digest}{CANONICAL_EXTENSION}"
+                working / "images" / split / f"{image.digest}{extension}"
             )
             label_destination = working / "labels" / split / f"{image.digest}.txt"
             image_destination.parent.mkdir(parents=True, exist_ok=True)
             label_destination.parent.mkdir(parents=True, exist_ok=True)
-            if link_images:
+            if window is not None:
+                framed = pixels[window.y : window.bottom, window.x : window.right]
+                if not cv2.imwrite(str(image_destination), framed):
+                    raise OSError(f"Unable to write framed image: {image.digest}")
+            elif link_images:
                 _link_or_copy(source, image_destination)
             else:
                 shutil.copy2(source, image_destination)
+            rows = _label_rows(
+                image,
+                window or PixelWindow.whole(image.width, image.height),
+                class_indices,
+            )
             label_destination.write_text(
-                _label_text(image, class_indices), encoding="utf-8"
+                "".join(f"{row}\n" for row in rows), encoding="utf-8"
             )
 
             entry = YoloManifestImage(
@@ -154,12 +195,14 @@ def export_dataset_images(
                 split=split,
                 image=image_destination.relative_to(working).as_posix(),
                 label=label_destination.relative_to(working).as_posix(),
-                instances=len(image.instances),
+                instances=len(rows),
+                window=None if window is None else window.to_dict(),
             )
             manifest_images.append(entry)
 
         manifest = YoloDatasetManifest(
             class_names=list(classes),
+            mode=mode,
             seed=seed,
             validation_fraction=validation_fraction,
             images=manifest_images,
@@ -179,6 +222,8 @@ def export_yolo_dataset(
     class_names: Sequence[str],
     data_root: str | Path,
     output_dir: str | Path,
+    *,
+    mode: InferenceMode,
     validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
     seed: int = DEFAULT_SEED,
 ) -> YoloDatasetManifest:
@@ -191,6 +236,7 @@ def export_yolo_dataset(
             instances=image.annotation.instances,
             split=image.split,
             file_path=verified_blob(data_root, image.digest),
+            coverage=image.coverage,
         )
         for image in annotated
     ]
@@ -200,4 +246,5 @@ def export_yolo_dataset(
         output_dir,
         validation_fraction=validation_fraction,
         seed=seed,
+        mode=mode,
     )

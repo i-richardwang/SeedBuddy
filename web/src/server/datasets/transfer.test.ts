@@ -3,6 +3,7 @@ import sharp from "sharp";
 
 import { DatasetImportInvalidError } from "../../domain/datasets/errors";
 import { ImageSourceInvalidError } from "../../domain/images/errors";
+import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { imageBlobKey } from "../images/keys";
 import { storeCanonicalImage } from "../images/store";
 import {
@@ -12,8 +13,16 @@ import {
 } from "../images/unclear";
 import { requireBlob } from "../infra/blobs/store";
 import { contentDigest } from "../infra/digest";
+import { setModelSettings } from "../models/registry";
 import { observeTextsIntoDataset, reviewedDataset } from "../testing/datasets";
-import { imageBytes, imageDigest, storeTexts } from "../testing/images";
+import {
+  analyzedWithDish,
+  FIXTURE_COVERAGE,
+  imageBytes,
+  imageDigest,
+  storeTexts,
+} from "../testing/images";
+import { traditionalVersion } from "../testing/models";
 import { readAnnotation } from "../testing/records";
 import { handleCanonicalImageUpload } from "../transport/http/image-upload";
 import { readDatasetByName } from "./datasets";
@@ -87,6 +96,12 @@ describe("dataset transfer", () => {
     if (!manifest) throw new Error("no manifest");
     expect(manifest.images).toHaveLength(2);
     expect(manifest.images.every((image) => image.annotation)).toBe(true);
+    // Seed germination keeps to the dish; fixture images show none.
+    expect(manifest.model.area).toBe("dish");
+    expect(manifest.images.map((image) => image.coverage)).toEqual([
+      null,
+      null,
+    ]);
 
     const other = await observeTextsIntoDataset("transfer-fresh", ["ts-c"]);
     const [otherRecord] = await listImageRecords(other.dataset.id);
@@ -179,13 +194,13 @@ describe("dataset transfer", () => {
     await expect(
       attempt({
         dataset: "transfer-held-2",
-        model: { id: "transfer-nowhere", classes: manifest.model.classes },
+        model: { ...manifest.model, id: "transfer-nowhere" },
       }),
     ).rejects.toThrow(/Unknown model/);
     await expect(
       attempt({
         dataset: "transfer-held-2",
-        model: { id: manifest.model.id, classes: ["seed", "mould"] },
+        model: { ...manifest.model, classes: ["seed", "mould"] },
         images: [],
       }),
     ).rejects.toThrow(/has classes/);
@@ -269,5 +284,38 @@ describe("dataset transfer", () => {
       name: "transfer-race",
       modelId: source.model.id,
     });
+  });
+});
+
+describe("dish datasets", () => {
+  test("a manifest frames each image to the dish its analysis found, as the model's area asks", async () => {
+    const version = await traditionalVersion(
+      "transfer-dish-detector",
+      "dish-v1",
+    );
+    const settings = {
+      model: version.modelId,
+      annotation: DEFAULT_MODEL_ANNOTATION,
+    };
+    await setModelSettings({ ...settings, area: "dish" });
+    await observeTextsIntoDataset(
+      "transfer-dish",
+      ["dish-framed", "dish-unframed"],
+      version,
+    );
+    const framed = await imageDigest("dish-framed");
+    await analyzedWithDish(framed);
+    const manifest = (await readDatasetManifest("transfer-dish"))!;
+    expect(manifest.model.area).toBe("dish");
+    expect(
+      Object.fromEntries(manifest.images.map((i) => [i.digest, i.coverage])),
+    ).toEqual({
+      [framed]: FIXTURE_COVERAGE,
+      [await imageDigest("dish-unframed")]: null,
+    });
+    await setModelSettings({ ...settings, area: "image" });
+    const whole = (await readDatasetManifest("transfer-dish"))!;
+    expect(whole.model.area).toBe("image");
+    expect(whole.images.map((i) => i.coverage)).toEqual([null, null]);
   });
 });

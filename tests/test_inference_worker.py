@@ -30,6 +30,7 @@ MANIFEST = {
 DOCUMENT = {
     "manifest": MANIFEST,
     "image": "c" * 64,
+    "coverage": None,
     "attempt": 3,
     "serverTime": "2026-10-27T00:00:00Z",
     "leaseExpiresAt": "2026-10-27T00:01:30Z",
@@ -376,3 +377,17 @@ def test_each_download_uses_its_call_deadline(monkeypatch):
         assert deadlines == [100.0, 200.0, 300.0]
     finally:
         client.worker.close()
+
+
+def test_assignment_carries_the_dish_a_version_reads_within():
+    coverage = {
+        "kind": "dish",
+        "circle": {"x": 500.0, "y": 400.0, "radius": 300.0},
+        "margin": 0.15,
+    }
+    framed = Assignment.from_document({**DOCUMENT, "coverage": coverage})
+    assert framed.coverage is not None
+    assert framed.coverage.to_dict() == coverage
+    assert Assignment.from_document(DOCUMENT).coverage is None
+    with pytest.raises(ValueError, match="assignment.coverage"):
+        Assignment.from_document({**DOCUMENT, "coverage": {"kind": "dish"}})

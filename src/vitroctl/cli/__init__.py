@@ -12,6 +12,7 @@ from vitroctl.cli.connection import connection, connection_options
 from vitroctl.cli.models import add_model_commands
 from vitroctl.cli.output import json_output
 from vitroctl.cli.training import add_training_commands
+from vitroctl.contracts.inference import inference_mode_for_area
 from vitroctl.datasets.manifest import (
     DatasetManifest,
     load_dataset_manifest,
@@ -198,6 +199,7 @@ def _export_yolo(args: argparse.Namespace) -> int:
         args.output,
         validation_fraction=args.validation_fraction,
         seed=args.seed,
+        mode=inference_mode_for_area(dataset.area),
     )
     print(f"exported {len(manifest['images'])} images to {args.output}")
     return 0

@@ -138,6 +138,7 @@ describe("agent execution", () => {
             name: id,
             task: "detect",
             classes: [],
+            area: "image",
             annotation: DEFAULT_MODEL_ANNOTATION,
           });
           throw new ExperimentNotFoundError(`Unknown experiment: ${id}`);
@@ -172,6 +173,7 @@ describe("agent execution", () => {
             name: id,
             task: "detect",
             classes: [],
+            area: "image",
             annotation: DEFAULT_MODEL_ANNOTATION,
           });
           return "wrong" as unknown as null;
@@ -219,9 +221,10 @@ test("model commands roll back writes when their output contract fails", async (
       input: { id: `${id}-new`, name: `${id}-new`, classes: ["seed"] },
     },
     {
-      name: "update-model-annotation",
+      name: "update-model-settings",
       input: {
         model: id,
+        area: "dish",
         annotation: {
           ...original.annotation,
           instructions: "Changed instructions",

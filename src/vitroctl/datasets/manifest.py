@@ -14,6 +14,12 @@ from typing import Any
 
 from vitroctl.contracts.annotation import AnnotationDocument
 from vitroctl.contracts.annotation_set import ImageDocuments, validate_annotation_set
+from vitroctl.contracts.coverage import (
+    ImageCoverage,
+    ModelArea,
+    decode_coverage,
+    validate_framing,
+)
 from vitroctl.contracts.validation import validate_wire_contract
 from vitroctl.detectors.contract import DetectionResult
 from vitroctl.io.files import file_digest, verify_digest
@@ -30,6 +36,8 @@ class ManifestImage:
     filename: str
     bytes: int
     split: str | None
+    #: The dish a ``dish`` model frames the image to; None for the whole image.
+    coverage: ImageCoverage | None
     detection: DetectionResult | None
     annotation: AnnotationDocument | None
     unclear: bool
@@ -42,6 +50,7 @@ class ManifestImage:
             "filename": self.filename,
             "bytes": self.bytes,
             "split": self.split,
+            "coverage": None if self.coverage is None else self.coverage.to_dict(),
             "detection": None if self.detection is None else self.detection.to_dict(),
             "annotation": (
                 None if self.annotation is None else self.annotation.to_dict()
@@ -60,6 +69,8 @@ class DatasetManifest:
     dataset: str
     model_id: str
     classes: tuple[str, ...]
+    #: Where the model looks: ``dish`` frames each image to its coverage.
+    area: ModelArea
     images: tuple[ManifestImage, ...]
 
     @classmethod
@@ -73,6 +84,7 @@ class DatasetManifest:
         model = value["model"]
         model_id = model["id"]
         classes = tuple(model["classes"])
+        area: ModelArea = model["area"]
         images = tuple(
             _image(raw, f"{context}.images[{i}]")
             for i, raw in enumerate(value["images"])
@@ -90,7 +102,14 @@ class DatasetManifest:
             classes,
             context,
         )
-        return cls(dataset=dataset, model_id=model_id, classes=classes, images=images)
+        validate_framing(area, (image.coverage for image in images), context)
+        return cls(
+            dataset=dataset,
+            model_id=model_id,
+            classes=classes,
+            area=area,
+            images=images,
+        )
 
     @property
     def annotated(self) -> tuple[AnnotatedImage, ...]:
@@ -102,6 +121,7 @@ class DatasetManifest:
                 filename=image.filename,
                 bytes=image.bytes,
                 split=image.split,
+                coverage=image.coverage,
                 detection=image.detection,
                 annotation=image.annotation,
                 unclear=image.unclear,
@@ -114,7 +134,11 @@ class DatasetManifest:
         return {
             "schemaVersion": MANIFEST_SCHEMA_VERSION,
             "dataset": self.dataset,
-            "model": {"id": self.model_id, "classes": list(self.classes)},
+            "model": {
+                "id": self.model_id,
+                "classes": list(self.classes),
+                "area": self.area,
+            },
             "images": [image.to_dict() for image in self.images],
         }
 
@@ -160,6 +184,7 @@ def _image(value: Any, context: str) -> ManifestImage:
         filename=value["filename"],
         bytes=value["bytes"],
         split=value["split"],
+        coverage=decode_coverage(value["coverage"], f"{context}.coverage"),
         detection=detection,
         annotation=annotation,
         unclear=value["unclear"],

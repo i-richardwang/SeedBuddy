@@ -58,7 +58,10 @@
         },
         "mode": {
           "type": "string",
-          "const": "whole_image"
+          "enum": [
+            "whole_image",
+            "dish"
+          ]
         },
         "iou": {
           "type": "number",

@@ -2,7 +2,9 @@ import { z } from "zod";
 
 import { annotationSchema } from "../annotation/schema";
 import { resourceIdSchema, sha256Schema } from "../identifiers/schema";
+import { imageCoverageSchema } from "../images/coverage";
 import { imageDigestSchema } from "../images/schema";
+import { modelAreaSchema } from "../models/area";
 import { classListSchema } from "../models/classes";
 import { timestampSchema } from "../time";
 import { trainingParametersSchema } from "./parameters";
@@ -30,12 +32,20 @@ const ACTIVE_TRAINING_RUN_STATUS_SET = new Set<string>(
 );
 const RESUMABLE_TRAINING_RUN_STATUS_SET = new Set<string>(["paused", "failed"]);
 
+/**
+ * One image a snapshot trains on, with the dish coverage it is framed to:
+ * the annotation's boxes stay in canonical pixels, and the Worker crops
+ * pixels and boxes alike to the covered dish. Null frames the whole image,
+ * which is every image of an `image` snapshot and, with its reason logged,
+ * an image of a `dish` snapshot whose analysis found no dish.
+ */
 const snapshotImageSchema = z
   .strictObject({
     digest: imageDigestSchema,
     width: z.number().int().positive(),
     height: z.number().int().positive(),
     split: z.enum(IMAGE_SPLITS),
+    coverage: imageCoverageSchema.nullable(),
     annotation: annotationSchema,
   })
   .superRefine((image, context) => {
@@ -65,6 +75,8 @@ export const datasetSnapshotSchema = z
     datasetId: resourceIdSchema,
     modelId: resourceIdSchema,
     classes: classListSchema,
+    /** The model's area when the snapshot froze; the mode its version reads in. */
+    area: modelAreaSchema,
     createdAt: timestampSchema,
     images: z.array(snapshotImageSchema).min(MIN_SNAPSHOT_IMAGES),
   })

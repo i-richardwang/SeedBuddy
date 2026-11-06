@@ -15,6 +15,7 @@ from vitroctl.contracts.annotation import (
     AnnotationInstance,
     BoundingBox,
 )
+from vitroctl.contracts.coverage import ImageCoverage
 from vitroctl.datasets.manifest import (
     AnnotatedImage,
     BlobError,
@@ -27,7 +28,7 @@ from vitroctl.detectors.ultralytics import (
     export_yolo_dataset,
 )
 from vitroctl.detectors.ultralytics.dataset import assign_splits
-from vitroctl.io.image_io import CANONICAL_EXTENSION
+from vitroctl.io.image_io import CANONICAL_EXTENSION, read_image
 
 
 def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
@@ -38,6 +39,7 @@ def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
         filename=f"{digest[:4]}.jpg",
         bytes=1,
         split=split,
+        coverage=None,
         detection=None,
         annotation=decode_annotation(
             annotation_document(digest, [{"x": 10, "y": 20, "width": 20, "height": 10}])
@@ -64,7 +66,9 @@ def test_yolo_export_is_deterministic_and_self_contained(tmp_path: Path) -> None
     annotated = _annotated_blobs(data_root, 2)
 
     output = tmp_path / "yolo"
-    manifest = export_yolo_dataset(annotated, SEED_CLASSES, data_root, output, seed=7)
+    manifest = export_yolo_dataset(
+        annotated, SEED_CLASSES, data_root, output, mode="whole_image", seed=7
+    )
 
     entries = manifest["images"]
     assert [entry["digest"] for entry in entries] == sorted(
@@ -92,7 +96,9 @@ def test_yolo_export_is_deterministic_and_self_contained(tmp_path: Path) -> None
     ]
 
     with pytest.raises(FileExistsError, match="already exists"):
-        export_yolo_dataset(annotated, SEED_CLASSES, data_root, output, seed=7)
+        export_yolo_dataset(
+            annotated, SEED_CLASSES, data_root, output, mode="whole_image", seed=7
+        )
 
 
 def test_yolo_export_preserves_the_model_class_order(tmp_path: Path) -> None:
@@ -105,6 +111,7 @@ def test_yolo_export_preserves_the_model_class_order(tmp_path: Path) -> None:
                 digest=digest,
                 split=None,
                 file_path=blob_path(data_root, digest),
+                coverage=None,
                 width=100,
                 height=80,
                 instances=(
@@ -122,6 +129,7 @@ def test_yolo_export_preserves_the_model_class_order(tmp_path: Path) -> None:
         images,
         ("seed", "germinated"),
         output,
+        mode="whole_image",
         seed=7,
     )
 
@@ -144,10 +152,15 @@ def test_yolo_validation_split_is_stable_per_digest(tmp_path: Path) -> None:
     annotated = _annotated_blobs(data_root, 5)
 
     first = export_yolo_dataset(
-        annotated, SEED_CLASSES, data_root, tmp_path / "one", seed=3
+        annotated, SEED_CLASSES, data_root, tmp_path / "one", mode="whole_image", seed=3
     )
     second = export_yolo_dataset(
-        annotated[::-1], SEED_CLASSES, data_root, tmp_path / "two", seed=3
+        annotated[::-1],
+        SEED_CLASSES,
+        data_root,
+        tmp_path / "two",
+        mode="whole_image",
+        seed=3,
     )
 
     assert first["images"] == second["images"]
@@ -163,6 +176,7 @@ def test_split_assignment_fills_the_quota_around_recorded_splits() -> None:
             instances=(),
             split=split,
             file_path=Path(digest),
+            coverage=None,
         )
 
     recorded = [image("1" * 64, "val"), image("2" * 64, "train")]
@@ -189,7 +203,9 @@ def test_yolo_export_discards_an_invalid_dataset(tmp_path: Path) -> None:
     output = tmp_path / "yolo"
 
     with pytest.raises(ValueError, match="dimensions differ"):
-        export_yolo_dataset(annotated, SEED_CLASSES, data_root, output)
+        export_yolo_dataset(
+            annotated, SEED_CLASSES, data_root, output, mode="whole_image"
+        )
 
     assert not output.exists()
     assert not list(tmp_path.glob(".yolo-*"))
@@ -202,7 +218,9 @@ def test_yolo_export_refuses_a_corrupted_blob(tmp_path: Path) -> None:
     output = tmp_path / "yolo"
 
     with pytest.raises(BlobError, match="digest verification"):
-        export_yolo_dataset(annotated, SEED_CLASSES, data_root, output)
+        export_yolo_dataset(
+            annotated, SEED_CLASSES, data_root, output, mode="whole_image"
+        )
 
     assert not output.exists()
 
@@ -213,7 +231,9 @@ def test_yolo_export_refuses_a_missing_blob(tmp_path: Path) -> None:
     blob_path(data_root, annotated[0].digest).unlink()
 
     with pytest.raises(BlobError, match="missing"):
-        export_yolo_dataset(annotated, SEED_CLASSES, data_root, tmp_path / "yolo")
+        export_yolo_dataset(
+            annotated, SEED_CLASSES, data_root, tmp_path / "yolo", mode="whole_image"
+        )
 
 
 def test_export_reads_recorded_splits_from_the_manifest(tmp_path: Path) -> None:
@@ -230,7 +250,7 @@ def test_export_reads_recorded_splits_from_the_manifest(tmp_path: Path) -> None:
 
     annotated = load_dataset_manifest(manifest_path).annotated
     manifest = export_yolo_dataset(
-        annotated, SEED_CLASSES, data_root, tmp_path / "yolo"
+        annotated, SEED_CLASSES, data_root, tmp_path / "yolo", mode="whole_image"
     )
 
     recorded = {entry["digest"]: entry["split"] for entry in entries}
@@ -241,7 +261,9 @@ def test_yolo_export_honours_recorded_splits(tmp_path: Path) -> None:
     data_root = tmp_path / "data"
     annotated = _annotated_blobs(data_root, 3, splits=("val", "train", "train"))
     output = tmp_path / "yolo"
-    manifest = export_yolo_dataset(annotated, SEED_CLASSES, data_root, output)
+    manifest = export_yolo_dataset(
+        annotated, SEED_CLASSES, data_root, output, mode="whole_image"
+    )
     assert {entry["digest"]: entry["split"] for entry in manifest["images"]} == {
         image.digest: image.split for image in annotated
     }
@@ -255,9 +277,81 @@ def test_export_requires_training_and_validation_images(tmp_path, splits):
     from vitroctl.detectors.ultralytics.dataset import DatasetSplitError
 
     images = [
-        DatasetImage(str(index), 100, 80, (), tmp_path / str(index), split)
+        DatasetImage(str(index), 100, 80, (), tmp_path / str(index), split, None)
         for index, split in enumerate(splits)
     ]
     with pytest.raises(DatasetSplitError, match="both train and val"):
-        export_dataset_images(images, SEED_CLASSES, tmp_path / "export")
+        export_dataset_images(
+            images, SEED_CLASSES, tmp_path / "export", mode="whole_image"
+        )
     assert not (tmp_path / "export").exists()
+
+
+def test_dish_export_frames_pixels_and_labels_to_the_covered_dish(
+    tmp_path: Path,
+) -> None:
+    data_root = tmp_path / "data"
+    framed_digest = write_blob(data_root, encoded_image(variant=1))
+    whole_digest = write_blob(data_root, encoded_image(variant=2))
+    boxes = (
+        AnnotationInstance("kept", "ungerminated", BoundingBox(30, 20, 10, 10)),
+        AnnotationInstance("clipped", "ungerminated", BoundingBox(10, 15, 10, 10)),
+        AnnotationInstance("dropped", "ungerminated", BoundingBox(0, 0, 4, 4)),
+    )
+    coverage = ImageCoverage(x=50.0, y=40.0, radius=30.0, margin=0.15)
+    images = [
+        DatasetImage(
+            framed_digest,
+            100,
+            80,
+            boxes,
+            blob_path(data_root, framed_digest),
+            "train",
+            coverage,
+        ),
+        # A dish image whose analysis found no dish trains whole, as it is read.
+        DatasetImage(
+            whole_digest,
+            100,
+            80,
+            boxes[:1],
+            blob_path(data_root, whole_digest),
+            "val",
+            None,
+        ),
+    ]
+    output = tmp_path / "yolo"
+
+    manifest = export_dataset_images(
+        images, SEED_CLASSES, output, link_images=True, mode="dish"
+    )
+
+    assert manifest["mode"] == "dish"
+    # Reach 34.5 around (50, 40): x 15..85 and y 5..75, clipped to 80.
+    framed, whole = sorted(
+        manifest["images"], key=lambda e: e["digest"] != framed_digest
+    )
+    assert framed["window"] == {"x": 15, "y": 5, "width": 70, "height": 70}
+    assert framed["image"] == f"images/train/{framed_digest}.png"
+    assert framed["instances"] == 2
+    pixels = read_image(output / framed["image"])
+    assert pixels.shape == (70, 70, 3)
+    assert (
+        pixels == read_image(blob_path(data_root, framed_digest))[5:75, 15:85]
+    ).all()
+    assert (output / framed["label"]).read_text().splitlines() == [
+        "0 0.28571429 0.28571429 0.14285714 0.14285714",
+        "0 0.03571429 0.21428571 0.07142857 0.14285714",
+    ]
+    assert whole["window"] is None
+    assert whole["image"] == f"images/val/{whole_digest}{CANONICAL_EXTENSION}"
+    assert (output / whole["image"]).stat().st_ino == blob_path(
+        data_root, whole_digest
+    ).stat().st_ino
+
+    with pytest.raises(ValueError, match="whole_image export frames no image"):
+        export_dataset_images(
+            images, SEED_CLASSES, tmp_path / "whole", mode="whole_image"
+        )
+    with pytest.raises(ValueError, match="Unknown inference mode"):
+        export_dataset_images(images, SEED_CLASSES, tmp_path / "tiled", mode="tiled")  # type: ignore[arg-type]

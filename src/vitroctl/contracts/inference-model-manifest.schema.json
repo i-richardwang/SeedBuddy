@@ -90,13 +90,21 @@
                 },
                 "endToEnd": {
                   "type": "boolean"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "whole_image",
+                    "dish"
+                  ]
                 }
               },
               "required": [
                 "confidence",
                 "imageSize",
                 "maxDetections",
-                "endToEnd"
+                "endToEnd",
+                "mode"
               ],
               "additionalProperties": false
             },

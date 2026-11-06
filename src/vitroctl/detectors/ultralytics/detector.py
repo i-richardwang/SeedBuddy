@@ -11,17 +11,22 @@ import numpy as np
 
 from vitroctl.contracts import annotation
 from vitroctl.contracts.annotation import BoundingBox
-from vitroctl.contracts.inference import YOLO_IOU
+from vitroctl.contracts.coverage import ImageCoverage
+from vitroctl.contracts.inference import INFERENCE_MODES, YOLO_IOU, InferenceMode
 from vitroctl.detectors import contract
 from vitroctl.detectors.contract import (
+    DetectionDiagnostics,
     DetectionInstance,
     DetectionProducer,
     DetectionQuality,
     DetectionResult,
+    DishGeometry,
     RuntimeDescriptor,
     adapter_fingerprint,
 )
 from vitroctl.detectors.ultralytics.runtime import load_yolo
+from vitroctl.image_geometry.window import PixelWindow, coverage_window
+from vitroctl.io.image_io import read_image
 
 
 @dataclass(frozen=True)
@@ -30,6 +35,12 @@ class YoloInferenceSettings:
     image_size: int
     max_detections: int
     end_to_end: bool
+    #: The frame the version was trained on and reads; not part of its digest.
+    mode: InferenceMode
+
+    def __post_init__(self) -> None:
+        if self.mode not in INFERENCE_MODES:
+            raise ValueError(f"Unknown inference mode: {self.mode!r}")
 
     @classmethod
     def decode(cls, document: dict[str, Any], context: str) -> YoloInferenceSettings:
@@ -38,9 +49,11 @@ class YoloInferenceSettings:
             document["imageSize"],
             document["maxDetections"],
             document["endToEnd"],
+            document["mode"],
         )
 
     def to_dict(self) -> dict[str, object]:
+        """The settings the artifact digest binds to the weights."""
         return {
             "confidence": self.confidence,
             "imageSize": self.image_size,
@@ -66,7 +79,8 @@ def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
 
 @dataclass
 class UltralyticsDetector:
-    """Run whole-image inference with the model document's calibrated settings."""
+    """Run inference with the model document's calibrated settings, over the
+    whole image or the dish frame the version was trained on."""
 
     weights: Path
     settings: YoloInferenceSettings
@@ -121,11 +135,32 @@ class UltralyticsDetector:
         """Load weights and verify their declared class ordering before delivery."""
         self._predictor()
 
+    def _window(
+        self, coverage: ImageCoverage | None, width: int, height: int
+    ) -> PixelWindow | None:
+        if self.settings.mode == "whole_image":
+            if coverage is not None:
+                raise ValueError("A whole_image version reads no dish coverage")
+            return None
+        return None if coverage is None else coverage_window(coverage, width, height)
+
     def predict(
-        self, image_path: Path, digest: str, producer: DetectionProducer
+        self,
+        image_path: Path,
+        digest: str,
+        producer: DetectionProducer,
+        coverage: ImageCoverage | None,
     ) -> DetectionResult:
+        pixels = read_image(image_path)
+        height, width = pixels.shape[:2]
+        window = self._window(coverage, width, height)
+        frame = (
+            pixels
+            if window is None
+            else pixels[window.y : window.bottom, window.x : window.right]
+        )
         options: dict[str, object] = {
-            "source": str(image_path),
+            "source": frame,
             "conf": self.settings.confidence,
             "imgsz": self.settings.image_size,
             "max_det": self.settings.max_detections,
@@ -139,7 +174,9 @@ class UltralyticsDetector:
         if len(results) != 1:
             raise RuntimeError("YOLO must return exactly one result for one image")
         result = results[0]
-        height, width = map(int, result.orig_shape)
+        if tuple(map(int, result.orig_shape)) != frame.shape[:2]:
+            raise RuntimeError("YOLO read an image of another size")
+        frame_height, frame_width = frame.shape[:2]
         instances = []
         if result.boxes is not None:
             boxes = np.asarray(result.boxes.xyxy.cpu().numpy())
@@ -165,17 +202,18 @@ class UltralyticsDetector:
                     raise RuntimeError(
                         f"YOLO returned unknown class index {numeric_class}"
                     )
-                left = min(max(x1, 0.0), float(width))
-                top = min(max(y1, 0.0), float(height))
-                right = min(max(x2, 0.0), float(width))
-                bottom = min(max(y2, 0.0), float(height))
+                left = min(max(x1, 0.0), float(frame_width))
+                top = min(max(y1, 0.0), float(frame_height))
+                right = min(max(x2, 0.0), float(frame_width))
+                bottom = min(max(y2, 0.0), float(frame_height))
                 if right <= left or bottom <= top:
                     continue
+                box = BoundingBox(left, top, right - left, bottom - top)
                 instances.append(
                     DetectionInstance(
                         instance_id=str(len(instances)),
                         class_name=self.class_names[class_index],
-                        bbox=BoundingBox(left, top, right - left, bottom - top),
+                        bbox=box if window is None else window.restore(box),
                         score=score,
                     )
                 )
@@ -186,4 +224,11 @@ class UltralyticsDetector:
             producer=producer,
             instances=tuple(instances),
             quality=DetectionQuality("ok"),
+            diagnostics=DetectionDiagnostics(
+                dish=(
+                    None
+                    if coverage is None
+                    else DishGeometry(coverage.x, coverage.y, coverage.radius)
+                )
+            ),
         )

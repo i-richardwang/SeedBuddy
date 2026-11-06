@@ -1,14 +1,43 @@
 import { createHash } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import sharp from "sharp";
 
 import { makeResult } from "../../domain/annotation/testing";
 import type { DetectionResult } from "../../domain/detection/schema";
+import type { DishCircle, ImageCoverage } from "../../domain/images/coverage";
+import { DISH_GEOMETRY } from "../../domain/images/coverage";
 import type { Tally } from "../../domain/models/classes";
 import type { ModelVersion } from "../../domain/models/schema";
+import { DISH_RECIPE_ID } from "../images/dish-recipe";
 import { canonicalize } from "../images/ingest";
 import { storeImage } from "../images/store";
+import { database } from "../infra/db/client";
+import { images } from "../infra/db/schema";
 import { TEST_RUNTIME, ULTRALYTICS_RUNTIME } from "./workers";
+
+/** A dish the fixture frame can hold, as ingestion would have recorded it. */
+export const FIXTURE_DISH: DishCircle = { x: 32, y: 32, radius: 24 };
+
+/** The coverage a dish task frames `FIXTURE_DISH` to. */
+export const FIXTURE_COVERAGE: ImageCoverage = {
+  kind: "dish",
+  circle: FIXTURE_DISH,
+  margin: DISH_GEOMETRY.coverageMargin,
+};
+
+/** Records that the image's analysis found `circle`, under the current recipe. */
+export async function analyzedWithDish(
+  digest: string,
+  circle: DishCircle = FIXTURE_DISH,
+): Promise<void> {
+  await (
+    await database()
+  )
+    .update(images)
+    .set({ dishAnalysis: { recipe: DISH_RECIPE_ID, circle } })
+    .where(eq(images.id, digest));
+}
 
 /** Fixture images are grids of flat blocks so lossy encoding keeps them distinct. */
 const FIXTURE_BLOCKS = 8;

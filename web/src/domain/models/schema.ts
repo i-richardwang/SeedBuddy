@@ -9,10 +9,10 @@ import {
   trainingRecipeSchema,
 } from "../training/schema";
 import {
-  annotationAreaSchema,
   annotationRegionSchema,
   DEFAULT_ANNOTATION_REGION,
 } from "./annotation";
+import { type ModelArea, modelAreaSchema } from "./area";
 import { bundleProvenanceSchema } from "./bundle";
 import { classListSchema } from "./classes";
 import { inferenceSettingsSchema } from "./inference";
@@ -23,7 +23,6 @@ import { inferenceSettingsSchema } from "./inference";
  * task the way its classes do; a run reads them, never asks for them.
  */
 const modelAnnotationFields = annotationRegionSchema.extend({
-  area: annotationAreaSchema,
   instructions: z.string().trim(),
 });
 const modelAnnotationSchema = modelAnnotationFields.refine(
@@ -32,17 +31,18 @@ const modelAnnotationSchema = modelAnnotationFields.refine(
 );
 
 export const DEFAULT_MODEL_ANNOTATION = {
-  area: "image",
   instructions: "",
   ...DEFAULT_ANNOTATION_REGION,
 } satisfies ModelAnnotation;
 
+export const DEFAULT_MODEL_AREA = "image" satisfies ModelArea;
+
 /**
- * A model is a task: what it looks for in an image. It exists as soon as
- * someone asks the question, with or without a version that can answer it;
- * until one is trained, the answers are a reviewer's. Every version of the
- * model finds the same classes; versions differ only in how well they find
- * them.
+ * A model is a task: what it looks for in an image, and where in the image
+ * it looks. It exists as soon as someone asks the question, with or without
+ * a version that can answer it; until one is trained, the answers are a
+ * reviewer's. Every version of the model finds the same classes; versions
+ * differ only in how well they find them.
  */
 export const modelSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -50,24 +50,32 @@ export const modelSchema = z.strictObject({
   name: z.string().min(1),
   task: z.literal("object_detection"),
   classes: classListSchema,
+  area: modelAreaSchema,
   annotation: modelAnnotationSchema,
 });
 
 /**
- * What naming a new task asks for: what to call it, what it finds, and how an
- * agent should draw it. The instructions may be added later; the region
- * defaults suit the seed dishes the workbench was built for.
+ * What naming a new task asks for: what to call it, what it finds, where it
+ * looks, and how an agent should draw it. The instructions may be added
+ * later; the area defaults to the whole image, and the region defaults suit
+ * the seed dishes the workbench was built for.
  */
 export const modelRequestSchema = z.strictObject({
   id: resourceIdSchema,
   name: z.string().min(1),
   classes: classListSchema,
+  area: modelAreaSchema.optional(),
   annotation: modelAnnotationFields.partial().optional(),
 });
 
-/** Changes how an agent draws the task; what it finds stays fixed. */
-export const modelAnnotationRequestSchema = z.strictObject({
+/**
+ * Changes where the task looks and how an agent draws it; what it finds
+ * stays fixed. The area governs runs, snapshots and tasks created from now
+ * on; those already frozen keep theirs.
+ */
+export const modelSettingsRequestSchema = z.strictObject({
   model: resourceIdSchema,
+  area: modelAreaSchema,
   annotation: modelAnnotationSchema,
 });
 
@@ -140,9 +148,7 @@ export const modelVersionSchema = z.union([
 export type Model = z.infer<typeof modelSchema>;
 export type ModelAnnotation = z.infer<typeof modelAnnotationSchema>;
 export type ModelRequest = z.infer<typeof modelRequestSchema>;
-export type ModelAnnotationRequest = z.infer<
-  typeof modelAnnotationRequestSchema
->;
+export type ModelSettingsRequest = z.infer<typeof modelSettingsRequestSchema>;
 export type ModelRef = z.infer<typeof modelRefSchema>;
 export type ModelVersionRef = z.infer<typeof modelVersionRefSchema>;
 export type ModelVersion = z.infer<typeof modelVersionSchema>;
