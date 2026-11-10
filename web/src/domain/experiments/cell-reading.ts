@@ -30,6 +30,30 @@ function cellKey(unit: string, observation: string): string {
   return `${unit}:${observation}`;
 }
 
+/** What a photograph gives a reading: its tallies, and whether a person found it unclear. */
+type PhotographEvidence = Pick<
+  ObservationImageCell,
+  | "annotationTally"
+  | "proposalTally"
+  | "detectionTally"
+  | "detectionUnfound"
+  | "unclear"
+>;
+
+/**
+ * What a day's number is read from: the photograph's tallies and the tally a
+ * person entered, wherever they are held.
+ */
+export interface DayEvidence {
+  image: PhotographEvidence | null;
+  manual: Pick<ManualReading, "tally"> | null;
+}
+
+/** A day of a unit's, as its number is read: the observation over its evidence. */
+export interface EvidenceDay extends DayEvidence {
+  observation: ExperimentObservation;
+}
+
 /**
  * One unit on one day: the photograph taken of it, and the count a person
  * entered for it. A cell exists once it has either; a number comes from
@@ -73,7 +97,7 @@ export function imageReview(image: ObservationImageCell): ReviewState {
  * detection holds none of the classes its version does not find.
  */
 function imageTally(
-  image: ObservationImageCell | null | undefined,
+  image: PhotographEvidence | null | undefined,
 ): { tally: Tally; source: ReviewSource; unfound: string[] } | null {
   if (!image) return null;
   if (image.annotationTally) {
@@ -97,7 +121,7 @@ function imageTally(
  * nothing while there is no photograph or it has no reading.
  */
 export function cellReadingFromImage(
-  image: ObservationImageCell | null | undefined,
+  image: PhotographEvidence | null | undefined,
   observation: Pick<ExperimentObservation, "countedClasses">,
 ): CellReading | null {
   const reading = imageTally(image);
@@ -117,7 +141,7 @@ export function cellReadingFromImage(
  * is not zero: it is unanswered, and the day has no number from it.
  */
 function manualReading(
-  manual: ManualReading | null,
+  manual: Pick<ManualReading, "tally"> | null,
   observation: Pick<ExperimentObservation, "countedClasses">,
 ): CellReading | null {
   if (!manual) return null;
@@ -138,7 +162,7 @@ function manualReading(
  * entered when there is one, else what its photograph reads, else nothing.
  */
 export function cellReading(
-  cell: UnitCell | null | undefined,
+  cell: DayEvidence | null | undefined,
   observation: Pick<ExperimentObservation, "countedClasses">,
 ): CellReading | null {
   if (!cell) return null;
@@ -146,15 +170,6 @@ export function cellReading(
     manualReading(cell.manual, observation) ??
     cellReadingFromImage(cell.image, observation)
   );
-}
-
-/** What a unit read on a day, or nothing while its cell has no reading. */
-export function unitReading(
-  cells: ObservationCells,
-  unit: string,
-  observation: ExperimentObservation,
-): CellReading | null {
-  return cellReading(cells.get(cellKey(unit, observation.id)), observation);
 }
 
 /** A unit's day: the observation, and the unit's cell of it. */

@@ -17,6 +17,7 @@ import {
 import { m } from "../../paraglide/messages";
 import { Absent } from "../../ui/Absent";
 import { formatDay } from "../../ui/Day";
+import { Alert } from "../../ui/kit/Alert";
 import { BarChart, type BarChartItem } from "../../ui/kit/BarChart";
 import { Card } from "../../ui/kit/Card";
 import { chartColor } from "../../ui/kit/Legend";
@@ -31,6 +32,7 @@ import {
 } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
 import { Tooltip } from "../../ui/kit/Tooltip";
+import { formatList } from "../../ui/lists";
 import {
   formatCount,
   formatDecimal,
@@ -45,9 +47,9 @@ import { TreatmentName } from "./TreatmentName";
  * standard deviations as error bars, on a card over a table of every day. The
  * table groups two columns under each day, the treatment's mean ± SD over its
  * units in the analysis and how many there were. A day is read by its rate,
- * each unit's count over its own count on the first observation, where it
- * has one, and by its count otherwise; the first observation always by its
- * count. The rate's definition shows on its column head.
+ * each unit's count over its own baseline, where it has one, and by its
+ * count otherwise; the first observation always by its count. The rate's
+ * definition shows on its column head.
  */
 export function TreatmentSummary({
   treatments,
@@ -64,8 +66,8 @@ export function TreatmentSummary({
   const [chosen, setChosen] = useState(last?.id ?? null);
   const inView =
     observations.find((observation) => observation.id === chosen) ?? last;
-  const baseline = observations.find(
-    (observation) => observation.id === summary.baseline,
+  const first = observations.find(
+    (observation) => observation.id === summary.first,
   );
   const hasNumbers = summary.cells.some((cell) => cell.count !== null);
   if (!inView || !hasNumbers) {
@@ -78,6 +80,15 @@ export function TreatmentSummary({
 
   return (
     <div className="flex flex-col gap-6">
+      {summary.unrated.length > 0 ? (
+        <Alert
+          type="warning"
+          title={m.summary_unrated_title()}
+          description={m.summary_unrated_description({
+            units: formatList(summary.unrated.map((unit) => unit.code)),
+          })}
+        />
+      ) : null}
       <Card>
         <SummaryChart
           treatments={treatments}
@@ -104,7 +115,7 @@ export function TreatmentSummary({
               <MeasureHeads
                 key={observation.id}
                 measure={measureOf(observation)}
-                baseline={baseline}
+                first={first}
               />
             ))}
           </tr>
@@ -139,18 +150,19 @@ export function TreatmentSummary({
  */
 function MeasureHeads({
   measure,
-  baseline,
+  first,
 }: {
   measure: SummaryMeasure;
-  baseline: ExperimentObservation | undefined;
+  /** The experiment's first observation, which the rate's definition names. */
+  first: ExperimentObservation | undefined;
 }) {
   const label = <span>{summaryMeasureLabel(measure)}</span>;
   return (
     <>
       <TableHead numeric className="min-w-28">
-        {measure === "rate" && baseline ? (
+        {measure === "rate" && first ? (
           <Tooltip
-            title={m.summary_note_rate({ day: formatDay(baseline.observedOn) })}
+            title={m.summary_note_rate({ day: formatDay(first.observedOn) })}
           >
             {label}
           </Tooltip>

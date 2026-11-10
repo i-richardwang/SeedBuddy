@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { businessFailureSchema } from "../../domain/errors";
 import {
   CULTURE_EVENT_REFUSALS,
   CULTURE_EVENT_TYPES,
@@ -24,7 +23,12 @@ import {
   cultureEventRefusalLabel,
   observationLabel,
 } from "./labels";
-import { choiceSelection, choiceSize, type UnitChoice } from "./unit-choice";
+import {
+  choiceSelection,
+  choiceSize,
+  type UnitChoice,
+  unlessChanged,
+} from "./unit-choice";
 
 const FORM_ID = "record-culture-event";
 
@@ -94,25 +98,16 @@ function CultureEventForm({
         event.preventDefault();
         void action.run(
           () =>
-            createCultureEvents({
-              data: {
-                experiment,
-                units: choiceSelection(choice),
-                type,
-                observation,
-              },
-            }).catch((error: unknown) => {
-              // Every unit of a treatment or of the experiment was chosen by
-              // how many there were, and that has changed since: the choice
-              // is let go and the page read again.
-              const failure = businessFailureSchema.safeParse(error);
-              if (
-                failure.success &&
-                failure.data.code === "unit_selection_conflict"
-              )
-                return "changed" as const;
-              throw error;
-            }),
+            unlessChanged(
+              createCultureEvents({
+                data: {
+                  experiment,
+                  units: choiceSelection(choice),
+                  type,
+                  observation,
+                },
+              }),
+            ),
           m.culture_event_not_recorded(),
           {
             onSuccess: (result) => {

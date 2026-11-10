@@ -37,8 +37,20 @@ function scenario(
       { id: "treated", name: "Treated", factor: null, note: "", position: 2 },
     ],
     units: [
-      { id: "c1", code: "Control-1", treatment: "control", events: [] },
-      { id: "t1", code: "Treated-1", treatment: "treated", events: [] },
+      {
+        id: "c1",
+        code: "Control-1",
+        treatment: "control",
+        events: [],
+        baseline: null,
+      },
+      {
+        id: "t1",
+        code: "Treated-1",
+        treatment: "treated",
+        events: [],
+        baseline: null,
+      },
     ],
     observations: [day1, day2],
     images: [],
@@ -59,6 +71,7 @@ describe("the sheet an agent reads", () => {
       observation: day1.id,
       reading: null,
       exclusion: null,
+      rate: null,
       image: null,
       manual: null,
     });
@@ -132,12 +145,19 @@ describe("the sheet an agent reads", () => {
     const sheet = sheetRows(
       scenario({
         units: [
-          { id: "c1", code: "Control-1", treatment: "control", events: [] },
+          {
+            id: "c1",
+            code: "Control-1",
+            treatment: "control",
+            events: [],
+            baseline: null,
+          },
           {
             id: "t1",
             code: "Treated-1",
             treatment: "treated",
             events: [contaminated],
+            baseline: null,
           },
         ],
         images: [
@@ -159,9 +179,20 @@ describe("the sheet an agent reads", () => {
       reading: null,
       exclusion: { reason: "event", event: contaminated },
     });
-    // An unclear photograph takes its unit out on every day, where the experiment does not count it.
+    // An unclear photograph takes its own day out, where the experiment does not count it.
     expect(rowCell(sheet, "c1", day1).exclusion).toEqual({ reason: "unclear" });
-    expect(rowCell(sheet, "c1", day2).exclusion).toEqual({ reason: "unclear" });
+    expect(rowCell(sheet, "c1", day2).exclusion).toBeNull();
+    // Each row says what its rates are taken over.
+    expect(
+      sheet.map((row) => [
+        row.unit.id,
+        row.baseline?.gap,
+        row.baseline?.wanted,
+      ]),
+    ).toEqual([
+      ["c1", "unclear", false],
+      ["t1", "event", false],
+    ]);
   });
 
   test("where unclear photographs count, the number is used as it stands", () => {

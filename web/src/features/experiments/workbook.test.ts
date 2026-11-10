@@ -104,7 +104,7 @@ const CONTAMINATED: Unit["events"] = [
 ];
 
 function unit(code: string, events: Unit["events"] = []): Unit {
-  return { id: code, code, treatment: TREATMENT.id, events };
+  return { id: code, code, treatment: TREATMENT.id, events, baseline: null };
 }
 
 function image(
@@ -200,11 +200,11 @@ describe("the experiment workbook", () => {
 
   test("heads every day with its date, and names its model underneath", () => {
     const [dates, models] = heading(trial());
-    expect(dates?.slice(3)).toEqual([
+    expect(dates?.slice(4)).toEqual([
       { kind: "date", date: new Date(Date.UTC(2026, 8, 1)), strong: true },
       { kind: "date", date: new Date(Date.UTC(2026, 8, 15)), strong: true },
     ]);
-    expect(models?.slice(3)).toEqual([
+    expect(models?.slice(4)).toEqual([
       { kind: "text", text: "Seed germination" },
       { kind: "text", text: "Rooting" },
     ]);
@@ -219,12 +219,12 @@ describe("the experiment workbook", () => {
       ],
     });
     const [, questions] = heading(workbook);
-    expect(questions?.slice(3)).toEqual([
+    expect(questions?.slice(4)).toEqual([
       { kind: "text", text: "Seed germination" },
       { kind: "text", text: "Seed germination · Germinated" },
     ]);
     const [first] = readings(workbook);
-    expect(first?.slice(3)).toEqual([
+    expect(first?.slice(4)).toEqual([
       { kind: "count", count: 20 },
       { kind: "count", count: 15 },
     ]);
@@ -232,8 +232,8 @@ describe("the experiment workbook", () => {
 
   test("every day is one column of counts beside the design", () => {
     const workbook = trial();
-    expect(workbook.columns).toHaveLength(5);
-    expect(workbook.stickyColumns).toBe(3);
+    expect(workbook.columns).toHaveLength(6);
+    expect(workbook.stickyColumns).toBe(4);
   });
 
   test("a row per unit, each reading its own tallies", () => {
@@ -243,9 +243,18 @@ describe("the experiment workbook", () => {
       { kind: "text", text: "CK" },
       { kind: "text", text: "BA 0 mg/L" },
       { kind: "text", text: "A1" },
+      // What the unit's rates are taken over, then its days.
+      { kind: "count", count: 20 },
       { kind: "count", count: 20 },
       { kind: "count", count: 15 },
     ]);
+  });
+
+  test("a unit without a baseline leaves that cell blank", () => {
+    const [first] = readings(
+      trial({ images: [image("A1", ROOTED.id, { rooted: 15 })] }),
+    );
+    expect(first?.[3]).toEqual({ kind: "blank" });
   });
 
   test("an excluded unit is named by the event", () => {
@@ -253,13 +262,13 @@ describe("the experiment workbook", () => {
       units: [unit("A1"), unit("A2", CONTAMINATED)],
     });
     const [, second] = readings(workbook);
-    expect(second?.slice(3)).toEqual([
+    expect(second?.slice(4)).toEqual([
       { kind: "count", count: 20 },
       { kind: "text", text: "Contaminated" },
     ]);
   });
 
-  test("a unit with an unclear photograph says so on every day, unless the experiment counts it", () => {
+  test("a day read from an unclear photograph says so, unless the experiment counts it", () => {
     const images = [
       image("A1", SOWN.id, { ungerminated: 20 }),
       image("A2", SOWN.id, { ungerminated: 20 }),
@@ -267,12 +276,12 @@ describe("the experiment workbook", () => {
       image("A2", ROOTED.id, { rooted: 10 }),
     ];
     const [first, second] = readings(trial({ images }));
-    // The record of the dish is in doubt, not one day of it.
-    expect(first?.slice(3)).toEqual([
-      { kind: "text", text: "Unclear" },
+    // One photograph cannot be read; the dish's other days stand.
+    expect(first?.slice(4)).toEqual([
+      { kind: "count", count: 20 },
       { kind: "text", text: "Unclear" },
     ]);
-    expect(second?.slice(3)).toEqual([
+    expect(second?.slice(4)).toEqual([
       { kind: "count", count: 20 },
       { kind: "count", count: 10 },
     ]);
@@ -280,13 +289,13 @@ describe("the experiment workbook", () => {
     const [counted] = readings(
       trial({ experiment: { ...EXPERIMENT, countsUnclear: true }, images }),
     );
-    expect(counted?.slice(3)).toEqual([
+    expect(counted?.slice(4)).toEqual([
       { kind: "count", count: 20 },
       { kind: "count", count: 15 },
     ]);
   });
 
-  test("a day an event takes out names the event, even in a unit out for an unclear photograph", () => {
+  test("a day an event takes out names the event, beside a day out for an unclear photograph", () => {
     const [first] = readings(
       trial({
         units: [unit("A1", CONTAMINATED), unit("A2")],
@@ -296,7 +305,7 @@ describe("the experiment workbook", () => {
         ],
       }),
     );
-    expect(first?.slice(3)).toEqual([
+    expect(first?.slice(4)).toEqual([
       { kind: "text", text: "Unclear" },
       { kind: "text", text: "Contaminated" },
     ]);
@@ -312,7 +321,7 @@ describe("the experiment workbook", () => {
         ],
       }),
     );
-    expect(first?.slice(3)).toEqual([
+    expect(first?.slice(4)).toEqual([
       { kind: "count", count: 20 },
       { kind: "text", text: "Contaminated" },
     ]);
@@ -322,7 +331,7 @@ describe("the experiment workbook", () => {
     const [first] = readings(
       trial({ images: [image("A1", ROOTED.id, { rooted: 15 })] }),
     );
-    expect(first?.slice(3)).toEqual([
+    expect(first?.slice(4)).toEqual([
       { kind: "blank" },
       { kind: "count", count: 15 },
     ]);
@@ -348,11 +357,11 @@ describe("the experiment workbook", () => {
         ],
       }),
     );
-    expect(first?.slice(3)).toEqual([
+    expect(first?.slice(4)).toEqual([
       { kind: "count", count: 18 },
       { kind: "count", count: 15 },
     ]);
-    expect(second?.slice(3)).toEqual([
+    expect(second?.slice(4)).toEqual([
       { kind: "blank" },
       { kind: "count", count: 9 },
     ]);
@@ -366,7 +375,7 @@ describe("the experiment workbook", () => {
       ],
     });
     const [first] = readings(workbook);
-    expect(first?.slice(4)).toEqual([{ kind: "blank" }]);
+    expect(first?.slice(5)).toEqual([{ kind: "blank" }]);
   });
 });
 
@@ -386,8 +395,9 @@ describe("what the file is called", () => {
 
 describe("the summary sheet", () => {
   const SUMMARY_HEADING_ROWS = 3;
-  const germinating = () =>
+  const germinating = (overrides: Partial<ExperimentWorkbookSource> = {}) =>
     summary({
+      ...overrides,
       observations: [SOWN, GERMINATED],
       images: [
         image("A1", SOWN.id, { ungerminated: 20 }),
@@ -521,9 +531,18 @@ describe("the summary sheet", () => {
       [
         {
           kind: "text",
-          text: "Rate = the day's count ÷ the same unit's count on the first observation (Sep 1, 2026). The first observation is summarised as a count.",
+          text: "Rate = the day's count ÷ the same unit's baseline: its count on the first observation (Sep 1, 2026) unless the unit names another. The first observation is summarised as a count.",
         },
       ],
+    ]);
+  });
+
+  test("names the units that take their baseline from another observation", () => {
+    const sheet = germinating({
+      units: [{ ...unit("A1"), baseline: GERMINATED.id }, unit("A2")],
+    });
+    expect(sheet.rows.at(-1)).toEqual([
+      { kind: "text", text: "Baseline taken from Sep 8, 2026: A1." },
     ]);
   });
 });

@@ -10,4 +10,10 @@
   &:hover {
     text-decoration: underline;
   }
+
+  /* As a button, it sits in the text like a link. */
+  &:is(button) {
+    padding: 0;
+    text-align: start;
+  }
 }

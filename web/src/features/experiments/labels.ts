@@ -70,7 +70,9 @@ export function summaryMeasureLabel(measure: SummaryMeasure): string {
 export function exclusionNote(exclusion: Exclusion): string {
   return exclusion.reason === "unclear"
     ? m.experiment_cell_excluded_unclear()
-    : m.experiment_cell_excluded_event();
+    : m.experiment_cell_excluded_event({
+        event: cultureEventLabel(exclusion.event.type),
+      });
 }
 
 export function exclusionLabel(exclusion: Exclusion): string {

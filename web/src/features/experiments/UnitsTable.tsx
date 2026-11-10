@@ -1,14 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { analysisFrame, baselineDays } from "../../domain/experiments/analysis";
 import type {
   ExperimentFrame,
+  SheetRow,
   Unit,
   UnitPage,
 } from "../../domain/experiments/read-model";
 import { UNIT_PAGE_SIZES } from "../../domain/experiments/schema";
 import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
+import { useDialog } from "../../ui/hooks/useDialog";
 import { Button } from "../../ui/kit/Button";
 import { Pagination, paginates } from "../../ui/kit/Pagination";
 import { Select } from "../../ui/kit/Select";
@@ -26,6 +29,8 @@ import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
 import { ObservationMenu } from "./ObservationMenu";
 import { TreatmentName } from "./TreatmentName";
+import { UnitBaselineValue } from "./UnitBaseline";
+import { UnitBaselineDialog } from "./UnitBaselineDialog";
 import { UnitDayCount } from "./UnitDayCount";
 import { UnitSelectionBar } from "./UnitSelectionBar";
 import type { UnitChoice } from "./unit-choice";
@@ -60,6 +65,8 @@ export function UnitsTable({
   // Every unit the page is drawn from, chosen as they numbered then; should
   // their number change, the command made of the choice is refused.
   const [every, setEvery] = useState<number | null>(null);
+  // The row whose baseline is being named, as it stood when the dialog opened.
+  const baselineDialog = useDialog<{ row: SheetRow }>();
   const treatmentOf = new Map(treatments.map((item) => [item.id, item]));
   const onPageTicked = rows.filter((row) => ticked.has(row.unit.id));
   const wholePage = rows.length > 0 && onPageTicked.length === rows.length;
@@ -155,6 +162,9 @@ export function UnitsTable({
             <TableHead fixed="start" className="min-w-36">
               {m.treatment_label()}
             </TableHead>
+            <TableHead className="min-w-24">
+              {m.unit_baseline_column()}
+            </TableHead>
             {observations.map((observation) => (
               <TableHead key={observation.id} className="min-w-28">
                 <ObservationMenu
@@ -173,7 +183,7 @@ export function UnitsTable({
         <TableBody>
           {every !== null || (wholePage && units.total > rows.length) ? (
             <tr>
-              <td colSpan={observations.length + 3}>
+              <td colSpan={observations.length + 4}>
                 <EveryUnitNotice
                   pageUnits={rows.length}
                   every={every}
@@ -184,7 +194,14 @@ export function UnitsTable({
               </td>
             </tr>
           ) : null}
-          {rows.map(({ unit, cells }) => {
+          {rows.map((row) => {
+            const { unit, cells } = row;
+            const baseline = (
+              <UnitBaselineValue
+                baseline={row.baseline}
+                observations={observations}
+              />
+            );
             const owner = treatmentOf.get(unit.treatment);
             const selected = every !== null || ticked.has(unit.id);
             return (
@@ -207,6 +224,22 @@ export function UnitsTable({
                 <TableCell fixed="start">
                   {owner ? <TreatmentName treatment={owner} /> : null}
                 </TableCell>
+                <TableCell>
+                  {observations.length > 1 ? (
+                    <TextLink
+                      render={
+                        <button
+                          type="button"
+                          onClick={() => baselineDialog.show("row", row)}
+                        />
+                      }
+                    >
+                      {baseline}
+                    </TextLink>
+                  ) : (
+                    baseline
+                  )}
+                </TableCell>
                 {cells.map((cell) => (
                   <TableCell key={cell.observation}>
                     <UnitDayCount
@@ -228,6 +261,17 @@ export function UnitsTable({
           })}
         </TableBody>
       </Table>
+      {baselineDialog.last ? (
+        <UnitBaselineDialog
+          experiment={experiment.id}
+          choice={{ units: [baselineDialog.last.value.unit] }}
+          observations={observations}
+          days={rowBaselineDays(baselineDialog.last.value, frame)}
+          open={baselineDialog.open}
+          onClose={baselineDialog.close}
+          onDone={baselineDialog.close}
+        />
+      ) : null}
       <div className="pointer-events-none sticky bottom-0 flex shrink-0 justify-center *:pointer-events-auto">
         <UnitSelectionBar
           experiment={experiment.id}
@@ -238,6 +282,22 @@ export function UnitsTable({
         />
       </div>
     </>
+  );
+}
+
+/** What a row's unit would take its rates over on each observation, read from the row's own evidence. */
+function rowBaselineDays(
+  { unit, cells }: SheetRow,
+  { experiment, observations }: ExperimentFrame,
+) {
+  return baselineDays(
+    unit.events,
+    observations.map((observation, index) => ({
+      observation,
+      image: cells[index]!.image,
+      manual: cells[index]!.manual,
+    })),
+    analysisFrame(experiment, observations),
   );
 }
 

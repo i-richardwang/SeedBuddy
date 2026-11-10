@@ -2,10 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { expect, test } from "bun:test";
 
-import {
-  observationCells,
-  unitReading,
-} from "../../domain/experiments/cell-reading";
+import { observationCells } from "../../domain/experiments/cell-reading";
 import {
   ManualReadingConflictError,
   ObservationConflictError,
@@ -14,6 +11,7 @@ import {
   UnitConflictError,
   UnitNotFoundError,
 } from "../../domain/experiments/errors";
+import { unitReading } from "../../domain/experiments/testing";
 import { ClassInvalidError } from "../../domain/models/errors";
 import { createModel } from "../models/registry";
 import { experimentRecordsDetail } from "../queries/experiment-records-detail";

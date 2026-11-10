@@ -7,6 +7,7 @@ export {
   deleteTreatment,
   deleteUnit,
   moveUnits,
+  setUnitBaselines,
   unitDeletionRefusal,
   updateExperiment,
   updateTreatment,

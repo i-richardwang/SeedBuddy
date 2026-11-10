@@ -1,15 +1,9 @@
 import { ImageOff } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import {
-  cellReading,
-  countChange,
-} from "../../domain/experiments/cell-reading";
-import type {
-  Exclusion,
-  UnitDetail,
-} from "../../domain/experiments/read-model";
-import type { ExperimentObservation } from "../../domain/experiments/schema";
+import type { DayAnalysis } from "../../domain/experiments/analysis";
+import { countChange } from "../../domain/experiments/cell-reading";
+import type { UnitDetail } from "../../domain/experiments/read-model";
 import { m } from "../../paraglide/messages";
 import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { Select } from "../../ui/kit/Select";
@@ -130,17 +124,17 @@ export function DayComparison({
 export function DayCountsSection({
   reference,
   inView,
-  exclusion,
+  analysis,
 }: {
   reference: UnitObservation;
   inView: UnitObservation | undefined;
-  /** Why a day stays out of the analysis, or nothing when it enters it. */
-  exclusion: (observation: ExperimentObservation) => Exclusion | null;
+  /** A day's reading, and why it stays out of the analysis if it does. */
+  analysis: (day: UnitObservation) => DayAnalysis;
 }) {
   const change =
     inView &&
-    exclusion(reference.observation) === null &&
-    exclusion(inView.observation) === null
+    analysis(reference).exclusion === null &&
+    analysis(inView).exclusion === null
       ? countChange(reference, inView)
       : null;
   return (
@@ -155,8 +149,7 @@ export function DayCountsSection({
               cell={{
                 image: day.image,
                 manual: day.manual,
-                reading: cellReading(day, day.observation),
-                exclusion: exclusion(day.observation),
+                ...analysis(day),
               }}
             />
           </DescriptionsItem>

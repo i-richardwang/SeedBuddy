@@ -1,0 +1,2 @@
+ALTER TABLE "experiment_units" ADD COLUMN "baseline_observation_id" uuid;--> statement-breakpoint
+ALTER TABLE "experiment_units" ADD CONSTRAINT "experiment_units_baseline_observation_fk" FOREIGN KEY ("experiment_id","baseline_observation_id") REFERENCES "public"."experiment_observations"("experiment_id","id") ON DELETE no action ON UPDATE no action;
