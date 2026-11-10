@@ -17,6 +17,7 @@ const SEED_CLASSES = ["ungerminated", "germinated"];
 const unreviewed = (count: number) => ({
   count,
   source: "detection" as const,
+  unfound: [],
 });
 
 describe("what a cell reads", () => {
@@ -47,6 +48,7 @@ describe("what a cell reads", () => {
     expect(unitReading(cells, "dish", day7)).toEqual({
       count: 15,
       source: "review",
+      unfound: [],
     });
   });
 
@@ -64,6 +66,7 @@ describe("what a cell reads", () => {
     expect(unitReading(cells, "dish", day0)).toEqual({
       count: 20,
       source: "review",
+      unfound: [],
     });
   });
 
@@ -80,6 +83,7 @@ describe("what a cell reads", () => {
     expect(unitReading(cells, "dish", day0)).toEqual({
       count: 21,
       source: "proposal",
+      unfound: [],
     });
   });
 
@@ -102,6 +106,7 @@ describe("what a count entered by hand reads", () => {
     expect(unitReading(cells, "dish", day7)).toEqual({
       count: 14,
       source: "manual",
+      unfound: [],
     });
   });
 
@@ -119,6 +124,7 @@ describe("what a count entered by hand reads", () => {
     expect(unitReading(cells, "dish", day0)).toEqual({
       count: 18,
       source: "manual",
+      unfound: [],
     });
     expect(cells.get("dish:day-1")?.image).not.toBeNull();
   });
@@ -131,6 +137,7 @@ describe("what a count entered by hand reads", () => {
     expect(unitReading(cells, "dish", day7)).toEqual({
       count: 14,
       source: "manual",
+      unfound: [],
     });
   });
 
@@ -166,6 +173,7 @@ describe("what a day's photograph reads", () => {
     expect(cellReadingFromImage(image, day7)).toEqual({
       count: 11,
       source: "proposal",
+      unfound: [],
     });
   });
 
@@ -247,24 +255,78 @@ describe("how a unit's count changed between two days", () => {
 });
 
 describe("which classes a day counts", () => {
-  test("every class its model recognizes, unless it names fewer", () => {
-    expect(resolveCountedClasses(SEED_CLASSES, undefined)).toEqual(
-      SEED_CLASSES,
-    );
-    expect(resolveCountedClasses(SEED_CLASSES, ["germinated"])).toEqual([
+  const every = { classes: SEED_CLASSES, countedClasses: SEED_CLASSES };
+
+  test("the classes its model counts, unless it names its own", () => {
+    expect(resolveCountedClasses(every, undefined)).toEqual(SEED_CLASSES);
+    expect(resolveCountedClasses(every, ["germinated"])).toEqual([
       "germinated",
+    ]);
+    const states = {
+      classes: ["ungerminated", "germinated", "empty", "dead"],
+      countedClasses: ["ungerminated", "germinated", "dead"],
+    };
+    expect(resolveCountedClasses(states, undefined)).toEqual(
+      states.countedClasses,
+    );
+    // A day may still count a class its model leaves out by default.
+    expect(resolveCountedClasses(states, ["empty", "ungerminated"])).toEqual([
+      "ungerminated",
+      "empty",
     ]);
   });
 
   test("in the order its model declares them", () => {
     expect(
-      resolveCountedClasses(SEED_CLASSES, ["germinated", "ungerminated"]),
+      resolveCountedClasses(every, ["germinated", "ungerminated"]),
     ).toEqual(SEED_CLASSES);
   });
 
   test("never a class its model does not recognize", () => {
-    expect(() => resolveCountedClasses(SEED_CLASSES, ["shoot"])).toThrow(
+    expect(() => resolveCountedClasses(every, ["shoot"])).toThrow(
       ClassInvalidError,
     );
+  });
+});
+
+describe("what a number could not tell apart", () => {
+  const day0 = observation(1);
+  const detection = {
+    detectionTally: { ungerminated: 12 },
+    detectionUnfound: ["empty", "dead"],
+  };
+
+  test("a number read by a version names the classes that version does not find", () => {
+    expect(
+      cellReadingFromImage(cell("dish", day0.id, detection), day0),
+    ).toEqual({ count: 12, source: "detection", unfound: ["empty", "dead"] });
+  });
+
+  test("a number a person or an agent stands behind was made knowing every class", () => {
+    const proposed = cell("dish", day0.id, {
+      ...detection,
+      proposalTally: { ungerminated: 11, empty: 1 },
+    });
+    const reviewed = cell("dish", day0.id, {
+      ...detection,
+      annotationTally: { ungerminated: 10, empty: 1 },
+    });
+    expect(cellReadingFromImage(proposed, day0)).toEqual({
+      count: 11,
+      source: "proposal",
+      unfound: [],
+    });
+    expect(cellReadingFromImage(reviewed, day0)).toEqual({
+      count: 10,
+      source: "review",
+      unfound: [],
+    });
+    const byHand = counted("dish", day0.id, { ungerminated: 9, germinated: 0 });
+    expect(
+      cellReading(
+        { image: cell("dish", day0.id, detection), manual: byHand },
+        day0,
+      ),
+    ).toEqual({ count: 9, source: "manual", unfound: [] });
   });
 });

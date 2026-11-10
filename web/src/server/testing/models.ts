@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import type { ModelArea } from "../../domain/models/area";
 import {
   SEED_DETECTOR,
+  SEED_DETECTOR_BASELINE,
   SEED_DETECTOR_BASELINE_VERSION_ID,
 } from "../../domain/models/builtins";
 import { inferenceModeForArea } from "../../domain/models/inference";
@@ -22,6 +23,7 @@ import {
   readModelVersion,
   registerModel,
   registerModelVersion,
+  requireModel,
   setCurrentVersion,
 } from "../models/registry";
 
@@ -54,6 +56,7 @@ export async function traditionalVersion(
       name: `${modelId} detector`,
       task: "object_detection",
       classes: SEED_DETECTOR.classes,
+      countedClasses: SEED_DETECTOR.classes,
       area: DEFAULT_MODEL_AREA,
       annotation: DEFAULT_MODEL_ANNOTATION,
     },
@@ -64,6 +67,7 @@ export async function traditionalVersion(
       schemaVersion: 1,
       id: `${modelId}.${slug}`,
       modelId,
+      classes: SEED_DETECTOR_BASELINE.classes,
       createdAt,
       source: { kind: "builtin", definition: slug },
       artifact: { kind: "traditional", digest: "c".repeat(64) },
@@ -89,10 +93,12 @@ export async function registerTrainedVersion(
   const datasetName = `${modelId}.${slug}.dataset`;
   const snapshotId = `${modelId}.${slug}.snapshot`;
   const runId = `${modelId}.${slug}.run`;
+  const { classes } = await requireModel(modelId, await database());
   const value: ModelVersion = {
     schemaVersion: 1,
     id: `${modelId}.${slug}`,
     modelId,
+    classes,
     createdAt: "2026-08-27T02:00:00.000Z",
     source: {
       kind: "training_run",
@@ -131,6 +137,7 @@ export async function registerTrainedVersion(
         id: snapshotId,
         datasetId,
         modelId,
+        classes,
         area,
         createdAt: await operationTime(db),
       })
@@ -168,6 +175,7 @@ export async function trainedVersion(
       name: `${modelId} detector`,
       task: "object_detection",
       classes,
+      countedClasses: classes,
       area: DEFAULT_MODEL_AREA,
       annotation: DEFAULT_MODEL_ANNOTATION,
     },

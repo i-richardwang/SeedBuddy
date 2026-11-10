@@ -10,25 +10,25 @@ import {
 } from "../../domain/inference/errors";
 import { sameRuntimeDescriptor } from "../../domain/inference/schema";
 import { assertInstanceClasses } from "../../domain/models/classes";
-import { type Model, supportsRuntime } from "../../domain/models/schema";
+import { supportsRuntime } from "../../domain/models/schema";
 import type { Worker } from "../../domain/workers/schema";
 import { canonicalJson } from "../../lib/json/canonical";
 import { assertDocumentImage } from "../images/public";
 import type { Executor } from "../infra/db/client";
 import { images, inferenceOutcomes, modelVersions } from "../infra/db/schema";
-import { requireModel } from "../models/public";
 import { lockDetection } from "./lock";
 
 function sameDocument(left: DetectionResult, right: DetectionResult): boolean {
   return canonicalJson(left) === canonicalJson(right);
 }
 
+/** The classes the producing version finds, once the outcome is shown to be its own. */
 async function assertProducer(
   target: InferenceTarget,
   outcome: DetectionResult,
   worker: Pick<Worker, "runtimes">,
   db: Executor,
-): Promise<Model> {
+): Promise<string[]> {
   const { producer } = outcome;
   if (producer.modelVersionId !== target.versionId) {
     throw new ProducerMismatchError(
@@ -39,7 +39,7 @@ async function assertProducer(
     .select({
       artifact: modelVersions.artifact,
       artifactDigest: modelVersions.artifactDigest,
-      modelId: modelVersions.modelId,
+      classes: modelVersions.classes,
     })
     .from(modelVersions)
     .where(eq(modelVersions.id, target.versionId));
@@ -67,8 +67,7 @@ async function assertProducer(
       "Outcome was produced by a runtime the worker does not advertise",
     );
   }
-  const model = await requireModel(version.modelId, db);
-  return model;
+  return version.classes;
 }
 
 /**
@@ -99,8 +98,8 @@ export async function storeInferenceOutcome(
       error instanceof Error ? error.message : String(error),
     );
   }
-  const model = await assertProducer(target, outcome, worker, db);
-  assertInstanceClasses(model.classes, outcome.instances, "Outcome");
+  const classes = await assertProducer(target, outcome, worker, db);
+  assertInstanceClasses(classes, outcome.instances, "Outcome");
   const [stored] = await db
     .select({ document: inferenceOutcomes.document })
     .from(inferenceOutcomes)

@@ -26,7 +26,7 @@ import {
   trainingRuns,
 } from "../infra/db/schema";
 import { documentDigest } from "../infra/digest";
-import { requireModel, toModelVersion } from "../models/public";
+import { toModelVersion } from "../models/public";
 import { leaseIsHeld, lockWorkerSession } from "../workers/public";
 import { storeInferenceOutcome } from "./outcomes";
 import {
@@ -94,9 +94,8 @@ async function assignment(
     "model_versions",
   );
   const version = toModelVersion(row);
-  const model = await requireModel(version.modelId, db);
   return inferenceAssignmentSchema.parse({
-    manifest: inferenceModelManifest(version, model),
+    manifest: inferenceModelManifest(version),
     image: task.imageId,
     coverage: await taskCoverage(db, task, version),
     attempt: attempt.attempt,

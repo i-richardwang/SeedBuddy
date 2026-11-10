@@ -2,11 +2,16 @@ import { describe, expect, test } from "bun:test";
 
 import {
   assertInstanceClasses,
+  classColor,
   classCount,
+  classesAmong,
+  classListSchema,
   countClasses,
+  MAX_CLASSES,
   sameClasses,
   tally,
   tallySchema,
+  unfoundClasses,
 } from "./classes";
 
 describe("tallies", () => {
@@ -46,6 +51,44 @@ describe("tallies", () => {
       false,
     );
     expect(sameClasses(["seed"], ["seed", "germinated"])).toBe(false);
+  });
+
+  test("some classes are among a model's when it declares them all, in that order", () => {
+    const declared = ["ungerminated", "germinated", "empty", "dead"];
+    expect(classesAmong(declared, declared)).toBe(true);
+    expect(classesAmong(["ungerminated", "germinated"], declared)).toBe(true);
+    expect(classesAmong(["germinated", "dead"], declared)).toBe(true);
+    expect(classesAmong(["germinated", "ungerminated"], declared)).toBe(false);
+    expect(classesAmong(["germinated", "shoot"], declared)).toBe(false);
+  });
+
+  test("a version leaves unfound the classes its model declares beyond its own", () => {
+    const declared = ["ungerminated", "germinated", "empty", "dead"];
+    expect(unfoundClasses(declared, declared)).toEqual([]);
+    expect(unfoundClasses(declared, ["ungerminated", "germinated"])).toEqual([
+      "empty",
+      "dead",
+    ]);
+    expect(unfoundClasses(declared, ["germinated"])).toEqual([
+      "ungerminated",
+      "empty",
+      "dead",
+    ]);
+  });
+
+  test("a model declares no more classes than can each be drawn in a color of its own", () => {
+    const classes = Array.from(
+      { length: MAX_CLASSES },
+      (_, index) => `state_${index}`,
+    );
+    expect(classListSchema.safeParse(classes).success).toBe(true);
+    expect(classListSchema.safeParse([...classes, "one_more"]).success).toBe(
+      false,
+    );
+    const colors = classes.map((name) => classColor(classes, name));
+    expect(new Set(colors.map((color) => color.hex)).size).toBe(MAX_CLASSES);
+    expect(new Set(colors.map((color) => color.name)).size).toBe(MAX_CLASSES);
+    expect(() => classColor(classes, "shoot")).toThrow(/not a class/);
   });
 
   test("rejects instances outside the model's task", () => {

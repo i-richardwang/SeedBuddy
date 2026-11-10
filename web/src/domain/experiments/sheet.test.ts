@@ -79,7 +79,11 @@ describe("the sheet an agent reads", () => {
       }),
     );
     const first = rowCell(sheet, "c1", day1);
-    expect(first.reading).toEqual({ count: 10, source: "detection" });
+    expect(first.reading).toEqual({
+      count: 10,
+      source: "detection",
+      unfound: [],
+    });
     expect(first.image).toMatchObject({
       id: "c1-day-1",
       digest: "a".repeat(64),
@@ -90,6 +94,7 @@ describe("the sheet an agent reads", () => {
     expect(rowCell(sheet, "c1", day2).reading).toEqual({
       count: 5,
       source: "review",
+      unfound: [],
     });
   });
 
@@ -201,7 +206,11 @@ describe("a unit's row of the sheet", () => {
       "day-1",
       "day-2",
     ]);
-    expect(row!.cells[0]!.reading).toEqual({ count: 10, source: "detection" });
+    expect(row!.cells[0]!.reading).toEqual({
+      count: 10,
+      source: "detection",
+      unfound: [],
+    });
   });
 
   test("is nothing for a unit the experiment does not have", () => {

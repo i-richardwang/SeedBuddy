@@ -6,16 +6,29 @@ lives.
 
 ## What a model declares
 
-A model declares the classes it recognizes and nothing else. Classes are the
-model's identity: the image page offers them as the class of a box being drawn, the
-YOLO export indexes labels by them, dataset transfer requires both ends to
-agree on them, and a training snapshot freezes them alongside the images.
+A model declares the classes it recognizes. Classes are the model's
+identity: the image page offers them as the class of a box being drawn, the
+YOLO export indexes labels by them, dataset transfer requires the receiving
+end to declare the ones a dataset was annotated with, and a training snapshot
+freezes them alongside the images. A model declares at most six, so each is
+drawn in a color of its own.
 
-The built-in `seed-detector` recognizes `ungerminated` and
-`germinated`, two states of one seed. Every visible seed is boxed in one of
-them, so a photograph annotated for it teaches the model both what a seed is
-and which state it is in. Seeds hidden under grown seedlings go unboxed, since
-nothing in the photograph shows them.
+The built-in `seed-detector` recognizes four states of one seed, and a seed
+in a photograph is in exactly one of them. It is `germinated` once a radicle
+or shoot has broken through its coat, and stays so whatever becomes of it.
+One that has not germinated is `empty` when its coat holds no embryo, `dead`
+when its embryo has died, and `ungerminated` otherwise. Every visible seed is
+boxed in one of them, so a photograph annotated for it teaches the model both
+what a seed is and which state it is in. Seeds hidden under grown seedlings go
+unboxed, since nothing in the photograph shows them.
+
+A version finds the classes it was made to find, which are its model's or
+fewer of them: the traditional baseline calls every seed `ungerminated`, and a
+version trained while the seed model told two states apart goes on finding
+those two. A class a version does not find counts zero in what it reads, and
+a reviewer marks it. What a person reviewed or counted by hand while the seed
+model told two states apart stands as they made it, holding no `empty` and no
+`dead` seeds.
 
 A model can exist without a version; its images can still carry reviews and AI proposals. Version behavior follows the [model lifecycle](domain.md#models-and-versions).
 
@@ -28,10 +41,16 @@ reads for a model follows the [model lifecycle](domain.md#models-and-versions).
 
 What a day counts is the experiment's question, not the model's. A germination
 trial photographs its dishes before anything has germinated and counts every
-seed, `ungerminated` and `germinated` alike; later days count `germinated`
-alone, since grown seedlings hide the seeds that have not germinated and the
-photograph does not show them all. A day counts every class its model
-recognizes unless it names fewer, and it always counts at least one.
+seed that holds an embryo, `ungerminated`, `germinated` and `dead` alike, and
+leaves `empty` out, since a seed without an embryo was never going to
+germinate; later days count `germinated` alone, since grown seedlings hide the
+seeds that have not germinated and the photograph does not show them all.
+
+The model only says where a day starts from. Among its settings are the
+classes a day counts unless it names its own: every class for a new model,
+and for `seed-detector` the three states of a seed that holds an embryo. A
+day keeps the classes it was given when that setting changes, may count any
+of its model's classes whatever the setting, and always counts at least one.
 
 ## Where the numbers come from
 
@@ -67,6 +86,9 @@ one, and the classes it counts only when they are fewer than its model
 recognizes. A cell shows the unit's count. A count a person stands behind,
 by reviewing the photograph or by entering it, is shown plain, one nobody
 has reviewed yet provisional, and one entered by hand carries a small mark.
+A count read by a version that does not find every class of its model names
+the classes that version does not find, since it boxed their individuals as
+another class or not at all.
 A day out of the statistics is struck through, and an unclear photograph
 carries a small mark whether or not it counts, so a unit struck through for
 one shows which. Hovering says why. A photograph not yet read appears as a photograph; a unit without a photograph or count entered by hand shows no value. A failed image reading is marked.
@@ -98,10 +120,13 @@ unit's records alone, so a page of rows, one row or every row reads the same
 cells. Each cell is resolved here, by the same functions the units table and the
 spreadsheet use: the reading counted in the statistics and who stood behind it, why
 the day is out of the statistics if it is, and under them the photograph and the
-count entered by hand the reading came from. An agent therefore never ranks annotation layers,
-applies the exclusion rules, or averages a treatment itself, and a change to
-any of them changes what every reader sees at once. The units table shows
-these same rows, a page at a time.
+count entered by hand the reading came from. A reading also names the classes
+its number could not have told apart: those the detecting version does not
+find where the number is that version's, and none where a person or an agent
+stands behind it. An agent therefore never ranks annotation layers, applies
+the exclusion rules, or averages a treatment itself, and a change to any of
+them changes what every reader sees at once. The units table shows these same
+rows, a page at a time.
 
 ## What the summary says
 
@@ -118,11 +143,14 @@ rate is that count over the unit's own count on the first observation, the
 day everything sown was counted: a germination trial's rate is the seeds
 germinated over the seeds sown in the same dish, and the treatment's rate is
 the mean of its dishes' rates, not the germinated over the sown of all of
-them together. A rate exists where the day reads for the model the first
-observation read for and the unit counted something that first day; the
-first observation itself has none, and a day read for another model has
-counts alone. A day is read by its rate where any treatment has one, and by
-its count otherwise.
+them together. What the first observation counts is therefore what the rate
+is taken of: a trial that leaves `empty` out of that day reads its rate over
+the seeds that hold an embryo, and a count entered by hand for that day
+corrects the number where the photograph could not tell them apart. A rate
+exists where the day reads for the model the first observation read for and
+the unit counted something that first day; the first observation itself has
+none, and a day read for another model has counts alone. A day is read by its
+rate where any treatment has one, and by its count otherwise.
 
 The [experiment page](interface.md#pages-and-interaction-ownership) presents the summary. The spreadsheet carries it as its second sheet, with n, mean, SD and SE under each date; an agent reads it with `get-experiment-summary`. It is always taken over every unit, whatever page of them is on show. Whether the
 treatments differ significantly is a question the summary does not answer:

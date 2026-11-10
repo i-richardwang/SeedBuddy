@@ -16,7 +16,7 @@ import {
 import { storeAnnotation } from "../annotations/documents";
 import { database } from "../infra/db/client";
 import { experimentObservations } from "../infra/db/schema";
-import { readModel } from "../models/registry";
+import { createModel, readModel, setModelSettings } from "../models/registry";
 import { experimentObservationImageDetail } from "../queries/experiment-observation-image-detail";
 import { experimentRecordsDetail } from "../queries/experiment-records-detail";
 import { listExperimentOverviews } from "../queries/list-experiment-overviews";
@@ -85,6 +85,45 @@ test("an observation reads for a model the registry holds", async () => {
   await expect(unknownModel).rejects.toThrow();
 });
 
+test("an observation counts the classes its model counts by default, and keeps them when the default changes", async () => {
+  // A seed without an embryo was never going to germinate.
+  const seeds = (await readModel(SEED_DETECTOR.id, await database()))!;
+  expect(seeds.countedClasses).toEqual(["ungerminated", "germinated", "dead"]);
+
+  const model = await createModel({
+    id: "counted-by-default",
+    name: "Counted by default",
+    classes: ["seed", "germinated", "empty"],
+    countedClasses: ["seed", "germinated"],
+  });
+  const experiment = await createExperiment({
+    name: "Counted by default",
+    inoculatedOn: INOCULATED,
+  });
+  const day = (observedOn: string) =>
+    createObservation({
+      experiment: experiment.id,
+      observedOn,
+      note: "",
+      modelId: model.id,
+    });
+  const sown = await day("2026-08-01");
+  expect(sown.countedClasses).toEqual(["seed", "germinated"]);
+
+  await setModelSettings({
+    model: model.id,
+    countedClasses: model.classes,
+    area: model.area,
+    annotation: model.annotation,
+  });
+  expect((await day("2026-08-08")).countedClasses).toEqual(model.classes);
+  const records = (await experimentRecordsDetail(experiment.id))!;
+  expect(records.observations[0]!.countedClasses).toEqual([
+    "seed",
+    "germinated",
+  ]);
+});
+
 test("an observation counts the classes it names, in its model's order", async () => {
   const version = await trainedVersion("exp-counted");
   const experiment = await createExperiment({
@@ -125,7 +164,7 @@ test("an observation counts the classes it names, in its model's order", async (
     ...reading(version),
     countedClasses: ["germinated", "ungerminated"],
   });
-  expect(reordered.countedClasses).toEqual([...SEED_DETECTOR.classes]);
+  expect(reordered.countedClasses).toEqual(["ungerminated", "germinated"]);
 
   const empty = (async () => {
     await (
@@ -432,6 +471,7 @@ test("correcting dates cannot move records beyond a unit's removal", async () =>
     observedOn: "2026-08-08",
     note: "",
     ...reading(version),
+    countedClasses: ["ungerminated", "germinated"],
   });
   const removed = await createObservation({
     experiment: experiment.id,

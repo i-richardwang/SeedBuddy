@@ -41,6 +41,7 @@
   "experiment_cell_excluded_unclear": "该单元有不清晰照片，所有观测都不计入统计",
   "experiment_cell_manual": "手工录入",
   "experiment_cell_manual_unanswered": "录入的计数缺少本观测日的计数类别，请重新录入",
+  "experiment_cell_unfound": "当前版本不识别{classes}",
   "experiment_cell_waiting": "等待模型计数",
   "experiment_column_experiment": "实验",
   "experiment_column_last_observed": "最近观测",

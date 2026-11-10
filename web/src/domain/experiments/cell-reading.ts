@@ -1,6 +1,11 @@
 import type { ReviewSource } from "../annotation/schema";
-import { countClasses, sameClasses, type Tally } from "../models/classes";
-import { ClassInvalidError } from "../models/errors";
+import {
+  chosenClasses,
+  countClasses,
+  sameClasses,
+  type Tally,
+} from "../models/classes";
+import type { Model } from "../models/schema";
 import type {
   CellReading,
   ObservationImageCell,
@@ -9,21 +14,16 @@ import type {
 import type { ExperimentObservation, ManualReading } from "./schema";
 
 /**
- * The classes a day counts, in the order its model declares them: every class
- * the model recognizes, unless the day names fewer of them.
+ * The classes a day counts, in the order its model declares them: the ones
+ * the day names, or the ones its model counts unless told otherwise.
  */
 export function resolveCountedClasses(
-  modelClasses: readonly string[],
+  model: Pick<Model, "classes" | "countedClasses">,
   requested: readonly string[] | undefined,
 ): string[] {
-  if (!requested) return [...modelClasses];
-  const unknown = requested.filter((name) => !modelClasses.includes(name));
-  if (unknown.length > 0) {
-    throw new ClassInvalidError(
-      `The model does not recognize ${unknown.length === 1 ? "class" : "classes"}: ${unknown.join(", ")}`,
-    );
-  }
-  return modelClasses.filter((name) => requested.includes(name));
+  return requested
+    ? chosenClasses(model.classes, requested)
+    : [...model.countedClasses];
 }
 
 function cellKey(unit: string, observation: string): string {
@@ -66,22 +66,28 @@ export function imageReview(image: ObservationImageCell): ReviewState {
 }
 
 /**
- * The tally a photograph reads by, and whose it is. A reviewer's annotation
- * outranks an agent's proposal, which outranks the detection; an image still
- * waiting or failed reads by nothing.
+ * The tally a photograph reads by, whose it is, and the classes it could
+ * not have told apart. A reviewer's annotation outranks an agent's proposal,
+ * which outranks the detection; an image still waiting or failed reads by
+ * nothing. A review and a proposal were made knowing every class; a
+ * detection holds none of the classes its version does not find.
  */
 function imageTally(
   image: ObservationImageCell | null | undefined,
-): { tally: Tally; source: ReviewSource } | null {
+): { tally: Tally; source: ReviewSource; unfound: string[] } | null {
   if (!image) return null;
   if (image.annotationTally) {
-    return { tally: image.annotationTally, source: "review" };
+    return { tally: image.annotationTally, source: "review", unfound: [] };
   }
   if (image.proposalTally) {
-    return { tally: image.proposalTally, source: "proposal" };
+    return { tally: image.proposalTally, source: "proposal", unfound: [] };
   }
   if (image.detectionTally) {
-    return { tally: image.detectionTally, source: "detection" };
+    return {
+      tally: image.detectionTally,
+      source: "detection",
+      unfound: image.detectionUnfound,
+    };
   }
   return null;
 }
@@ -99,6 +105,7 @@ export function cellReadingFromImage(
     ? {
         count: countClasses(reading.tally, observation.countedClasses),
         source: reading.source,
+        unfound: reading.unfound,
       }
     : null;
 }
@@ -121,6 +128,7 @@ function manualReading(
     ? {
         count: countClasses(manual.tally, observation.countedClasses),
         source: "manual",
+        unfound: [],
       }
     : null;
 }

@@ -9,6 +9,8 @@ import { Icon } from "../../ui/kit/Icon";
 import { Status } from "../../ui/kit/Status";
 import { Text } from "../../ui/kit/Text";
 import { Tooltip } from "../../ui/kit/Tooltip";
+import { formatList } from "../../ui/lists";
+import { classLabel } from "../../ui/model-names";
 import { formatCount } from "../../ui/numbers";
 import { datasetImageStateLabel } from "../datasets/labels";
 import { exclusionNote } from "./labels";
@@ -18,12 +20,14 @@ import { exclusionNote } from "./labels";
  * day is shown. A count a person stands behind, by reviewing the photograph
  * or by entering it, is shown plain, and one nobody has reviewed yet
  * provisional; a count entered by hand carries a small mark saying so. One
- * left out of the analysis is struck through. A photograph not yet counted
- * shows as a photograph, a day with neither photograph nor count as absent,
- * and only a failed count asks for attention. A photograph found unclear is
- * marked wherever it is shown, whether or not the experiment counts it; where
- * it does not, its unit is struck through on every day and the mark says
- * which photograph did it. `link` wraps what is shown in a way to the day.
+ * read by a version that does not find every class of its model names the
+ * classes it could not tell apart. One left out of the analysis is struck
+ * through. A photograph not yet counted shows as a photograph, a day with
+ * neither photograph nor count as absent, and only a failed count asks for
+ * attention. A photograph found unclear is marked wherever it is shown,
+ * whether or not the experiment counts it; where it does not, its unit is
+ * struck through on every day and the mark says which photograph did it.
+ * `link` wraps what is shown in a way to the day.
  */
 export function UnitDayCount({
   cell,
@@ -52,6 +56,13 @@ export function UnitDayCount({
     if (reading.source === "manual") notes.push(m.experiment_cell_manual());
     else if (reading.source !== "review") {
       notes.push(m.to_review_label());
+    }
+    if (reading.unfound.length > 0) {
+      notes.push(
+        m.experiment_cell_unfound({
+          classes: formatList(reading.unfound.map(classLabel)),
+        }),
+      );
     }
     if (exclusion) notes.push(exclusionNote(exclusion));
     return explain(

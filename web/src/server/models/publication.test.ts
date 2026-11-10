@@ -102,6 +102,24 @@ test("local artifacts register idempotently without a training run or changing t
   expect(await readCurrentVersionId(m.id, await database())).toBe(v.id);
 });
 
+test("a version finds the classes its bundle names, which may be fewer than its model declares", async () => {
+  const m = await createModel({
+    id: "import-fewer-classes",
+    name: "import-fewer-classes",
+    classes: ["seed", "germinated", "dead"],
+  });
+  const manifest = { ...bundle(), classes: ["seed", "dead"] };
+  const reservation = await prepareModelUpload(m.id, manifest);
+  await uploadModelWeights(reservation.uploadId, weights);
+  expect((await importModelUpload(reservation.uploadId)).classes).toEqual([
+    "seed",
+    "dead",
+  ]);
+  await expect(
+    prepareModelUpload(m.id, { ...bundle(), classes: ["dead", "seed"] }),
+  ).rejects.toThrow(/in the model's order/);
+});
+
 test("bundle validation rejects mismatched classes and unsupported inference pipelines", async () => {
   const m = await model("import-validation");
   const b = bundle();

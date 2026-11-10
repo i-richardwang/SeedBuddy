@@ -47,11 +47,15 @@ test("the model's instructions and region are frozen into the run definition", a
     halo: 8,
     displayScale: 4,
   };
-  await setModelSettings({ model: model.id, area: "image", annotation });
+  const settings = {
+    model: model.id,
+    countedClasses: model.countedClasses,
+    area: "image" as const,
+  };
+  await setModelSettings({ ...settings, annotation });
   expect(() =>
     modelSettingsRequestSchema.parse({
-      model: model.id,
-      area: "image",
+      ...settings,
       annotation: { ...annotation, halo: 17 },
     }),
   ).toThrow("Context cannot exceed core size");
@@ -150,6 +154,7 @@ test("dish runs freeze coverage and actual task totals while later model edits l
   expect(tasks.some((task) => task.region.id === "tile-000-000")).toBe(false);
   await setModelSettings({
     model: model.id,
+    countedClasses: model.countedClasses,
     area: "image",
     annotation: model.annotation,
   });

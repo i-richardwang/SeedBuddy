@@ -18,17 +18,20 @@ export const DEFAULT_ANNOTATION_REGION = {
 export const SEED_ANNOTATION_CONFIG = {
   ...DEFAULT_ANNOTATION_REGION,
   area: "dish" as const,
-  classes: ["ungerminated", "germinated"],
-  rules: `Box every visible seed separately, germinated or not. A seed is germinated
-once a radicle or shoot has visibly broken through its coat, and ungerminated
-until then; mark a box uncertain when its state cannot be told. Enclose the seed
-body together with any radicle or shoot that emerged from it. Seeds include opaque
-brown/gold and pale yellow/translucent bodies with a coherent elongated outline;
-enclose the complete visible body, including pale coat and tips, before
-minimizing background. Distinguish seeds and their radicles and shoots from
-fibers and glare. Inspect touching clusters for separate bodies at different
-angles; their rectangles may overlap naturally. Do not force an expected count
-or mechanically shrink, expand or pad boxes.`,
+  classes: ["ungerminated", "germinated", "empty", "dead"],
+  rules: `Box every visible seed separately, whatever its state, and give each box one of
+four states. A seed is germinated once a radicle or shoot has visibly broken
+through its coat, and stays germinated whatever becomes of it. A seed that has
+not germinated is empty when its coat holds no embryo, flat or hollow with
+nothing filling it; dead when its embryo has visibly died, darkened, collapsed
+or rotting; and ungerminated otherwise. Mark a box uncertain when its state
+cannot be told. Enclose the seed body together with any radicle or shoot that
+emerged from it. Seeds include opaque brown/gold and pale yellow/translucent
+bodies with a coherent elongated outline; enclose the complete visible body,
+including pale coat and tips, before minimizing background. Distinguish seeds
+and their radicles and shoots from fibers and glare. Inspect touching clusters
+for separate bodies at different angles; their rectangles may overlap naturally.
+Do not force an expected count or mechanically shrink, expand or pad boxes.`,
 };
 
 /** Complete visual task settings, shared by product assignments and standalone runs. */

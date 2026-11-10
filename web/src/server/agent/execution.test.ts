@@ -137,7 +137,8 @@ describe("agent execution", () => {
             id,
             name: id,
             task: "detect",
-            classes: [],
+            classes: ["seed"],
+            countedClasses: ["seed"],
             area: "image",
             annotation: DEFAULT_MODEL_ANNOTATION,
           });
@@ -172,7 +173,8 @@ describe("agent execution", () => {
             id,
             name: id,
             task: "detect",
-            classes: [],
+            classes: ["seed"],
+            countedClasses: ["seed"],
             area: "image",
             annotation: DEFAULT_MODEL_ANNOTATION,
           });
@@ -224,6 +226,7 @@ test("model commands roll back writes when their output contract fails", async (
       name: "update-model-settings",
       input: {
         model: id,
+        countedClasses: original.countedClasses,
         area: "dish",
         annotation: {
           ...original.annotation,

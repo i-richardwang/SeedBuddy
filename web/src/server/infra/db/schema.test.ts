@@ -120,6 +120,7 @@ test("the database rejects a trained version without its provenance", async () =
       .values({
         id: `provenance-detector.orphan-${suffix}`,
         modelId: valid.modelId,
+        classes: valid.classes,
         createdAt: new Date(valid.createdAt),
         source: {
           ...valid.source,

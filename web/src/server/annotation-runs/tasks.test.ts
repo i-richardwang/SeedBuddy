@@ -148,6 +148,7 @@ test("twenty regions reuse frozen context across views and reconnects before fin
   ref.modelId = model.id;
   await setModelSettings({
     model: ref.modelId,
+    countedClasses: model.countedClasses,
     area: "image",
     annotation: {
       instructions: "Box all seeds",
@@ -162,6 +163,7 @@ test("twenty regions reuse frozen context across views and reconnects before fin
   const context = await readAnnotationContext(firstTask);
   await setModelSettings({
     model: ref.modelId,
+    countedClasses: model.countedClasses,
     area: "image",
     annotation: {
       instructions: "Changed future rules",
@@ -220,6 +222,7 @@ test("a run scoped to part of the image redraws only the regions it touches and 
   ref.modelId = model.id;
   await setModelSettings({
     model: ref.modelId,
+    countedClasses: model.countedClasses,
     area: "image",
     annotation: {
       instructions: "Box all seeds",
@@ -298,6 +301,7 @@ test("partial redraw keeps untouched boxes awaiting confirmation, replaces redra
   ref.modelId = model.id;
   await setModelSettings({
     model: ref.modelId,
+    countedClasses: model.countedClasses,
     area: "image",
     annotation: {
       instructions: "Box all seeds",

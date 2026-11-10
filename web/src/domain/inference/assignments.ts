@@ -4,11 +4,7 @@ import { resourceIdSchema } from "../identifiers/schema";
 import { imageCoverageSchema } from "../images/coverage";
 import { imageDigestSchema } from "../images/schema";
 import { classListSchema } from "../models/classes";
-import {
-  type Model,
-  type ModelVersion,
-  modelArtifactSchema,
-} from "../models/schema";
+import { type ModelVersion, modelArtifactSchema } from "../models/schema";
 import { timestampSchema } from "../time";
 
 export const inferenceModelManifestSchema = z.strictObject({
@@ -41,14 +37,14 @@ export const inferenceTargetSchema = z.strictObject({
 
 type InferenceModelManifest = z.infer<typeof inferenceModelManifestSchema>;
 
+/** What a Worker needs to run a version: its artifact, and the classes that artifact finds. */
 export function inferenceModelManifest(
-  version: Pick<ModelVersion, "id" | "artifact">,
-  model: Pick<Model, "classes">,
+  version: Pick<ModelVersion, "id" | "classes" | "artifact">,
 ): InferenceModelManifest {
   return inferenceModelManifestSchema.parse({
     schemaVersion: 1,
     modelVersionId: version.id,
-    classes: model.classes,
+    classes: version.classes,
     artifact: version.artifact,
   });
 }

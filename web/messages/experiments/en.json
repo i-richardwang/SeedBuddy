@@ -53,6 +53,7 @@
   "experiment_cell_excluded_unclear": "The unit has an unclear photo, so it is out of the analysis on every day",
   "experiment_cell_manual": "Entered by hand",
   "experiment_cell_manual_unanswered": "The count entered leaves out a class this day counts; enter it again",
+  "experiment_cell_unfound": "The current version does not find {classes}",
   "experiment_cell_waiting": "Waiting for the model to count",
   "experiment_column_experiment": "Experiment",
   "experiment_column_last_observed": "Last observed",

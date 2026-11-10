@@ -25,8 +25,8 @@ const TRADITIONAL_MODEL_MANIFEST =
  * purpose, each with many versions. Seed germination ships with the package,
  * its first version a traditional detector that finds every seed and calls it
  * ungerminated, so a deployment can count from its first minute and reviewers
- * mark the germinated ones; every trained version joins the same model and
- * replaces nothing.
+ * mark the seeds in any other state; every trained version joins the same
+ * model and replaces nothing.
  */
 export const SEED_DETECTOR_MODEL_ID = "seed-detector";
 export const SEED_DETECTOR_BASELINE_VERSION_ID = "traditional-v1";
@@ -37,6 +37,9 @@ export const SEED_DETECTOR = modelSchema.parse({
   name: "Seed germination",
   task: "object_detection",
   classes: SEED_ANNOTATION_CONFIG.classes,
+  // A seed without an embryo was never going to germinate, so a day counts
+  // the seeds that hold one unless it asks otherwise.
+  countedClasses: ["ungerminated", "germinated", "dead"],
   area: SEED_ANNOTATION_CONFIG.area,
   annotation: {
     ...DEFAULT_MODEL_ANNOTATION,
@@ -48,6 +51,7 @@ export const SEED_DETECTOR_BASELINE = modelVersionSchema.parse({
   schemaVersion: 1,
   id: SEED_DETECTOR_BASELINE_VERSION_ID,
   modelId: SEED_DETECTOR_MODEL_ID,
+  classes: ["ungerminated"],
   createdAt: TRADITIONAL_MODEL_MANIFEST.createdAt,
   source: {
     kind: "builtin",

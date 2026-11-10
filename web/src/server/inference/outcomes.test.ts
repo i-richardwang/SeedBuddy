@@ -132,6 +132,25 @@ describe("detections", () => {
         worker,
       ),
     ).rejects.toBeInstanceOf(ClassInvalidError);
+    // A class the model declares is still not one this version finds.
+    expect(version.classes).toEqual(["ungerminated"]);
+    await expect(
+      seedDetectionResult(
+        target,
+        {
+          ...result,
+          instances: [
+            {
+              id: "beyond",
+              class: "germinated",
+              bbox: { x: 1, y: 1, width: 5, height: 5 },
+              score: 0.9,
+            },
+          ],
+        },
+        worker,
+      ),
+    ).rejects.toBeInstanceOf(ClassInvalidError);
     await expect(
       seedDetectionResult(
         target,

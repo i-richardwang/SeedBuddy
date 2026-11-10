@@ -3,7 +3,7 @@ import type { Model } from "../../domain/models/schema";
 import { m } from "../../paraglide/messages";
 import { Form } from "../../ui/kit/Form";
 import { Input } from "../../ui/kit/Input";
-import { CountedClassesField } from "./CountedClassesField";
+import { CountedClassesField } from "../models/CountedClassesField";
 import { DayField } from "./DayField";
 import { ModelField } from "./ModelField";
 
@@ -49,17 +49,19 @@ export function ObservationFields({
         disabled={disabled}
         models={models}
         value={value.modelId}
-        // Another model recognizes other classes, so the day counts all of them
-        // until told otherwise.
+        // Another model recognizes other classes, so the day counts the ones
+        // that model counts until told otherwise.
         onChange={(modelId) =>
           onChange({
             ...value,
             modelId,
-            countedClasses: modelOf(modelId).classes,
+            countedClasses: modelOf(modelId).countedClasses,
           })
         }
       />
       <CountedClassesField
+        label={m.observation_counted_classes_label()}
+        desc={m.observation_counted_classes_description()}
         disabled={disabled}
         model={modelOf(value.modelId)}
         value={value.countedClasses}

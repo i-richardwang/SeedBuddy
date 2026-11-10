@@ -110,38 +110,38 @@ export async function readDatasetSnapshot(
     .from(datasetSnapshots)
     .where(eq(datasetSnapshots.id, snapshotId));
   if (!row) return null;
-  const model = await requireModel(row.modelId, db);
   return datasetSnapshotSchema.parse({
     schemaVersion: 1,
     id: row.id,
     datasetId: row.datasetId,
     modelId: row.modelId,
-    classes: model.classes,
+    classes: row.classes,
     area: row.area,
     createdAt: row.createdAt.toISOString(),
     images: await snapshotImages(snapshotId, db),
   });
 }
 
-/** The area a snapshot froze, which the version trained on it reads in. */
-export async function readSnapshotArea(
+/** The task a snapshot froze: the classes its version finds, and the area it reads in. */
+export async function readSnapshotTask(
   snapshotId: string,
   db: Executor,
-): Promise<ModelArea> {
+): Promise<{ classes: string[]; area: ModelArea }> {
   const [row] = await db
-    .select({ area: datasetSnapshots.area })
+    .select({ classes: datasetSnapshots.classes, area: datasetSnapshots.area })
     .from(datasetSnapshots)
     .where(eq(datasetSnapshots.id, snapshotId));
   if (!row) throw new Error(`Missing datasetSnapshots row: ${snapshotId}`);
-  return row.area;
+  return row;
 }
 
 /**
  * Freezes the reviewed annotations into a snapshot named by their content,
- * framed to the model's area as it is now: a dish model's images carry the
- * coverage their analysis holds today, with any that fall back to the whole
- * image logged. Images are referenced, not copied: the snapshot rows keep
- * the bytes alive. An identical set returns the existing snapshot.
+ * under the classes the model declares now and framed to its area as it is
+ * now: a dish model's images carry the coverage their analysis holds today,
+ * with any that fall back to the whole image logged. Images are referenced,
+ * not copied: the snapshot rows keep the bytes alive. An identical set
+ * returns the existing snapshot.
  */
 export async function createDatasetSnapshot(
   datasetId: string,
@@ -150,7 +150,7 @@ export async function createDatasetSnapshot(
 ): Promise<DatasetSnapshot> {
   const dataset = await readDataset(datasetId, db);
   if (!dataset) throw new DatasetNotFoundError(`Unknown dataset: ${datasetId}`);
-  const { area } = await requireModel(dataset.modelId, db);
+  const { classes, area } = await requireModel(dataset.modelId, db);
   const reviewed = await listReviewedRecords(datasetId, db);
   if (reviewed.length < MIN_SNAPSHOT_IMAGES) {
     throw new TrainingRunConflictError(
@@ -166,13 +166,14 @@ export async function createDatasetSnapshot(
       return { digest: image.digest, split, coverage, annotation };
     })
     .sort((a, b) => a.digest.localeCompare(b.digest));
-  const snapshotId = `snapshot-${documentDigest({ datasetId, modelId: dataset.modelId, area, members })}`;
+  const snapshotId = `snapshot-${documentDigest({ datasetId, modelId: dataset.modelId, classes, area, members })}`;
   const existing = await readDatasetSnapshot(snapshotId, db);
   if (existing) return existing;
   await db.insert(datasetSnapshots).values({
     id: snapshotId,
     datasetId,
     modelId: dataset.modelId,
+    classes,
     area,
     createdAt: at,
   });

@@ -95,7 +95,7 @@ export async function createObservation(
           observedOn,
           note,
           modelId,
-          countedClasses: resolveCountedClasses(model.classes, countedClasses),
+          countedClasses: resolveCountedClasses(model, countedClasses),
           createdAt: await operationTime(db),
         })
         .returning(),
@@ -146,7 +146,7 @@ export async function updateObservation(
           observedOn,
           note,
           modelId,
-          countedClasses: resolveCountedClasses(model.classes, countedClasses),
+          countedClasses: resolveCountedClasses(model, countedClasses),
         })
         .where(atObservation(experimentId, observationId))
         .returning(),

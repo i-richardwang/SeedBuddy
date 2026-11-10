@@ -60,7 +60,7 @@ function RecordObservationSession({
   const [value, setValue] = useState<ObservationValue>(() => ({
     observedOn: today(),
     modelId: previous?.modelId ?? models[0]!.id,
-    countedClasses: previous?.countedClasses ?? models[0]!.classes,
+    countedClasses: previous?.countedClasses ?? models[0]!.countedClasses,
     note: "",
   }));
   const photos = useObservationPhotos({

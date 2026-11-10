@@ -51,6 +51,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
     observedOn: INOCULATED,
     note: "",
     ...reading(version),
+    countedClasses: ["ungerminated", "germinated"],
   });
   const day14 = await createObservation({
     experiment: experiment.id,
@@ -95,14 +96,17 @@ test("a unit counted by hand has a number with no photograph, and the count outr
   expect(unitReading(cells, units.get("A-1")!, day14)).toEqual({
     count: 17,
     source: "manual",
+    unfound: [],
   });
   expect(unitReading(cells, units.get("A-2")!, day14)).toEqual({
     count: 12,
     source: "manual",
+    unfound: [],
   });
   expect(unitReading(cells, units.get("A-1")!, day0)).toEqual({
     count: 3,
     source: "detection",
+    unfound: [],
   });
 
   // A person who counted the photographed dish is believed over the detector.
@@ -123,7 +127,7 @@ test("a unit counted by hand has a number with no photograph, and the count outr
       units.get("A-1")!,
       day0,
     ),
-  ).toEqual({ count: 4, source: "manual" });
+  ).toEqual({ count: 4, source: "manual", unfound: [] });
   expect(recounted.images).toHaveLength(1);
 
   // The unit's page carries the count on a day it has no photograph of.
@@ -225,6 +229,7 @@ test("a count is a record: it keeps its observation and unit, and holds a unit o
     observedOn: "2026-08-15",
     note: "",
     ...reading(version),
+    countedClasses: ["ungerminated", "germinated"],
   });
   const unit = units.get("A-1")!;
   await recordManualReadings({
@@ -294,6 +299,7 @@ test("a new model cannot reinterpret existing manual counts", async () => {
     observedOn: INOCULATED,
     note: "",
     ...reading(version),
+    countedClasses: ["ungerminated", "germinated"],
   });
   const other = await createModel({
     id: "other-manual-model",

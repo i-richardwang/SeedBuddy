@@ -28,6 +28,7 @@ const SEEDS: Model = {
   name: "Seed germination",
   task: "object_detection",
   classes: ["ungerminated", "germinated"],
+  countedClasses: ["ungerminated", "germinated"],
   area: "image",
   annotation: DEFAULT_MODEL_ANNOTATION,
 };
@@ -38,6 +39,7 @@ const ROOTS: Model = {
   name: "Rooting",
   task: "object_detection",
   classes: ["rooted"],
+  countedClasses: ["rooted"],
   area: "image",
   annotation: DEFAULT_MODEL_ANNOTATION,
 };
@@ -119,6 +121,7 @@ function image(
     filename: `${unitId}.JPG`,
     state: "analyzed",
     detectionTally: tally,
+    detectionUnfound: [],
     proposalTally: null,
     annotationTally: null,
     error: null,

@@ -22,6 +22,7 @@ import { Form } from "../../ui/kit/Form";
 import { TextArea } from "../../ui/kit/Input";
 import { toast } from "../../ui/kit/Toast";
 import { modelName } from "../../ui/model-names";
+import { CountedClassesField } from "./CountedClassesField";
 import { ModelAreaField } from "./ModelAreaField";
 
 const FORM_ID = "model-settings";
@@ -121,6 +122,7 @@ function ModelSettingsForm({
   const [instructions, setInstructions] = useState(
     model.annotation.instructions,
   );
+  const [countedClasses, setCountedClasses] = useState(model.countedClasses);
   const [area, setArea] = useState<ModelArea>(model.area);
 
   const submit = () => {
@@ -129,6 +131,7 @@ function ModelSettingsForm({
         updateModelSettings({
           data: {
             model: model.id,
+            countedClasses,
             area,
             annotation: { ...model.annotation, instructions },
           },
@@ -158,6 +161,14 @@ function ModelSettingsForm({
           autoFocus
         />
       </Form.Field>
+      <CountedClassesField
+        label={m.model_counted_classes_label()}
+        desc={m.model_counted_classes_description()}
+        disabled={busy}
+        model={model}
+        value={countedClasses}
+        onChange={setCountedClasses}
+      />
       <ModelAreaField value={area} onChange={setArea} disabled={busy} />
     </Form>
   );

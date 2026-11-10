@@ -372,7 +372,7 @@ const observationRequestSchema = z.strictObject({
   observedOn: calendarDaySchema,
   note: observationNoteSchema.default(""),
   modelId: resourceIdSchema,
-  /** Every class the model recognizes, unless the day counts fewer. */
+  /** The classes the model counts by default, unless the day names its own. */
   countedClasses: classListSchema.optional(),
 });
 

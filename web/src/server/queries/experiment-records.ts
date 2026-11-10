@@ -33,6 +33,7 @@ import {
   experimentObservations,
   inferenceTasks,
   models,
+  modelVersions,
 } from "../infra/db/schema";
 import {
   hasDetection,
@@ -140,6 +141,25 @@ function pending({ proposed, detected }: ReadingFacts) {
   );
 }
 
+/**
+ * The classes a photograph's day's model declares that the version reading
+ * for it now does not find, in the model's order; none while that version
+ * has no detection of the photograph to show.
+ */
+function detectionUnfound({ detection }: DayReadings) {
+  return sql<string[]>`case
+    when ${taskFailed} or not ${detection.detected} then '[]'::jsonb
+    else (
+      select coalesce(jsonb_agg(declared.name order by declared.position), '[]'::jsonb)
+      from jsonb_array_elements_text(${models.classes}) with ordinality as declared(name, position)
+      where not exists (
+        select 1 from ${modelVersions}
+        where ${modelVersions.id} = ${models.currentVersionId}
+          and ${modelVersions.classes} @> to_jsonb(declared.name)
+      )
+    ) end`;
+}
+
 /** The experiment's photographs in scope, each with what it reads. */
 export async function listImageCells(
   experimentId: string,
@@ -158,6 +178,7 @@ export async function listImageCells(
           filename: experimentObservationImages.filename,
           state: imageState(factsOf(readings)),
           detectionTally: sql<Tally | null>`case when ${taskFailed} then null else ${readings.detection.detectionTally} end`,
+          detectionUnfound: detectionUnfound(readings),
           proposalTally: readings.model.proposalTally,
           annotationTally: readings.model.annotationTally,
           error: sql<

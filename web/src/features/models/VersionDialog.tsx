@@ -2,7 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { identifierLabel } from "../../domain/identifiers/schema";
-import { classCount, type Tally } from "../../domain/models/classes";
+import {
+  classCount,
+  type Tally,
+  unfoundClasses,
+} from "../../domain/models/classes";
 import {
   countError,
   isCounted,
@@ -33,6 +37,7 @@ import {
 } from "../../ui/kit/Table";
 import { Text } from "../../ui/kit/Text";
 import { TextLink } from "../../ui/kit/TextLink";
+import { formatList } from "../../ui/lists";
 import { classLabel } from "../../ui/model-names";
 import { formatCount, formatCountChange } from "../../ui/numbers";
 import {
@@ -93,6 +98,7 @@ function VersionSession({
 }) {
   const { busy, run } = useAsyncAction();
   const label = identifierLabel(version.id);
+  const unfound = unfoundClasses(model.classes, version.classes);
 
   const submit = () => {
     void run(
@@ -129,6 +135,13 @@ function VersionSession({
             <Text type="secondary">
               {m.version_imported_provenance({
                 description: version.source.provenance.dataset.description,
+              })}
+            </Text>
+          ) : null}
+          {unfound.length > 0 ? (
+            <Text type="secondary">
+              {m.version_dialog_unfound_classes({
+                classes: formatList(unfound.map(classLabel)),
               })}
             </Text>
           ) : null}
