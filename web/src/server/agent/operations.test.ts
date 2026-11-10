@@ -104,6 +104,7 @@ describe("agent operations", () => {
       "delete-treatment",
       "update-unit",
       "move-units",
+      "set-unit-baselines",
       "delete-unit",
       "update-observation",
       "delete-observation",
@@ -482,7 +483,7 @@ describe("agent operations", () => {
         experiment: experiment.id,
       }),
     ) as ExperimentSummary;
-    expect(summary).toEqual({ baseline: null, cells: [] });
+    expect(summary).toEqual({ first: null, unrated: [], cells: [] });
   });
 
   test("a photograph is marked unclear by digest, or as it is assigned", async () => {

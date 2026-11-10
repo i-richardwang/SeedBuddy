@@ -1,13 +1,24 @@
-import { FolderPlus, ImageMinus, ImageUp, Pencil, Trash2 } from "lucide-react";
+import {
+  Divide,
+  FolderPlus,
+  ImageMinus,
+  ImageUp,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
 import type { NamedDataset } from "../../domain/datasets/schema";
 import type {
+  BaselineDay,
   ExperimentObservationImageDetail,
   Unit,
   UnitPageRequest,
 } from "../../domain/experiments/read-model";
-import type { Treatment } from "../../domain/experiments/schema";
+import type {
+  ExperimentObservation,
+  Treatment,
+} from "../../domain/experiments/schema";
 import {
   removeObservationImage,
   removeUnit,
@@ -20,16 +31,19 @@ import type { DropdownItem } from "../../ui/kit/DropdownMenu";
 import { toast } from "../../ui/kit/Toast";
 import { AddToDatasetDialog } from "../datasets/AddToDatasetDialog";
 import { ReplaceObservationImageDialog } from "./ReplaceObservationImageDialog";
+import { UnitBaselineDialog } from "./UnitBaselineDialog";
 import { UnitDialog } from "./UnitDialog";
 import { unitTableSearch } from "./unit-table";
 
-type Action = "replace" | "edit" | "dataset";
+type Action = "replace" | "edit" | "baseline" | "dataset";
 
 /** The unit's own commands and those on the photograph in view. */
 export function UnitMenu({
   experiment,
   unit,
   treatments,
+  observations,
+  baselineDays,
   canRemove,
   image,
   datasets,
@@ -38,6 +52,10 @@ export function UnitMenu({
   experiment: string;
   unit: Unit;
   treatments: Treatment[];
+  /** The experiment's observations in its order. */
+  observations: ExperimentObservation[];
+  /** What the unit would take its rates over, were it to name an observation. */
+  baselineDays: ReadonlyMap<string, BaselineDay>;
   canRemove: boolean;
   image: ExperimentObservationImageDetail | null;
   /** The datasets the photograph could join. */
@@ -71,6 +89,15 @@ export function UnitMenu({
     label: m.unit_menu_edit(),
     onClick: () => setOpen("edit"),
   });
+  // A baseline other than the first observation takes a second one.
+  if (observations.length > 1) {
+    items.push({
+      key: "baseline",
+      icon: Divide,
+      label: m.unit_baseline_menu(),
+      onClick: () => setOpen("baseline"),
+    });
+  }
   if (image || canRemove) items.push({ type: "divider" });
   if (image) {
     items.push({
@@ -132,6 +159,18 @@ export function UnitMenu({
         open={open === "edit"}
         onClose={close}
       />
+
+      {observations.length > 1 ? (
+        <UnitBaselineDialog
+          experiment={experiment}
+          choice={{ units: [unit] }}
+          observations={observations}
+          days={baselineDays}
+          open={open === "baseline"}
+          onClose={close}
+          onDone={close}
+        />
+      ) : null}
 
       {image ? (
         <>

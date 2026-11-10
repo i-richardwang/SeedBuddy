@@ -1,22 +1,11 @@
 import { parseDate } from "@internationalized/date";
 
-import { unitExclusions } from "../../domain/experiments/analysis";
-import {
-  type ObservationCells,
-  observationCells,
-  unitDays,
-  unitReading,
-} from "../../domain/experiments/cell-reading";
-import {
-  type ObservationOrdinals,
-  observationOrdinals,
-} from "../../domain/experiments/culture-events";
 import type {
-  Exclusion,
   ExperimentRecords,
   ExperimentSummary,
+  SheetCell,
+  SheetRow,
   Statistic,
-  Unit,
 } from "../../domain/experiments/read-model";
 import {
   type CalendarDay,
@@ -25,6 +14,7 @@ import {
   formatFactor,
   type Treatment,
 } from "../../domain/experiments/schema";
+import { sheetRows } from "../../domain/experiments/sheet";
 import {
   recordsSummary,
   type SummaryMeasure,
@@ -48,6 +38,7 @@ import {
 } from "../../lib/spreadsheet/workbook";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
+import { formatList } from "../../ui/lists";
 import { observationQuestion } from "./copy";
 import { exclusionLabel, summaryMeasureLabel } from "./labels";
 
@@ -60,7 +51,13 @@ interface Day {
   model: Model | undefined;
 }
 
-const DESIGN_COLUMNS = [{ width: 22 }, { width: 16 }, { width: 14 }];
+/** A unit's design and what its rates are taken over: treatment, factor, unit, baseline. */
+const DESIGN_COLUMNS = [
+  { width: 22 },
+  { width: 16 },
+  { width: 14 },
+  { width: 12 },
+];
 
 const HEADING_ROWS = 2;
 
@@ -102,32 +99,23 @@ export function experimentWorkbook(
 }
 
 /**
- * The units' records as a spreadsheet: a row per unit with its design repeated, the
+ * The units' records as a spreadsheet: a row per unit with its design repeated
+ * and the baseline its rates are taken over, left blank where it has none, the
  * days across the top, and every count left as a number for whatever charts or
  * computes on it. A count is a count whoever stood behind it, read from the
  * photograph or entered by hand.
  *
  * The sheet records what the dish did rather than what the workbench is doing.
- * A reading still waiting, or one that failed, leaves its cell empty; a unit an
+ * A reading still waiting, or one that failed, leaves its cell empty; a day an
  * event took out of the analysis is named by that event in place of its count,
- * and a unit with a photograph found unclear, where the experiment does not
- * count such photographs, says so in place of every count it has.
+ * and a day read from a photograph found unclear, where the experiment does
+ * not count such photographs, says so in place of its count.
  */
 export function recordsSheet(
   source: ExperimentWorkbookSource,
   exportedOn: CalendarDay,
 ): WorkbookSheet {
-  const {
-    experiment,
-    treatments,
-    units,
-    observations,
-    images,
-    manualReadings,
-    models,
-  } = source;
-  const cells = observationCells(images, manualReadings);
-  const ordinals = observationOrdinals(observations);
+  const { experiment, treatments, observations, models } = source;
   const days = observations.map((observation): Day => ({
     observation,
     model: models.find((model) => model.id === observation.modelId),
@@ -140,11 +128,12 @@ export function recordsSheet(
   ];
   const stickyRows = rows.length + HEADING_ROWS;
   rows.push(...heading(days));
+  const units = sheetRows(source);
   for (const treatment of treatments) {
-    for (const unit of units.filter(
-      (item) => item.treatment === treatment.id,
+    for (const row of units.filter(
+      ({ unit }) => unit.treatment === treatment.id,
     )) {
-      rows.push(unitRow(experiment, treatment, unit, days, cells, ordinals));
+      rows.push(unitRow(treatment, row));
     }
   }
 
@@ -161,18 +150,19 @@ export function recordsSheet(
  * The summary as a spreadsheet: a row per treatment, and under each day its
  * n, mean, standard deviation and standard error over the treatment's units
  * in the analysis that day. A day is summarised by its rate, each unit's
- * count over its own count on the first observation, where any treatment has
- * one, and by its count otherwise; the row under the date says which. Notes
- * under the table say how the numbers were taken.
+ * count over its own baseline, where any treatment has one, and by its count
+ * otherwise; the row under the date says which. Notes under the table say
+ * how the numbers were taken, and which units take their rates against
+ * another observation than the first.
  */
 export function summarySheet(
   source: ExperimentWorkbookSource,
   exportedOn: CalendarDay,
 ): WorkbookSheet {
-  const { experiment, treatments, observations } = source;
+  const { experiment, treatments, units, observations } = source;
   const summary = recordsSummary(source);
-  const baseline = observations.find(
-    (observation) => observation.id === summary.baseline,
+  const first = observations.find(
+    (observation) => observation.id === summary.first,
   );
   const measures = observations.map((observation) =>
     summaryMeasure(summary, observation.id),
@@ -188,9 +178,21 @@ export function summarySheet(
     rows.push(summaryRow(treatment, observations, summary));
   }
   rows.push([], [textCell(m.summary_note_statistics())]);
-  if (baseline) {
+  if (first) {
     rows.push([
-      textCell(m.summary_note_rate({ day: formatDay(baseline.observedOn) })),
+      textCell(m.summary_note_rate({ day: formatDay(first.observedOn) })),
+    ]);
+  }
+  for (const observation of observations) {
+    const named = units.filter((unit) => unit.baseline === observation.id);
+    if (named.length === 0) continue;
+    rows.push([
+      textCell(
+        m.summary_note_baseline({
+          units: formatList(named.map((unit) => unit.code)),
+          day: formatDay(observation.observedOn),
+        }),
+      ),
     ]);
   }
 
@@ -312,6 +314,7 @@ function heading(days: readonly Day[]): WorkbookCell[][] {
       textCell(m.treatment_label(), covering),
       textCell(m.treatment_factor_label(), covering),
       textCell(m.experiment_column_unit(), covering),
+      textCell(m.unit_baseline(), covering),
       ...days.map((day) =>
         calendarCell(day.observation.observedOn, { strong: true }),
       ),
@@ -336,40 +339,19 @@ function factorCell(treatment: Treatment): WorkbookCell {
 }
 
 function unitRow(
-  experiment: Experiment,
   treatment: Treatment,
-  unit: Unit,
-  days: readonly Day[],
-  cells: ObservationCells,
-  ordinals: ObservationOrdinals,
+  { unit, cells, baseline }: SheetRow,
 ): WorkbookCell[] {
-  const exclusion = unitExclusions(
-    unit.events,
-    unitDays(
-      cells,
-      unit.id,
-      days.map((day) => day.observation),
-    ),
-    ordinals,
-    experiment,
-  );
   return [
     textCell(treatment.name),
     factorCell(treatment),
     textCell(unit.code),
-    ...days.map((day) =>
-      unitCell(unit, day, cells, exclusion(day.observation)),
-    ),
+    baseline?.count == null ? blankCell : countCell(baseline.count),
+    ...cells.map(unitCell),
   ];
 }
 
-function unitCell(
-  unit: Unit,
-  day: Day,
-  cells: ObservationCells,
-  exclusion: Exclusion | null,
-): WorkbookCell {
+function unitCell({ reading, exclusion }: SheetCell): WorkbookCell {
   if (exclusion) return textCell(exclusionLabel(exclusion));
-  const reading = unitReading(cells, unit.id, day.observation);
   return reading ? countCell(reading.count) : blankCell;
 }

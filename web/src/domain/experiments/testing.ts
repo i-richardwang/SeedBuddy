@@ -1,5 +1,7 @@
+import { cellReading, type ObservationCells, unitDays } from "./cell-reading";
 import type { CultureEvent } from "./culture-events";
 import type {
+  CellReading,
   ExperimentRecords,
   ObservationImageCell,
   SheetCell,
@@ -90,6 +92,17 @@ export function records(
     ...overrides,
   };
 }
+
+/** What a unit read on a day, or nothing while its cell has no reading. */
+export function unitReading(
+  cells: ObservationCells,
+  unit: string,
+  observation: ExperimentObservation,
+): CellReading | null {
+  const [day] = unitDays(cells, unit, [observation]);
+  return cellReading(day, observation);
+}
+
 /** The unit's cell among `rows` on `day`. */
 export function rowCell(
   rows: readonly SheetRow[],

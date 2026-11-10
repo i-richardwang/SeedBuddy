@@ -1,4 +1,4 @@
-import { ArrowRightLeft, ClipboardPen, X } from "lucide-react";
+import { ArrowRightLeft, ClipboardPen, Divide, X } from "lucide-react";
 
 import type { Unit } from "../../domain/experiments/read-model";
 import type {
@@ -13,6 +13,7 @@ import { Text } from "../../ui/kit/Text";
 import { Toolbar, ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { MoveUnitsDialog } from "./MoveUnitsDialog";
 import { RecordCultureEventDialog } from "./RecordCultureEventDialog";
+import { UnitBaselineDialog } from "./UnitBaselineDialog";
 import { choiceSize, type UnitChoice } from "./unit-choice";
 
 /**
@@ -35,7 +36,11 @@ export function UnitSelectionBar({
 }) {
   // A dialog acts on the units chosen when it opened, whatever a refresh
   // does to the selection meanwhile.
-  const dialog = useDialog<{ record: UnitChoice; move: Unit[] }>();
+  const dialog = useDialog<{
+    record: UnitChoice;
+    baseline: UnitChoice;
+    move: Unit[];
+  }>();
   const size = choiceSize(choice);
   const done = () => {
     dialog.close();
@@ -74,6 +79,20 @@ export function UnitSelectionBar({
           }
         />
         <ToolbarButton
+          // A baseline other than the first observation takes a second one.
+          disabled={observations.length < 2}
+          render={
+            <Button
+              type="text"
+              icon={Divide}
+              aria-label={m.unit_baseline()}
+              onClick={() => dialog.show("baseline", choice)}
+            >
+              <span className="max-mobile:hidden">{m.unit_baseline()}</span>
+            </Button>
+          }
+        />
+        <ToolbarButton
           // Units move one by one; a whole treatment is not moved.
           disabled={treatments.length < 2 || !("units" in choice)}
           render={
@@ -104,6 +123,16 @@ export function UnitSelectionBar({
       </Toolbar>
       {dialog.last?.key === "record" ? (
         <RecordCultureEventDialog
+          experiment={experiment}
+          choice={dialog.last.value}
+          observations={observations}
+          open={dialog.open}
+          onClose={dialog.close}
+          onDone={done}
+        />
+      ) : null}
+      {dialog.last?.key === "baseline" ? (
+        <UnitBaselineDialog
           experiment={experiment}
           choice={dialog.last.value}
           observations={observations}

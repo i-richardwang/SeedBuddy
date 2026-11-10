@@ -7,9 +7,13 @@ import {
   countChange,
   observationCells,
   resolveCountedClasses,
-  unitReading,
 } from "./cell-reading";
-import { photograph as cell, counted, observation } from "./testing";
+import {
+  photograph as cell,
+  counted,
+  observation,
+  unitReading,
+} from "./testing";
 
 const SEED_CLASSES = ["ungerminated", "germinated"];
 

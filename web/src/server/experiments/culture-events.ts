@@ -16,13 +16,9 @@ import {
 import {
   CultureEventNotFoundError,
   UnitConflictError,
-  UnitSelectionConflictError,
 } from "../../domain/experiments/errors";
 import type { Unit } from "../../domain/experiments/read-model";
-import type {
-  ExperimentObservation,
-  UnitSelection,
-} from "../../domain/experiments/schema";
+import type { ExperimentObservation } from "../../domain/experiments/schema";
 import {
   type Executor,
   inTransaction,
@@ -35,13 +31,11 @@ import {
 } from "../infra/db/schema";
 import {
   listObservations,
-  listUnits,
   lockExperiment,
   type RecordScope,
   recordsIn,
   requireObservation,
-  requireTreatment,
-  requireUnits,
+  selectedUnits,
   toCultureEvent,
   type UnitScope,
 } from "./records";
@@ -127,32 +121,6 @@ const REFUSAL_MESSAGES: Record<CultureEventRefusal, string> = {
   later_records:
     "the unit has records after this observation and cannot leave the bench here",
 };
-
-/**
- * The units a selection names, with their scope: each one named, which must
- * be the experiment's, or the units of the treatment or experiment selected,
- * which must number what the selection was made over.
- */
-async function selectedUnits(
-  experimentId: string,
-  selection: UnitSelection,
-  db: Executor,
-): Promise<{ units: Unit[]; scope: UnitScope }> {
-  if (Array.isArray(selection)) {
-    const units = await requireUnits(experimentId, selection, db);
-    return { units, scope: { units: selection } };
-  }
-  const { treatment, expected } = selection;
-  if (treatment !== null) await requireTreatment(experimentId, treatment, db);
-  const scope: UnitScope = treatment === null ? "all" : { treatment };
-  const units = await listUnits(experimentId, db, scope);
-  if (units.length !== expected) {
-    throw new UnitSelectionConflictError(
-      `The selection was made over ${expected} units and now covers ${units.length}`,
-    );
-  }
-  return { units, scope };
-}
 
 /**
  * The observations each unit in scope has a photograph or an entered count

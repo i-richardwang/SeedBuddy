@@ -36,7 +36,9 @@ import {
   treatmentRequestSchema,
   treatmentSchema,
   treatmentUpdateSchema,
+  unitBaselinesUpdateSchema,
   unitRefSchema,
+  unitsReachedSchema,
   unitsTreatmentUpdateSchema,
   unitUpdateSchema,
 } from "../../domain/experiments/schema";
@@ -60,6 +62,7 @@ import {
   recordManualReadings,
   recordObservation,
   retryObservationImageAnalysis,
+  setUnitBaselines,
   unassignObservationImage,
   updateExperiment,
   updateObservation,
@@ -94,7 +97,7 @@ export const experimentOperations = [
   query({
     name: "get-experiment",
     description:
-      "Read a page of an experiment's sheet: its design, and for each unit on the page, of one treatment or of all, a cell on every observation with the reading the analysis uses and who stood behind it, why the day is out of the analysis if it is, and the photograph and count entered by hand the reading came from. Units come in the experiment's order; `units.total` counts the units pages are drawn from and `units.pages` the pages they fill, and a page past the last holds no rows. A treatment the experiment does not have is refused",
+      "Read a page of an experiment's sheet: its design, and for each unit on the page, of one treatment or of all, a cell on every observation with the reading the analysis uses and who stood behind it, why the day is out of the analysis if it is, its rate over the unit's baseline on a day that takes one, and the photograph and count entered by hand the reading came from, and beside the cells the unit's `baseline`, the observation and the number its rates are taken over. Units come in the experiment's order; `units.total` counts the units pages are drawn from and `units.pages` the pages they fill, and a page past the last holds no rows. A treatment the experiment does not have is refused",
     input: experimentRefSchema.extend(unitPageRequestSchema.shape),
     output: experimentSheetSchema,
     handler: async ({ experiment, ...page }) => {
@@ -108,7 +111,7 @@ export const experimentOperations = [
   query({
     name: "get-experiment-summary",
     description:
-      "Read an experiment summarised by treatment on every observation: how many units are in the analysis, and the mean, SD and SE of their counts and of their rates against each unit's count on the first observation",
+      "Read an experiment summarised by treatment on every observation: how many units are in the analysis, and the mean, SD and SE of their counts and of their rates against each unit's baseline, its count on the first observation unless the unit names another; `unrated` names the units that have counts in the analysis and no baseline to rate them by",
     input: experimentRefSchema,
     output: experimentSummarySchema,
     handler: async ({ experiment }) => {
@@ -122,7 +125,7 @@ export const experimentOperations = [
   query({
     name: "get-unit",
     description:
-      "Read one unit's row of the sheet: its treatment, its culture events, and its cell on every observation",
+      "Read one unit's row of the sheet: its treatment, its culture events, its cell on every observation, and the baseline its rates are taken over",
     input: unitRefSchema,
     output: unitRowOverviewSchema,
     handler: async (ref) => {
@@ -139,7 +142,7 @@ export const experimentOperations = [
     transaction: "operation",
     name: "create-experiment",
     description:
-      "Create an experiment with its design. countsUnclear says whether a unit with a photograph marked unclear stays in the analysis; by default it does not, and the unit is out on every day",
+      "Create an experiment with its design. countsUnclear says whether a number read from a photograph marked unclear stays in the analysis; by default it does not, and the unit's day it was taken on is out",
     destructive: false,
     input: experimentRequestSchema,
     output: experimentSchema,
@@ -223,6 +226,16 @@ export const experimentOperations = [
   }),
   command({
     transaction: "operation",
+    name: "set-unit-baselines",
+    description:
+      "Name the observation units' rates are taken against, or null to take them against the experiment's first observation again. A unit's rate on a day is its count over its count on that observation, counted over the classes the first observation counts, so name a later observation only where its photograph or entered count still shows every individual, such as when the first photograph is unclear. `units` names units one by one or selects `{treatment, expected}` as record-culture-events does. Nothing is read again; the sheet's `baseline` on each row says which observation and what number",
+    destructive: true,
+    input: unitBaselinesUpdateSchema,
+    output: unitsReachedSchema,
+    handler: (input, db) => setUnitBaselines(input, db),
+  }),
+  command({
+    transaction: "operation",
     name: "delete-unit",
     description:
       "Delete a unit that holds no records and is not its treatment's last replicate",
@@ -293,7 +306,7 @@ export const experimentOperations = [
     transaction: "operation",
     name: "mark-image-unclear",
     description:
-      "Mark a stored photograph unclear by digest, such as a fogged lid or a dish out of focus, wherever it is observed. In an experiment that does not count unclear photographs, its unit leaves the analysis on every day: the sheet and comparisons leave it out, while it is still read and shown. Datasets train on it as on any other. marked is false when it was already marked, so repeating a call is safe",
+      "Mark a stored photograph unclear by digest, such as a fogged lid or a dish out of focus, wherever it is observed. In an experiment that does not count unclear photographs, the unit's day whose number is read from it leaves the analysis, while the unit's other days and a count entered by hand for that day stand; it is still read and shown. Datasets train on it as on any other. marked is false when it was already marked, so repeating a call is safe",
     destructive: true,
     input: imageRefSchema,
     output: unclearMarkedSchema,

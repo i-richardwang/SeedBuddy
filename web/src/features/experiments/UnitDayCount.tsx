@@ -25,9 +25,10 @@ import { exclusionNote } from "./labels";
  * through. A photograph not yet counted shows as a photograph, a day with
  * neither photograph nor count as absent, and only a failed count asks for
  * attention. A photograph found unclear is marked wherever it is shown,
- * whether or not the experiment counts it; where it does not, its unit is
- * struck through on every day and the mark says which photograph did it.
- * `link` wraps what is shown in a way to the day.
+ * whether or not the experiment counts it; where it does not, the count read
+ * from it is struck through. A count entered by hand that no longer answers
+ * what the day counts asks for attention, since only entering it again gives
+ * the day a number. `link` wraps what is shown in a way to the day.
  */
 export function UnitDayCount({
   cell,
@@ -96,7 +97,7 @@ export function UnitDayCount({
     return explain(
       notes,
       link(
-        <Text as="span" type="tertiary">
+        <Text as="span" type="warning">
           <Icon
             icon={PencilLine}
             size={14}

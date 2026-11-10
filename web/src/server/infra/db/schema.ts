@@ -885,9 +885,22 @@ export const experimentUnits = pgTable(
       .notNull()
       .generatedAlwaysAs(sql`unit_code_order(code)`),
     treatmentId: uuid("treatment_id").notNull(),
+    /**
+     * The observation the unit's rates are taken against where a person
+     * named one; null takes them against the experiment's first.
+     */
+    baselineObservationId: uuid("baseline_observation_id"),
   },
   (table) => [
     primaryKey({ columns: [table.experimentId, table.id] }),
+    foreignKey({
+      name: "experiment_units_baseline_observation_fk",
+      columns: [table.experimentId, table.baselineObservationId],
+      foreignColumns: [
+        experimentObservations.experimentId,
+        experimentObservations.id,
+      ],
+    }),
     uniqueIndex("experiment_units_code").on(
       table.experimentId,
       sql`lower(${table.code})`,

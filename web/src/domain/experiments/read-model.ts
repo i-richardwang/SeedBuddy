@@ -32,6 +32,11 @@ export const unitSchema = z.strictObject({
   code: unitCodeSchema,
   treatment: treatmentIdSchema,
   events: z.array(cultureEventSchema),
+  /**
+   * The observation the unit's rates are taken against where a person named
+   * one, or null to take them against the experiment's first.
+   */
+  baseline: observationIdSchema.nullable(),
 });
 
 export type Unit = z.infer<typeof unitSchema>;
@@ -198,10 +203,10 @@ export type CellReading = z.infer<typeof cellReadingSchema>;
  * Why a unit's day stays out of the analysis. A culture event takes the unit
  * out from the observation that records it, since what came before it still
  * happened. An unclear photograph, where the experiment does not count
- * unclear photographs, takes the whole unit out: marking it says the dish's
- * record cannot be trusted, and that is said of the dish, not of one day. A
- * day with no photograph is no exclusion; the unit only has no number that
- * day.
+ * unclear photographs, takes out the day whose number is read from it and no
+ * other: what it says is that this photograph cannot be read, and a count a
+ * person entered for the day stands whatever the photograph shows. A day
+ * with no photograph is no exclusion; the unit only has no number that day.
  */
 const exclusionSchema = z.discriminatedUnion("reason", [
   z.strictObject({ reason: z.literal("event"), event: cultureEventSchema }),
@@ -235,9 +240,54 @@ const treatmentDaySummarySchema = z.strictObject({
 
 export type TreatmentDaySummary = z.infer<typeof treatmentDaySummarySchema>;
 
+/** Why a day gives a unit no baseline. */
+const baselineGapSchema = z.enum(["unread", "unclear", "event", "model"]);
+
+export type BaselineGap = z.infer<typeof baselineGapSchema>;
+
+/**
+ * What a day gives a unit to take its rates over: the unit's count that day
+ * over the classes the first observation counts, with who stood behind it.
+ * Where the day gives none, `gap` says why: nothing is read over those
+ * classes (`unread`), the number would come from an unclear photograph the
+ * experiment does not count (`unclear`), a culture event took the day out
+ * (`event`), or the day reads for another model than the first observation
+ * (`model`).
+ */
+const baselineDaySchema = z.strictObject({
+  observation: observationIdSchema,
+  count: z.number().int().min(0).nullable(),
+  source: cellReadingSchema.shape.source.nullable(),
+  gap: baselineGapSchema.nullable(),
+});
+
+export type BaselineDay = z.infer<typeof baselineDaySchema>;
+
+/**
+ * What a unit's rates are taken over: the day it names (`named`), or else
+ * the experiment's first. `wanted` marks the baseline a rate waits on: the
+ * unit has a number in the analysis on a day that takes a rate, and no
+ * baseline to rate it by.
+ */
+const unitBaselineSchema = baselineDaySchema.extend({
+  named: z.boolean(),
+  wanted: z.boolean(),
+});
+
+export type UnitBaseline = z.infer<typeof unitBaselineSchema>;
+
 export const experimentSummarySchema = z.strictObject({
-  /** The observation rates are taken against: the first, or null before any. */
-  baseline: observationIdSchema.nullable(),
+  /**
+   * The first observation, or null before any: what it counts is what rates
+   * are taken of, and a unit's rates are taken against its own count that
+   * day unless the unit names another.
+   */
+  first: observationIdSchema.nullable(),
+  /**
+   * The units whose baseline a rate waits on, in the experiment's order:
+   * they have numbers in the analysis and are in no rate.
+   */
+  unrated: z.array(z.strictObject({ id: unitIdSchema, code: unitCodeSchema })),
   /** A summary for every treatment on every observation, treatments in the design's order. */
   cells: z.array(treatmentDaySummarySchema),
 });
@@ -259,22 +309,28 @@ const cellManualSchema = manualReadingSchema.omit({
 /**
  * One unit on one observation. `reading` is what the analysis counts and
  * `exclusion` why it would not; both are null for a day with nothing yet.
+ * `rate` is the reading over the unit's baseline, on a day that takes one.
  * The photograph and the entered count are what the reading came from.
  */
 const sheetCellSchema = z.strictObject({
   observation: observationIdSchema,
   reading: cellReadingSchema.nullable(),
   exclusion: exclusionSchema.nullable(),
+  rate: z.number().nullable(),
   image: cellImageSchema.nullable(),
   manual: cellManualSchema.nullable(),
 });
 
 export type SheetCell = z.infer<typeof sheetCellSchema>;
 
-/** One unit and its cell on every observation, in the experiment's order. */
+/**
+ * One unit, its cell on every observation in the experiment's order, and
+ * what its rates are taken over, null before any observation.
+ */
 const sheetRowSchema = z.strictObject({
   unit: unitSchema,
   cells: z.array(sheetCellSchema),
+  baseline: unitBaselineSchema.nullable(),
 });
 
 export type SheetRow = z.infer<typeof sheetRowSchema>;
@@ -439,6 +495,7 @@ export const unitRowOverviewSchema = z.strictObject({
   unit: unitSchema,
   observations: z.array(experimentObservationSchema),
   cells: z.array(sheetCellSchema),
+  baseline: unitBaselineSchema.nullable(),
 });
 
 export type UnitRowOverview = z.infer<typeof unitRowOverviewSchema>;

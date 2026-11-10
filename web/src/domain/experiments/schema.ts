@@ -118,8 +118,8 @@ export const experimentSchema = z.strictObject({
   notes: experimentNotesSchema,
   inoculatedOn: calendarDaySchema,
   /**
-   * Whether a unit with a photograph marked unclear stays in the analysis.
-   * Unless it does, the unit is out of it on every day.
+   * Whether a number read from a photograph marked unclear stays in the
+   * analysis. Unless it does, the unit's day it was taken on is out of it.
    */
   countsUnclear: z.boolean(),
   createdAt: timestampSchema,
@@ -263,12 +263,10 @@ const namedUnitsSchema = z
   .refine(distinctIds, "Units must be distinct");
 
 /**
- * The units a culture event is recorded for: units named one by one, each
- * of which must take it, or every unit of one treatment, or of the whole
- * experiment when `treatment` is null. A selection by treatment states how
- * many units it was made over, and is refused when the experiment then holds
- * another number; of its units, those that cannot take the event that day
- * are passed over.
+ * The units a command reaches: units named one by one, or every unit of one
+ * treatment, or of the whole experiment when `treatment` is null. A
+ * selection by treatment states how many units it was made over, and is
+ * refused when the experiment then holds another number.
  */
 export const unitSelectionSchema = z.union([
   namedUnitsSchema,
@@ -279,6 +277,25 @@ export const unitSelectionSchema = z.union([
 ]);
 
 export type UnitSelection = z.infer<typeof unitSelectionSchema>;
+
+/**
+ * The observation the selected units' rates are taken against from now on,
+ * or null to take them against the experiment's first again.
+ */
+export const unitBaselinesUpdateSchema = z.strictObject({
+  experiment: experimentIdSchema,
+  units: unitSelectionSchema,
+  observation: observationIdSchema.nullable(),
+});
+
+export type UnitBaselinesUpdate = z.infer<typeof unitBaselinesUpdateSchema>;
+
+/** How many units a command reached. */
+export const unitsReachedSchema = z.strictObject({
+  units: z.number().int().min(0),
+});
+
+export type UnitsReached = z.infer<typeof unitsReachedSchema>;
 
 /** Named units moved to another treatment, each keeping its code. */
 export const unitsTreatmentUpdateSchema = z.strictObject({

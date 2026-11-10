@@ -4,12 +4,15 @@ import { useCallback, useEffect, useEffectEvent } from "react";
 
 import type { ReviewSource } from "../../domain/annotation/schema";
 import type { NamedDataset } from "../../domain/datasets/schema";
-import { unitExclusions } from "../../domain/experiments/analysis";
+import {
+  analysisFrame,
+  baselineDays,
+  unitAnalysis,
+} from "../../domain/experiments/analysis";
 import {
   cellReading,
   imageReview,
 } from "../../domain/experiments/cell-reading";
-import { observationOrdinals } from "../../domain/experiments/culture-events";
 import type {
   ReviewState,
   UnitDetail,
@@ -60,6 +63,7 @@ import {
 } from "./DayComparison";
 import { imageReviewLabel, imageReviewTone, observationLabel } from "./labels";
 import { TreatmentName } from "./TreatmentName";
+import { UnitBaselineValue } from "./UnitBaseline";
 import { UnitMenu } from "./UnitMenu";
 
 /**
@@ -111,7 +115,21 @@ export function UnitWorkbench({
     experiment: experiment.name,
   });
   const observations = series.observations.map((item) => item.observation);
-  const ordinals = observationOrdinals(observations);
+  const frame = analysisFrame(experiment, observations);
+  const analysis = unitAnalysis(unit, series.observations, frame);
+  const facts = (
+    <>
+      <DescriptionsItem label={m.treatment_label()}>
+        <TreatmentName treatment={treatment} />
+      </DescriptionsItem>
+      <DescriptionsItem label={m.unit_baseline()}>
+        <UnitBaselineValue
+          baseline={analysis.baseline}
+          observations={observations}
+        />
+      </DescriptionsItem>
+    </>
+  );
 
   const photographed = series.observations.filter((item) => item.image);
   // Only the days the unit has a record of, a photograph or a count, are
@@ -200,6 +218,8 @@ export function UnitWorkbench({
       experiment={experiment.id}
       unit={unit}
       treatments={treatments}
+      observations={observations}
+      baselineDays={baselineDays(unit.events, series.observations, frame)}
       canRemove={series.removable}
       image={shown}
       datasets={datasets}
@@ -283,20 +303,11 @@ export function UnitWorkbench({
           <DayCountsSection
             reference={reference}
             inView={inView}
-            exclusion={unitExclusions(
-              unit.events,
-              series.observations,
-              ordinals,
-              experiment,
-            )}
+            analysis={(day) => analysis.days[series.observations.indexOf(day)]!}
           />
           {culture}
           <WorkbenchSection title={m.details_label()}>
-            <Descriptions>
-              <DescriptionsItem label={m.treatment_label()}>
-                <TreatmentName treatment={treatment} />
-              </DescriptionsItem>
-            </Descriptions>
+            <Descriptions>{facts}</Descriptions>
           </WorkbenchSection>
         </WorkbenchInspector>
         <DayComparison
@@ -379,11 +390,7 @@ export function UnitWorkbench({
             />
           ) : undefined,
           sections: culture,
-          facts: (
-            <DescriptionsItem label={m.treatment_label()}>
-              <TreatmentName treatment={treatment} />
-            </DescriptionsItem>
-          ),
+          facts,
         }}
       />
     </Workbench>
@@ -409,7 +416,7 @@ export function UnitWorkbenchSkeleton({
           <Skeleton.Button size="small" />
         </WorkbenchSectionSkeleton>
         <WorkbenchSectionSkeleton>
-          <DescriptionsSkeleton rows={1} />
+          <DescriptionsSkeleton rows={2} />
         </WorkbenchSectionSkeleton>
       </WorkbenchSkeleton>
     );
@@ -417,7 +424,7 @@ export function UnitWorkbenchSkeleton({
   return (
     <ImageWorkbenchSkeleton
       actions={<Skeleton.Button icon />}
-      facts={1}
+      facts={2}
       sections={
         <WorkbenchSectionSkeleton>
           <Skeleton.Button size="small" />

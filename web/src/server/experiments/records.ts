@@ -21,6 +21,7 @@ import {
   ObservationNotFoundError,
   TreatmentNotFoundError,
   UnitNotFoundError,
+  UnitSelectionConflictError,
 } from "../../domain/experiments/errors";
 import type { Unit } from "../../domain/experiments/read-model";
 import {
@@ -32,6 +33,7 @@ import {
   manualReadingSchema,
   type Treatment,
   treatmentSchema,
+  type UnitSelection,
 } from "../../domain/experiments/schema";
 import type { Executor } from "../infra/db/client";
 import {
@@ -79,6 +81,7 @@ export function toUnit(
     code: row.code,
     treatment: row.treatmentId,
     events,
+    baseline: row.baselineObservationId,
   };
 }
 
@@ -217,7 +220,10 @@ export function recordsIn(
 }
 
 /** The experiment's units in scope, as a condition on the units' table. */
-function unitRowsIn(experimentId: string, scope: UnitScope): SQL | undefined {
+export function unitRowsIn(
+  experimentId: string,
+  scope: UnitScope,
+): SQL | undefined {
   return and(
     eq(experimentUnits.experimentId, experimentId),
     scope === "all"
@@ -515,6 +521,32 @@ export async function requireUnits(
     throw new UnitNotFoundError(`Unknown units: ${unknown.join(", ")}`);
   }
   return units;
+}
+
+/**
+ * The units a selection names, with their scope: each one named, which must
+ * be the experiment's, or the units of the treatment or experiment selected,
+ * which must number what the selection was made over.
+ */
+export async function selectedUnits(
+  experimentId: string,
+  selection: UnitSelection,
+  db: Executor,
+): Promise<{ units: Unit[]; scope: UnitScope }> {
+  if (Array.isArray(selection)) {
+    const units = await requireUnits(experimentId, selection, db);
+    return { units, scope: { units: selection } };
+  }
+  const { treatment, expected } = selection;
+  if (treatment !== null) await requireTreatment(experimentId, treatment, db);
+  const scope: UnitScope = treatment === null ? "all" : { treatment };
+  const units = await listUnits(experimentId, db, scope);
+  if (units.length !== expected) {
+    throw new UnitSelectionConflictError(
+      `The selection was made over ${expected} units and now covers ${units.length}`,
+    );
+  }
+  return { units, scope };
 }
 
 /** The unit an image shows. */

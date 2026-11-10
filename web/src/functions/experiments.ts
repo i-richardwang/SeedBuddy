@@ -22,6 +22,7 @@ import {
   treatmentRefSchema,
   treatmentRequestSchema,
   treatmentUpdateSchema,
+  unitBaselinesUpdateSchema,
   unitRefSchema,
   unitRequestSchema,
   unitsTreatmentUpdateSchema,
@@ -42,6 +43,7 @@ import {
   recordManualReadings,
   recordObservation,
   retryObservationImageAnalysis,
+  setUnitBaselines,
   unassignObservationImage,
   updateExperiment as updateExperimentService,
   updateObservation as updateObservationService,
@@ -139,6 +141,10 @@ export const updateUnit = createServerFn({ method: "POST" })
 export const updateUnitsTreatment = createServerFn({ method: "POST" })
   .validator(unitsTreatmentUpdateSchema)
   .handler(({ data }) => moveUnits(data));
+
+export const updateUnitBaselines = createServerFn({ method: "POST" })
+  .validator(unitBaselinesUpdateSchema)
+  .handler(({ data }) => setUnitBaselines(data));
 
 export const removeUnit = createServerFn({ method: "POST" })
   .validator(unitRefSchema)

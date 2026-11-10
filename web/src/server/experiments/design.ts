@@ -25,7 +25,9 @@ import type {
   TreatmentRef,
   TreatmentRequest,
   TreatmentUpdate,
+  UnitBaselinesUpdate,
   UnitRef,
+  UnitsReached,
   UnitsTreatmentUpdate,
   UnitUpdate,
 } from "../../domain/experiments/schema";
@@ -48,14 +50,18 @@ import {
   countUnits,
   countUnitsByTreatment,
   hasRecords,
+  listObservations,
   listTreatments,
   lockExperiment,
+  requireObservation,
   requireTreatment,
   requireUnit,
   requireUnits,
+  selectedUnits,
   toExperiment,
   toTreatment,
   toUnit,
+  unitRowsIn,
 } from "./records";
 
 /** An experiment starts with its design: every treatment laid out in replicates. */
@@ -356,6 +362,29 @@ export async function moveUnits(
         ),
       );
     return units.map((unit) => ({ ...unit, treatment }));
+  });
+}
+
+/**
+ * Names the observation the selected units' rates are taken against, or
+ * none, in one transaction. It reads nothing again; only the rates change.
+ */
+export async function setUnitBaselines(
+  value: UnitBaselinesUpdate,
+  db?: Executor,
+): Promise<UnitsReached> {
+  const { experiment: experimentId, observation } = value;
+  return inTransaction(db, async (db) => {
+    await lockExperiment(experimentId, db);
+    if (observation !== null) {
+      requireObservation(await listObservations(experimentId, db), observation);
+    }
+    const { units, scope } = await selectedUnits(experimentId, value.units, db);
+    await db
+      .update(experimentUnits)
+      .set({ baselineObservationId: observation })
+      .where(unitRowsIn(experimentId, scope));
+    return { units: units.length };
   });
 }
 

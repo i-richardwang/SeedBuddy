@@ -23,6 +23,7 @@ import {
 import {
   experimentManualReadings,
   experimentObservations,
+  experimentUnits,
 } from "../infra/db/schema";
 import { requireModel } from "../models/public";
 import { assertRecordsEndOffBench } from "./culture-events";
@@ -185,6 +186,17 @@ export async function deleteObservation(
         "An observation with images, counts or culture events cannot be deleted",
       );
     }
+    // A unit that took its rates against the observation takes them
+    // against the first again.
+    await db
+      .update(experimentUnits)
+      .set({ baselineObservationId: null })
+      .where(
+        and(
+          eq(experimentUnits.experimentId, experimentId),
+          eq(experimentUnits.baselineObservationId, observationId),
+        ),
+      );
     await db
       .delete(experimentObservations)
       .where(atObservation(experimentId, observationId));

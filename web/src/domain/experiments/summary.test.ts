@@ -45,10 +45,10 @@ function scenario(
       { id: "c", name: "Control", factor: null, note: "", position: 2 },
     ],
     units: [
-      { id: "a", code: "T-1", treatment: "t", events: [] },
-      { id: "b", code: "T-2", treatment: "t", events: [] },
-      { id: "c", code: "T-3", treatment: "t", events: [] },
-      { id: "k", code: "C-1", treatment: "c", events: [] },
+      { id: "a", code: "T-1", treatment: "t", events: [], baseline: null },
+      { id: "b", code: "T-2", treatment: "t", events: [], baseline: null },
+      { id: "c", code: "T-3", treatment: "t", events: [], baseline: null },
+      { id: "k", code: "C-1", treatment: "c", events: [], baseline: null },
     ],
     observations: [sown, grown],
     images: DISHES,
@@ -78,7 +78,7 @@ describe("a statistic", () => {
 describe("the summary by treatment", () => {
   test("has a cell for every treatment on every observation, treatments in the design's order", () => {
     const summary = recordsSummary(scenario());
-    expect(summary.baseline).toBe(sown.id);
+    expect(summary.first).toBe(sown.id);
     expect(
       summary.cells.map(
         ({ treatment, observation }) => `${treatment}/${observation}`,
@@ -120,15 +120,16 @@ describe("the summary by treatment", () => {
     const summary = recordsSummary(
       scenario({
         units: [
-          { id: "a", code: "T-1", treatment: "t", events: [] },
+          { id: "a", code: "T-1", treatment: "t", events: [], baseline: null },
           {
             id: "b",
             code: "T-2",
             treatment: "t",
             events: [event("contaminated", grown)],
+            baseline: null,
           },
-          { id: "c", code: "T-3", treatment: "t", events: [] },
-          { id: "k", code: "C-1", treatment: "c", events: [] },
+          { id: "c", code: "T-3", treatment: "t", events: [], baseline: null },
+          { id: "k", code: "C-1", treatment: "c", events: [], baseline: null },
         ],
       }),
     );
@@ -143,22 +144,62 @@ describe("the summary by treatment", () => {
     });
   });
 
-  test("an unclear photograph takes its unit out on every day, unless the experiment counts it", () => {
-    const images = [
-      ...DISHES.filter((image) => image.unit !== "a"),
-      photograph("a", sown, { detectionTally: { ungerminated: 10 } }),
-      photograph("a", grown, {
-        detectionTally: { germinated: 5 },
-        ...{ unclear: true },
-      }),
-    ];
+  test("an unclear photograph takes its own day out, unless the experiment counts it", () => {
+    const images = DISHES.map((image) =>
+      image.unit === "a" && image.observation === grown.id
+        ? { ...image, unclear: true }
+        : image,
+    );
     const out = recordsSummary(scenario({ images }));
-    expect(summaryCell(out, "t", sown.id)!.count?.n).toBe(2);
+    expect(summaryCell(out, "t", sown.id)!.count?.n).toBe(3);
     expect(summaryCell(out, "t", grown.id)!.count?.n).toBe(2);
     const counted = recordsSummary(
       scenario({ images, experiment: { ...experiment, countsUnclear: true } }),
     );
     expect(summaryCell(counted, "t", grown.id)!.count?.n).toBe(3);
+  });
+
+  test("a unit whose first photograph is unclear keeps its later counts and has no rate", () => {
+    const images = DISHES.map((image) =>
+      image.unit === "a" && image.observation === sown.id
+        ? { ...image, unclear: true }
+        : image,
+    );
+    const summary = recordsSummary(scenario({ images }));
+    expect(summaryCell(summary, "t", sown.id)!.count?.n).toBe(2);
+    expect(summaryCell(summary, "t", grown.id)!.count?.n).toBe(3);
+    expect(summaryCell(summary, "t", grown.id)!.rate?.n).toBe(2);
+    // The summary names the unit its rates are missing.
+    expect(summary.unrated).toEqual([{ id: "a", code: "T-1" }]);
+  });
+
+  test("a unit that names another observation is rated against its count that day", () => {
+    const images = DISHES.map((image) =>
+      image.unit === "a" && image.observation === sown.id
+        ? { ...image, unclear: true }
+        : image,
+    );
+    const summary = recordsSummary(
+      scenario({
+        images,
+        units: [
+          {
+            id: "a",
+            code: "T-1",
+            treatment: "t",
+            events: [],
+            baseline: grown.id,
+          },
+          { id: "b", code: "T-2", treatment: "t", events: [], baseline: null },
+          { id: "c", code: "T-3", treatment: "t", events: [], baseline: null },
+          { id: "k", code: "C-1", treatment: "c", events: [], baseline: null },
+        ],
+      }),
+    );
+    // T-1 shows 5 germinated among 10 seeds on the day it names.
+    expect(summaryCell(summary, "t", grown.id)!.rate?.n).toBe(3);
+    expect(summaryCell(summary, "t", grown.id)!.rate?.mean).toBe(0.75);
+    expect(summaryCell(summary, "t", sown.id)!.rate).toBeNull();
   });
 
   test("a single unit has a mean and no spread", () => {
@@ -237,9 +278,10 @@ describe("the summary by treatment", () => {
     expect(summaryCell(summary, "c", grown.id)!.rate).toBeNull();
   });
 
-  test("an experiment without observations has no baseline and no cells", () => {
+  test("an experiment without observations has no first observation and no cells", () => {
     expect(recordsSummary(scenario({ observations: [], images: [] }))).toEqual({
-      baseline: null,
+      first: null,
+      unrated: [],
       cells: [],
     });
   });

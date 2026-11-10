@@ -1,3 +1,4 @@
+import { businessFailureSchema } from "../../domain/errors";
 import type { Unit } from "../../domain/experiments/read-model";
 import type { UnitSelection } from "../../domain/experiments/schema";
 
@@ -22,4 +23,22 @@ export function choiceSelection(choice: UnitChoice): UnitSelection {
   return "units" in choice
     ? choice.units.map((unit) => unit.id)
     : { treatment: choice.treatment, expected: choice.count };
+}
+
+/**
+ * A command made of a choice, answered "changed" where it was refused
+ * because the choice no longer holds what it was made over: every unit of a
+ * treatment or of the experiment was chosen by how many there were, and that
+ * has changed since. The caller lets the choice go and reads the page again.
+ */
+export function unlessChanged<Result>(
+  command: Promise<Result>,
+): Promise<Result | "changed"> {
+  return command.catch((error: unknown) => {
+    const failure = businessFailureSchema.safeParse(error);
+    if (failure.success && failure.data.code === "unit_selection_conflict") {
+      return "changed" as const;
+    }
+    throw error;
+  });
 }

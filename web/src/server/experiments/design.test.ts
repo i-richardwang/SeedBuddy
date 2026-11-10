@@ -7,11 +7,13 @@ import {
   ExperimentNotFoundError,
   ExperimentRecordsConflictError,
   ObservationConflictError,
+  ObservationNotFoundError,
   TreatmentConflictError,
   TreatmentNotFoundError,
   UnitConflictError,
   UnitNameTakenError,
   UnitNotFoundError,
+  UnitSelectionConflictError,
 } from "../../domain/experiments/errors";
 import {
   calendarDaySchema,
@@ -27,6 +29,7 @@ import { database } from "../infra/db/client";
 import { experimentUnits } from "../infra/db/schema";
 import { listModelVersions } from "../models/registry";
 import { experimentRecordsDetail } from "../queries/experiment-records-detail";
+import { experimentSummaryDetail } from "../queries/experiment-summary-detail";
 import { listExperimentOverviews } from "../queries/list-experiment-overviews";
 import {
   assignImages,
@@ -44,11 +47,13 @@ import {
   deleteTreatment,
   deleteUnit,
   moveUnits,
+  setUnitBaselines,
   updateExperiment,
   updateTreatment,
   updateUnit,
 } from "./design";
-import { createObservation } from "./observations";
+import { recordManualReadings } from "./manual-readings";
+import { createObservation, deleteObservation } from "./observations";
 
 test("start on a fresh deployment with the builtin seed germination model", async () => {
   expect(calendarDaySchema.safeParse("2026-02-29").success).toBeFalse();
@@ -581,4 +586,109 @@ test("images keep their units, and experiments without them can be deleted", asy
     ExperimentNotFoundError,
   );
   expect(await blobExists(imageBlobKey(first))).toBeTrue();
+});
+
+test("a unit takes its rates against the observation it names, until it names none", async () => {
+  const version = await trainedVersion("exp-unit-baseline");
+  const experiment = await createExperiment({
+    name: "Named baseline",
+    inoculatedOn: INOCULATED,
+    treatments: [{ name: "A", replicates: 2 }],
+  });
+  const units = await unitsOf(experiment.id);
+  const [a1, a2] = [units.get("A-1")!, units.get("A-2")!];
+  const observe = (observedOn: string, countedClasses: string[]) =>
+    createObservation({
+      experiment: experiment.id,
+      observedOn,
+      note: "",
+      ...reading(version),
+      countedClasses,
+    });
+  const sown = await observe(INOCULATED, ["ungerminated", "germinated"]);
+  const grown = await observe("2026-08-08", ["germinated"]);
+  const spare = await observe("2026-08-15", ["germinated"]);
+  // A-2 was not counted the day it was sown; a week on it still shows every seed.
+  await recordManualReadings({
+    experiment: experiment.id,
+    observation: sown.id,
+    readings: [{ unit: a1, tally: { ungerminated: 20, germinated: 0 } }],
+  });
+  await recordManualReadings({
+    experiment: experiment.id,
+    observation: grown.id,
+    readings: [
+      { unit: a1, tally: { germinated: 10 } },
+      { unit: a2, tally: { ungerminated: 6, germinated: 4 } },
+    ],
+  });
+  const baselines = async () => {
+    const records = (await experimentRecordsDetail(experiment.id))!;
+    return new Map(records.units.map((unit) => [unit.code, unit.baseline]));
+  };
+  const rate = async () =>
+    (await experimentSummaryDetail(experiment.id))!.cells.find(
+      (cell) => cell.observation === grown.id,
+    )!.rate;
+
+  expect(await rate()).toMatchObject({ n: 1, mean: 0.5 });
+  expect(
+    await setUnitBaselines({
+      experiment: experiment.id,
+      units: [a2],
+      observation: grown.id,
+    }),
+  ).toEqual({ units: 1 });
+  expect(await baselines()).toEqual(
+    new Map([
+      ["A-1", null],
+      ["A-2", grown.id],
+    ]),
+  );
+  // A-1 grew 10 of 20, A-2 4 of the 10 it shows on the day it names.
+  expect(await rate()).toMatchObject({ n: 2, mean: 0.45 });
+
+  // A whole treatment is named at once, as many units as it was chosen over.
+  await expect(
+    setUnitBaselines({
+      experiment: experiment.id,
+      units: { treatment: null, expected: 3 },
+      observation: spare.id,
+    }),
+  ).rejects.toThrow(UnitSelectionConflictError);
+  await expect(
+    setUnitBaselines({
+      experiment: experiment.id,
+      units: [a2],
+      observation: randomUUID(),
+    }),
+  ).rejects.toThrow(ObservationNotFoundError);
+  await setUnitBaselines({
+    experiment: experiment.id,
+    units: { treatment: null, expected: 2 },
+    observation: spare.id,
+  });
+  expect(await rate()).toBeNull();
+
+  // Deleting the observation named returns its units to the first.
+  await deleteObservation({ experiment: experiment.id, observation: spare.id });
+  expect(await baselines()).toEqual(
+    new Map([
+      ["A-1", null],
+      ["A-2", null],
+    ]),
+  );
+  expect(await rate()).toMatchObject({ n: 1, mean: 0.5 });
+
+  await setUnitBaselines({
+    experiment: experiment.id,
+    units: [a2],
+    observation: grown.id,
+  });
+  await setUnitBaselines({
+    experiment: experiment.id,
+    units: [a2],
+    observation: null,
+  });
+  expect((await baselines()).get("A-2")).toBeNull();
 });
