@@ -235,7 +235,7 @@ export const experimentOperations = [
     transaction: "operation",
     name: "create-observation",
     description:
-      "Add an observation to an experiment: the date, the recognition task its photographs are read for, which of that model's classes its count sums (every class when omitted), and the photographs taken on it matched to their units, or none yet",
+      "Add an observation to an experiment: the date, the recognition task its photographs are read for, which of that model's classes its count sums (the ones the model counts by default when omitted), and the photographs taken on it matched to their units, or none yet",
     destructive: false,
     input: observationRecordSchema,
     output: experimentObservationSchema,

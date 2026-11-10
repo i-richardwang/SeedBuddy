@@ -6,6 +6,7 @@ import {
   SEED_DETECTOR_MODEL_ID,
 } from "../../domain/models/builtins";
 import {
+  ClassInvalidError,
   ModelNameTakenError,
   ModelNotFoundError,
   ModelUsageConflictError,
@@ -46,6 +47,7 @@ test("a version is registered once and its contents may not change", async () =>
       name: "Registry detector",
       task: "object_detection",
       classes: ["seed"],
+      countedClasses: ["seed"],
       area: "image",
       annotation: DEFAULT_MODEL_ANNOTATION,
     },
@@ -55,6 +57,7 @@ test("a version is registered once and its contents may not change", async () =>
     schemaVersion: 1 as const,
     id: "registry-detector-v1",
     modelId: model.id,
+    classes: model.classes,
     createdAt: "2026-08-27T00:00:00.000Z",
     source: {
       kind: "builtin" as const,
@@ -74,6 +77,7 @@ test("a version is registered once and its contents may not change", async () =>
       artifact: candidate.artifact,
       source: candidate.source,
       createdAt: candidate.createdAt,
+      classes: candidate.classes,
       modelId: candidate.modelId,
       id: candidate.id,
       schemaVersion: candidate.schemaVersion,
@@ -100,6 +104,42 @@ test("a version is registered once and its contents may not change", async () =>
   ).rejects.toThrow(/already registered with different contents/);
 });
 
+test("a version finds only classes its model declares, in the model's order", async () => {
+  const db = await database();
+  const model = await registerModel(
+    {
+      schemaVersion: 1,
+      id: "class-bound-detector",
+      name: "Class-bound detector",
+      task: "object_detection",
+      classes: ["seed", "germinated", "dead"],
+      countedClasses: ["seed", "germinated", "dead"],
+      area: "image",
+      annotation: DEFAULT_MODEL_ANNOTATION,
+    },
+    db,
+  );
+  const version = (suffix: string, classes: string[]) => ({
+    schemaVersion: 1 as const,
+    id: `class-bound-detector-${suffix}`,
+    modelId: model.id,
+    classes,
+    createdAt: "2026-08-27T00:00:00.000Z",
+    source: { kind: "builtin" as const, definition: `class-bound-${suffix}` },
+    artifact: { kind: "traditional" as const, digest: "d".repeat(64) },
+  });
+
+  const fewer = await registerModelVersion(version("fewer", ["seed"]), db);
+  expect(fewer.classes).toEqual(["seed"]);
+  expect(await readModelVersion(fewer.id, db)).toEqual(fewer);
+  await expect(
+    registerModelVersion(version("unknown", ["seed", "shoot"]), db),
+  ).rejects.toThrow(/declares, in its order/);
+  await expect(
+    registerModelVersion(version("reordered", ["dead", "seed"]), db),
+  ).rejects.toThrow(/declares, in its order/);
+});
+
 test("every registered version is listed newest first", async () => {
   const model = await registerModel(
     {
@@ -108,6 +148,7 @@ test("every registered version is listed newest first", async () => {
       name: "Listing detector",
       task: "object_detection",
       classes: ["seed"],
+      countedClasses: ["seed"],
       area: "image",
       annotation: DEFAULT_MODEL_ANNOTATION,
     },
@@ -117,6 +158,7 @@ test("every registered version is listed newest first", async () => {
     schemaVersion: 1 as const,
     id: `listing-detector-${suffix}`,
     modelId: model.id,
+    classes: model.classes,
     createdAt,
     source: { kind: "builtin" as const, definition: `listing-${suffix}` },
     artifact: { kind: "traditional" as const, digest: "d".repeat(64) },
@@ -147,11 +189,13 @@ test("a task exists as soon as it is named, before anything can answer it", asyn
     name: "Germination detector",
     task: "object_detection",
     classes: ["germinated"],
+    countedClasses: ["germinated"],
     area: "image",
     annotation: DEFAULT_MODEL_ANNOTATION,
   });
   const framed = await setModelSettings({
     model: model.id,
+    countedClasses: model.countedClasses,
     area: "dish",
     annotation: { ...DEFAULT_MODEL_ANNOTATION, instructions: "Box seeds" },
   });
@@ -179,6 +223,38 @@ test("a task exists as soon as it is named, before anything can answer it", asyn
       classes: ["seed"],
     }),
   ).rejects.toBeInstanceOf(ModelNameTakenError);
+});
+
+test("a task counts every class by default unless it names fewer, and the default is a setting", async () => {
+  const request = {
+    id: "state-detector",
+    name: "State detector",
+    classes: ["seed", "germinated", "empty"],
+  };
+  await expect(
+    createModel({ ...request, countedClasses: ["seed", "shoot"] }),
+  ).rejects.toBeInstanceOf(ClassInvalidError);
+  const model = await createModel({
+    ...request,
+    countedClasses: ["germinated", "seed"],
+  });
+  expect(model.countedClasses).toEqual(["seed", "germinated"]);
+
+  const settings = {
+    model: model.id,
+    area: model.area,
+    annotation: model.annotation,
+  };
+  await expect(
+    setModelSettings({ ...settings, countedClasses: ["shoot"] }),
+  ).rejects.toBeInstanceOf(ClassInvalidError);
+  const every = await setModelSettings({
+    ...settings,
+    countedClasses: ["empty", "germinated", "seed"],
+  });
+  expect(every.countedClasses).toEqual(model.classes);
+  // Registration supplies a starting point; the deployment's setting stays.
+  expect(await registerModel(model, await database())).toEqual(every);
 });
 
 test("a task nothing records against can be withdrawn", async () => {
@@ -262,6 +338,7 @@ contendedTest(
         name: "Contended detector",
         task: "object_detection",
         classes: ["seed"],
+        countedClasses: ["seed"],
         area: "image",
         annotation: DEFAULT_MODEL_ANNOTATION,
       },
@@ -280,6 +357,7 @@ contendedTest(
       await db.insert(modelVersions).values({
         id: "contended-detector-v1",
         modelId: model.id,
+        classes: model.classes,
         createdAt: new Date("2026-09-11T00:00:00.000Z"),
         source: { kind: "builtin", definition: "contended-v1" },
         artifact: { kind: "traditional", digest: "f".repeat(64) },

@@ -1,33 +1,32 @@
 import type { Model } from "../../domain/models/schema";
-import { m } from "../../paraglide/messages";
 import { CheckboxGroup } from "../../ui/kit/Checkbox";
 import { Form } from "../../ui/kit/Form";
 import { ClassLabel } from "../annotation/ClassLabel";
 
 /**
- * Which of its model's classes a day counts. A model with one class leaves
- * nothing to choose, and a day always counts at least one, so the last class
- * left checked holds.
+ * Which of a model's classes are counted: by a day, or by every day that
+ * does not choose its own. A model with one class leaves nothing to choose,
+ * and a count always takes at least one, so the last class left checked
+ * holds.
  */
 export function CountedClassesField({
+  label,
+  desc,
   disabled,
   model,
   value,
   onChange,
 }: {
+  label: string;
+  desc: string;
   disabled: boolean;
-  model: Model;
+  model: Pick<Model, "classes">;
   value: string[];
   onChange: (countedClasses: string[]) => void;
 }) {
   if (model.classes.length < 2) return null;
   return (
-    <Form.Field
-      label={m.observation_counted_classes_label()}
-      desc={m.observation_counted_classes_description()}
-      required
-      fieldset
-    >
+    <Form.Field label={label} desc={desc} required fieldset>
       <CheckboxGroup
         disabled={disabled}
         value={value}

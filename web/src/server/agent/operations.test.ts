@@ -366,7 +366,11 @@ describe("agent operations", () => {
     expect(row.unit.id).toBe(counted!.id);
     expect(row.treatment.name).toBe("T1");
     expect(row.cells).toHaveLength(1);
-    expect(row.cells[0]!.reading).toEqual({ count: 7, source: "manual" });
+    expect(row.cells[0]!.reading).toEqual({
+      count: 7,
+      source: "manual",
+      unfound: [],
+    });
 
     // A class the day counts must be given; a class the model lacks is refused.
     expect(

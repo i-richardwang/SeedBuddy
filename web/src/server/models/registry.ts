@@ -11,6 +11,7 @@ import {
   SEED_DETECTOR,
   SEED_DETECTOR_BASELINE,
 } from "../../domain/models/builtins";
+import { chosenClasses, classesAmong } from "../../domain/models/classes";
 import {
   ModelNameTakenError,
   ModelNotFoundError,
@@ -49,6 +50,7 @@ export function toModel(row: typeof models.$inferSelect): Model {
     name: row.name,
     task: row.task,
     classes: row.classes,
+    countedClasses: row.countedClasses,
     area: row.area,
     annotation: row.annotation,
   });
@@ -61,6 +63,7 @@ export function toModelVersion(
     schemaVersion: 1,
     id: row.id,
     modelId: row.modelId,
+    classes: row.classes,
     createdAt: row.createdAt.toISOString(),
     source: row.source,
     artifact: row.artifact,
@@ -122,9 +125,9 @@ async function insertModel(model: Model, db: Executor): Promise<Model | null> {
 
 /**
  * Declares a model the deployment always has: the same one again is welcome.
- * Its area and annotation are the deployment's settings to edit, so
- * registration supplies a starting point and never overrides what was
- * changed since.
+ * The classes a day counts by default, its area and its annotation are the
+ * deployment's settings to edit, so registration supplies a starting point
+ * and never overrides what was changed since.
  */
 export async function registerModel(
   model: Model,
@@ -137,6 +140,7 @@ export async function registerModel(
     !existing ||
     !sameModel(existing, {
       ...model,
+      countedClasses: existing.countedClasses,
       area: existing.area,
       annotation: existing.annotation,
     })
@@ -151,7 +155,9 @@ export async function registerModel(
 /**
  * Names a task the workbench did not have. Classes are fixed here because
  * every review already stored for the model was drawn from them; a task whose
- * vocabulary changed would be a different task under the same name.
+ * vocabulary changed would be a different task under the same name. Only a
+ * release can add to what a model it ships declares, and it migrates the
+ * deployments that have the model.
  *
  * The insert is what claims the name, so two people naming the same task at
  * once get one model and one refusal.
@@ -164,6 +170,10 @@ export async function createModel(
     schemaVersion: 1,
     task: "object_detection",
     ...request,
+    countedClasses: chosenClasses(
+      request.classes,
+      request.countedClasses ?? request.classes,
+    ),
     area: request.area ?? DEFAULT_MODEL_AREA,
     annotation: { ...DEFAULT_MODEL_ANNOTATION, ...request.annotation },
   });
@@ -180,19 +190,25 @@ export async function createModel(
 }
 
 /**
- * Changes where the task looks and how agents annotate it. Its classes and
- * records are untouched, and so is everything already frozen from the old
- * settings: runs keep their coverage, snapshots their frame, and trained
- * versions read as they were trained.
+ * Changes which classes a day counts by default, where the task looks and
+ * how agents annotate it. Its classes and records are untouched, and so is
+ * everything already made under the old settings: observations keep the
+ * classes they count, runs their coverage, snapshots their frame, and
+ * trained versions read as they were trained.
  */
 export async function setModelSettings(
   request: ModelSettingsRequest,
   db?: Executor,
 ): Promise<Model> {
   db ??= await database();
+  const { classes } = await requireModel(request.model, db);
   const [row] = await db
     .update(models)
-    .set({ area: request.area, annotation: request.annotation })
+    .set({
+      countedClasses: chosenClasses(classes, request.countedClasses),
+      area: request.area,
+      annotation: request.annotation,
+    })
     .where(eq(models.id, request.model))
     .returning();
   if (!row) throw new ModelNotFoundError(`Unknown model: ${request.model}`);
@@ -226,12 +242,18 @@ export async function registerModelVersion(
   version: ModelVersion,
   db: Executor,
 ): Promise<ModelVersion> {
-  await requireModel(version.modelId, db);
+  const model = await requireModel(version.modelId, db);
+  if (!classesAmong(version.classes, model.classes)) {
+    throw new Error(
+      `Model version ${version.id} must find classes ${version.modelId} declares, in its order`,
+    );
+  }
   const [inserted] = await db
     .insert(modelVersions)
     .values({
       id: version.id,
       modelId: version.modelId,
+      classes: [...version.classes],
       createdAt: new Date(version.createdAt),
       source: version.source,
       artifact: version.artifact,
@@ -309,6 +331,14 @@ export async function installBuiltinModels(db: Executor): Promise<void> {
 }
 
 function modelColumns(model: Model) {
-  const { id, name, task, classes, area, annotation } = model;
-  return { id, name, task, classes: [...classes], area, annotation };
+  const { id, name, task, classes, countedClasses, area, annotation } = model;
+  return {
+    id,
+    name,
+    task,
+    classes: [...classes],
+    countedClasses: [...countedClasses],
+    area,
+    annotation,
+  };
 }

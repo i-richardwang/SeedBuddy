@@ -14,7 +14,7 @@ import {
 } from "./annotation";
 import { type ModelArea, modelAreaSchema } from "./area";
 import { bundleProvenanceSchema } from "./bundle";
-import { classListSchema } from "./classes";
+import { classesAmong, classListSchema } from "./classes";
 import { inferenceSettingsSchema } from "./inference";
 
 /**
@@ -41,40 +41,54 @@ export const DEFAULT_MODEL_AREA = "image" satisfies ModelArea;
  * A model is a task: what it looks for in an image, and where in the image
  * it looks. It exists as soon as someone asks the question, with or without
  * a version that can answer it; until one is trained, the answers are a
- * reviewer's. Every version of the model finds the same classes; versions
- * differ only in how well they find them.
+ * reviewer's.
  */
-export const modelSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  id: resourceIdSchema,
-  name: z.string().min(1),
-  task: z.literal("object_detection"),
-  classes: classListSchema,
-  area: modelAreaSchema,
-  annotation: modelAnnotationSchema,
-});
+export const modelSchema = z
+  .strictObject({
+    schemaVersion: z.literal(1),
+    id: resourceIdSchema,
+    name: z.string().min(1),
+    task: z.literal("object_detection"),
+    classes: classListSchema,
+    /**
+     * The classes a day counts unless it names its own: every class, or
+     * fewer where the model tells some apart only so a count can leave them
+     * out.
+     */
+    countedClasses: classListSchema,
+    area: modelAreaSchema,
+    annotation: modelAnnotationSchema,
+  })
+  .refine((model) => classesAmong(model.countedClasses, model.classes), {
+    path: ["countedClasses"],
+    message: "Counted classes must be the model's, in the model's order",
+  });
 
 /**
  * What naming a new task asks for: what to call it, what it finds, where it
  * looks, and how an agent should draw it. The instructions may be added
- * later; the area defaults to the whole image, and the region defaults suit
- * the seed dishes the workbench was built for.
+ * later; a day counts every class unless the task counts fewer, the area
+ * defaults to the whole image, and the region defaults suit the seed dishes
+ * the workbench was built for.
  */
 export const modelRequestSchema = z.strictObject({
   id: resourceIdSchema,
   name: z.string().min(1),
   classes: classListSchema,
+  countedClasses: classListSchema.optional(),
   area: modelAreaSchema.optional(),
   annotation: modelAnnotationFields.partial().optional(),
 });
 
 /**
- * Changes where the task looks and how an agent draws it; what it finds
- * stays fixed. The area governs runs, snapshots and tasks created from now
- * on; those already frozen keep theirs.
+ * Changes which classes a day counts by default, where the task looks and
+ * how an agent draws it; what it finds stays fixed. Each governs what is
+ * created from now on: observations already made keep the classes they
+ * count, and runs, snapshots and tasks already frozen keep their area.
  */
 export const modelSettingsRequestSchema = z.strictObject({
   model: resourceIdSchema,
+  countedClasses: classListSchema,
   area: modelAreaSchema,
   annotation: modelAnnotationSchema,
 });
@@ -108,10 +122,16 @@ export const modelArtifactSchema = z.discriminatedUnion("kind", [
   ultralyticsArtifactSchema,
 ]);
 
+/**
+ * A version finds the classes it was made to find, each one of its model's
+ * and in the model's order: all of them, or fewer when it was made before
+ * the model declared the rest or can tell only some apart.
+ */
 const modelVersionIdentity = {
   schemaVersion: z.literal(1),
   id: resourceIdSchema,
   modelId: resourceIdSchema,
+  classes: classListSchema,
   createdAt: timestampSchema,
 };
 

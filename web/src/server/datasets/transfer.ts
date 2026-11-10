@@ -6,7 +6,7 @@ import {
 } from "../../domain/datasets/errors";
 import type { DatasetManifest } from "../../domain/datasets/manifest";
 import type { Dataset } from "../../domain/datasets/schema";
-import { sameClasses } from "../../domain/models/classes";
+import { classesAmong } from "../../domain/models/classes";
 import { insertImportedAnnotations } from "../annotations/public";
 import { insertUnclearImages, lockImage } from "../images/public";
 import {
@@ -71,7 +71,9 @@ function listed(digests: string[]): string {
 
 /**
  * Creates the dataset a manifest describes. The workbench must know the
- * manifest's model with the same classes, must hold every image it names as
+ * manifest's model and declare every class the manifest annotates with, in
+ * the manifest's order: a dataset annotated before its model came to tell
+ * more states apart holds none of them. It must hold every image it names as
  * the bytes it describes, and must have no dataset of that name and no review
  * of those images for that model: a manifest adds to a workbench, never
  * changes what a reviewer decided here. For the same reason the manifest
@@ -86,7 +88,7 @@ export async function importDataset(
   return transaction(async (db) => {
     const addedAt = await operationTime(db);
     const model = await requireModel(manifest.model.id, db);
-    if (!sameClasses(model.classes, manifest.model.classes)) {
+    if (!classesAmong(manifest.model.classes, model.classes)) {
       throw new DatasetImportInvalidError(
         `Model ${model.id} has classes ${listed(model.classes)}, not ${listed(manifest.model.classes)}`,
       );

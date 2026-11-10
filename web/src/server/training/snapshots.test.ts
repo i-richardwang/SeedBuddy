@@ -1,12 +1,15 @@
 import { expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 
+import { SEED_DETECTOR } from "../../domain/models/builtins";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import {
   TrainingRunConflictError,
   TrainingRunNotFoundError,
 } from "../../domain/training/errors";
 import { database } from "../infra/db/client";
-import { setModelSettings } from "../models/registry";
+import { models } from "../infra/db/schema";
+import { requireModel, setModelSettings } from "../models/registry";
 import { reviewedDataset } from "../testing/datasets";
 import {
   analyzedWithDish,
@@ -45,6 +48,7 @@ test("a dish model's snapshot freezes each image's coverage, and keeps it when t
   const version = await traditionalVersion("dish-snapshot-detector", "dish-v1");
   const settings = {
     model: version.modelId,
+    countedClasses: SEED_DETECTOR.classes,
     annotation: DEFAULT_MODEL_ANNOTATION,
   };
   await setModelSettings({ ...settings, area: "dish" });
@@ -75,4 +79,29 @@ test("a dish model's snapshot freezes each image's coverage, and keeps it when t
   expect(whole.id).not.toBe(framed.id);
   expect(whole.area).toBe("image");
   expect(whole.images.map((i) => i.coverage)).toEqual([null, null]);
+});
+
+test("a snapshot freezes the model's classes, and keeps them when a release has the model declare more", async () => {
+  const version = await traditionalVersion("class-snapshot-detector", "v1");
+  const { dataset } = await reviewedDataset(
+    "class-snapshot-dataset",
+    ["class-first", "class-second"],
+    version,
+  );
+  const db = await database();
+  const model = await requireModel(version.modelId, db);
+
+  const before = await createDatasetSnapshot(dataset.id, new Date(), db);
+  expect(before.classes).toEqual(model.classes);
+
+  const grown = [...model.classes, "mouldy"];
+  await db
+    .update(models)
+    .set({ classes: grown })
+    .where(eq(models.id, model.id));
+  expect(await readDatasetSnapshot(before.id, db)).toEqual(before);
+  const after = await createDatasetSnapshot(dataset.id, new Date(), db);
+  expect(after.id).not.toBe(before.id);
+  expect(after.classes).toEqual(grown);
+  expect(after.images).toEqual(before.images);
 });

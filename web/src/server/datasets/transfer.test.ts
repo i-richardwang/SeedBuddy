@@ -3,6 +3,7 @@ import sharp from "sharp";
 
 import { DatasetImportInvalidError } from "../../domain/datasets/errors";
 import { ImageSourceInvalidError } from "../../domain/images/errors";
+import { SEED_DETECTOR } from "../../domain/models/builtins";
 import { DEFAULT_MODEL_ANNOTATION } from "../../domain/models/schema";
 import { imageBlobKey } from "../images/keys";
 import { storeCanonicalImage } from "../images/store";
@@ -204,6 +205,13 @@ describe("dataset transfer", () => {
         images: [],
       }),
     ).rejects.toThrow(/has classes/);
+    await expect(
+      attempt({
+        dataset: "transfer-held-2",
+        model: { ...manifest.model, classes: ["germinated", "ungerminated"] },
+        images: [],
+      }),
+    ).rejects.toThrow(/has classes/);
     const unreviewed = manifest.images.map((image) => ({
       ...image,
       annotation: null,
@@ -253,6 +261,20 @@ describe("dataset transfer", () => {
       modelId: manifest.model.id,
     });
     expect(await imageDigest("th-a")).toBe(unreviewed[0]!.digest);
+
+    // A manifest written while the model told fewer states apart names the
+    // classes it was annotated with, and holds none of the ones added since.
+    expect(
+      await importDataset({
+        ...manifest,
+        dataset: "transfer-held-earlier",
+        model: { ...manifest.model, classes: ["ungerminated", "germinated"] },
+        images: unreviewed,
+      }),
+    ).toMatchObject({
+      name: "transfer-held-earlier",
+      modelId: manifest.model.id,
+    });
   });
 
   test("concurrent imports create the dataset exactly once", async () => {
@@ -295,6 +317,7 @@ describe("dish datasets", () => {
     );
     const settings = {
       model: version.modelId,
+      countedClasses: SEED_DETECTOR.classes,
       annotation: DEFAULT_MODEL_ANNOTATION,
     };
     await setModelSettings({ ...settings, area: "dish" });

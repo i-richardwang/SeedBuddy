@@ -6,7 +6,8 @@ import {
 import { createAnnotationRun } from "../annotation-runs/runs";
 import { nextAnnotationTask, submitProposal } from "../annotation-runs/tasks";
 import { previewAnnotationTask } from "../annotation-runs/views";
-import { setModelSettings } from "../models/public";
+import { database } from "../infra/db/client";
+import { requireModel, setModelSettings } from "../models/public";
 
 /**
  * An agent's proposal for the image under the model, reached the way an
@@ -14,8 +15,10 @@ import { setModelSettings } from "../models/public";
  * agent finds nothing in each region it is shown, so the run succeeds.
  */
 export async function agentProposal(ref: AnnotationRef) {
+  const { countedClasses } = await requireModel(ref.modelId, await database());
   await setModelSettings({
     model: ref.modelId,
+    countedClasses,
     area: DEFAULT_MODEL_AREA,
     annotation: {
       ...DEFAULT_MODEL_ANNOTATION,

@@ -203,6 +203,7 @@ describe("datasets", () => {
         name: "Other task",
         task: "object_detection",
         classes: ["seed"],
+        countedClasses: ["seed"],
         area: "image",
         annotation: DEFAULT_MODEL_ANNOTATION,
       },

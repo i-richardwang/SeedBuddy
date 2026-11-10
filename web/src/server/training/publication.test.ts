@@ -127,6 +127,17 @@ test("completed publication retries and conflicts leave upload storage unchanged
   expect(await storage()).toEqual(before);
 });
 
+test("a bundle must find the classes its snapshot froze", async () => {
+  const { dataset, owner, run, bundle } = await preparedPublication(
+    "publication-classes",
+  );
+  const fewer = { ...bundle, classes: bundle.classes.slice(0, 1) };
+  await expect(completeTrainingRun(run.id, fewer, owner)).rejects.toThrow(
+    /classes the snapshot froze/,
+  );
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
+});
+
 test("a bundle must read in the mode its snapshot was framed for", async () => {
   const { dataset, owner, run, bundle } =
     await preparedPublication("publication-mode");

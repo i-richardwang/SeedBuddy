@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { and, eq, isNull, lt } from "drizzle-orm";
 
 import type { ModelBundle } from "../../domain/models/bundle";
-import { sameClasses } from "../../domain/models/classes";
+import { classesAmong } from "../../domain/models/classes";
 import {
   ModelPublicationInvalidError,
   ModelUploadNotFoundError,
@@ -64,9 +64,9 @@ function executableSettings(bundle: ModelBundle) {
 export async function prepareModelUpload(modelId: string, bundle: ModelBundle) {
   const db = await database();
   const model = await requireModel(modelId, db);
-  if (!sameClasses(model.classes, bundle.classes))
+  if (!classesAmong(bundle.classes, model.classes))
     throw new ModelPublicationInvalidError(
-      "Bundle classes and their order must match the model",
+      "Bundle classes must be the model's, in the model's order",
     );
   const uploadId = `upload-${documentDigest({ modelId, bundle })}`;
   const at = await operationTime(db);
@@ -152,6 +152,7 @@ export async function registerUploadedModel(
       schemaVersion: 1,
       id,
       modelId: row.modelId,
+      classes: row.bundle.classes,
       createdAt: at.toISOString(),
       source: origin,
       artifact: {

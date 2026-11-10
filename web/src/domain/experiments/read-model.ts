@@ -4,7 +4,7 @@ import { reviewSchema } from "../annotation/readings";
 import { REVIEW_SOURCES } from "../annotation/schema";
 import { imageDigestSchema } from "../images/schema";
 import { inferenceTaskFailureSchema } from "../inference/tasks";
-import { tallySchema } from "../models/classes";
+import { classNameSchema, tallySchema } from "../models/classes";
 import { modelSchema } from "../models/schema";
 import { cultureEventSchema } from "./culture-events";
 import {
@@ -44,6 +44,13 @@ const observationImageCellSchema = z.strictObject({
   filename: z.string(),
   state: imageAnalysisStateSchema,
   detectionTally: tallySchema.nullable(),
+  /**
+   * The classes of the day's model that the version which detected the
+   * photograph does not find: the detection holds none of them whatever the
+   * dish held. Empty where the version finds every class, and where the
+   * photograph has no detection.
+   */
+  detectionUnfound: z.array(classNameSchema),
   proposalTally: tallySchema.nullable(),
   annotationTally: tallySchema.nullable(),
   error: z.string().nullable(),
@@ -174,10 +181,16 @@ export const experimentOverviewSchema = z.strictObject({
 
 export type ExperimentOverview = z.infer<typeof experimentOverviewSchema>;
 
-/** What a unit read on a day: the individuals found, and who stood behind the number. */
+/**
+ * What a unit read on a day: the individuals found, who stood behind the
+ * number, and the classes of the day's model the number could not have told
+ * apart, which are the ones its detecting version does not find where the
+ * number is that version's, and none otherwise.
+ */
 const cellReadingSchema = z.strictObject({
   count: z.number().int().min(0),
   source: z.enum([...REVIEW_SOURCES, "manual"]),
+  unfound: z.array(classNameSchema),
 });
 export type CellReading = z.infer<typeof cellReadingSchema>;
 

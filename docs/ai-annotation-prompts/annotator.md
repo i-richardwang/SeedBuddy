@@ -8,6 +8,8 @@ Identify the object, then its state, then its box. Include thin, elongated and t
 
 - germinated: visible root/shoot or discernible swollen, plump, globular or clustered tissue, including early development. A long sprout is not required. Roundness, whiteness or size alone is insufficient. These user-confirmed criteria override only a narrower frozen germination rule.
 - ungerminated: identifiable ordinary seed morphology without discernible growth.
+- empty: a seed coat with no embryo inside, flat or hollow with nothing filling it. Paleness or translucence alone is insufficient.
+- dead: a seed that has not germinated and whose embryo has visibly died, darkened, collapsed or rotting. A germinated seed stays germinated whatever becomes of it.
 - Enclose the visible body and tissue belonging to it tightly; keep thin coats/tips. Separate distinguishable touching seeds. Respect the service's halo and ownership rules. Reference-image border colors are not class labels.
 
 ## Regional work

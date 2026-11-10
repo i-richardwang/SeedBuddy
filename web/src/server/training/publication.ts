@@ -1,4 +1,5 @@
 import type { ModelBundle } from "../../domain/models/bundle";
+import { sameClasses } from "../../domain/models/classes";
 import { inferenceModeForArea } from "../../domain/models/inference";
 import {
   TrainingArtifactInvalidError,
@@ -23,7 +24,7 @@ import {
 import { readTrainingArtifactParts } from "./artifacts";
 import { lockTrainingRun, transitionTrainingRun } from "./runs";
 import { requireOwnedRunningRun, requireTrainingRun } from "./runs-access";
-import { readSnapshotArea } from "./snapshots";
+import { readSnapshotTask } from "./snapshots";
 
 /** Completed deliveries are read-only retries, identified by attempt and full bundle. */
 async function completedPublication(
@@ -62,9 +63,12 @@ export async function completeTrainingRun(
     throw new TrainingArtifactInvalidError(
       "Bundle does not describe this training snapshot",
     );
-  const mode = inferenceModeForArea(
-    await readSnapshotArea(current.datasetSnapshotId, db),
-  );
+  const task = await readSnapshotTask(current.datasetSnapshotId, db);
+  if (!sameClasses(document.classes, task.classes))
+    throw new TrainingArtifactInvalidError(
+      "Bundle classes differ from the classes the snapshot froze",
+    );
+  const mode = inferenceModeForArea(task.area);
   if (document.inference.mode !== mode)
     throw new TrainingArtifactInvalidError(
       `Bundle reads in ${document.inference.mode} mode; the snapshot was framed for ${mode}`,

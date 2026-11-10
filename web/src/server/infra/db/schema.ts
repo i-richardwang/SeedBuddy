@@ -40,7 +40,7 @@ import type { RuntimeDescriptor } from "../../../domain/inference/schema";
 import type { InferenceFailure } from "../../../domain/inference/tasks";
 import { MODEL_AREAS } from "../../../domain/models/area";
 import type { ModelBundle } from "../../../domain/models/bundle";
-import type { Tally } from "../../../domain/models/classes";
+import { MAX_CLASSES, type Tally } from "../../../domain/models/classes";
 import type {
   ModelAnnotation,
   ModelArtifact,
@@ -412,6 +412,8 @@ export const models = pgTable(
     name: text("name").notNull(),
     task: text("task").notNull(),
     classes: jsonb("classes").$type<string[]>().notNull(),
+    /** The classes a day counts unless it names its own; observations keep theirs as they are made. */
+    countedClasses: jsonb("counted_classes").$type<string[]>().notNull(),
     /** Where in a photograph the task looks; snapshots and runs freeze it as they are made. */
     area: text("area", { enum: MODEL_AREAS }).notNull(),
     annotation: jsonb("annotation").$type<ModelAnnotation>().notNull(),
@@ -429,6 +431,14 @@ export const models = pgTable(
       foreignColumns: [modelVersions.id, modelVersions.modelId],
     }),
     check("models_area_check", sql`${table.area} in ('image', 'dish')`),
+    check(
+      "models_classes_check",
+      sql`jsonb_typeof(${table.classes}) = 'array' and jsonb_array_length(${table.classes}) between 1 and ${sql.raw(String(MAX_CLASSES))}`,
+    ),
+    check(
+      "models_counted_classes_check",
+      sql`jsonb_typeof(${table.countedClasses}) = 'array' and jsonb_array_length(${table.countedClasses}) > 0`,
+    ),
   ],
 );
 
@@ -439,6 +449,8 @@ export const modelVersions = pgTable(
     modelId: text("model_id")
       .notNull()
       .references((): AnyPgColumn => models.id),
+    /** The classes the version finds, of its model's and in the model's order. */
+    classes: jsonb("classes").$type<string[]>().notNull(),
     createdAt: instant("created_at"),
     source: jsonb("source").$type<ModelVersion["source"]>().notNull(),
     artifact: jsonb("artifact").$type<ModelArtifact>().notNull(),
@@ -1157,6 +1169,8 @@ export const datasetSnapshots = pgTable(
     id: text("id").primaryKey(),
     datasetId: uuid("dataset_id").notNull(),
     modelId: text("model_id").notNull(),
+    /** The model's classes as the snapshot froze them; its version finds these. */
+    classes: jsonb("classes").$type<string[]>().notNull(),
     /** The model's area as the snapshot froze it; its images are framed to it. */
     area: text("area", { enum: MODEL_AREAS }).notNull(),
     createdAt: instant("created_at"),

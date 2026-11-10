@@ -36,6 +36,7 @@ export function photograph(
     filename: `${unit}.jpg`,
     state: "analyzed",
     detectionTally: null,
+    detectionUnfound: [],
     proposalTally: null,
     annotationTally: null,
     error: null,

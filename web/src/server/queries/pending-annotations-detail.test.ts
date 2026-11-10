@@ -61,6 +61,7 @@ test("an image waits once per model until someone reads it or while a run on it 
 
   await setModelSettings({
     model: model.id,
+    countedClasses: model.countedClasses,
     area: "image",
     annotation: { ...annotation, instructions: "" },
   });

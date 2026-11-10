@@ -6,9 +6,29 @@ export const classNameSchema = z
   .string()
   .regex(/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/, "Use lower_snake_case");
 
+/**
+ * Each class keeps one color wherever its boxes are drawn, for the people who
+ * review them and the agents that propose them alike, taken in the order
+ * its model declares its classes. A model declares no more classes than
+ * there are colors, so no two of its classes are ever drawn alike.
+ */
+const CLASS_COLORS = [
+  { name: "blue", hex: "#3b82f6" },
+  { name: "magenta", hex: "#d946ef" },
+  { name: "green", hex: "#22c55e" },
+  { name: "orange", hex: "#f97316" },
+  { name: "cyan", hex: "#22d3ee" },
+  { name: "yellow", hex: "#facc15" },
+] as const;
+
+type ClassColor = (typeof CLASS_COLORS)[number];
+
+export const MAX_CLASSES = CLASS_COLORS.length;
+
 export const classListSchema = z
   .array(classNameSchema)
   .min(1)
+  .max(MAX_CLASSES, `A model declares at most ${MAX_CLASSES} classes`)
   .superRefine((classes, context) => {
     if (new Set(classes).size !== classes.length) {
       context.addIssue({ code: "custom", message: "Classes must be unique" });
@@ -54,6 +74,49 @@ export function sameClasses(
 }
 
 /**
+ * The classes of a model that `names` names, in the order the model declares
+ * them; a name the model does not declare is refused.
+ */
+export function chosenClasses(
+  modelClasses: readonly string[],
+  names: readonly string[],
+): string[] {
+  const unknown = names.filter((name) => !modelClasses.includes(name));
+  if (unknown.length > 0) {
+    throw new ClassInvalidError(
+      `The model does not recognize ${unknown.length === 1 ? "class" : "classes"}: ${unknown.join(", ")}`,
+    );
+  }
+  return modelClasses.filter((name) => names.includes(name));
+}
+
+/**
+ * Whether `some` are classes of a model, named in the order it declares
+ * them: what a version finds, what a day counts by default, or what a
+ * dataset was annotated with.
+ */
+export function classesAmong(
+  some: readonly string[],
+  modelClasses: readonly string[],
+): boolean {
+  return sameClasses(
+    modelClasses.filter((name) => some.includes(name)),
+    some,
+  );
+}
+
+/**
+ * The classes a model declares that a version finding `found` does not, in
+ * the model's order. What the version reads holds none of them.
+ */
+export function unfoundClasses(
+  modelClasses: readonly string[],
+  found: readonly string[],
+): string[] {
+  return modelClasses.filter((name) => !found.includes(name));
+}
+
+/**
  * Whether the classes a count sums are every class its model finds, or
  * narrow it to some of them.
  */
@@ -64,24 +127,13 @@ export function countsEveryClass(
   return counted.length === modelClasses.length;
 }
 
-/**
- * Each class keeps one color wherever its boxes are drawn, for the people who
- * review them and the agents that propose them alike, taken in the order
- * its model declares its classes.
- */
-const CLASS_COLORS = [
-  { name: "blue", hex: "#3b82f6" },
-  { name: "magenta", hex: "#d946ef" },
-  { name: "green", hex: "#22c55e" },
-] as const;
-
-type ClassColor = (typeof CLASS_COLORS)[number];
-
 export function classColor(
   classes: readonly string[],
   name: string,
 ): ClassColor {
-  return CLASS_COLORS[classes.indexOf(name) % CLASS_COLORS.length]!;
+  const color = CLASS_COLORS[classes.indexOf(name)];
+  if (!color) throw new Error(`${name} is not a class of the model`);
+  return color;
 }
 
 export function assertInstanceClasses(
