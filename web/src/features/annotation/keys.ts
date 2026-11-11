@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 /** Open popups (a Select's options, a menu, a dialog) own the keys typed in them. */
 const KEY_OWNERS =
@@ -66,6 +66,41 @@ export function useSaveKey(save: (() => unknown) | undefined) {
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, []);
+}
+
+/** The key held to see the photograph bare. */
+export const PEEK_KEY = "h";
+
+/**
+ * True while H is held: whatever is drawn over the image steps aside so the
+ * photograph shows bare, locked or not, and returns when the key is let go
+ * or the window loses focus.
+ */
+export function usePeekKey(): boolean {
+  const [peeking, setPeeking] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.metaKey || event.ctrlKey) return;
+      if (event.key.toLowerCase() !== PEEK_KEY || isOwnedKey(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      setPeeking(true);
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === PEEK_KEY) setPeeking(false);
+    };
+    const release = () => setPeeking(false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", release);
+    };
+  }, []);
+  return peeking;
 }
 
 type WorkbenchKey =

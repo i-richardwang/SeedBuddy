@@ -16,6 +16,7 @@
   "annotation_discard_edits": "Discard changes",
   "annotation_file": "Filename",
   "annotation_layer_boxes": "Marks",
+  "annotation_layer_boxes_peek": "Marks · hold to hide",
   "annotation_layer_ids": "Numbers",
   "annotation_lock": "Lock editing",
   "annotation_named_count": [

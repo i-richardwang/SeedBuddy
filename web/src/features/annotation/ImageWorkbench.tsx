@@ -36,7 +36,7 @@ import {
 import { UnclearAlert, UnclearSection } from "../images/unclear";
 import { ChecksLayer, EditableBoxLayer } from "./box-layers";
 import { ChecksSection, CountsSection, DetailsSection } from "./inspector";
-import { useSaveKey, useWorkbenchKeys } from "./keys";
+import { usePeekKey, useSaveKey, useWorkbenchKeys } from "./keys";
 import { standingLabel, standingTone } from "./labels";
 import type { LayerKey } from "./layers";
 import { setEditLocked, useEditLocked } from "./lock";
@@ -107,6 +107,9 @@ export function ImageWorkbenchSkeleton({
   );
 }
 
+/** What is drawn while the peek key is held: nothing, the photograph bare. */
+const NOTHING_DRAWN: ReadonlySet<LayerKey> = new Set();
+
 /**
  * One image and its boxes, on view for review inside a `Workbench`. The
  * boxes begin as the reading on view, the best one unless another is picked.
@@ -133,6 +136,8 @@ export function ImageSubject({
   const [layers, setLayers] = useState<ReadonlySet<LayerKey>>(
     () => new Set(["boxes", "checks"]),
   );
+  const peeking = usePeekKey();
+  const drawn = peeking ? NOTHING_DRAWN : layers;
   const sources = availableSources(review);
   const shown = show && sources.includes(show) ? show : (sources[0] ?? null);
   const locked = useEditLocked();
@@ -292,7 +297,7 @@ export function ImageSubject({
           image={review}
           classes={model.classes}
           instances={instances}
-          layers={layers}
+          layers={drawn}
           panning={session.panning || saving || locked}
           activeClass={session.activeClass}
           selectedId={session.selectedId}
@@ -300,7 +305,7 @@ export function ImageSubject({
           onClassChange={session.changeClass}
           onInstancesChange={session.replaceInstances}
         />
-        <ChecksLayer image={review} checks={checks} layers={layers} />
+        <ChecksLayer image={review} checks={checks} layers={drawn} />
       </ImageViewport>
     </>
   );

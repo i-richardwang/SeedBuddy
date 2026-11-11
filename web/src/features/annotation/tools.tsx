@@ -12,6 +12,7 @@ import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { ToolbarButton, ToolbarSeparator } from "../../ui/kit/Toolbar";
 import { classLabel } from "../../ui/model-names";
 import { classShortcut } from "./class-keys";
+import { PEEK_KEY } from "./keys";
 import { layerLabel } from "./labels";
 import type { LayerKey } from "./layers";
 
@@ -117,6 +118,8 @@ export function LayerControls({
 }) {
   return available.map((key) => {
     const on = layers.has(key);
+    // Holding the peek key hides the boxes for a moment; their toggle says so.
+    const peeks = key === "boxes";
     return (
       <ToolbarButton
         key={key}
@@ -124,7 +127,9 @@ export function LayerControls({
           <ActionIcon
             icon={LAYER_ICONS[key]}
             size="small"
-            title={layerLabel(key)}
+            aria-label={layerLabel(key)}
+            title={peeks ? m.annotation_layer_boxes_peek() : layerLabel(key)}
+            tooltipProps={peeks ? { hotkey: PEEK_KEY } : undefined}
             pressed={on}
             onClick={() => {
               const next = new Set(layers);
