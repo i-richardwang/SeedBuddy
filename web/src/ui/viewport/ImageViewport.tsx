@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import type { Point } from "../../domain/annotation/geometry";
@@ -45,11 +46,39 @@ interface ScreenPoint {
 interface ViewportHandle {
   /** Screen pixels per image pixel. */
   scale: number;
+  /** The finest line the screen draws, one device pixel, in screen pixels. */
+  hairline: number;
   toImagePoint: (event: ScreenPoint) => Point;
   /** Offset to hold between the pointer and the image while dragging. */
   panOrigin: (event: ScreenPoint) => Point;
   panTo: (x: number, y: number) => void;
 }
+
+/**
+ * Device pixels per screen pixel, followed as the window moves to another
+ * display or the page is zoomed. A resolution query matches one ratio, so
+ * each change listens again for the next.
+ */
+function subscribePixelRatio(onChange: () => void) {
+  let query: MediaQueryList;
+  const listen = () => {
+    query = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    query.addEventListener("change", changed, { once: true });
+  };
+  const changed = () => {
+    listen();
+    onChange();
+  };
+  listen();
+  return () => query.removeEventListener("change", changed);
+}
+
+const usePixelRatio = () =>
+  useSyncExternalStore(
+    subscribePixelRatio,
+    () => window.devicePixelRatio,
+    () => 1,
+  );
 
 const ViewportContext = createContext<ViewportHandle | null>(null);
 
@@ -251,9 +280,11 @@ export function ImageViewport({
     (x: number, y: number) => change((current) => pannedTo(current, x, y)),
     [change],
   );
+  const hairline = 1 / usePixelRatio();
   const handle = useMemo<ViewportHandle>(
     () => ({
       scale: view.scale,
+      hairline,
       toImagePoint: (event) => {
         const rect = frameRef.current!.getBoundingClientRect();
         return {
@@ -267,7 +298,7 @@ export function ImageViewport({
       }),
       panTo,
     }),
-    [view, panTo],
+    [view, hairline, panTo],
   );
   const pan = usePanGesture(handle);
 

@@ -16,6 +16,7 @@
   "annotation_discard_edits": "放弃修改",
   "annotation_file": "文件名",
   "annotation_layer_boxes": "标记",
+  "annotation_layer_boxes_peek": "标记 · 按住临时隐藏",
   "annotation_layer_ids": "序号",
   "annotation_lock": "锁定编辑",
   "annotation_named_count": [
