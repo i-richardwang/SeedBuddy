@@ -100,7 +100,7 @@ function EnrollWorkerForm({
             invalidate: false,
             onSuccess: ({ workerId, token }) => {
               onEnrolled({
-                command: `vitroctl worker setup ${workerId} --server ${window.location.origin}`,
+                command: `seedctl worker setup ${workerId} --server ${window.location.origin}`,
                 token,
               });
             },

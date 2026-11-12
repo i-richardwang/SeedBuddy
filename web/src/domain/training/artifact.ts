@@ -3,7 +3,7 @@ import { z } from "zod";
 import { sha256Schema } from "../identifiers/schema";
 import { MAX_MODEL_WEIGHTS_BYTES } from "../models/transfer";
 
-/** Fixed wire size, shared with vitroctl.worker.training. */
+/** Fixed wire size, shared with seedctl.worker.training. */
 export const TRAINING_ARTIFACT_PART_BYTES = 8 * 1024 * 1024;
 
 export const artifactUploadSchema = z.strictObject({

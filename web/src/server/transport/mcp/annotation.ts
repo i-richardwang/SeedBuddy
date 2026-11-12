@@ -191,7 +191,7 @@ function registerAnnotationTools(server: McpServer) {
  */
 function buildServer(): McpServer {
   const server = new McpServer(
-    { name: "vitroflow-annotation", version: packageJson.version },
+    { name: "seedbuddy-annotation", version: packageJson.version },
     {
       instructions:
         "Annotate images for a model by drawing boxes region by region. When a person names an image by its filename or a page link, find it with annotation-find; never ask them for a digest or model id, and when several places match, ask which one by its experiment, unit and day or its dataset. Otherwise find images waiting for annotation with annotation-pending, read one with annotation-read, start or continue its run with annotation-start and annotation-next, then load annotation-context once per conversation and view, preview and submit each region until the run succeeds. Reuse context only while its contextId is unchanged and available; reload after context loss. Results are AI proposals a person reviews.",

@@ -1,12 +1,12 @@
-# VitroFlow
+# SeedBuddy
 
-VitroFlow turns repeated plant tissue culture photographs into comparable readings and reviewed detector training data. Treatments define conditions, units provide independent replicates, and observations follow those units over time with a model and counted classes for each day.
+SeedBuddy turns repeated plant tissue culture photographs into comparable readings and reviewed detector training data. Treatments define conditions, units provide independent replicates, and observations follow those units over time with a model and counted classes for each day.
 
 ## Parts
 
 - The workbench owns experiments, datasets, annotation review, model versions and training runs.
-- `vitroctl` is the source-installed operator CLI and native Worker runtime for dataset transfer, detection and training.
-- `vitroflow` is the published Python package for sorting dish photographs and reviewing focus and countability before upload.
+- `seedctl` is the source-installed operator CLI and native Worker runtime for dataset transfer, detection and training.
+- `seedbuddy` is the published Python package for sorting dish photographs and reviewing focus and countability before upload.
 
 ## Development
 
@@ -30,7 +30,7 @@ bun run dev
 
 Use `bun run format` in `web/` to format source and messages, and `bun run format:check` to check them. Generate database migrations with `bun run db:generate` (`drizzle-kit generate`); startup applies them as described in [Database schema](docs/architecture.md#database-schema).
 
-Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](docs/accounts.md); Worker installation is in [vitroctl](docs/vitroctl.md#install).
+Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](docs/accounts.md); Worker installation is in [seedctl](docs/seedctl.md#install).
 
 ## Deployment
 
@@ -69,10 +69,10 @@ The reference-image regression suite uses the checksum manifest in `tests/fixtur
 make check-reference REFERENCE_IMAGE_DIR=/absolute/path/to/reference-images
 ```
 
-Run the constraints and contended writes against disposable PostgreSQL storage. Compose creates `vitroflow`, the database used by CI; `make check-postgres` connects to the supplied database and does not create it:
+Run the constraints and contended writes against disposable PostgreSQL storage. Compose creates `seedbuddy`, the database used by CI; `make check-postgres` connects to the supplied database and does not create it:
 
 ```bash
-export VITROFLOW_TEST_DATABASE_URL=postgres://vitroflow:vitroflow@localhost:5432/vitroflow
+export SEEDBUDDY_TEST_DATABASE_URL=postgres://seedbuddy:seedbuddy@localhost:5432/seedbuddy
 
 make check-postgres
 ```
@@ -80,11 +80,11 @@ make check-postgres
 Run the BlobStore contract against an actual S3-compatible endpoint:
 
 ```bash
-export AWS_ACCESS_KEY_ID=vitroflow
-export AWS_SECRET_ACCESS_KEY=vitroflow
+export AWS_ACCESS_KEY_ID=seedbuddy
+export AWS_SECRET_ACCESS_KEY=seedbuddy
 export AWS_REGION=us-east-1
-export VITROFLOW_TEST_S3_ENDPOINT=http://localhost:9000
-export VITROFLOW_TEST_S3_BUCKET=vitroflow
+export SEEDBUDDY_TEST_S3_ENDPOINT=http://localhost:9000
+export SEEDBUDDY_TEST_S3_BUCKET=seedbuddy
 
 make check-s3
 ```
@@ -94,8 +94,8 @@ make check-s3
 - [Accounts](docs/accounts.md) — sign-in, administration and integrations.
 - [Records, models and datasets](docs/domain.md) — experimental design, model lifecycle and dataset transfer.
 - [Readings](docs/readings.md) — counts, exclusions, summaries and spreadsheet semantics.
-- [vitroctl](docs/vitroctl.md) — source installation, Workers, local training and model delivery.
-- [vitroflow](packages/vitroflow/README.md) — photograph sorting and review.
+- [seedctl](docs/seedctl.md) — source installation, Workers, local training and model delivery.
+- [seedbuddy](packages/seedbuddy/README.md) — photograph sorting and review.
 - [Agent API](docs/agent-api.md) — HTTP and MCP access to application operations.
 - [AI annotation](docs/ai-annotation.md) — regional annotation tools and proposal acceptance.
 - [Annotator prompt](docs/ai-annotation-prompts/annotator.md) — one image's regional annotation batch.
@@ -105,4 +105,4 @@ make check-s3
 - [Images](docs/images.md) — canonical pixels, dish analysis and maintenance.
 - [Interface](docs/interface.md) — UI components, page composition and interaction rules.
 
-VitroFlow is licensed under the [MIT License](LICENSE).
+SeedBuddy is licensed under the [MIT License](LICENSE).

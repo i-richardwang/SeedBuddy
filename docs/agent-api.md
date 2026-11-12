@@ -69,11 +69,11 @@ Better Auth verifies OAuth and issues challenges; the MCP SDK handles POST excha
 Add the experiment server to a local client, replacing `<workbench>` with the deployment hostname:
 
 ```bash
-claude mcp add --transport http vitroflow-experiments 'https://<workbench>/api/experiments/mcp'
-codex mcp add vitroflow-experiments --url 'https://<workbench>/api/experiments/mcp'
+claude mcp add --transport http seedbuddy-experiments 'https://<workbench>/api/experiments/mcp'
+codex mcp add seedbuddy-experiments --url 'https://<workbench>/api/experiments/mcp'
 ```
 
-Image bytes use the [HTTP upload surface](#http-surface); MCP operations take the returned digest. A hosted client needs access to the source bytes and a way to send an authenticated HTTP body; attaching a photograph to its chat does not itself upload it to VitroFlow. Annotation image delivery is described in [AI annotation](ai-annotation.md#evidence-and-caches).
+Image bytes use the [HTTP upload surface](#http-surface); MCP operations take the returned digest. A hosted client needs access to the source bytes and a way to send an authenticated HTTP body; attaching a photograph to its chat does not itself upload it to SeedBuddy. Annotation image delivery is described in [AI annotation](ai-annotation.md#evidence-and-caches).
 
 ## Error contract
 
@@ -146,7 +146,7 @@ Photographs that a reviewer has annotated become training material once they bel
 
 1. `get-experiment` reads the sheet; each cell's `image` carries the observation image `id` that names the photograph.
 2. `list-datasets` shows the datasets for a model by id and name, with how many images each holds and how many are reviewed. The [dataset rules](domain.md#dataset-transfer) define training eligibility.
-3. `create-dataset` names an empty dataset for a model. The name is unique whatever its case and stays filename-safe, because transfer and `vitroctl` data roots know a dataset by name; `update-dataset` renames it later without touching its images, splits, snapshots, or runs. Every other dataset tool addresses the dataset by its id.
+3. `create-dataset` names an empty dataset for a model. The name is unique whatever its case and stays filename-safe, because transfer and `seedctl` data roots know a dataset by name; `update-dataset` renames it later without touching its images, splits, snapshots, or runs. Every other dataset tool addresses the dataset by its id.
 4. `add-images-to-dataset` adds observation images to a dataset, named one by one or as `{ "experiment", "observation" }` for every photograph of one observation, which must hold one. One call takes images observed for the dataset's model; images already in the dataset are counted as `existing`, so repeating a call is safe.
 5. `get-dataset` lists a dataset's images by digest, each with whether it is reviewed, whether a person marked it `unclear`, and its training split; the digests match the photographs in the sheet's cells.
 6. `remove-images-from-dataset` takes images out by digest, for example a blurred photo or a unit found contaminated. The [dataset lifetime rules](domain.md#dataset-transfer) apply; digests not in the dataset are counted as `absent`, so repeating a call is safe.
@@ -163,4 +163,4 @@ Record commands such as entering counts, moving units and creating an observatio
 
 ## Training and model delivery
 
-`list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload` and `use-model-version` expose training and model delivery through both surfaces. The [operator workflow](vitroctl.md#training-and-model-delivery) describes recipes, recovery and local file uploads.
+`list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload` and `use-model-version` expose training and model delivery through both surfaces. The [operator workflow](seedctl.md#training-and-model-delivery) describes recipes, recovery and local file uploads.

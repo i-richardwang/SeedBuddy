@@ -8,7 +8,7 @@ import { paraglideOptions } from "./paraglide.config.ts";
 
 export default defineConfig(({ command }) => {
   if (command === "serve")
-    process.env.VITROFLOW_IMAGE_ANALYSIS_URL ??= new URL(
+    process.env.SEEDBUDDY_IMAGE_ANALYSIS_URL ??= new URL(
       "./src/server/images/dish-thread.ts",
       import.meta.url,
     ).href;

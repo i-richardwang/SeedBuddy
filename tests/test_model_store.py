@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 from conftest import PARAMETERS, decode_model_manifest
 
-from vitroctl.detectors.ultralytics import detector as ultralytics_module
-from vitroctl.detectors.ultralytics.detector import (
+from seedctl.detectors.ultralytics import detector as ultralytics_module
+from seedctl.detectors.ultralytics.detector import (
     UltralyticsDetector,
     YoloInferenceSettings,
 )
-from vitroctl.worker.model_store import ModelStore
+from seedctl.worker.model_store import ModelStore
 
 
 def test_inference_worker_downloads_a_published_yolo_artifact(

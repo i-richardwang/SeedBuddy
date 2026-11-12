@@ -1,0 +1,465 @@
+{
+  "$id": "https://seedbuddy.local/contracts/dataset-manifest.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "dataset": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
+        "classes": {
+          "minItems": 1,
+          "maxItems": 6,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        },
+        "area": {
+          "type": "string",
+          "enum": [
+            "image",
+            "dish"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "classes",
+        "area"
+      ],
+      "additionalProperties": false
+    },
+    "images": {
+      "maxItems": 10000,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "width": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "filename": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 67108864
+          },
+          "split": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "train",
+                  "val"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "dish"
+                  },
+                  "circle": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "y": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "radius": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "radius"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "margin": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "kind",
+                  "circle",
+                  "margin"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detection": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "schemaVersion": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "image": {
+                    "type": "object",
+                    "properties": {
+                      "digest": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "width": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "height": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "digest",
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "producer": {
+                    "type": "object",
+                    "properties": {
+                      "modelVersionId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+                      },
+                      "artifactDigest": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "runtime": {
+                        "type": "object",
+                        "properties": {
+                          "adapter": {
+                            "type": "string",
+                            "enum": [
+                              "traditional",
+                              "ultralytics"
+                            ]
+                          },
+                          "fingerprint": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "adapter",
+                          "fingerprint"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "modelVersionId",
+                      "artifactDigest",
+                      "runtime"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "instances": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "class": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+                        },
+                        "bbox": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number"
+                            },
+                            "y": {
+                              "type": "number"
+                            },
+                            "width": {
+                              "type": "number",
+                              "exclusiveMinimum": 0
+                            },
+                            "height": {
+                              "type": "number",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y",
+                            "width",
+                            "height"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "score": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "class",
+                        "bbox",
+                        "score"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "quality": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "ok",
+                          "review_required"
+                        ]
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "status",
+                      "warnings"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "diagnostics": {
+                    "type": "object",
+                    "properties": {
+                      "dish": {
+                        "type": "object",
+                        "properties": {
+                          "centerX": {
+                            "type": "number"
+                          },
+                          "centerY": {
+                            "type": "number"
+                          },
+                          "radius": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          }
+                        },
+                        "required": [
+                          "centerX",
+                          "centerY",
+                          "radius"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "metrics": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "additionalProperties": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "schemaVersion",
+                  "image",
+                  "producer",
+                  "instances",
+                  "quality"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "annotation": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "schemaVersion": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "image": {
+                    "type": "object",
+                    "properties": {
+                      "digest": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "width": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "height": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "digest",
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "instances": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "class": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
+                        },
+                        "bbox": {
+                          "type": "object",
+                          "properties": {
+                            "x": {
+                              "type": "number"
+                            },
+                            "y": {
+                              "type": "number"
+                            },
+                            "width": {
+                              "type": "number",
+                              "exclusiveMinimum": 0
+                            },
+                            "height": {
+                              "type": "number",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": [
+                            "x",
+                            "y",
+                            "width",
+                            "height"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "class",
+                        "bbox"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "schemaVersion",
+                  "image",
+                  "instances"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unclear": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "digest",
+          "width",
+          "height",
+          "filename",
+          "bytes",
+          "split",
+          "coverage",
+          "detection",
+          "annotation",
+          "unclear"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "dataset",
+    "model",
+    "images"
+  ],
+  "additionalProperties": false
+}

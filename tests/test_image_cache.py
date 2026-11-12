@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from vitroctl.worker.images import ImageCache
+from seedctl.worker.images import ImageCache
 
 
 def test_the_cache_forgets_the_least_recently_used_image_nothing_pins(

@@ -37,4 +37,4 @@ Bun.serve({
   },
 });
 
-console.log(`VitroFlow workbench listening on http://localhost:${port}`);
+console.log(`SeedBuddy workbench listening on http://localhost:${port}`);

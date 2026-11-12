@@ -10,8 +10,8 @@ from conftest import (
     write_manifest,
 )
 
-from vitroctl.datasets.manifest import load_dataset_manifest
-from vitroctl.detectors.ultralytics import export_yolo_dataset
+from seedctl.datasets.manifest import load_dataset_manifest
+from seedctl.detectors.ultralytics import export_yolo_dataset
 
 ultralytics = pytest.importorskip("ultralytics")
 

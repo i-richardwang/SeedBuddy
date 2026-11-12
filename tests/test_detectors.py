@@ -6,22 +6,22 @@ from types import SimpleNamespace
 import pytest
 from conftest import decode_annotation, decode_detection
 
-from vitroctl.contracts.annotation import BoundingBox
-from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.detectors.contract import (
+from seedctl.contracts.annotation import BoundingBox
+from seedctl.contracts.validation import validate_wire_contract
+from seedctl.detectors.contract import (
     DetectionInstance,
     DetectionProducer,
     DetectionQuality,
     DetectionResult,
     RuntimeDescriptor,
 )
-from vitroctl.detectors.traditional.config import (
+from seedctl.detectors.traditional.config import (
     DEFAULT_PIPELINE_CONFIG,
     DecisionConfig,
     PipelineConfig,
 )
-from vitroctl.detectors.traditional.detector import TraditionalDetector
-from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
+from seedctl.detectors.traditional.detector import TraditionalDetector
+from seedctl.detectors.traditional.scoring import DEFAULT_MODEL
 
 CONTRACT_FIXTURE = Path(__file__).parent / "fixtures" / "contracts" / "detection.json"
 PRODUCER = DetectionProducer(
@@ -84,7 +84,7 @@ def test_traditional_detector_adapts_detections_to_boxes(monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(
-        "vitroctl.detectors.traditional.detector.count_seeds",
+        "seedctl.detectors.traditional.detector.count_seeds",
         lambda *args, **kwargs: result,
     )
 

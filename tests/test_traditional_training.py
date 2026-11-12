@@ -4,24 +4,24 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from vitroctl.contracts.annotation import (
+from seedctl.contracts.annotation import (
     AnnotationDocument,
     AnnotationInstance,
     BoundingBox,
 )
-from vitroctl.detectors.traditional.candidates import FEATURE_NAMES, CandidateEvidence
-from vitroctl.detectors.traditional.config import DecisionConfig, PipelineConfig
-from vitroctl.detectors.traditional.proposals import SeedProposal
-from vitroctl.detectors.traditional.scoring import CandidateModel
-from vitroctl.detectors.traditional.training import training
-from vitroctl.detectors.traditional.training.data import (
+from seedctl.detectors.traditional.candidates import FEATURE_NAMES, CandidateEvidence
+from seedctl.detectors.traditional.config import DecisionConfig, PipelineConfig
+from seedctl.detectors.traditional.proposals import SeedProposal
+from seedctl.detectors.traditional.scoring import CandidateModel
+from seedctl.detectors.traditional.training import training
+from seedctl.detectors.traditional.training.data import (
     PreparedImage,
     label_candidates,
     match_boxes,
     prepare_images,
 )
-from vitroctl.detectors.traditional.training.evaluation import evaluate_candidate_model
-from vitroctl.detectors.traditional.training.training import (
+from seedctl.detectors.traditional.training.evaluation import evaluate_candidate_model
+from seedctl.detectors.traditional.training.training import (
     SelectionGrid,
     train_candidate_model,
 )
@@ -100,7 +100,7 @@ def test_every_candidate_inside_an_instance_is_positive() -> None:
 
 
 def test_every_annotated_class_is_a_seed_body(monkeypatch: pytest.MonkeyPatch) -> None:
-    data = "vitroctl.detectors.traditional.training.data"
+    data = "seedctl.detectors.traditional.training.data"
     monkeypatch.setattr(f"{data}.verified_blob", lambda root, digest: Path(digest))
     monkeypatch.setattr(
         f"{data}.analyze_candidates",

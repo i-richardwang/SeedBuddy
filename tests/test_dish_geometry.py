@@ -6,8 +6,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from vitroctl.image_geometry.dish import detect_dish_circle
-from vitroctl.image_geometry.recipe import thumbnail_geometry
+from seedctl.image_geometry.dish import detect_dish_circle
+from seedctl.image_geometry.recipe import thumbnail_geometry
 
 
 def test_shared_dish_detector_locates_a_ring_without_using_a_fallback():
@@ -22,8 +22,8 @@ def test_shared_dish_detector_locates_a_ring_without_using_a_fallback():
 
 
 def test_traditional_fallback_is_local_to_seed_geometry():
-    from vitroctl.detectors.traditional.config import PipelineConfig
-    from vitroctl.detectors.traditional.geometry import estimate_geometry
+    from seedctl.detectors.traditional.config import PipelineConfig
+    from seedctl.detectors.traditional.geometry import estimate_geometry
 
     image = np.full((80, 120, 3), 255, np.uint8)
     assert detect_dish_circle(image) is None

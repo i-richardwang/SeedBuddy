@@ -6,6 +6,6 @@ export const paraglideOptions = {
   outdir: "./src/paraglide",
   outputStructure: "message-modules",
   emitTsDeclarations: true,
-  cookieName: "vitroflow_locale",
+  cookieName: "seedbuddy_locale",
   strategy: ["cookie", "preferredLanguage", "baseLocale"],
 } satisfies CompilerOptions;

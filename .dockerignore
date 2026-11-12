@@ -3,9 +3,9 @@
 !configs/
 !configs/**
 !src/
-!src/vitroctl/
-!src/vitroctl/image_geometry/
-!src/vitroctl/image_geometry/dish-recipe.json
+!src/seedctl/
+!src/seedctl/image_geometry/
+!src/seedctl/image_geometry/dish-recipe.json
 !web/
 !web/**
 web/node_modules/

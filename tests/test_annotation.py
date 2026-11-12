@@ -9,8 +9,8 @@ from conftest import (
     write_manifest,
 )
 
-from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.datasets.manifest import load_dataset_manifest
+from seedctl.contracts.validation import validate_wire_contract
+from seedctl.datasets.manifest import load_dataset_manifest
 
 CONTRACT_FIXTURE = Path(__file__).parent / "fixtures" / "contracts" / "annotation.json"
 

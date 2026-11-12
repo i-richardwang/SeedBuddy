@@ -29,17 +29,17 @@ jobs:
       - run: make check
       - name: Start isolated storage
         run: |
-          docker compose -p vitroflow-ci up -d --wait postgres rustfs
-          docker compose -p vitroflow-ci run --rm bucket
+          docker compose -p seedbuddy-ci up -d --wait postgres rustfs
+          docker compose -p seedbuddy-ci run --rm bucket
       - name: Verify PostgreSQL and S3 contracts
         env:
-          VITROFLOW_TEST_DATABASE_URL: postgres://vitroflow:vitroflow@localhost:5432/vitroflow
-          VITROFLOW_TEST_S3_ENDPOINT: http://localhost:9000
-          VITROFLOW_TEST_S3_BUCKET: vitroflow
-          AWS_ACCESS_KEY_ID: vitroflow
-          AWS_SECRET_ACCESS_KEY: vitroflow
+          SEEDBUDDY_TEST_DATABASE_URL: postgres://seedbuddy:seedbuddy@localhost:5432/seedbuddy
+          SEEDBUDDY_TEST_S3_ENDPOINT: http://localhost:9000
+          SEEDBUDDY_TEST_S3_BUCKET: seedbuddy
+          AWS_ACCESS_KEY_ID: seedbuddy
+          AWS_SECRET_ACCESS_KEY: seedbuddy
           AWS_REGION: us-east-1
         run: make check-postgres check-s3
       - name: Remove test storage
         if: always()
-        run: docker compose -p vitroflow-ci down --volumes
+        run: docker compose -p seedbuddy-ci down --volumes

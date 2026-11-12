@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from conftest import PARAMETERS
 
-from vitroctl.training.recipe import TrainingRecipe
+from seedctl.training.recipe import TrainingRecipe
 
 
 def _recipe() -> dict[str, object]:

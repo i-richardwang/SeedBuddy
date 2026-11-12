@@ -2,15 +2,15 @@ from importlib.resources import files
 
 import numpy as np
 import pytest
-from vitroflow.photos import dish
+from seedbuddy.photos import dish
 
-from vitroctl.image_geometry.recipe import thumbnail_geometry
+from seedctl.image_geometry.recipe import thumbnail_geometry
 
 
 def test_packages_share_the_dish_recipe() -> None:
     assert (
-        files("vitroflow.photos").joinpath("dish-recipe.json").read_bytes()
-        == files("vitroctl.image_geometry").joinpath("dish-recipe.json").read_bytes()
+        files("seedbuddy.photos").joinpath("dish-recipe.json").read_bytes()
+        == files("seedctl.image_geometry").joinpath("dish-recipe.json").read_bytes()
     )
 
 

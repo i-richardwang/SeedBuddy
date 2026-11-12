@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from vitroctl.detectors.traditional.config import DEFAULT_PIPELINE_CONFIG
-from vitroctl.detectors.traditional.detector import TraditionalDetector
-from vitroctl.detectors.traditional.identity import pipeline_fingerprint
-from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
+from seedctl.detectors.traditional.config import DEFAULT_PIPELINE_CONFIG
+from seedctl.detectors.traditional.detector import TraditionalDetector
+from seedctl.detectors.traditional.identity import pipeline_fingerprint
+from seedctl.detectors.traditional.scoring import DEFAULT_MODEL
 
 
 @pytest.mark.parametrize(
@@ -27,7 +27,7 @@ def test_runtime_identity_covers_behavior_without_changing_artifact_identity(
     detector = TraditionalDetector(config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
     before = detector.runtime
     artifact = detector.artifact_digest
-    source = Path(__file__).resolve().parents[1] / "src" / "vitroctl" / dependency
+    source = Path(__file__).resolve().parents[1] / "src" / "seedctl" / dependency
     read_bytes = Path.read_bytes
 
     def changed_source(path: Path) -> bytes:
@@ -49,10 +49,10 @@ def test_pipeline_fingerprint_covers_algorithm_module_dependencies() -> None:
     """Moving algorithm code must not remove it from the execution identity."""
     import ast
 
-    from vitroctl.detectors.traditional.identity import _PIPELINE_FILES
+    from seedctl.detectors.traditional.identity import _PIPELINE_FILES
 
     root = Path(__file__).resolve().parents[1] / "src"
-    package = root / "vitroctl" / "detectors" / "traditional"
+    package = root / "seedctl" / "detectors" / "traditional"
     covered = {(package / name).resolve() for name in _PIPELINE_FILES}
     frontier = [package / "pipeline.py"]
     visited: set[Path] = set()
@@ -70,17 +70,17 @@ def test_pipeline_fingerprint_covers_algorithm_module_dependencies() -> None:
                 modules = [alias.name for alias in node.names]
             for module in modules:
                 if module.startswith(
-                    ("vitroctl.detectors.traditional.", "vitroctl.image_geometry.")
+                    ("seedctl.detectors.traditional.", "seedctl.image_geometry.")
                 ):
                     frontier.append(
                         root.joinpath(*module.split(".")).with_suffix(".py")
                     )
-    assert (root / "vitroctl/image_geometry/dish-recipe.json").resolve() in covered
+    assert (root / "seedctl/image_geometry/dish-recipe.json").resolve() in covered
 
 
 @pytest.mark.parametrize("dependency", ["files.py", "http.py"])
 def test_transport_helpers_do_not_change_pipeline_fingerprint(monkeypatch, dependency):
-    source = Path(__file__).resolve().parents[1] / "src/vitroctl/io" / dependency
+    source = Path(__file__).resolve().parents[1] / "src/seedctl/io" / dependency
     read_bytes = Path.read_bytes
     pipeline_fingerprint.cache_clear()
     before = pipeline_fingerprint()

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://schema.zeabur.app/template.json
 #
-# Deploys the VitroFlow server side: workbench, maintenance, Postgres and the
+# Deploys the SeedBuddy server side: workbench, maintenance, Postgres and the
 # S3-compatible store. Workers hold the GPUs and stay outside Zeabur; an
 # administrator enrolls each one on the workbench's Workers page.
 #
@@ -8,15 +8,15 @@
 apiVersion: zeabur.com/v1
 kind: Template
 metadata:
-    name: VitroFlow
+    name: SeedBuddy
 spec:
-    description: "VitroFlow workbench — the annotation and training control plane for plant tissue culture imagery, built from source with Postgres and a MinIO object store."
+    description: "SeedBuddy workbench — the annotation and training control plane for plant tissue culture imagery, built from source with Postgres and a MinIO object store."
     tags:
         - AI
         - Vision
         - Tool
     readme: |-
-        # VitroFlow
+        # SeedBuddy
 
         The workbench is the single entry point for experiment photos, box
         annotation, dataset assembly, and training runs. Postgres holds the
@@ -32,7 +32,7 @@ spec:
 
         Worker processes run outside this template and only make outbound calls.
         Run them on the enrolled machines next to their GPUs. Enrollment and setup are described in
-        `docs/vitroctl.md#workers`.
+        `docs/seedctl.md#workers`.
 
         ## After deploying
         Bind your own domain to the workbench in its Networking tab; no domain is
@@ -49,17 +49,17 @@ spec:
         you ever move the workbench to another domain.
 
         ## Documentation
-        - GitHub: https://github.com/i-richardwang/VitroFlow
+        - GitHub: https://github.com/i-richardwang/SeedBuddy
     variables:
         - key: PUBLIC_DOMAIN
           type: STRING
           name: Workbench Domain
-          description: "The full domain the workbench is served on, such as vitroflow.example.com. Bind it in the Networking tab after deploying."
-        - key: VITROFLOW_ADMIN_EMAIL
+          description: "The full domain the workbench is served on, such as seedbuddy.example.com. Bind it in the Networking tab after deploying."
+        - key: SEEDBUDDY_ADMIN_EMAIL
           type: STRING
           name: Administrator Email
           description: "Email of the first administrator account, created on first start."
-        - key: VITROFLOW_ADMIN_PASSWORD
+        - key: SEEDBUDDY_ADMIN_PASSWORD
           type: STRING
           name: Administrator Password
           description: "Password of the first administrator account. At least 12 characters."
@@ -105,7 +105,7 @@ spec:
                     default: ${POSTGRES_DB}
                     expose: true
                 POSTGRES_DB:
-                    default: vitroflow
+                    default: seedbuddy
                 POSTGRES_HOST:
                     default: ${CONTAINER_HOSTNAME}
                     expose: true
@@ -192,7 +192,7 @@ spec:
                     default: ${ZEABUR_CONSOLE_URL}
                     expose: true
                 MINIO_DEFAULT_BUCKET:
-                    default: vitroflow
+                    default: seedbuddy
                     expose: true
                 MINIO_ENDPOINT:
                     default: http://${CONTAINER_HOSTNAME}:${WEB_PORT}
@@ -229,11 +229,11 @@ spec:
                   content: https://${PUBLIC_DOMAIN}
                 - type: TEXT
                   title: Administrator Email
-                  content: ${VITROFLOW_ADMIN_EMAIL}
+                  content: ${SEEDBUDDY_ADMIN_EMAIL}
                   category: Credentials
                 - type: PASSWORD
                   title: Administrator Password
-                  content: ${VITROFLOW_ADMIN_PASSWORD}
+                  content: ${SEEDBUDDY_ADMIN_PASSWORD}
                   category: Credentials
             env:
                 <<: &application-environment
@@ -241,9 +241,9 @@ spec:
                         default: web
                     DATABASE_URL:
                         default: ${POSTGRES_CONNECTION_STRING}
-                    VITROFLOW_BLOB_ENDPOINT:
+                    SEEDBUDDY_BLOB_ENDPOINT:
                         default: ${MINIO_ENDPOINT}
-                    VITROFLOW_BLOB_BUCKET:
+                    SEEDBUDDY_BLOB_BUCKET:
                         default: ${MINIO_DEFAULT_BUCKET}
                     AWS_ACCESS_KEY_ID:
                         default: ${MINIO_USERNAME}
@@ -255,10 +255,10 @@ spec:
                     default: ${PASSWORD}
                 BETTER_AUTH_URL:
                     default: https://${PUBLIC_DOMAIN}
-                VITROFLOW_ADMIN_EMAIL:
-                    default: ${VITROFLOW_ADMIN_EMAIL}
-                VITROFLOW_ADMIN_PASSWORD:
-                    default: ${VITROFLOW_ADMIN_PASSWORD}
+                SEEDBUDDY_ADMIN_EMAIL:
+                    default: ${SEEDBUDDY_ADMIN_EMAIL}
+                SEEDBUDDY_ADMIN_PASSWORD:
+                    default: ${SEEDBUDDY_ADMIN_PASSWORD}
 
         - name: maintenance
           template: GIT

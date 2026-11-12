@@ -5,18 +5,18 @@ from pathlib import Path
 
 import pytest
 
-from vitroctl.detectors.traditional.config import DEFAULT_PIPELINE_CONFIG
-from vitroctl.detectors.traditional.pipeline import count_seeds
-from vitroctl.detectors.traditional.scoring import DEFAULT_MODEL
+from seedctl.detectors.traditional.config import DEFAULT_PIPELINE_CONFIG
+from seedctl.detectors.traditional.pipeline import count_seeds
+from seedctl.detectors.traditional.scoring import DEFAULT_MODEL
 
 REFERENCE_MANIFEST = Path(__file__).parent / "fixtures" / "reference-images.json"
 
 
 @pytest.mark.reference
 def test_reference_image_counts() -> None:
-    configured = os.environ.get("VITROFLOW_REFERENCE_IMAGE_DIR")
+    configured = os.environ.get("SEEDBUDDY_REFERENCE_IMAGE_DIR")
     assert configured, (
-        "Set VITROFLOW_REFERENCE_IMAGE_DIR or run "
+        "Set SEEDBUDDY_REFERENCE_IMAGE_DIR or run "
         "`make check-reference REFERENCE_IMAGE_DIR=/path/to/images`"
     )
     image_dir = Path(configured).resolve()

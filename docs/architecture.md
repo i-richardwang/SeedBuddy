@@ -1,6 +1,6 @@
 # Architecture
 
-VitroFlow has a workbench and two Python packages: `vitroctl` (`src/vitroctl`) runs Worker processes, moves datasets and trains detectors for operators, and `vitroflow` (`packages/vitroflow`) prepares photographs for experimenters. Source boundaries describe the capabilities a module may use; each boundary is organized by the domain or lifecycle it owns. React components can render on the server, so a frontend directory does not authorize browser globals during rendering.
+SeedBuddy has a workbench and two Python packages: `seedctl` (`src/seedctl`) runs Worker processes, moves datasets and trains detectors for operators, and `seedbuddy` (`packages/seedbuddy`) prepares photographs for experimenters. Source boundaries describe the capabilities a module may use; each boundary is organized by the domain or lifecycle it owns. React components can render on the server, so a frontend directory does not authorize browser globals during rendering.
 
 ## Web boundaries
 
@@ -28,7 +28,7 @@ Domain exceptions inherit shared categories from `domain/errors.ts` and carry st
 
 `image_geometry` owns dish circle detection and the pixel window a frozen dish coverage frames, without model or annotation dependencies; traditional detection uses the former, YOLO export and inference the latter, and the workbench reads the same [recipe](images.md) to bound AI annotation to the dish. AI annotation itself runs on the workbench and the agents people connect to it; see [AI annotation](ai-annotation.md).
 
-`vitroflow` depends on neither `vitroctl` nor the workbench. It ships its own `dish-recipe.json` as package data. A test pins those bytes to `src/vitroctl/image_geometry/dish-recipe.json`; its independent detector reads that recipe and uses the same half-up thumbnail dimension rule as `image_geometry/recipe.py`.
+`seedbuddy` depends on neither `seedctl` nor the workbench. It ships its own `dish-recipe.json` as package data. A test pins those bytes to `src/seedctl/image_geometry/dish-recipe.json`; its independent detector reads that recipe and uses the same half-up thumbnail dimension rule as `image_geometry/recipe.py`.
 
 The allowed internal dependencies are defined by layer:
 
@@ -56,7 +56,7 @@ The allowed internal dependencies are defined by layer:
 
 Traditional execution identity lives in `detectors/traditional/identity.py`. Its source fingerprint includes the pipeline's behavior dependencies, including image decoding in `io/image_io.py`. The detector runtime fingerprint also includes its adapter, common detector contract and annotation validator. The Ultralytics runtime fingerprint hashes its installed framework version with those three source files. Source paths are explicit and resolved relative to their owning implementation. Digest helpers in `io/files.py` are outside the pipeline fingerprint inventory.
 
-A runtime fingerprint identifies execution code. A traditional artifact digest identifies the candidate model and configuration. Model Bundle version identity is defined in the [operator guide](vitroctl.md#training-and-model-delivery). Regression tests check this distinction by varying behavior-source and dish-recipe bytes. An import-closure check requires traditional and image-geometry algorithm modules reachable from the pipeline to remain in the fingerprint inventory.
+A runtime fingerprint identifies execution code. A traditional artifact digest identifies the candidate model and configuration. Model Bundle version identity is defined in the [operator guide](seedctl.md#training-and-model-delivery). Regression tests check this distinction by varying behavior-source and dish-recipe bytes. An import-closure check requires traditional and image-geometry algorithm modules reachable from the pipeline to remain in the fingerprint inventory.
 
 ## Database schema
 

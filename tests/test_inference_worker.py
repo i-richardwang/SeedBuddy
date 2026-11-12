@@ -10,14 +10,14 @@ import httpx
 import pytest
 from conftest import decode_model_manifest, detection_document
 
-from vitroctl.detectors.contract import RuntimeDescriptor
-from vitroctl.worker import inference
-from vitroctl.worker.connection import WorkerConnection
-from vitroctl.worker.inference import InferenceRunner
-from vitroctl.worker.inference_process import InferenceExecutionError
-from vitroctl.worker.inference_protocol import Assignment, InferenceClient
-from vitroctl.worker.model_store import ModelStore
-from vitroctl.worker.session import LeaseLostError, WorkerClient, WorkerSession
+from seedctl.detectors.contract import RuntimeDescriptor
+from seedctl.worker import inference
+from seedctl.worker.connection import WorkerConnection
+from seedctl.worker.inference import InferenceRunner
+from seedctl.worker.inference_process import InferenceExecutionError
+from seedctl.worker.inference_protocol import Assignment, InferenceClient
+from seedctl.worker.model_store import ModelStore
+from seedctl.worker.session import LeaseLostError, WorkerClient, WorkerSession
 
 RUNTIME = RuntimeDescriptor(adapter="traditional", fingerprint="b" * 64)
 SESSION = WorkerSession("test-session", "2026-08-27T00:00:00+00:00", (RUNTIME,), 8192)

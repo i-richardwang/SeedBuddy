@@ -1,10 +1,10 @@
 # AI annotation
 
-VitroFlow serves visual annotation through its own MCP server,
+SeedBuddy serves visual annotation through its own MCP server,
 `/api/annotation/mcp`, separate from the experiment MCP server at `/api/experiments/mcp`
 (see [Agent API](agent-api.md)). An agent is configured with the server its job
 needs: one that annotates images connects here, one that maintains experiments
-connects there, and each is authorized on its own. VitroFlow supplies images
+connects there, and each is authorized on its own. SeedBuddy supplies images
 waiting for annotation, regional evidence and validation; the connected agent
 supplies visual reasoning.
 
@@ -20,7 +20,7 @@ its input boxes. When beginning from an AI proposal, untouched regions also keep
 which of their boxes await confirmation. The touched regions are replaced in full,
 including that mark. Model settings own classes, instructions, region
 geometry and the model's area (`image` or `dish`), the one setting that AI
-annotation shares with [training and inference](vitroctl.md#dish-framing). The
+annotation shares with [training and inference](seedctl.md#dish-framing). The
 server freezes these settings and the resulting coverage at creation. Seed
 detection defaults to `dish`; other models default to `image`.
 
@@ -46,8 +46,8 @@ OAuth discovery and connection behavior follow the [shared MCP contract](agent-a
 Add the annotation server to a local client:
 
 ```bash
-claude mcp add --transport http vitroflow-annotation 'https://<workbench>/api/annotation/mcp'
-codex mcp add vitroflow-annotation --url 'https://<workbench>/api/annotation/mcp'
+claude mcp add --transport http seedbuddy-annotation 'https://<workbench>/api/annotation/mcp'
+codex mcp add seedbuddy-annotation --url 'https://<workbench>/api/annotation/mcp'
 ```
 
 ## Tool contract
@@ -147,7 +147,7 @@ Collection removes derived assets when their source Image is unreferenced.
 A dish run covers the dish its image's stored [analysis](images.md) found.
 Coverage expands the detected radius by 15%; the same coverage frames the
 image for a `dish` model's training snapshots and trained versions, see
-[dish framing](vitroctl.md#dish-framing). A core is omitted only when its
+[dish framing](seedctl.md#dish-framing). A core is omitted only when its
 rectangle is wholly outside that coverage; crossing and tangent cores remain.
 Grid IDs, patches, halos and box ownership stay unchanged. Evidence and boxes are
 never masked or clipped to the circle. `scope` intersects coverage with the redraw regions. Progress counts assigned tasks. Cores outside dish coverage retain their input boxes as part of the unreviewed proposal, awaiting human confirmation; only input boxes already marked uncertain retain an uncertainty check.

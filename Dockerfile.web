@@ -5,7 +5,7 @@ ENV CI=true
 RUN bun install --frozen-lockfile --network-concurrency=4
 COPY web .
 COPY configs /app/configs
-COPY src/vitroctl/image_geometry/dish-recipe.json /app/src/vitroctl/image_geometry/dish-recipe.json
+COPY src/seedctl/image_geometry/dish-recipe.json /app/src/seedctl/image_geometry/dish-recipe.json
 RUN bun run build
 
 FROM oven/bun:1.4.0-slim@sha256:e0ee68d16ccb9927bf02aa7dd8fd4bf3369ee6d46da04faa72b05ce8bfd135f6

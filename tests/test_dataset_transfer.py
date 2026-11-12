@@ -7,7 +7,7 @@ import httpx
 import pytest
 from conftest import annotation_document, manifest_document, manifest_entry
 
-from vitroctl.datasets.manifest import (
+from seedctl.datasets.manifest import (
     MAX_DATASET_MANIFEST_BYTES,
     BlobError,
     DatasetManifest,
@@ -16,7 +16,7 @@ from vitroctl.datasets.manifest import (
     load_dataset_manifest,
     verified_blob,
 )
-from vitroctl.datasets.transfer import (
+from seedctl.datasets.transfer import (
     MAX_IMAGE_BYTES,
     DatasetTransferError,
     PullReport,
@@ -410,7 +410,7 @@ def test_push_requires_a_local_manifest(tmp_path: Path) -> None:
 def test_pull_bounds_streamed_blobs_and_preserves_cached_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, declared: bool
 ) -> None:
-    from vitroctl.datasets import transfer
+    from seedctl.datasets import transfer
 
     monkeypatch.setattr(transfer, "MAX_IMAGE_BYTES", 4)
     cached = blob_path(tmp_path, DIGEST_A)

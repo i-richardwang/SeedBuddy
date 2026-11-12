@@ -24,11 +24,11 @@ export function createDishDetector() {
         () =>
           new Promise((resolve, reject) => {
             if (!worker) {
-              const configured = process.env.VITROFLOW_IMAGE_ANALYSIS_URL
-                ? new URL(process.env.VITROFLOW_IMAGE_ANALYSIS_URL)
+              const configured = process.env.SEEDBUDDY_IMAGE_ANALYSIS_URL
+                ? new URL(process.env.SEEDBUDDY_IMAGE_ANALYSIS_URL)
                 : null;
               if (!configured) {
-                reject(new Error("VITROFLOW_IMAGE_ANALYSIS_URL is required"));
+                reject(new Error("SEEDBUDDY_IMAGE_ANALYSIS_URL is required"));
                 return;
               }
               const created = new Worker(configured);

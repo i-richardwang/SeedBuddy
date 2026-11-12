@@ -53,9 +53,9 @@ DEPENDENCIES: dict[str, set[str]] = {
 
 
 def owner(module: str) -> str:
-    if module == "vitroctl":
+    if module == "seedctl":
         return "entry"
-    suffix = module.removeprefix("vitroctl.")
+    suffix = module.removeprefix("seedctl.")
     for prefix, name in (
         ("detectors.traditional", "traditional"),
         ("detectors.ultralytics", "ultralytics"),
@@ -132,7 +132,7 @@ def check_architecture(
                 modules=set(sources),
             )
         ):
-            if not target.startswith("vitroctl"):
+            if not target.startswith("seedctl"):
                 if layer in {"contracts", "detector_contracts"} and target.split(".")[
                     0
                 ] in {
@@ -162,7 +162,7 @@ def check_architecture(
 def main() -> int:
     sources: dict[str, str] = {}
     packages: set[str] = set()
-    for file in (ROOT / "vitroctl").rglob("*.py"):
+    for file in (ROOT / "seedctl").rglob("*.py"):
         parts = file.relative_to(ROOT).with_suffix("").parts
         module = ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
         if file.name == "__init__.py":

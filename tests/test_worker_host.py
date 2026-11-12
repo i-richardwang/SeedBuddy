@@ -6,14 +6,14 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from vitroctl.worker.connection import WorkerHttpClient, WorkerNotEnrolledError
-from vitroctl.worker.host import operations as worker_host
-from vitroctl.worker.host.profiles import (
+from seedctl.worker.connection import WorkerHttpClient, WorkerNotEnrolledError
+from seedctl.worker.host import operations as worker_host
+from seedctl.worker.host.profiles import (
     WorkerProfile,
     profile_directory,
     save_profile,
 )
-from vitroctl.worker.session import WorkerSettings
+from seedctl.worker.session import WorkerSettings
 
 
 def _serve_ready(monkeypatch, respond) -> list[httpx.Request]:
@@ -47,7 +47,7 @@ def _serve_ready(monkeypatch, respond) -> list[httpx.Request]:
 def test_preflight_checks_the_authenticated_server_and_runtimes(
     tmp_path, monkeypatch, adapters, device, expected
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     requests = _serve_ready(
         monkeypatch, lambda _: httpx.Response(200, json={"workerId": "trainer"})
     )
@@ -73,7 +73,7 @@ def test_preflight_checks_the_authenticated_server_and_runtimes(
 def test_preflight_surfaces_an_installed_but_broken_runtime(
     tmp_path, monkeypatch
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     _serve_ready(
         monkeypatch, lambda _: httpx.Response(200, json={"workerId": "mac-mps"})
     )
@@ -94,7 +94,7 @@ def test_preflight_surfaces_an_installed_but_broken_runtime(
 def test_preflight_refuses_a_token_the_workbench_does_not_know(
     tmp_path, monkeypatch
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     _serve_ready(monkeypatch, lambda _: httpx.Response(401))
     profile = WorkerProfile(server_url="https://example.test", token="removed")
 
@@ -105,7 +105,7 @@ def test_preflight_refuses_a_token_the_workbench_does_not_know(
 def test_profile_host_passes_typed_settings_and_marks_readiness(
     tmp_path, monkeypatch
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
         WorkerProfile(
@@ -136,7 +136,7 @@ def test_profile_host_passes_typed_settings_and_marks_readiness(
 def test_profile_host_records_startup_failures_in_status_and_log(
     tmp_path, monkeypatch
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
         WorkerProfile(
@@ -160,7 +160,7 @@ def test_profile_host_records_startup_failures_in_status_and_log(
 
 
 def test_an_unenrolled_worker_stops_cleanly_and_says_why(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
         WorkerProfile(server_url="https://example.test", token="removed"),
@@ -195,7 +195,7 @@ def _status_profile(name: str, state: str, **document: object) -> None:
 
 
 def test_profile_summary_reports_the_failure_detail(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     _status_profile("trainer", "failed", detail="startup failed")
     monkeypatch.setattr(worker_host, "service_loaded", lambda _name: True)
 
@@ -210,7 +210,7 @@ def test_profile_summary_reports_the_failure_detail(tmp_path, monkeypatch) -> No
 def test_profile_summary_reports_a_killed_worker_as_stale(
     tmp_path, monkeypatch
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     _status_profile("trainer", "running")
 
     monkeypatch.setattr(worker_host, "service_loaded", lambda _name: True)

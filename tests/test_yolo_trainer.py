@@ -8,7 +8,7 @@ pytest.importorskip("ultralytics")
 
 from ultralytics.models.yolo.detect.train import DetectionTrainer
 
-from vitroctl.detectors.ultralytics.trainer import (
+from seedctl.detectors.ultralytics.trainer import (
     MemoryBoundedDetectionTrainer,
 )
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from vitroctl.contracts.annotation import BoundingBox
-from vitroctl.contracts.coverage import ImageCoverage, decode_coverage
-from vitroctl.image_geometry.window import PixelWindow, coverage_window
+from seedctl.contracts.annotation import BoundingBox
+from seedctl.contracts.coverage import ImageCoverage, decode_coverage
+from seedctl.image_geometry.window import PixelWindow, coverage_window
 
 
 def test_coverage_decodes_the_frozen_dish_and_encodes_it_back() -> None:

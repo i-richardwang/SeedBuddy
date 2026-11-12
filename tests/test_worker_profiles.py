@@ -4,7 +4,7 @@ import stat
 
 import pytest
 
-from vitroctl.worker.host.profiles import (
+from seedctl.worker.host.profiles import (
     WorkerProfile,
     list_profiles,
     load_profile,
@@ -13,7 +13,7 @@ from vitroctl.worker.host.profiles import (
 
 
 def test_profile_round_trip_is_private(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     profile = WorkerProfile(
         server_url="https://example.test/",
         token="secret",
@@ -38,7 +38,7 @@ def test_profile_rejects_an_unknown_device() -> None:
 
 
 def test_profile_parser_rejects_unknown_fields(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     path = tmp_path / "profiles" / "bad" / "config.toml"
     path.parent.mkdir(parents=True)
     path.write_text(
