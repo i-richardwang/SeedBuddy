@@ -29,6 +29,9 @@ import type { LayerKey } from "./layers";
 const GRIP_SCREEN_SIZE = 6;
 const EDGE_GRAB_SCREEN_WIDTH = 8;
 
+/** Lines drawn over the image, in screen pixels: two device pixels on a dense display, one on a standard one. */
+const LINE_WIDTH = 1;
+
 /** The other boxes recede while one is selected. */
 const UNSELECTED_OPACITY = 0.45;
 
@@ -47,6 +50,11 @@ function isHandle(value: string | null): value is Handle {
   return HANDLES.some((handle) => handle === value);
 }
 
+/**
+ * An overlay drawn in image pixels. Its shapes snap to device pixels, so a
+ * line lands whole on the screen's pixels in its full color rather than
+ * smeared across two half-tinted ones wherever the view puts it.
+ */
 function Layer({
   image,
   children,
@@ -57,6 +65,7 @@ function Layer({
       aria-hidden
       viewBox={`0 0 ${image.width} ${image.height}`}
       className="absolute inset-0 h-full w-full overflow-visible"
+      shapeRendering="crispEdges"
       {...handlers}
     >
       {children}
@@ -88,8 +97,8 @@ const EDGE_ENDS: Record<(typeof EDGES)[number], readonly [Corner, Corner]> = {
 };
 
 /**
- * A box in its class's color, drawn a hairline wide, or two when selected,
- * with the line wholly outside it so nothing of the image inside is covered.
+ * A box in its class's color, its line wholly outside it so nothing of the
+ * image inside is covered; selected, the line gains a device pixel.
  * With `grips`, a small square at each corner and each edge grabbed anywhere
  * along it resize it, so no grip sits on the outline it frames.
  */
@@ -108,8 +117,8 @@ function Box({
   grips?: boolean;
   cursor?: string;
 }) {
-  const { scale, hairline } = useViewport();
-  const width = selected ? 2 * hairline : hairline;
+  const { scale, devicePixel } = useViewport();
+  const width = selected ? LINE_WIDTH + devicePixel : LINE_WIDTH;
   const drawn = outside(box, width / scale);
   const corners = handlePositions(drawn);
   const grip = GRIP_SCREEN_SIZE / scale;
@@ -189,7 +198,7 @@ export function ChecksLayer({
   checks: AnnotationInstance[];
   layers: ReadonlySet<LayerKey>;
 }) {
-  const { scale, hairline } = useViewport();
+  const { scale } = useViewport();
   if (!layers.has("checks") || checks.length === 0) return null;
   const gap = 3 / scale;
   return (
@@ -203,7 +212,7 @@ export function ChecksLayer({
           height={bbox.height + 2 * gap}
           fill="none"
           stroke={CANVAS_COLORS.check}
-          strokeWidth={hairline}
+          strokeWidth={LINE_WIDTH}
           strokeDasharray="4 3"
           vectorEffect="non-scaling-stroke"
         />
