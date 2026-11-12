@@ -46,8 +46,8 @@ interface ScreenPoint {
 interface ViewportHandle {
   /** Screen pixels per image pixel. */
   scale: number;
-  /** The finest line the screen draws, one device pixel, in screen pixels. */
-  hairline: number;
+  /** One device pixel, in screen pixels. */
+  devicePixel: number;
   toImagePoint: (event: ScreenPoint) => Point;
   /** Offset to hold between the pointer and the image while dragging. */
   panOrigin: (event: ScreenPoint) => Point;
@@ -280,11 +280,11 @@ export function ImageViewport({
     (x: number, y: number) => change((current) => pannedTo(current, x, y)),
     [change],
   );
-  const hairline = 1 / usePixelRatio();
+  const devicePixel = 1 / usePixelRatio();
   const handle = useMemo<ViewportHandle>(
     () => ({
       scale: view.scale,
-      hairline,
+      devicePixel,
       toImagePoint: (event) => {
         const rect = frameRef.current!.getBoundingClientRect();
         return {
@@ -298,7 +298,7 @@ export function ImageViewport({
       }),
       panTo,
     }),
-    [view, hairline, panTo],
+    [view, devicePixel, panTo],
   );
   const pan = usePanGesture(handle);
 
