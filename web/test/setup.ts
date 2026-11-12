@@ -33,7 +33,6 @@ process.env.BETTER_AUTH_SECRET = "test-secret-test-secret-test-secret";
 for (const credential of [
   "SEEDBUDDY_ADMIN_EMAIL",
   "SEEDBUDDY_ADMIN_PASSWORD",
-  "SEEDBUDDY_WORKER_TOKEN",
 ]) {
   delete process.env[credential];
 }
