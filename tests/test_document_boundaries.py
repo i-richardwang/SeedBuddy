@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from vitroctl.contracts import validation
-from vitroctl.datasets.manifest import DatasetManifest
-from vitroctl.training.documents import TrainingClaim, TrainingSnapshot
-from vitroctl.training.recipe import TrainingRecipe
-from vitroctl.worker.inference_protocol import Assignment
+from seedctl.contracts import validation
+from seedctl.datasets.manifest import DatasetManifest
+from seedctl.training.documents import TrainingClaim, TrainingSnapshot
+from seedctl.training.recipe import TrainingRecipe
+from seedctl.worker.inference_protocol import Assignment
 
 FIXTURES = Path(__file__).parent / "fixtures/contracts"
 

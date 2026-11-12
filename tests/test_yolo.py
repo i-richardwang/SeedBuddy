@@ -11,24 +11,24 @@ from conftest import (
     write_manifest,
 )
 
-from vitroctl.contracts.annotation import (
+from seedctl.contracts.annotation import (
     AnnotationInstance,
     BoundingBox,
 )
-from vitroctl.contracts.coverage import ImageCoverage
-from vitroctl.datasets.manifest import (
+from seedctl.contracts.coverage import ImageCoverage
+from seedctl.datasets.manifest import (
     AnnotatedImage,
     BlobError,
     blob_path,
     load_dataset_manifest,
 )
-from vitroctl.detectors.ultralytics import (
+from seedctl.detectors.ultralytics import (
     DatasetImage,
     export_dataset_images,
     export_yolo_dataset,
 )
-from vitroctl.detectors.ultralytics.dataset import assign_splits
-from vitroctl.io.image_io import CANONICAL_EXTENSION, read_image
+from seedctl.detectors.ultralytics.dataset import assign_splits
+from seedctl.io.image_io import CANONICAL_EXTENSION, read_image
 
 
 def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
@@ -274,7 +274,7 @@ def test_yolo_export_honours_recorded_splits(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("splits", [(), (None,), ("train", "train"), ("val", "val")])
 def test_export_requires_training_and_validation_images(tmp_path, splits):
-    from vitroctl.detectors.ultralytics.dataset import DatasetSplitError
+    from seedctl.detectors.ultralytics.dataset import DatasetSplitError
 
     images = [
         DatasetImage(str(index), 100, 80, (), tmp_path / str(index), split, None)

@@ -1,8 +1,8 @@
 # Images
 
-Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF. Those bytes determine the digest, dimensions, browser view, inference input and training input. Every image is stored once under its digest. Ingestion also finds the culture dish in it; a model whose area is `dish` bounds its [AI annotation](ai-annotation.md) to that dish and frames its [training and inference](vitroctl.md#dish-framing) to it.
+Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF. Those bytes determine the digest, dimensions, browser view, inference input and training input. Every image is stored once under its digest. Ingestion also finds the culture dish in it; a model whose area is `dish` bounds its [AI annotation](ai-annotation.md) to that dish and frames its [training and inference](seedctl.md#dish-framing) to it.
 
-Python transfer admission owns `MAX_IMAGE_BYTES` in `src/vitroctl/datasets/transfer.py`; the [dataset transfer contract](domain.md#dataset-transfer) defines the size limit.
+Python transfer admission owns `MAX_IMAGE_BYTES` in `src/seedctl/datasets/transfer.py`; the [dataset transfer contract](domain.md#dataset-transfer) defines the size limit.
 
 ## Dish analysis
 
@@ -18,7 +18,7 @@ Completed analysis stores its recipe identity and circle. A null circle means
 successful analysis with no candidate; null analysis means unavailable. Repeated
 uploads reuse current completed results.
 
-One shared `src/vitroctl/image_geometry/dish-recipe.json` supplies Hough parameters and coverage
+One shared `src/seedctl/image_geometry/dish-recipe.json` supplies Hough parameters and coverage
 policy to both runtimes, validated against the generated `dish-recipe` contract.
 The server uses Sharp Lanczos3 and OpenCV.js; native Python uses OpenCV INTER_AREA.
 They share parameters and half-up thumbnail dimensions, but can produce slightly
@@ -57,4 +57,4 @@ manual sweep is for refreshing it at once.
 
 ## Previews and processing
 
-`images/preview.ts` derives a small rendition after ingestion or on a read that finds it missing. Collection removes it with the source image. `images/processing.ts` sets Sharp concurrency to 2 and admits one large-image operation per process across ingestion, analysis and regional preparation, acquiring the slot before loading an original. Encoded caches are bounded and contain no annotation or model state. `web/scripts/image-analysis-runtime.ts` sets the default `VITROFLOW_IMAGE_ANALYSIS_URL` for bundled entry points to their adjacent `dish-thread.js`.
+`images/preview.ts` derives a small rendition after ingestion or on a read that finds it missing. Collection removes it with the source image. `images/processing.ts` sets Sharp concurrency to 2 and admits one large-image operation per process across ingestion, analysis and regional preparation, acquiring the slot before loading an original. Encoded caches are bounded and contain no annotation or model state. `web/scripts/image-analysis-runtime.ts` sets the default `SEEDBUDDY_IMAGE_ANALYSIS_URL` for bundled entry points to their adjacent `dish-thread.js`.

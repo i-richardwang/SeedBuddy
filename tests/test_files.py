@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from vitroctl.io.files import atomic_directory, atomic_file, write_text_atomically
+from seedctl.io.files import atomic_directory, atomic_file, write_text_atomically
 
 
 def test_atomic_directory_publishes_complete_content(tmp_path: Path) -> None:

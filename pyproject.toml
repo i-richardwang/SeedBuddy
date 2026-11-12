@@ -1,8 +1,8 @@
 [project]
-name = "vitroctl"
+name = "seedctl"
 version = "0.1.0"
-description = "Operator CLI and native Worker runtime for a VitroFlow workbench"
-readme = "docs/vitroctl.md"
+description = "Operator CLI and native Worker runtime for a SeedBuddy workbench"
+readme = "docs/seedctl.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Richard Wang" }]
@@ -33,32 +33,32 @@ yolo = [
 ]
 
 [project.scripts]
-vitroctl = "vitroctl.cli:main"
+seedctl = "seedctl.cli:main"
 
 [project.urls]
-Repository = "https://github.com/i-richardwang/VitroFlow"
-Issues = "https://github.com/i-richardwang/VitroFlow/issues"
+Repository = "https://github.com/i-richardwang/SeedBuddy"
+Issues = "https://github.com/i-richardwang/SeedBuddy/issues"
 
 [dependency-groups]
 dev = [
   "pyright>=1.1.405",
   "pytest>=8.0",
   "ruff>=0.12",
-  "vitroflow",
+  "seedbuddy",
 ]
 
 [tool.uv.workspace]
-members = ["packages/vitroflow"]
+members = ["packages/seedbuddy"]
 
 [tool.uv.sources]
-vitroflow = { workspace = true }
+seedbuddy = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/vitroflow/tests"]
+testpaths = ["tests", "packages/seedbuddy/tests"]
 addopts = "-m 'not reference'"
 markers = [
   "reference: requires the checksum-pinned private reference images",
@@ -68,23 +68,23 @@ markers = [
 extend-select = ["I"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/vitroctl/detectors/traditional/config.py" = ["TRY004"]
-"src/vitroctl/detectors/traditional/scoring.py" = ["TRY004"]
+"src/seedctl/detectors/traditional/config.py" = ["TRY004"]
+"src/seedctl/detectors/traditional/scoring.py" = ["TRY004"]
 
 [tool.pyright]
-include = ["src", "scripts", "packages/vitroflow/src", "tests", "packages/vitroflow/tests"]
+include = ["src", "scripts", "packages/seedbuddy/src", "tests", "packages/seedbuddy/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vitroctl"]
+packages = ["src/seedctl"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "/docs/vitroctl.md",
+  "/docs/seedctl.md",
   "/LICENSE",
   "/README.md",
   "/pyproject.toml",
-  "/src/vitroctl",
+  "/src/seedctl",
 ]
 

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from vitroctl.detectors.ultralytics import YoloTrainingInterruptedError
-from vitroctl.worker import training_process
+from seedctl.detectors.ultralytics import YoloTrainingInterruptedError
+from seedctl.worker import training_process
 
 
 def _hung_trainer(*_args, **_kwargs):

@@ -6,15 +6,15 @@ import httpx
 import pytest
 from conftest import model_bundle
 
-from vitroctl.cli import main
-from vitroctl.detectors.ultralytics import YoloTrainingResult
-from vitroctl.models.bundle import (
+from seedctl.cli import main
+from seedctl.detectors.ultralytics import YoloTrainingResult
+from seedctl.models.bundle import (
     read_bundle,
     training_bundle,
     validate_bundle,
     write_bundle,
 )
-from vitroctl.models.client import WorkbenchClient
+from seedctl.models.client import WorkbenchClient
 
 
 def test_bundle_preserves_weights_and_rejects_corruption_and_unknown_inference_modes(
@@ -60,8 +60,8 @@ def test_import_only_prepares_uploads_and_registers_and_can_be_retried(
         )
         return httpx.Response(200, json={"result": result})
 
-    from vitroctl.io.http import authorized_client
-    from vitroctl.models import client as client_module
+    from seedctl.io.http import authorized_client
+    from seedctl.models import client as client_module
 
     def connected(server, token, **options):
         return authorized_client(
@@ -80,8 +80,8 @@ def test_cli_routes_remote_training_and_version_selection_to_shared_operations(
     tmp_path, monkeypatch, capsys, recipe
 ):
     operations = []
-    monkeypatch.setenv("VITROFLOW_SERVER_URL", "https://workbench.example")
-    monkeypatch.setenv("VITROFLOW_API_KEY", "secret")
+    monkeypatch.setenv("SEEDBUDDY_SERVER_URL", "https://workbench.example")
+    monkeypatch.setenv("SEEDBUDDY_API_KEY", "secret")
 
     def call(self, name, args):
         operations.append((name, args))
@@ -130,7 +130,7 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
 ):
     from types import SimpleNamespace
 
-    from vitroctl.cli import training
+    from seedctl.cli import training
 
     spec = tmp_path / "training.json"
     spec.write_text(json.dumps({"dataset": "local", "recipe": recipe}))
@@ -230,8 +230,8 @@ def test_training_bundle_refuses_unusable_validation(tmp_path):
 def test_pack_validates_before_runtime_and_never_publishes_a_rejected_bundle(
     tmp_path, monkeypatch, recipe, invalid_structure
 ):
-    from vitroctl.cli import models
-    from vitroctl.contracts import validation
+    from seedctl.cli import models
+    from seedctl.contracts import validation
 
     weights = tmp_path / "weights.pt"
     weights.write_bytes(b"weights")
@@ -278,8 +278,8 @@ def test_pack_validates_before_runtime_and_never_publishes_a_rejected_bundle(
 def test_remote_training_rejects_invalid_recipe_before_send(
     tmp_path, monkeypatch, recipe
 ):
-    monkeypatch.setenv("VITROFLOW_SERVER_URL", "https://workbench.example")
-    monkeypatch.setenv("VITROFLOW_API_KEY", "secret")
+    monkeypatch.setenv("SEEDBUDDY_SERVER_URL", "https://workbench.example")
+    monkeypatch.setenv("SEEDBUDDY_API_KEY", "secret")
     calls = []
     monkeypatch.setattr(WorkbenchClient, "call", lambda *args: calls.append(args))
     recipe["parameters"]["epochs"] = 0
@@ -308,7 +308,7 @@ def test_training_mode_conflicts_fail_before_reading_the_spec(
 
 
 def test_training_bundle_uses_result_context_and_one_metric_source(tmp_path, recipe):
-    from vitroctl.models.bundle import training_provenance
+    from seedctl.models.bundle import training_provenance
 
     weights = tmp_path / "weights.pt"
     weights.write_bytes(b"trained")

@@ -53,14 +53,14 @@ test("memory blob store obeys the immutable object contract", async () => {
   await assertBlobStoreContract(createMemoryBlobStore());
 });
 
-const s3Endpoint = process.env.VITROFLOW_TEST_S3_ENDPOINT;
-const s3Bucket = process.env.VITROFLOW_TEST_S3_BUCKET;
+const s3Endpoint = process.env.SEEDBUDDY_TEST_S3_ENDPOINT;
+const s3Bucket = process.env.SEEDBUDDY_TEST_S3_BUCKET;
 if (
-  process.env.VITROFLOW_REQUIRE_S3_CONTRACT === "1" &&
+  process.env.SEEDBUDDY_REQUIRE_S3_CONTRACT === "1" &&
   (!s3Endpoint || !s3Bucket)
 ) {
   throw new Error(
-    "The required S3 contract needs VITROFLOW_TEST_S3_ENDPOINT and VITROFLOW_TEST_S3_BUCKET",
+    "The required S3 contract needs SEEDBUDDY_TEST_S3_ENDPOINT and SEEDBUDDY_TEST_S3_BUCKET",
   );
 }
 const s3Test = s3Endpoint && s3Bucket ? test : test.skip;

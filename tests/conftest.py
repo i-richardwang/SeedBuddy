@@ -9,12 +9,12 @@ import cv2
 import numpy as np
 import pytest
 
-from vitroctl.datasets.manifest import (
+from seedctl.datasets.manifest import (
     MANIFEST_SCHEMA_VERSION,
     blob_path,
     manifest_path,
 )
-from vitroctl.models.bundle import weights_descriptor
+from seedctl.models.bundle import weights_descriptor
 
 SEED_CLASSES = ("ungerminated", "germinated")
 
@@ -214,24 +214,24 @@ def model_bundle(weights: Path, recipe):
 
 
 def decode_annotation(value, context="annotation"):
-    from vitroctl.contracts.annotation import AnnotationDocument
-    from vitroctl.contracts.validation import validate_wire_contract
+    from seedctl.contracts.annotation import AnnotationDocument
+    from seedctl.contracts.validation import validate_wire_contract
 
     validate_wire_contract("annotation", value, context)
     return AnnotationDocument.decode(value, context)
 
 
 def decode_detection(value, context="detection"):
-    from vitroctl.contracts.validation import validate_wire_contract
-    from vitroctl.detectors.contract import DetectionResult
+    from seedctl.contracts.validation import validate_wire_contract
+    from seedctl.detectors.contract import DetectionResult
 
     validate_wire_contract("detection-result", value, context)
     return DetectionResult.decode(value, context)
 
 
 def decode_model_manifest(value, context="model manifest"):
-    from vitroctl.contracts.validation import validate_wire_contract
-    from vitroctl.worker.model_store import ModelManifest
+    from seedctl.contracts.validation import validate_wire_contract
+    from seedctl.worker.model_store import ModelManifest
 
     validate_wire_contract("inference-model-manifest", value, context)
     return ModelManifest.decode(value, context)

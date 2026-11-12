@@ -11,9 +11,9 @@ from conftest import (
     write_manifest,
 )
 
-from vitroctl.cli import main
-from vitroctl.datasets.manifest import blob_path
-from vitroctl.io.image_io import CANONICAL_EXTENSION
+from seedctl.cli import main
+from seedctl.datasets.manifest import blob_path
+from seedctl.io.image_io import CANONICAL_EXTENSION
 
 
 def _pulled_dataset(data_root: Path, count: int = 1) -> list[str]:
@@ -137,8 +137,8 @@ def test_dataset_transfer_requires_server_and_token(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("VITROFLOW_SERVER_URL", raising=False)
-    monkeypatch.delenv("VITROFLOW_API_KEY", raising=False)
+    monkeypatch.delenv("SEEDBUDDY_SERVER_URL", raising=False)
+    monkeypatch.delenv("SEEDBUDDY_API_KEY", raising=False)
 
     exit_code = main(
         [
@@ -153,8 +153,8 @@ def test_dataset_transfer_requires_server_and_token(
 
     assert exit_code == 2
     error = capsys.readouterr().err
-    assert "VITROFLOW_SERVER_URL" in error
-    assert "VITROFLOW_API_KEY" in error
+    assert "SEEDBUDDY_SERVER_URL" in error
+    assert "SEEDBUDDY_API_KEY" in error
 
 
 def test_export_yolo_reads_the_pulled_dataset_manifest(

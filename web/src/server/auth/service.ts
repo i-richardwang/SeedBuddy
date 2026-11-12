@@ -42,7 +42,7 @@ function build(db: Executor) {
   }
   const deployment = deploymentEndpoint();
   return betterAuth({
-    appName: "VitroFlow",
+    appName: "SeedBuddy",
     baseURL: deployment.origin,
     secret,
     database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
@@ -98,11 +98,11 @@ type Auth = ReturnType<typeof build>;
 async function installFirstAdmin(instance: Auth, db: Executor): Promise<void> {
   const [{ total }] = await db.select({ total: count() }).from(schema.users);
   if (total !== 0) return;
-  const email = process.env.VITROFLOW_ADMIN_EMAIL;
-  const password = process.env.VITROFLOW_ADMIN_PASSWORD;
+  const email = process.env.SEEDBUDDY_ADMIN_EMAIL;
+  const password = process.env.SEEDBUDDY_ADMIN_PASSWORD;
   if (!email || !password) {
     console.warn(
-      "No accounts exist and VITROFLOW_ADMIN_EMAIL / VITROFLOW_ADMIN_PASSWORD are unset: nobody can sign in",
+      "No accounts exist and SEEDBUDDY_ADMIN_EMAIL / SEEDBUDDY_ADMIN_PASSWORD are unset: nobody can sign in",
     );
     return;
   }

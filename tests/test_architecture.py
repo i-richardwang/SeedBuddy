@@ -15,8 +15,8 @@ SPEC.loader.exec_module(architecture)
 def test_contracts_cannot_depend_on_worker_or_algorithm_runtime() -> None:
     errors = architecture.check_architecture(
         {
-            "vitroctl.contracts.validation": "from vitroctl.worker.service import Worker\nimport torch",
-            "vitroctl.worker.service": "",
+            "seedctl.contracts.validation": "from seedctl.worker.service import Worker\nimport torch",
+            "seedctl.worker.service": "",
         }
     )
     assert any("direction" in error for error in errors)
@@ -26,8 +26,8 @@ def test_contracts_cannot_depend_on_worker_or_algorithm_runtime() -> None:
 def test_local_and_type_only_cycles_are_checked() -> None:
     errors = architecture.check_architecture(
         {
-            "vitroctl.training.recipe": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from .parameters import Parameters",
-            "vitroctl.training.parameters": "def parse():\n from .recipe import Recipe",
+            "seedctl.training.recipe": "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n from .parameters import Parameters",
+            "seedctl.training.parameters": "def parse():\n from .recipe import Recipe",
         }
     )
     assert any("Dependency cycle" in error for error in errors)
@@ -36,8 +36,8 @@ def test_local_and_type_only_cycles_are_checked() -> None:
 def test_package_dependency_direction_is_checked_without_a_file_cycle() -> None:
     errors = architecture.check_architecture(
         {
-            "vitroctl.contracts.annotation": "from vitroctl.datasets.manifest import Manifest",
-            "vitroctl.datasets.manifest": "from vitroctl.contracts.annotation import Annotation",
+            "seedctl.contracts.annotation": "from seedctl.datasets.manifest import Manifest",
+            "seedctl.datasets.manifest": "from seedctl.contracts.annotation import Annotation",
         }
     )
     assert any("direction" in error for error in errors)
@@ -47,11 +47,11 @@ def test_package_dependency_direction_is_checked_without_a_file_cycle() -> None:
 def test_package_member_imports_participate_in_cycles() -> None:
     errors = architecture.check_architecture(
         {
-            "vitroctl.training": "",
-            "vitroctl.training.recipe": "from vitroctl.training import parameters",
-            "vitroctl.training.parameters": "from . import recipe",
+            "seedctl.training": "",
+            "seedctl.training.recipe": "from seedctl.training import parameters",
+            "seedctl.training.parameters": "from . import recipe",
         },
-        {"vitroctl.training"},
+        {"seedctl.training"},
     )
     assert any("Dependency cycle" in error for error in errors)
 
@@ -60,8 +60,8 @@ def test_detector_contracts_have_only_their_designated_importers() -> None:
     for layer in ("training", "image_geometry", "models", "worker.host", "cli"):
         errors = architecture.check_architecture(
             {
-                f"vitroctl.{layer}.consumer": "from vitroctl.detectors.contract import DetectionResult",
-                "vitroctl.detectors.contract": "",
+                f"seedctl.{layer}.consumer": "from seedctl.detectors.contract import DetectionResult",
+                "seedctl.detectors.contract": "",
             }
         )
         assert any("direction" in error for error in errors)
@@ -73,7 +73,7 @@ def test_detector_contracts_have_only_their_designated_importers() -> None:
     ):
         assert not architecture.check_architecture(
             {
-                f"vitroctl.{layer}.consumer": "from vitroctl.detectors.contract import DetectionResult",
-                "vitroctl.detectors.contract": "",
+                f"seedctl.{layer}.consumer": "from seedctl.detectors.contract import DetectionResult",
+                "seedctl.detectors.contract": "",
             }
         )

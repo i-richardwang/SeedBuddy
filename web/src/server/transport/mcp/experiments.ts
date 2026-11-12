@@ -25,7 +25,7 @@ function toolAnnotations(operation: AgentOperation): ToolAnnotations {
 
 function buildServer(): McpServer {
   const server = new McpServer({
-    name: "vitroflow-experiments",
+    name: "seedbuddy-experiments",
     version: packageJson.version,
   });
   for (const operation of agentOperations.values()) {

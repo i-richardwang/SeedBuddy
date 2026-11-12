@@ -11,7 +11,7 @@ export function returnPath(value: unknown): string {
   ) {
     return DEFAULT_RETURN_PATH;
   }
-  const destination = new URL(value, "http://vitroflow.local");
+  const destination = new URL(value, "http://seedbuddy.local");
   if (AUTH_PATHS.has(destination.pathname)) return DEFAULT_RETURN_PATH;
   return `${destination.pathname}${destination.search}`;
 }

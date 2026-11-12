@@ -63,13 +63,13 @@ const MEMORY_URL = "memory://";
  * provider chain.
  */
 function open(): BlobStore {
-  const endpoint = process.env.VITROFLOW_BLOB_ENDPOINT;
+  const endpoint = process.env.SEEDBUDDY_BLOB_ENDPOINT;
   if (!endpoint) {
-    throw new Error("VITROFLOW_BLOB_ENDPOINT is required");
+    throw new Error("SEEDBUDDY_BLOB_ENDPOINT is required");
   }
   if (endpoint === MEMORY_URL) return createMemoryBlobStore();
-  const bucket = process.env.VITROFLOW_BLOB_BUCKET;
-  if (!bucket) throw new Error("VITROFLOW_BLOB_BUCKET is required");
+  const bucket = process.env.SEEDBUDDY_BLOB_BUCKET;
+  if (!bucket) throw new Error("SEEDBUDDY_BLOB_BUCKET is required");
   return createS3BlobStore({ endpoint, bucket });
 }
 
@@ -305,7 +305,7 @@ function s3Configuration(options: S3BlobStoreOptions): S3Configuration {
   try {
     parsed = new URL(options.endpoint);
   } catch {
-    throw new Error("VITROFLOW_BLOB_ENDPOINT is not a URL");
+    throw new Error("SEEDBUDDY_BLOB_ENDPOINT is not a URL");
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error(
@@ -319,10 +319,10 @@ function s3Configuration(options: S3BlobStoreOptions): S3Configuration {
     parsed.hash ||
     !["", "/"].includes(parsed.pathname)
   ) {
-    throw new Error("VITROFLOW_BLOB_ENDPOINT must name only an HTTP(S) origin");
+    throw new Error("SEEDBUDDY_BLOB_ENDPOINT must name only an HTTP(S) origin");
   }
   if (options.bucket.includes("/")) {
-    throw new Error("VITROFLOW_BLOB_BUCKET must name exactly one bucket");
+    throw new Error("SEEDBUDDY_BLOB_BUCKET must name exactly one bucket");
   }
   return {
     bucket: options.bucket,

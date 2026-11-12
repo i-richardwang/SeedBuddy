@@ -304,7 +304,7 @@ test("a review outliving its observation still holds its model", async () => {
  * Two sessions can only meet on a real server, so the database a run is pointed
  * at decides whether the contended withdrawal is exercised.
  */
-const testDatabaseUrl = process.env.VITROFLOW_TEST_DATABASE_URL;
+const testDatabaseUrl = process.env.SEEDBUDDY_TEST_DATABASE_URL;
 const contendedTest = testDatabaseUrl ? test : test.skip;
 
 /** Returns once a session is waiting on a lock another session holds. */

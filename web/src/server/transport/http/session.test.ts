@@ -24,7 +24,7 @@ test("document redirects use a relative Location", () => {
 
 test("a request without a session has no account", async () => {
   expect(await readSession(new Headers())).toBeNull();
-  expect(await readSession(new Headers({ cookie: "vitroflow=1" }))).toBeNull();
+  expect(await readSession(new Headers({ cookie: "seedbuddy=1" }))).toBeNull();
 });
 
 test("signing in yields a session that resolves to the account", async () => {

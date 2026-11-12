@@ -13,7 +13,7 @@ interface DatabaseHandle {
   initialize?: () => Promise<Connection>;
 }
 
-const HANDLE: unique symbol = Symbol.for("vitroflow.database");
+const HANDLE: unique symbol = Symbol.for("seedbuddy.database");
 const runtime = globalThis as typeof globalThis & {
   [HANDLE]?: DatabaseHandle;
 };

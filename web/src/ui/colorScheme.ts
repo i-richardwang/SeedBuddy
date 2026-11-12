@@ -10,7 +10,7 @@ import { useSyncExternalStore } from "react";
 
 export type ColorScheme = "system" | "light" | "dark";
 
-const KEY = "vitroflow-color-scheme";
+const KEY = "seedbuddy-color-scheme";
 const QUERY = "(prefers-color-scheme: dark)";
 
 /** Runs in the document head: applies the stored choice and follows the system while it is `system`. */

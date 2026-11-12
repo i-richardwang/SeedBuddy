@@ -20,7 +20,7 @@ import {
   trainingRunSchema,
 } from "../src/domain/training/schema";
 
-const OUTPUT = path.resolve(import.meta.dir, "../../src/vitroctl/contracts");
+const OUTPUT = path.resolve(import.meta.dir, "../../src/seedctl/contracts");
 const CHECK = process.argv.includes("--check");
 
 const contracts: ReadonlyArray<[string, ZodType]> = [
@@ -43,7 +43,7 @@ let stale = false;
 for (const [name, schema] of contracts) {
   const target = path.join(OUTPUT, `${name}.schema.json`);
   const document = {
-    $id: `https://vitroflow.local/contracts/${name}.schema.json`,
+    $id: `https://seedbuddy.local/contracts/${name}.schema.json`,
     ...z.toJSONSchema(schema, { io: "input" }),
   };
   const expected = `${JSON.stringify(document, null, 2)}\n`;

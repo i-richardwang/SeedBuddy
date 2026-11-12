@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import recipe from "../../../../src/vitroctl/image_geometry/dish-recipe.json";
+import recipe from "../../../../src/seedctl/image_geometry/dish-recipe.json";
 import type { ImageFrame, ImageRectangle } from "./geometry";
 
 export const dishRecipeSchema = z.strictObject({

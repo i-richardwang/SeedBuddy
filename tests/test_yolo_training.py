@@ -8,8 +8,8 @@ from typing import Any, ClassVar
 import pytest
 from conftest import PARAMETERS
 
-from vitroctl.detectors.ultralytics import training
-from vitroctl.detectors.ultralytics.training import (
+from seedctl.detectors.ultralytics import training
+from seedctl.detectors.ultralytics.training import (
     BoxValidationMetrics,
     DetectionLosses,
     EpochReport,
@@ -194,7 +194,7 @@ def _checkpointing_yolo(monkeypatch: pytest.MonkeyPatch):
         lambda state, path: FakeYolo.checkpoints.__setitem__(path, state),
     )
     monkeypatch.setattr(
-        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
+        "seedctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
     )
     return FakeYolo
 
@@ -318,7 +318,7 @@ def test_training_reports_epochs_and_publishes_validated_settings(
 
     monkeypatch.setattr(training, "load_yolo", lambda: FakeYolo)
     monkeypatch.setattr(
-        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
+        "seedctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
     )
     model, digest = _base_model(tmp_path)
     dataset = _dataset(tmp_path)
@@ -389,7 +389,7 @@ def test_a_requested_resume_never_silently_discards_an_invalid_checkpoint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "vitroctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
+        "seedctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
     )
     dataset = tmp_path / "dataset.yaml"
     dataset.write_text("train: images/train\nval: images/val\n")

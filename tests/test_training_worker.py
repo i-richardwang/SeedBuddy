@@ -19,26 +19,26 @@ from conftest import (
     write_blob,
 )
 
-from vitroctl.contracts.validation import validate_wire_contract
-from vitroctl.detectors.ultralytics import (
+from seedctl.contracts.validation import validate_wire_contract
+from seedctl.detectors.ultralytics import (
     DetectionLosses,
     EpochReport,
     YoloTrainingInterruptedError,
 )
-from vitroctl.io.image_io import CANONICAL_EXTENSION
-from vitroctl.models.bundle import read_bundle
-from vitroctl.training.documents import TrainingClaim, TrainingSnapshot
-from vitroctl.worker import session as worker_session
-from vitroctl.worker import training as training_worker
-from vitroctl.worker.connection import WorkerConnection
-from vitroctl.worker.images import ImageCache
-from vitroctl.worker.session import (
+from seedctl.io.image_io import CANONICAL_EXTENSION
+from seedctl.models.bundle import read_bundle
+from seedctl.training.documents import TrainingClaim, TrainingSnapshot
+from seedctl.worker import session as worker_session
+from seedctl.worker import training as training_worker
+from seedctl.worker.connection import WorkerConnection
+from seedctl.worker.images import ImageCache
+from seedctl.worker.session import (
     LeaseLostError,
     WorkerClient,
     WorkerSession,
     keep_lease,
 )
-from vitroctl.worker.training import (
+from seedctl.worker.training import (
     TrainingClient,
     materialize_snapshot,
 )
@@ -712,8 +712,8 @@ def test_local_checkpoint_resume_validates_identity_and_requires_original_worker
 ):
     from dataclasses import replace
 
-    from vitroctl.training.documents import TrainingCheckpoint
-    from vitroctl.worker.local_training import prepare_local_training
+    from seedctl.training.documents import TrainingCheckpoint
+    from seedctl.worker.local_training import prepare_local_training
 
     claim = TrainingClaim.from_document(_run())
     root = tmp_path / "train-one-1"
@@ -752,7 +752,7 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
     from hashlib import sha256
 
     monkeypatch.setattr(training_worker, "ARTIFACT_PART_BYTES", 64)
-    monkeypatch.setattr("vitroctl.worker.connection.time.sleep", lambda _: None)
+    monkeypatch.setattr("seedctl.worker.connection.time.sleep", lambda _: None)
     payload = b"weights" * 40
     weights = tmp_path / "weights.pt"
     weights.write_bytes(payload)
@@ -808,8 +808,8 @@ def test_retry_delivers_retained_bundle_without_training_again(
 ):
     from dataclasses import replace
 
-    from vitroctl.training.documents import TrainingCheckpoint
-    from vitroctl.worker.local_training import prepare_local_training
+    from seedctl.training.documents import TrainingCheckpoint
+    from seedctl.worker.local_training import prepare_local_training
 
     claim = TrainingClaim.from_document(_run())
     source = tmp_path / "training-runs/train-one-1"
@@ -937,8 +937,8 @@ def test_local_recovery_copy_is_atomic_and_retryable(
 ) -> None:
     from dataclasses import replace
 
-    from vitroctl.training.documents import TrainingCheckpoint
-    from vitroctl.worker import local_training
+    from seedctl.training.documents import TrainingCheckpoint
+    from seedctl.worker import local_training
 
     claim = TrainingClaim.from_document(_run())
     source = tmp_path / "train-one-1"

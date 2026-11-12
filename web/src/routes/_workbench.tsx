@@ -15,8 +15,8 @@ import { RouteNotice } from "../ui/RouteNotice";
 import { Shell } from "../ui/shell/Shell";
 
 /** Remember which of the shell's side panels are folded. The server reads them so the first frame matches. */
-const NAV_COOKIE = "vitroflow_nav";
-const INSPECTOR_COOKIE = "vitroflow_inspector";
+const NAV_COOKIE = "seedbuddy_nav";
+const INSPECTOR_COOKIE = "seedbuddy_inspector";
 
 const readCollapsed = createIsomorphicFn()
   .server((cookie: string) => getCookie(cookie) === "collapsed")

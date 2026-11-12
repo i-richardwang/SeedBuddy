@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from vitroctl.worker.host import launchd as worker_launchd
-from vitroctl.worker.host.launchd import launch_agent_document, service_label
-from vitroctl.worker.host.profiles import WorkerProfile, save_profile
+from seedctl.worker.host import launchd as worker_launchd
+from seedctl.worker.host.launchd import launch_agent_document, service_label
+from seedctl.worker.host.profiles import WorkerProfile, save_profile
 
 
 def test_launch_agent_runs_the_profile_in_foreground(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "mps-trainer",
         WorkerProfile(
@@ -18,12 +18,12 @@ def test_launch_agent_runs_the_profile_in_foreground(tmp_path, monkeypatch) -> N
         ),
     )
 
-    monkeypatch.setattr(worker_launchd.shutil, "which", lambda _: "/opt/bin/vitroctl")
+    monkeypatch.setattr(worker_launchd.shutil, "which", lambda _: "/opt/bin/seedctl")
     document = launch_agent_document("mps-trainer")
 
-    assert service_label("mps-trainer") == "com.vitroflow.worker.mps-trainer"
+    assert service_label("mps-trainer") == "com.seedbuddy.worker.mps-trainer"
     assert document["ProgramArguments"] == [
-        "/opt/bin/vitroctl",
+        "/opt/bin/seedctl",
         "worker",
         "run",
         "mps-trainer",
@@ -31,7 +31,7 @@ def test_launch_agent_runs_the_profile_in_foreground(tmp_path, monkeypatch) -> N
     assert document["RunAtLoad"] is True
     assert document["KeepAlive"] == {"SuccessfulExit": False}
     assert document["ExitTimeOut"] == 60
-    assert document["EnvironmentVariables"] == {"VITROFLOW_HOME": str(tmp_path)}
+    assert document["EnvironmentVariables"] == {"SEEDBUDDY_HOME": str(tmp_path)}
     assert document["StandardOutPath"] == "/dev/null"
 
 
@@ -48,7 +48,7 @@ def test_start_kickstarts_an_already_loaded_service(monkeypatch) -> None:
 
     worker_launchd.start_service("trainer")
 
-    assert calls == [("kickstart", "gui/501/com.vitroflow.worker.trainer")]
+    assert calls == [("kickstart", "gui/501/com.seedbuddy.worker.trainer")]
 
 
 def test_restart_waits_for_the_worker_to_stop_then_loads_its_definition(
@@ -70,7 +70,7 @@ def test_restart_waits_for_the_worker_to_stop_then_loads_its_definition(
     worker_launchd.restart_service("trainer")
 
     assert calls == [
-        ("bootout", "gui/501/com.vitroflow.worker.trainer"),
+        ("bootout", "gui/501/com.seedbuddy.worker.trainer"),
         ("bootstrap", "gui/501", "/tmp/worker.plist"),
     ]
 

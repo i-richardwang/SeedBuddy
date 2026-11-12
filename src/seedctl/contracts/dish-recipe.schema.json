@@ -1,0 +1,64 @@
+{
+  "$id": "https://seedbuddy.local/contracts/dish-recipe.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "thumbnailLongEdge": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+    },
+    "sigma": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "dp": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "edgeThreshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "centerThreshold": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "minRadiusFraction": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 0.5
+    },
+    "maxRadiusFraction": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 0.5
+    },
+    "radiusPreference": {
+      "type": "number",
+      "minimum": 0
+    },
+    "coverageMargin": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "radiusTolerancePixels": {
+      "type": "number",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "thumbnailLongEdge",
+    "sigma",
+    "dp",
+    "edgeThreshold",
+    "centerThreshold",
+    "minRadiusFraction",
+    "maxRadiusFraction",
+    "radiusPreference",
+    "coverageMargin",
+    "radiusTolerancePixels"
+  ],
+  "additionalProperties": false
+}

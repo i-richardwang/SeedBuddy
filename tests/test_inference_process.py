@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from vitroctl.detectors.contract import RuntimeDescriptor
-from vitroctl.worker.inference_process import InferenceProcess
-from vitroctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSession, WorkerSettings
+from seedctl.detectors.contract import RuntimeDescriptor
+from seedctl.worker.inference_process import InferenceProcess
+from seedctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSession, WorkerSettings
 
 
 def warm_child(connection, settings, session):
@@ -46,7 +46,7 @@ def process(tmp_path: Path, monkeypatch, target) -> InferenceProcess:
         (RuntimeDescriptor("traditional", "b" * 64),),
         8192,
     )
-    monkeypatch.setattr("vitroctl.worker.inference_process._execute", target)
+    monkeypatch.setattr("seedctl.worker.inference_process._execute", target)
     return InferenceProcess(settings, session)
 
 
@@ -76,7 +76,7 @@ def test_blocked_native_call_is_killed_and_the_process_can_restart(
         with pytest.raises(TimeoutError):
             worker.run(None, deadline, check)  # type: ignore[arg-type]
         assert worker._process is None
-        monkeypatch.setattr("vitroctl.worker.inference_process._execute", warm_child)
+        monkeypatch.setattr("seedctl.worker.inference_process._execute", warm_child)
         assert worker.run(None, time.monotonic() + 20, lambda: None)["count"] == 1  # type: ignore[arg-type]
     finally:
         worker.close()

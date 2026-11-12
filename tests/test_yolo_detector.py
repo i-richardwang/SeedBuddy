@@ -12,10 +12,10 @@ import numpy as np
 import pytest
 from conftest import encoded_image
 
-from vitroctl.contracts.coverage import ImageCoverage
-from vitroctl.detectors.contract import DetectionProducer
-from vitroctl.detectors.ultralytics import detector as ultralytics_module
-from vitroctl.detectors.ultralytics.detector import (
+from seedctl.contracts.coverage import ImageCoverage
+from seedctl.detectors.contract import DetectionProducer
+from seedctl.detectors.ultralytics import detector as ultralytics_module
+from seedctl.detectors.ultralytics.detector import (
     UltralyticsDetector,
     YoloInferenceSettings,
 )

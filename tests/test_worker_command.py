@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from vitroctl.cli import main
-from vitroctl.worker.host import command as worker_command
-from vitroctl.worker.host.profiles import WorkerProfile, load_profile, save_profile
+from seedctl.cli import main
+from seedctl.worker.host import command as worker_command
+from seedctl.worker.host.profiles import WorkerProfile, load_profile, save_profile
 
 
 def _mock_setup(monkeypatch, *, token: str = "secret") -> list[str]:
@@ -23,7 +23,7 @@ def _mock_setup(monkeypatch, *, token: str = "secret") -> list[str]:
 def test_setup_preflights_saves_and_starts_without_exposing_token(
     tmp_path, monkeypatch, capsys
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     started = _mock_setup(monkeypatch)
 
     result = main(
@@ -47,7 +47,7 @@ def test_setup_preflights_saves_and_starts_without_exposing_token(
 def test_setup_keeps_existing_profile_when_preflight_fails(
     tmp_path, monkeypatch, capsys
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
         WorkerProfile(
@@ -86,7 +86,7 @@ def test_setup_keeps_existing_profile_when_preflight_fails(
 
 
 def test_setup_restarts_a_replaced_profile(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
         WorkerProfile(
@@ -125,7 +125,7 @@ def test_setup_restarts_a_replaced_profile(tmp_path, monkeypatch) -> None:
 def test_setup_rejects_an_existing_profile_before_prompting(
     tmp_path, monkeypatch, capsys
 ) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
         WorkerProfile(
@@ -155,7 +155,7 @@ def test_setup_rejects_an_existing_profile_before_prompting(
 
 
 def test_list_reports_each_profile(tmp_path, monkeypatch, capsys) -> None:
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
         WorkerProfile(
@@ -173,9 +173,9 @@ def test_list_reports_each_profile(tmp_path, monkeypatch, capsys) -> None:
 def test_service_commands_check_platform_and_profile_once(
     tmp_path, monkeypatch, action
 ):
-    from vitroctl.worker.host import launchd
+    from seedctl.worker.host import launchd
 
-    monkeypatch.setenv("VITROFLOW_HOME", str(tmp_path))
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     profile = WorkerProfile(server_url="https://example.test", token="secret")
     save_profile("trainer", profile)
     checks = []
@@ -198,7 +198,7 @@ def test_service_commands_check_platform_and_profile_once(
     monkeypatch.setattr(
         launchd, "launch_agent_path", lambda _: tmp_path / "agent.plist"
     )
-    monkeypatch.setattr(launchd.shutil, "which", lambda _: "/opt/bin/vitroctl")
+    monkeypatch.setattr(launchd.shutil, "which", lambda _: "/opt/bin/seedctl")
     monkeypatch.setattr(launchd, "service_loaded", lambda _: False)
     monkeypatch.setattr(launchd, "_launchctl", lambda *args: None)
     assert main(["worker", action, "trainer"]) == 0

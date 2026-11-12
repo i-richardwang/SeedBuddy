@@ -18,7 +18,7 @@ if (
   await compileMessages();
 }
 
-process.env.VITROFLOW_IMAGE_ANALYSIS_URL = new URL(
+process.env.SEEDBUDDY_IMAGE_ANALYSIS_URL = new URL(
   "../src/server/images/dish-thread.ts",
   import.meta.url,
 ).href;
@@ -27,13 +27,13 @@ import { auth } from "../src/server/auth/public";
 import { bootstrap } from "../src/server/bootstrap";
 
 process.env.DATABASE_URL =
-  process.env.VITROFLOW_TEST_DATABASE_URL ?? "pglite://";
-process.env.VITROFLOW_BLOB_ENDPOINT = "memory://";
+  process.env.SEEDBUDDY_TEST_DATABASE_URL ?? "pglite://";
+process.env.SEEDBUDDY_BLOB_ENDPOINT = "memory://";
 process.env.BETTER_AUTH_SECRET = "test-secret-test-secret-test-secret";
 for (const credential of [
-  "VITROFLOW_ADMIN_EMAIL",
-  "VITROFLOW_ADMIN_PASSWORD",
-  "VITROFLOW_WORKER_TOKEN",
+  "SEEDBUDDY_ADMIN_EMAIL",
+  "SEEDBUDDY_ADMIN_PASSWORD",
+  "SEEDBUDDY_WORKER_TOKEN",
 ]) {
   delete process.env[credential];
 }

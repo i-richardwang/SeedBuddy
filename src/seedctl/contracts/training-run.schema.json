@@ -1,0 +1,410 @@
+{
+  "$id": "https://seedbuddy.local/contracts/training-run.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "modelId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "datasetSnapshotId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "targetWorkerId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lastProgressAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "checkpoint": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "attempt": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "epoch": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "workerId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+            }
+          },
+          "required": [
+            "attempt",
+            "epoch",
+            "workerId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recipe": {
+      "type": "object",
+      "properties": {
+        "baseModel": {
+          "type": "object",
+          "properties": {
+            "reference": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "reference",
+            "digest"
+          ],
+          "additionalProperties": false
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "epochs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300
+            },
+            "patience": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            },
+            "batch": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "nbs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1024
+            },
+            "imgsz": {
+              "type": "integer",
+              "minimum": 320,
+              "maximum": 3072,
+              "multipleOf": 32
+            },
+            "optimizer": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "SGD",
+                "Adam",
+                "AdamW",
+                "NAdam",
+                "RAdam",
+                "RMSProp"
+              ]
+            },
+            "lr0": {
+              "type": "number",
+              "minimum": 0.00001,
+              "maximum": 0.1
+            },
+            "warmup_epochs": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "mosaic": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "mixup": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "copy_paste": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_det": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "deterministic": {
+              "type": "boolean"
+            },
+            "scale": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "degrees": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 180
+            },
+            "flipud": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "fliplr": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "translate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hsv_h": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hsv_s": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hsv_v": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "epochs",
+            "patience",
+            "batch",
+            "imgsz",
+            "optimizer",
+            "lr0",
+            "warmup_epochs",
+            "mosaic",
+            "mixup",
+            "copy_paste",
+            "max_det",
+            "seed",
+            "deterministic"
+          ],
+          "additionalProperties": false
+        },
+        "runtime": {
+          "type": "object",
+          "properties": {
+            "framework": {
+              "type": "string",
+              "const": "ultralytics"
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "framework",
+            "version"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "baseModel",
+        "parameters",
+        "runtime"
+      ],
+      "additionalProperties": false
+    },
+    "state": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "queued"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "paused"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "cancelled"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "running"
+            },
+            "workerId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+            },
+            "sessionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+            },
+            "leaseExpiresAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "preparing",
+                "training",
+                "validating"
+              ]
+            },
+            "progress": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "status",
+            "workerId",
+            "sessionId",
+            "leaseExpiresAt",
+            "phase",
+            "progress"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "succeeded"
+            },
+            "modelVersionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+            }
+          },
+          "required": [
+            "status",
+            "modelVersionId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "failed"
+            },
+            "error": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "status",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "modelId",
+    "datasetSnapshotId",
+    "createdAt",
+    "attempt",
+    "targetWorkerId",
+    "lastProgressAt",
+    "checkpoint",
+    "recipe",
+    "state"
+  ],
+  "additionalProperties": false
+}

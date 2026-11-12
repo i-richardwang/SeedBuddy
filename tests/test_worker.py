@@ -7,11 +7,11 @@ from pathlib import Path
 import httpx
 import pytest
 
-from vitroctl.detectors.contract import RuntimeDescriptor
-from vitroctl.worker import session as worker_session
-from vitroctl.worker.connection import WorkerNotEnrolledError
-from vitroctl.worker.service import Worker
-from vitroctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSettings
+from seedctl.detectors.contract import RuntimeDescriptor
+from seedctl.worker import session as worker_session
+from seedctl.worker.connection import WorkerNotEnrolledError
+from seedctl.worker.service import Worker
+from seedctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSettings
 
 TRADITIONAL = RuntimeDescriptor(adapter="traditional", fingerprint="b" * 64)
 ULTRALYTICS = RuntimeDescriptor(adapter="ultralytics", fingerprint="c" * 64)
@@ -104,7 +104,7 @@ def test_a_removed_worker_stops_instead_of_retrying(
 def test_training_stops_the_inference_process_and_releases_its_own_allocations(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from vitroctl.worker import service as worker
+    from seedctl.worker import service as worker
 
     served, _ = _worker(tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS))
     events: list[str] = []

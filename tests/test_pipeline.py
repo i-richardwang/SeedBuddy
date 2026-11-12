@@ -5,25 +5,25 @@ import cv2
 import numpy as np
 import pytest
 
-from vitroctl.detectors.traditional.candidates import (
+from seedctl.detectors.traditional.candidates import (
     FEATURE_NAMES,
     CandidateEvidence,
     describe_candidates,
 )
-from vitroctl.detectors.traditional.config import (
+from seedctl.detectors.traditional.config import (
     DEFAULT_PIPELINE_CONFIG,
     DecisionConfig,
     PipelineConfig,
 )
-from vitroctl.detectors.traditional.detection import detect_seeds
-from vitroctl.detectors.traditional.geometry import circle_mask
-from vitroctl.detectors.traditional.normalization import (
+from seedctl.detectors.traditional.detection import detect_seeds
+from seedctl.detectors.traditional.geometry import circle_mask
+from seedctl.detectors.traditional.normalization import (
     NormalizedImage,
     normalize_image,
 )
-from vitroctl.detectors.traditional.pipeline import count_seeds, recognize
-from vitroctl.detectors.traditional.proposals import SeedProposal, propose_seed_centers
-from vitroctl.detectors.traditional.scoring import (
+from seedctl.detectors.traditional.pipeline import count_seeds, recognize
+from seedctl.detectors.traditional.proposals import SeedProposal, propose_seed_centers
+from seedctl.detectors.traditional.scoring import (
     DEFAULT_MODEL,
     CandidateModel,
     load_candidate_model,
