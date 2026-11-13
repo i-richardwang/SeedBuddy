@@ -5,7 +5,7 @@ description = "Prepare culture-dish photographs for a SeedBuddy workbench"
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Richard Wang" }]
-keywords = ["plant-tissue-culture", "culture-dish", "photography", "focus"]
+keywords = ["seed-germination", "culture-dish", "photography", "focus"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",

@@ -32,7 +32,7 @@ Dependency version inventories and the coverage margin are excluded. Behavior ch
 
 ## Maintenance
 
-`web/scripts/maintenance.ts` runs three independent loops: inference reconciliation every 10 seconds, blob collection every hour, and image analysis every 30 seconds. Analysis refreshes unavailable or obsolete results, processing up to two images serially per pass. Each loop waits its interval after completing a pass; infrastructure failures back off for one minute without stopping the other loops. Maintenance has its own compute runtime. Deployment roles and built command entry points are described in the [deployment guide](../README.md#deployment).
+`web/scripts/maintenance.ts` runs three independent loops: inference reconciliation every 10 seconds, blob collection every hour, and image analysis every 30 seconds. Analysis refreshes unavailable or obsolete results, processing up to two images serially per pass. Each loop waits its interval after completing a pass; infrastructure failures back off for one minute without stopping the other loops. Maintenance has its own compute runtime. Deployment roles and built command entry points are described in the [deployment guide](development.md#deployment).
 
 `images.dish_analysis_attempted_at` durably records each analysis attempt.
 Maintenance prioritizes never-attempted images, then the oldest eligible attempts,
@@ -44,7 +44,7 @@ individually and do not block later images. Database and object-store transport
 failures reach infrastructure backoff. Completed no-candidate results are not
 retried. Shutdown finishes the current image before stopping.
 
-The finite analysis sweep uses the [built analysis command](../README.md#deployment). The optional positional batch size defaults to 100 (maximum 1000).
+The finite analysis sweep uses the [built analysis command](development.md#deployment). The optional positional batch size defaults to 100 (maximum 1000).
 A fixed attempt cutoff excludes every image tried during the sweep, even if a
 long sweep outlasts its retry interval. Recent attempts remain in cooldown. The
 command reports examined, completed, failed and skipped counts. Completed means

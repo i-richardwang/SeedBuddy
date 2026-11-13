@@ -10,7 +10,7 @@ kind: Template
 metadata:
     name: SeedBuddy
 spec:
-    description: "SeedBuddy workbench — the annotation and training control plane for plant tissue culture imagery, built from source with Postgres and a MinIO object store."
+    description: "SeedBuddy workbench for seed germination trials — photograph the dishes, let a detector count the seeds, review and summarize by treatment. Built from source with Postgres and a MinIO object store."
     tags:
         - AI
         - Vision
