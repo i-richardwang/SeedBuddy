@@ -64,7 +64,7 @@ Startup applies all forward migrations in `web/drizzle/` through the [database p
 
 ## Verification and test locations
 
-The `Quality` workflow runs the [verification gate](../README.md#verification) on pull requests and main-branch pushes with locked dependencies, then checks PostgreSQL concurrency and S3 immutability against disposable storage. The workflow exposes a `check` job for branch protection. Private reference images are an explicit operator check.
+The `Quality` workflow runs the [verification gate](development.md#verification) on pull requests and main-branch pushes with locked dependencies, then checks PostgreSQL concurrency and S3 immutability against disposable storage. The workflow exposes a `check` job for branch protection. Private reference images are an explicit operator check.
 
 Authentication tests live in `web/src/server/auth/service.test.ts`, Worker HTTP tests in `web/src/server/transport/http/worker.test.ts`, and database constraint tests in `web/src/server/infra/db/schema.test.ts`.
 

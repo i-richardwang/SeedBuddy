@@ -128,7 +128,7 @@ Blobs are immutable by digest; Postgres owns application records. The blob drive
 
 The images module owns canonical sources, previews, dish analysis, regional evidence and unclear marks. Its processing and maintenance rules are described in [Images](images.md); annotation evidence and overlays in [AI annotation](ai-annotation.md).
 
-Built command entry points are listed in [Deployment](../README.md#deployment). The one-shot entries close the database before exit.
+Built command entry points are listed in [Deployment](development.md#deployment). The one-shot entries close the database before exit.
 
 ## Security boundary
 
