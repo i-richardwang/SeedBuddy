@@ -32,9 +32,6 @@ const EDGE_GRAB_SCREEN_WIDTH = 8;
 /** Lines drawn over the image, in screen pixels: two device pixels on a dense display, one on a standard one. */
 const LINE_WIDTH = 1;
 
-/** The other boxes recede while one is selected. */
-const UNSELECTED_OPACITY = 0.45;
-
 const HANDLE_CURSORS: Record<Handle, string> = {
   nw: "nwse-resize",
   n: "ns-resize",
@@ -402,18 +399,11 @@ export function EditableBoxLayer({
             const box =
               gesture?.id === instance.id ? gesture.box : instance.bbox;
             const selected = instance.id === selectedId;
-            const color = classColor(classes, instance.class).hex;
             return (
-              <g
-                key={instance.id}
-                data-instance-id={instance.id}
-                opacity={
-                  selectedId === null || selected ? 1 : UNSELECTED_OPACITY
-                }
-              >
+              <g key={instance.id} data-instance-id={instance.id}>
                 <Box
                   box={box}
-                  color={color}
+                  color={classColor(classes, instance.class).hex}
                   ordinal={layers.has("ids") ? index + 1 : undefined}
                   selected={selected}
                   grips={selected && editable}
