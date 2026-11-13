@@ -85,4 +85,4 @@ Setup, deployment and verification are covered in [Development](docs/development
 
 ## License
 
-[MIT](LICENSE)
+SeedBuddy is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE).
