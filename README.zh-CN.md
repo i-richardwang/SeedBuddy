@@ -87,4 +87,4 @@ flowchart LR
 
 ## 许可
 
-[MIT](LICENSE)
+SeedBuddy 采用 [GNU Affero 通用公共许可证 v3.0 或更高版本](LICENSE)（AGPL-3.0-or-later）。
