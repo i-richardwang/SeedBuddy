@@ -1,0 +1,49 @@
+{
+  "name": "seedbuddy-desktop",
+  "productName": "SeedBuddy",
+  "version": "0.1.0",
+  "description": "The SeedBuddy workbench as a Mac app whose computer serves as a personal Worker",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "packageManager": "bun@1.4.0",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "dev": "bun scripts/fetch-uv.ts && bun run build && electron .",
+    "package": "bun scripts/fetch-uv.ts && bun run build && electron-builder --mac dir --arm64",
+    "format": "prettier --write \"**/*.{ts,html}\"",
+    "format:check": "prettier --check \"**/*.{ts,html}\"",
+    "lint": "biome check --error-on-warnings"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@types/bun": "^1.4.0",
+    "@types/node": "^24.0.0",
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0",
+    "prettier": "^3.9.0",
+    "typescript": "^7.0.2"
+  },
+  "build": {
+    "appId": "app.seedbuddy.desktop",
+    "productName": "SeedBuddy",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/uv",
+        "to": "uv"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.png",
+      "identity": null
+    }
+  }
+}

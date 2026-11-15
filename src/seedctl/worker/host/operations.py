@@ -27,6 +27,9 @@ from seedctl.worker.session import available_runtimes
 
 LOGGER = logging.getLogger(__name__)
 
+# The states of a process at work, as against the ones it leaves behind.
+_SERVING = frozenset({"starting", "running", "training"})
+
 
 def _check_device(device: str | None) -> None:
     if device is None or device == "cpu":
@@ -96,9 +99,14 @@ def doctor_profile(name: str) -> tuple[str, ...]:
 
 
 def _write_status(name: str, state: str, *, detail: str | None = None) -> None:
-    """Records how the process last left off, and why when it failed."""
+    """
+    Records what the process is doing, with the process that is doing it, or
+    how it left off, and why when it failed.
+    """
     path = profile_directory(name) / "status.json"
     document: dict[str, object] = {"state": state}
+    if state in _SERVING:
+        document["pid"] = os.getpid()
     if detail:
         document["detail"] = detail
     write_text_atomically(path, json.dumps(document, indent=2) + "\n")
@@ -125,7 +133,10 @@ def run_profile(name: str) -> int:
             def ready() -> None:
                 _write_status(name, "running")
 
-            run_worker(profile.settings(name), on_ready=ready)
+            def training(active: bool) -> None:
+                _write_status(name, "training" if active else "running")
+
+            run_worker(profile.settings(name), on_ready=ready, on_training=training)
         except WorkerNotEnrolledError as error:
             return _stop_refused(name, "unenrolled", error)
         except WorkerSuspendedError as error:
@@ -148,21 +159,31 @@ def _read_status(name: str) -> dict[str, object] | None:
     return value if isinstance(value, dict) else None
 
 
+def _process_exists(pid: object) -> bool:
+    if not isinstance(pid, int):
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
 def profile_summary(name: str) -> str:
     """
     One line per profile. A process that is killed outright never records how
-    it left off, so a running status without a loaded service reads as stale.
+    it left off, so a status of work under way whose process is gone reads as
+    stale.
     """
     profile = load_profile(name)
     status = _read_status(name)
-    loaded = service_loaded(name)
     state = str(status.get("state")) if status else "never started"
-    if state == "running" and not loaded:
+    if status and state in _SERVING and not _process_exists(status.get("pid")):
         state = "stale"
     if status and status.get("detail"):
         state = f"{state}: {status['detail']}"
     device = profile.device or "cpu"
-    service = "loaded" if loaded else "not loaded"
+    service = "loaded" if service_loaded(name) else "not loaded"
     return f"{name}\t{state}\t{service}\t{device}"
 
 

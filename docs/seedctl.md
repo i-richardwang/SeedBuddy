@@ -26,7 +26,7 @@ uv tool install --from '.[yolo]' seedctl
 
 ## Workers
 
-A Worker is enrolled on the workbench's Workers page, which shows its token once, with the install and setup commands. An administrator enrolls a shared Worker, which serves detection and training for everyone. Any account enrolls its own computer as a personal Worker: it detects for everyone while it runs, and trains only the runs its owner sends it by name. An administrator removes any Worker and an account its own. Deleting an account removes its personal Workers. Suspending it stops them: the workbench refuses their requests with 403, each process stops and stays stopped, and `worker list` shows `suspended`. Once the account is reinstated, `seedctl worker start <profile>` brings each back.
+A Worker is enrolled on the workbench's Workers page, which shows its token once, with the install and setup commands. An administrator enrolls a shared Worker, which serves detection and training for everyone. Any account enrolls its own computer as a personal Worker: it detects for everyone while it runs, and trains only the runs its owner sends it by name. The [desktop app](desktop.md) enrolls the computer it runs on as a personal Worker by itself. An administrator removes any Worker and an account its own. Deleting an account removes its personal Workers. Suspending it stops them: the workbench refuses their requests with 403, each process stops and stays stopped, and `worker list` shows `suspended`. Once the account is reinstated, `seedctl worker start <profile>` brings each back.
 
 Each Worker profile holds that token and a private work directory; [Worker identity](backend-architecture.md#worker-control-planes) defines its authentication. Setup validates the token, runtime imports, and the selected device before saving the profile, then installs and starts a LaunchAgent:
 
@@ -37,9 +37,9 @@ seedctl worker setup mac-studio \
   --poll-seconds 5
 ```
 
-`--poll-seconds` sets the interval between work polls.
+`--poll-seconds` sets the interval between work polls. `--no-service` saves the profile without a LaunchAgent, for a supervisor that runs `seedctl worker run <profile>` itself, as the desktop app does; it does not require `launchd`.
 
-The token is prompted without echo and stored in `~/.seedbuddy/profiles/<profile>/config.toml` with mode `0600`; LaunchAgent files contain no credentials.
+The token is prompted without echo, or read from standard input when a program pipes it, and stored in `~/.seedbuddy/profiles/<profile>/config.toml` with mode `0600`; LaunchAgent files contain no credentials.
 
 ```bash
 seedctl worker list
@@ -73,7 +73,7 @@ Completed epochs report losses, precision, recall, mAP50, mAP50-95, fitness and 
 
 The run page lists execution attempts and the last reported local checkpoint epoch. Lease renewal does not count as training progress. An operator can pause a stalled run and explicitly restart elsewhere. A held run without progress for 15 minutes shows a warning. Every execution request carries its session and attempt, so cancelled or superseded attempts cannot report progress or publish models.
 
-`seedctl worker run <profile>` runs a Worker process in the foreground without `launchd`.
+`seedctl worker run <profile>` runs a Worker process in the foreground without `launchd`. Either way the process records its state in the profile's `status.json`, which `worker list` and a supervisor read: `starting`, `running`, `training` while it trains a run, and, once it has ended, `stopped`, `failed`, `unenrolled`, `suspended` or `incompatible`. A state of work names its process, and `worker list` shows `stale` once that process is gone without having recorded how it left off.
 
 A Worker process keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
 

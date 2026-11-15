@@ -12,6 +12,7 @@ SeedBuddy 是一个种子萌发试验工作台。它用目标检测模型对培�
 - **模型训练**：用标注数据训练新的模型版本，比较后再切换。
 - **手工录入与不计入统计**：录入实验台上直接数的计数；不清晰的照片、污染的培养皿可以不计入统计。
 - **统计与导出**：按处理、按观测日给出萌发率及均值、标准差、标准误，可导出 Excel。
+- **桌面客户端**：把工作台装成 Mac 应用，运行期间这台电脑自动成为你账户的计算节点，无需手动安装或登记。
 - **照片整理**：命令行工具 [`seedbuddy`](packages/seedbuddy/README.md) 在上传前为每皿挑出最清晰、可计数的照片。
 - **AI Agent**：Agent 可以通过 MCP 和 HTTP 维护实验记录、标注图片、发起训练。
 
@@ -64,6 +65,7 @@ flowchart LR
 | --- | --- |
 | `web/` | 工作台：界面、服务端、数据库结构、Agent API 与 MCP 服务 |
 | `src/seedctl/` | `seedctl`：计算节点、数据集传输、检测与训练 |
+| `desktop/` | 桌面客户端：在窗口中打开工作台，并托管一个计算节点 |
 | `packages/seedbuddy/` | `seedbuddy`：照片整理与挑选 |
 | `docs/` | 设计与参考文档（英文） |
 
@@ -77,6 +79,7 @@ flowchart LR
 - [Readings](docs/readings.md)：计数、不计入统计、比率、汇总与导出表格。
 - [Images](docs/images.md)：图片标准化、培养皿检测与后台维护。
 - [seedctl](docs/seedctl.md)：计算节点、本地训练与模型交付。
+- [Desktop app](docs/desktop.md)：Mac 桌面客户端及其作为计算节点的运行方式。
 - [seedbuddy](packages/seedbuddy/README.md)：照片整理与挑选。
 - [Agent API](docs/agent-api.md)：通过 HTTP 和 MCP 调用应用操作。
 - [AI annotation](docs/ai-annotation.md)：标注 MCP 服务，以及 [annotator](docs/ai-annotation-prompts/annotator.md) 和 [coordinator](docs/ai-annotation-prompts/coordinator.md) 提示词。

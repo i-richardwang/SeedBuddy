@@ -2,6 +2,7 @@ export {
   authenticateWorker,
   enrollWorker,
   listEnrolledWorkers,
+  reenrollPersonalWorker,
   removePersonalWorker,
   removeWorker,
 } from "./enrollment";

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import httpx
@@ -117,7 +120,7 @@ def test_preflight_fails_for_a_worker_the_workbench_turns_away(
         worker_host.preflight_profile("trainer", profile)
 
 
-def test_profile_host_passes_typed_settings_and_marks_readiness(
+def test_profile_host_passes_typed_settings_and_records_what_the_process_is_doing(
     tmp_path, monkeypatch
 ) -> None:
     monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
@@ -131,9 +134,21 @@ def test_profile_host_passes_typed_settings_and_marks_readiness(
     )
     received: list[WorkerSettings] = []
 
-    def run(settings: WorkerSettings, *, on_ready) -> None:
+    def status() -> dict[str, object]:
+        return json.loads(
+            (profile_directory("trainer") / "status.json").read_text("utf-8")
+        )
+
+    states: list[dict[str, object]] = []
+
+    def run(settings: WorkerSettings, *, on_ready, on_training) -> None:
         received.append(settings)
         on_ready()
+        states.append(status())
+        on_training(True)
+        states.append(status())
+        on_training(False)
+        states.append(status())
 
     monkeypatch.setattr(worker_host, "run_worker", run)
 
@@ -142,10 +157,11 @@ def test_profile_host_passes_typed_settings_and_marks_readiness(
     assert len(received) == 1
     assert received[0].server_url == "https://example.test"
     assert received[0].token == "secret"
-    status = json.loads(
-        (profile_directory("trainer") / "status.json").read_text(encoding="utf-8")
-    )
-    assert status["state"] == "stopped"
+    assert states == [
+        {"state": state, "pid": os.getpid()}
+        for state in ("running", "training", "running")
+    ]
+    assert status() == {"state": "stopped"}
 
 
 def test_profile_host_records_startup_failures_in_status_and_log(
@@ -160,7 +176,7 @@ def test_profile_host_records_startup_failures_in_status_and_log(
         ),
     )
 
-    def fail(_settings, *, on_ready) -> None:
+    def fail(_settings, *, on_ready, on_training) -> None:
         raise RuntimeError("startup failed")
 
     monkeypatch.setattr(worker_host, "run_worker", fail)
@@ -191,7 +207,7 @@ def test_a_worker_the_workbench_turns_away_stops_cleanly_and_says_why(
         WorkerProfile(server_url="https://example.test", token="refused"),
     )
 
-    def refused(_settings, *, on_ready) -> None:
+    def refused(_settings, *, on_ready, on_training) -> None:
         raise refusal
 
     monkeypatch.setattr(worker_host, "run_worker", refused)
@@ -235,10 +251,12 @@ def test_profile_summary_reports_a_killed_worker_as_stale(
     tmp_path, monkeypatch
 ) -> None:
     monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
-    _status_profile("trainer", "running")
-
-    monkeypatch.setattr(worker_host, "service_loaded", lambda _name: True)
-    assert "\trunning\tloaded\t" in worker_host.profile_summary("trainer")
-
     monkeypatch.setattr(worker_host, "service_loaded", lambda _name: False)
-    assert "\tstale\tnot loaded\t" in worker_host.profile_summary("trainer")
+    ended = subprocess.Popen([sys.executable, "-c", ""])
+    ended.wait()
+    for state in ("starting", "running", "training"):
+        _status_profile("trainer", state, pid=os.getpid())
+        assert f"\t{state}\tnot loaded\t" in worker_host.profile_summary("trainer")
+
+        _status_profile("trainer", state, pid=ended.pid)
+        assert "\tstale\tnot loaded\t" in worker_host.profile_summary("trainer")

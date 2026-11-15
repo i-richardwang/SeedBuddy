@@ -26,6 +26,8 @@ jobs:
       - run: uv sync --all-extras --group dev --locked
       - run: bun install --frozen-lockfile
         working-directory: web
+      - run: bun install --frozen-lockfile
+        working-directory: desktop
       - run: make check
       - name: Start isolated storage
         run: |

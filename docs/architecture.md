@@ -1,6 +1,6 @@
 # Architecture
 
-SeedBuddy has a workbench and two Python packages: `seedctl` (`src/seedctl`) runs Worker processes, moves datasets and trains detectors for operators, and `seedbuddy` (`packages/seedbuddy`) prepares photographs for experimenters. Source boundaries describe the capabilities a module may use; each boundary is organized by the domain or lifecycle it owns. React components can render on the server, so a frontend directory does not authorize browser globals during rendering.
+SeedBuddy has a workbench and two Python packages: `seedctl` (`src/seedctl`) runs Worker processes, moves datasets and trains detectors for operators, and `seedbuddy` (`packages/seedbuddy`) prepares photographs for experimenters. The [desktop app](desktop.md) (`desktop/`) opens a workbench in a window and hosts a Worker process for it; it imports nothing from the workbench or the packages and meets them only over HTTP, the `seedctl` command line and the status file a Worker profile keeps. Source boundaries describe the capabilities a module may use; each boundary is organized by the domain or lifecycle it owns. React components can render on the server, so a frontend directory does not authorize browser globals during rendering.
 
 ## Web boundaries
 

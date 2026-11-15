@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import httpx
@@ -44,7 +45,10 @@ class Workbench:
 
 
 def _worker(
-    tmp_path: Path, monkeypatch, runtimes: tuple[RuntimeDescriptor, ...]
+    tmp_path: Path,
+    monkeypatch,
+    runtimes: tuple[RuntimeDescriptor, ...],
+    on_training: Callable[[bool], None] = lambda _active: None,
 ) -> tuple[Worker, Workbench]:
     monkeypatch.setattr(worker_session, "available_runtimes", lambda: runtimes)
     workbench = Workbench()
@@ -55,7 +59,12 @@ def _worker(
         device=None,
         poll_seconds=DEFAULT_POLL_SECONDS,
     )
-    return Worker(settings, transport=httpx.MockTransport(workbench)), workbench
+    worker = Worker(
+        settings,
+        on_training=on_training,
+        transport=httpx.MockTransport(workbench),
+    )
+    return worker, workbench
 
 
 def test_a_worker_that_can_train_asks_for_a_run_before_an_image(
@@ -126,7 +135,10 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
 ) -> None:
     from seedctl.worker import service as worker
 
-    served, _ = _worker(tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS))
+    reported: list[bool] = []
+    served, _ = _worker(
+        tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS), reported.append
+    )
     events: list[str] = []
     claims = iter([None, object(), object()])
     monkeypatch.setattr(served.training, "claim", lambda: next(claims))
@@ -147,6 +159,7 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
         assert served.serve_once(threading.Event()) is True
         assert served.serve_once(threading.Event()) is True
         assert events == ["inference", "close inference", "training", "release"]
+        assert reported == [True, False]
 
         def fail(*args, **kwargs):
             raise RuntimeError("training failed")
@@ -155,6 +168,7 @@ def test_training_stops_the_inference_process_and_releases_its_own_allocations(
         with pytest.raises(RuntimeError, match="training failed"):
             served.serve_once(threading.Event())
         assert events[-2:] == ["close inference", "release"]
+        assert reported == [True, False, True, False]
     finally:
         served.close()
 

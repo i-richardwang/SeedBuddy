@@ -1,6 +1,6 @@
-.PHONY: check check-python check-web check-image check-reference check-postgres check-s3
+.PHONY: check check-python check-web check-desktop check-image check-reference check-postgres check-s3
 
-check: check-python check-web
+check: check-python check-web check-desktop
 
 check-python:
 	uv run python scripts/check_architecture.py
@@ -19,6 +19,13 @@ check-web:
 	cd web && bun run lint
 	cd web && bunx tsc --noEmit
 	cd web && bun test
+
+check-desktop:
+	cd desktop && bun run build
+	cd desktop && bun run format:check
+	cd desktop && bun run lint
+	cd desktop && bunx tsc --noEmit
+	cd desktop && bun test
 
 check-image:
 	docker build --file Dockerfile.web --tag seedbuddy-web:check .

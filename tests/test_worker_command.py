@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+
 import pytest
 
 from seedctl.cli import main
@@ -7,10 +9,21 @@ from seedctl.worker.host import command as worker_command
 from seedctl.worker.host.profiles import WorkerProfile, load_profile, save_profile
 
 
+class _Terminal(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def _at_a_terminal(monkeypatch, typed) -> None:
+    """Setup runs at a terminal, where `typed` answers the token prompt."""
+    monkeypatch.setattr(worker_command.sys, "stdin", _Terminal())
+    monkeypatch.setattr(worker_command.getpass, "getpass", typed)
+
+
 def _mock_setup(monkeypatch, *, token: str = "secret") -> list[str]:
     started: list[str] = []
     monkeypatch.setattr(worker_command, "require_launchd", lambda: None)
-    monkeypatch.setattr(worker_command.getpass, "getpass", lambda _prompt: token)
+    _at_a_terminal(monkeypatch, lambda _prompt: token)
     monkeypatch.setattr(
         worker_command,
         "preflight_profile",
@@ -55,7 +68,7 @@ def test_setup_keeps_existing_profile_when_preflight_fails(
             token="old-secret",
         ),
     )
-    monkeypatch.setattr(worker_command.getpass, "getpass", lambda _prompt: "new-secret")
+    _at_a_terminal(monkeypatch, lambda _prompt: "new-secret")
     monkeypatch.setattr(worker_command, "require_launchd", lambda: None)
 
     def fail_preflight(_name, _profile):
@@ -95,7 +108,7 @@ def test_setup_restarts_a_replaced_profile(tmp_path, monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(worker_command, "require_launchd", lambda: None)
-    monkeypatch.setattr(worker_command.getpass, "getpass", lambda _prompt: "new-secret")
+    _at_a_terminal(monkeypatch, lambda _prompt: "new-secret")
     monkeypatch.setattr(worker_command, "preflight_profile", lambda *_args: ())
     restarted: list[str] = []
     monkeypatch.setattr(worker_command, "restart_service", restarted.append)
@@ -133,9 +146,8 @@ def test_setup_rejects_an_existing_profile_before_prompting(
             token="secret",
         ),
     )
-    monkeypatch.setattr(
-        worker_command.getpass,
-        "getpass",
+    _at_a_terminal(
+        monkeypatch,
         lambda _prompt: pytest.fail("existing profile must fail before prompting"),
     )
 
@@ -152,6 +164,75 @@ def test_setup_rejects_an_existing_profile_before_prompting(
         == 2
     )
     assert "already exists" in capsys.readouterr().err
+
+
+def test_setup_without_a_service_saves_the_profile_a_program_pipes_the_token_for(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
+    monkeypatch.setattr(worker_command.sys, "stdin", io.StringIO("piped-secret\n"))
+    monkeypatch.setattr(
+        worker_command,
+        "require_launchd",
+        lambda: pytest.fail("a profile without a service needs no launchd"),
+    )
+    monkeypatch.setattr(
+        worker_command,
+        "preflight_profile",
+        lambda name, _profile: (f"profile: {name}",),
+    )
+    monkeypatch.setattr(
+        worker_command,
+        "start_service",
+        lambda _name: pytest.fail("no service is started"),
+    )
+
+    result = main(
+        [
+            "worker",
+            "setup",
+            "hosted",
+            "--server",
+            "https://example.test",
+            "--no-service",
+        ]
+    )
+
+    assert result == 0
+    assert load_profile("hosted").token == "piped-secret"
+    assert "piped-secret" not in capsys.readouterr().out
+
+
+def test_setup_again_without_a_service_replaces_the_profile_and_restarts_nothing(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
+    save_profile(
+        "hosted", WorkerProfile(server_url="https://example.test", token="revoked")
+    )
+    monkeypatch.setattr(worker_command.sys, "stdin", io.StringIO("reissued\n"))
+    monkeypatch.setattr(worker_command, "preflight_profile", lambda _name, _profile: ())
+    for service in ("require_launchd", "start_service", "restart_service"):
+        monkeypatch.setattr(
+            worker_command,
+            service,
+            lambda *_args: pytest.fail("a profile without a service has none"),
+        )
+
+    result = main(
+        [
+            "worker",
+            "setup",
+            "hosted",
+            "--server",
+            "https://example.test",
+            "--no-service",
+            "--force",
+        ]
+    )
+
+    assert result == 0
+    assert load_profile("hosted").token == "reissued"
 
 
 def test_list_reports_each_profile(tmp_path, monkeypatch, capsys) -> None:
