@@ -17,6 +17,7 @@ import {
 
 import { messages } from "./messages";
 import { destination, opensInBrowser } from "./navigation";
+import { newerRelease, type Release } from "./release";
 import { Runtime } from "./runtime";
 import { Serial } from "./serial";
 import { readSettings, type Settings, writeSettings } from "./settings";
@@ -32,6 +33,7 @@ import {
 import { HostedWorker, workerNameFor } from "./worker";
 
 const UPDATE_CHECK_MS = 15 * 60_000;
+const RELEASE_CHECK_MS = 24 * 60 * 60_000;
 /** A load another navigation took the place of, which is no failure. */
 const ERR_ABORTED = -3;
 /** What a page may ask of the computer: the workbench copies text, no more. */
@@ -62,6 +64,10 @@ let settings = await readSettings(settingsFile, () => ({
 let supervisor: Supervisor | null = null;
 let window: BrowserWindow | null = null;
 let awake: number | null = null;
+/** What the menu bar item says the computer is doing. */
+let status = text.noWorkbench;
+/** A later version of the app than this one, once one is known of. */
+let release: Release | null = null;
 /** Writes of the settings file, one at a time. */
 const writes = new Serial();
 /** Changes of workbench, one at a time. */
@@ -94,8 +100,9 @@ const tray = new Tray(
   ),
 );
 
-/** The menu bar item says `status` and holds the app's controls. */
-function showMenu(status: string): void {
+/** The menu bar item says what the computer is doing and holds the app's controls. */
+function showMenu(): void {
+  const offered = release;
   tray.setToolTip(status);
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -116,9 +123,28 @@ function showMenu(status: string): void {
         click: () => void changeWorkbench(),
       },
       { type: "separator" },
+      ...(offered === null
+        ? []
+        : [
+            {
+              label: text.download(offered.version),
+              click: () => void shell.openExternal(offered.page),
+            },
+          ]),
       { label: text.quit, role: "quit" },
     ]),
   );
+}
+
+/**
+ * Offers a later version of the app in the menu once one is published. One
+ * already offered stays while the releases cannot be read.
+ */
+async function offerRelease(): Promise<void> {
+  const newer = await newerRelease(sessionFetch, app.getVersion());
+  if (newer === null) return;
+  release = newer;
+  showMenu();
 }
 
 /** A training run keeps the computer from idle sleep until it ends. */
@@ -131,9 +157,15 @@ function keepAwake(training: boolean): void {
   }
 }
 
+/** Says `next` in the menu bar item. */
+function say(next: string): void {
+  status = next;
+  showMenu();
+}
+
 function shown(phase: Phase): void {
   keepAwake(phase.kind === "training");
-  showMenu(text.phase(phase));
+  say(text.phase(phase));
   if (phase.kind === "failed") record(phase.detail);
 }
 
@@ -141,7 +173,7 @@ function shown(phase: Phase): void {
 function serve(): void {
   const { server, ...serving } = settings;
   if (server === null) {
-    showMenu(text.noWorkbench);
+    say(text.noWorkbench);
     return;
   }
   const runtime = new Runtime(path.join(data, "runtime"), uv);
@@ -187,7 +219,7 @@ function connect(server: string | null): Promise<void> {
     const leaving = supervisor;
     supervisor = null;
     keepAwake(false);
-    showMenu(text.noWorkbench);
+    say(text.noWorkbench);
     await leaving?.close();
     await save({ server, enrolled: false });
     serve();
@@ -327,6 +359,8 @@ app.on("second-instance", showWindow);
 // still ending when the app is next opened is ended before another starts.
 app.on("will-quit", () => void supervisor?.close());
 setInterval(() => void supervisor?.update(), UPDATE_CHECK_MS);
+setInterval(() => void offerRelease(), RELEASE_CHECK_MS);
 
 serve();
+void offerRelease();
 await showWorkbench();

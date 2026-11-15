@@ -11,7 +11,7 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "dev": "bun scripts/fetch-uv.ts && bun run build && electron .",
-    "package": "bun scripts/fetch-uv.ts && bun run build && electron-builder --mac dir --arm64",
+    "package": "bun scripts/fetch-uv.ts && bun run build && electron-builder --mac",
     "format": "prettier --write \"**/*.{ts,html}\"",
     "format:check": "prettier --check \"**/*.{ts,html}\"",
     "lint": "biome check --error-on-warnings"
@@ -31,6 +31,7 @@
     "directories": {
       "output": "release"
     },
+    "publish": null,
     "files": [
       "dist/**"
     ],
@@ -43,7 +44,20 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "assets/icon.png",
-      "identity": null
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "writeUpdateInfo": false
     }
   }
 }

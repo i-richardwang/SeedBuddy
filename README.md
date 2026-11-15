@@ -12,7 +12,7 @@ SeedBuddy is a workbench for seed germination experiments. It counts the seeds i
 - **Model training**: train new detector versions from annotated images and compare them before switching.
 - **Hand counts and exclusions**: enter counts made at the bench, and leave unclear photographs or contaminated dishes out of the statistics.
 - **Statistics and export**: germination rate, mean, SD and SE by treatment and day, exported to Excel.
-- **Desktop app**: the workbench as a Mac app that makes the computer a Worker for your account while it runs, with nothing to install or enroll by hand.
+- **Desktop app**: the workbench as a Mac app that makes the computer a Worker for your account while it runs, with nothing to install or enroll by hand. [Download](https://github.com/i-richardwang/SeedBuddy/releases).
 - **Photo preparation**: the [`seedbuddy`](packages/seedbuddy/README.md) CLI picks the sharpest countable photograph of each dish before upload.
 - **AI agents**: agents can keep experiment records, annotate images and run training over MCP and HTTP.
 

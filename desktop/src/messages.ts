@@ -10,6 +10,8 @@ interface Messages {
   serve: string;
   open: string;
   changeWorkbench: string;
+  /** Offers the later version of the app that has been published. */
+  download(version: string): string;
   quit: string;
   /** The page that asks which workbench to open. */
   connectHeading: string;
@@ -59,6 +61,7 @@ const en: Messages = {
   serve: "Use this computer as a Worker",
   open: "Open SeedBuddy",
   changeWorkbench: "Change workbench…",
+  download: (version) => `Download SeedBuddy ${version}…`,
   quit: "Quit SeedBuddy",
   connectHeading: "Connect to a workbench",
   connectHint: "Enter the address of your SeedBuddy workbench.",
@@ -100,6 +103,7 @@ const zh: Messages = {
   serve: "让这台电脑作为计算节点",
   open: "打开 SeedBuddy",
   changeWorkbench: "更换工作台…",
+  download: (version) => `下载 SeedBuddy ${version}…`,
   quit: "退出 SeedBuddy",
   connectHeading: "连接工作台",
   connectHint: "输入你的 SeedBuddy 工作台地址。",

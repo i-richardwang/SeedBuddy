@@ -2,6 +2,14 @@
 
 The desktop app (`desktop/`) is the [SeedBuddy](../README.md) workbench in a window of its own, on a Mac that serves as a personal Worker while the app runs. It needs a workbench to connect to and does nothing without one. It runs on Apple Silicon.
 
+## Install
+
+Download the `.dmg` of the latest release named SeedBuddy on the [releases page](https://github.com/i-richardwang/SeedBuddy/releases), open it and drag SeedBuddy into Applications.
+
+The app carries no Apple developer signature, so macOS refuses it the first time it is opened. Choose Done, then open System Settings → Privacy & Security and choose Open Anyway beside SeedBuddy; this is asked once.
+
+The app does not update itself. Once a later version is published its menu offers the download, and the new copy replaces the one in Applications. The Worker runtime is no part of the download: the app installs the one its workbench ships and replaces it when the workbench ships another, as [How it serves](#how-it-serves) describes.
+
 ## What it does
 
 On first launch the app asks for the address of a workbench and opens it once a workbench answers there; an address that leads on to another site is not taken for one. The window shows that workbench and nothing else: a link or a redirect to another site opens in the browser, a file dropped on the window opens nowhere, and a page may copy text to the clipboard but is granted no other permission. A page with unsaved work asks before the window leaves it, as a browser does.
@@ -34,6 +42,19 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
-`bun run dev` fetches the pinned uv into `resources/`, builds the main process into `dist/` and starts Electron. Against a development workbench, [ship a Worker package](development.md#setup) first. `bun run package` builds `release/mac-arm64/SeedBuddy.app`, unsigned.
+`bun run dev` fetches the pinned uv into `resources/`, builds the main process into `dist/` and starts Electron. Against a development workbench, [ship a Worker package](development.md#setup) first. `bun run package` builds `release/SeedBuddy-<version>-mac-arm64.dmg` and, in `release/mac-arm64/`, the app it holds. The app is signed ad hoc, with no developer identity: an Apple Silicon Mac runs no code without a signature.
 
 `make check-desktop` runs the build, the Prettier check, Biome lint, TypeScript and the tests.
+
+## Release
+
+`version` in `desktop/package.json` is the app's version. To publish it, push the tag `desktop-v<version>` from the commit to release:
+
+```bash
+git tag desktop-v0.1.0
+git push origin desktop-v0.1.0
+```
+
+The Desktop package workflow builds the `.dmg` on a GitHub-hosted Mac and publishes it as the release of that tag, with the notes in `desktop/release-notes.md`; a tag that does not name the version fails. The same workflow builds the `.dmg` of every pull request that changes `desktop/`, kept for a week as an artifact of the run and published nowhere.
+
+Running copies learn of the release from GitHub (`release.ts`): at launch and once a day the app reads the repository's releases and offers the latest `desktop-v` one after its own version.
