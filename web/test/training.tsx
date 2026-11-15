@@ -32,7 +32,6 @@ try {
           active: null,
           reviewedSinceLastRun: 10,
           workers: [],
-          workerMemoryBytes: null,
         },
       }}
     />,

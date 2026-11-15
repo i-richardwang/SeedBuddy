@@ -11,6 +11,9 @@ from seedctl.worker.connection import (
     WorkerConnection,
     WorkerHttpClient,
     WorkerNotEnrolledError,
+    WorkerProtocolError,
+    WorkerRefusedError,
+    WorkerSuspendedError,
 )
 from seedctl.worker.host.launchd import service_loaded
 from seedctl.worker.host.logging import profile_logging
@@ -20,7 +23,7 @@ from seedctl.worker.host.profiles import (
     profile_directory,
 )
 from seedctl.worker.service import run_worker
-from seedctl.worker.session import available_runtimes, cuda_device_index
+from seedctl.worker.session import available_runtimes
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,13 +40,16 @@ def _check_device(device: str | None) -> None:
     if device.startswith("cuda"):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available on this machine")
-        index = cuda_device_index(device)
+        index = int(device.partition(":")[2] or "0")
         if index >= torch.cuda.device_count():
             raise RuntimeError(f"CUDA device {index} is not available")
 
 
 def _enrolled_worker(profile: WorkerProfile) -> str:
-    """The worker the workbench enrolled this profile's token for."""
+    """
+    The worker the workbench enrolled this profile's token for. A workbench
+    that turns the worker away fails the check, as any other finding does.
+    """
     client = WorkerHttpClient(
         WorkerConnection(server_url=profile.server_url, token=profile.token),
         timeout=30,
@@ -52,6 +58,8 @@ def _enrolled_worker(profile: WorkerProfile) -> str:
         response = client.request("GET", "api/worker/ready")
         response.raise_for_status()
         return str(response.json()["workerId"])
+    except WorkerRefusedError as error:
+        raise RuntimeError(str(error)) from error
     finally:
         client.close()
 
@@ -96,6 +104,16 @@ def _write_status(name: str, state: str, *, detail: str | None = None) -> None:
     write_text_atomically(path, json.dumps(document, indent=2) + "\n")
 
 
+def _stop_refused(name: str, state: str, refusal: Exception) -> int:
+    """
+    Records why the workbench turned the worker away. Exiting cleanly keeps
+    launchd from restarting a worker that can only be refused again.
+    """
+    LOGGER.error("worker stopped: %s", refusal)
+    _write_status(name, state, detail=str(refusal))
+    return 0
+
+
 def run_profile(name: str) -> int:
     directory = profile_directory(name)
     directory.mkdir(parents=True, exist_ok=True)
@@ -109,11 +127,11 @@ def run_profile(name: str) -> int:
 
             run_worker(profile.settings(name), on_ready=ready)
         except WorkerNotEnrolledError as error:
-            # Exiting cleanly keeps launchd from restarting a worker that can
-            # only be refused again.
-            LOGGER.error("worker stopped: %s", error)
-            _write_status(name, "unenrolled", detail=str(error))
-            return 0
+            return _stop_refused(name, "unenrolled", error)
+        except WorkerSuspendedError as error:
+            return _stop_refused(name, "suspended", error)
+        except WorkerProtocolError as error:
+            return _stop_refused(name, "incompatible", error)
         except Exception as error:
             LOGGER.exception("worker stopped after an error")
             _write_status(name, "failed", detail=str(error))

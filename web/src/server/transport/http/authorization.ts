@@ -1,4 +1,4 @@
-import { authorizeApiKey, bearerToken } from "../../auth/public";
+import { apiKeyPrincipal, bearerToken } from "../../auth/public";
 
 /**
  * Whether the transfer API admits the request: an account opens it with a
@@ -12,5 +12,5 @@ export async function apiRequestAuthorization(
   if (!pathname.startsWith("/api/transfer/") || bearerToken(request) === null) {
     return null;
   }
-  return authorizeApiKey(request, "transfer");
+  return (await apiKeyPrincipal(request, "transfer")) !== null;
 }

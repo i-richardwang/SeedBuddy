@@ -2,9 +2,7 @@ import { and, desc, eq, gt, lt, or, type SQLWrapper, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { WorkerSessionConflictError } from "../../domain/workers/errors";
-import { workerPresence } from "../../domain/workers/presence";
 import {
-  canTrain,
   type Worker,
   type WorkerHeartbeat,
   type WorkerIdentity,
@@ -19,7 +17,6 @@ function toWorker(row: typeof workerSessions.$inferSelect): Worker {
     sessionId: row.sessionId,
     startedAt: row.startedAt.toISOString(),
     runtimes: row.runtimes,
-    memoryBytes: row.memoryBytes,
     lastSeenAt: row.lastSeenAt.toISOString(),
   });
 }
@@ -44,7 +41,6 @@ export async function recordWorkerHeartbeat(
       sessionId: worker.sessionId,
       startedAt: new Date(worker.startedAt),
       runtimes: worker.runtimes,
-      memoryBytes: worker.memoryBytes,
       lastSeenAt: at,
     };
     const [stored] = await db
@@ -151,15 +147,4 @@ export async function listWorkers(db: Executor): Promise<Worker[]> {
     .from(workerSessions)
     .orderBy(desc(workerSessions.lastSeenAt));
   return rows.map(toWorker);
-}
-
-/** Workers online now that could take a training run. */
-export async function listOnlineTrainers(
-  at: Date,
-  db: Executor,
-): Promise<Worker[]> {
-  return (await listWorkers(db)).filter(
-    (worker) =>
-      canTrain(worker) && workerPresence(worker.lastSeenAt, at) === "online",
-  );
 }

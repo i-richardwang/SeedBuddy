@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from seedctl.contracts.protocol import WORKER_PROTOCOL, WORKER_PROTOCOL_HEADER
 from seedctl.io.http import authorized_client
 
 RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
@@ -19,18 +20,40 @@ class WorkerConnection:
     token: str
 
 
-class WorkerNotEnrolledError(Exception):
+class WorkerRefusedError(Exception):
     """
-    The workbench refused the token: the worker was removed or never
-    enrolled. Retrying cannot help, so this ends the process rather than
-    joining the errors a worker loop recovers from.
+    The workbench turned the worker away for a reason retrying cannot fix,
+    so this ends the process rather than joining the errors a worker loop
+    recovers from.
     """
+
+
+class WorkerNotEnrolledError(WorkerRefusedError):
+    """The workbench does not know the token: the worker was removed or never enrolled."""
 
     def __init__(self) -> None:
         super().__init__(
             "the workbench does not recognize this worker's token; enroll the "
-            "worker on the Status page and set it up again with the token it shows"
+            "worker on the Workers page and set it up again with the token it shows"
         )
+
+
+class WorkerSuspendedError(WorkerRefusedError):
+    """The account a personal worker belongs to is suspended, as the refusal says."""
+
+
+class WorkerProtocolError(WorkerRefusedError):
+    """
+    The workbench speaks another revision of the worker protocol and says
+    which in its refusal.
+    """
+
+
+# The statuses a workbench refuses a worker with whose answer is the reason.
+_REFUSALS: dict[int, type[WorkerRefusedError]] = {
+    403: WorkerSuspendedError,
+    426: WorkerProtocolError,
+}
 
 
 class WorkerHttpClient:
@@ -47,6 +70,7 @@ class WorkerHttpClient:
             timeout=timeout,
             transport=transport,
         )
+        self._client.headers[WORKER_PROTOCOL_HEADER] = str(WORKER_PROTOCOL)
 
     def close(self) -> None:
         self._client.close()
@@ -92,6 +116,10 @@ class WorkerHttpClient:
                 if response.status_code == 401:
                     response.close()
                     raise WorkerNotEnrolledError
+                if response.status_code in _REFUSALS:
+                    refusal = response.text
+                    response.close()
+                    raise _REFUSALS[response.status_code](refusal)
                 if response.status_code not in RETRYABLE_STATUS_CODES or attempt == 2:
                     return response
                 response.close()

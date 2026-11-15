@@ -21,6 +21,10 @@ import {
 } from "../../../domain/training/recipes";
 import { trainingRunSchema } from "../../../domain/training/schema";
 import { WorkerSessionConflictError } from "../../../domain/workers/errors";
+import {
+  WORKER_PROTOCOL,
+  WORKER_PROTOCOL_HEADER,
+} from "../../../domain/workers/protocol";
 import { Route as InferenceStoreRoute } from "../../../routes/api.images";
 import {
   Route as InferenceHeartbeatRoute,
@@ -40,6 +44,7 @@ import { Route as TrainingImageRoute } from "../../../routes/api.worker.training
 import { Route as TrainingLeaseRoute } from "../../../routes/api.worker.training.runs.$runId.lease";
 import { Route as TrainingPhaseRoute } from "../../../routes/api.worker.training.runs.$runId.phase";
 import { Route as TrainingSnapshotRoute } from "../../../routes/api.worker.training.runs.$runId.snapshot";
+import { setUserStatus } from "../../auth/users";
 import { createExperiment } from "../../experiments/design";
 import { assignObservationImages } from "../../experiments/observation-images";
 import { createObservation } from "../../experiments/observations";
@@ -49,6 +54,7 @@ import { listBlobs } from "../../infra/blobs/store";
 import { database } from "../../infra/db/client";
 import { contentDigest } from "../../infra/digest";
 import { readReview } from "../../readings/public";
+import { signInAs } from "../../testing/auth";
 import { reviewedDataset } from "../../testing/datasets";
 import { FIXTURE_EDGE, imageBytes, imageDigest } from "../../testing/images";
 import { trainingBundle } from "../../testing/model-bundle";
@@ -60,8 +66,11 @@ import {
 } from "../../training/public";
 import { createTrainingRun } from "../../training/runs";
 import { enrollWorker } from "../../workers/public";
-import { routeHandler, workerRoute } from "./testing";
+import { routeHandler, workerRequest, workerRoute } from "./testing";
 import { WorkerRequestError, workerErrorResponse } from "./worker";
+
+/** The account that sends this file's runs. */
+const account = (await signInAs("member")).user.id;
 
 test("worker HTTP errors answer with the status the protocol acts on", () => {
   const status = (error: Error) =>
@@ -134,7 +143,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
     observation: observation.id,
     images: [{ unit: unit!.id, digest, filename: "api.jpg" }],
   });
-  const { token } = await enrollWorker("api-worker");
+  const { token } = await enrollWorker("api-worker", null);
   const authorization = `Bearer ${token}`;
   const runtime = {
     adapter: "traditional" as const,
@@ -144,14 +153,13 @@ test("inference HTTP routes carry an image from upload to detection", async () =
     InferenceHeartbeatRoute,
     "POST",
   )({
-    request: new Request("http://localhost/api/worker/heartbeat", {
+    request: workerRequest("http://localhost/api/worker/heartbeat", {
       method: "POST",
       headers: { authorization },
       body: JSON.stringify({
         sessionId: "api-session",
         startedAt: "2026-01-01T00:00:00Z",
         runtimes: [runtime],
-        memoryBytes: 8 * 1024 ** 3,
       }),
     }),
   } as never);
@@ -167,7 +175,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
       InferenceClaimRoute,
       "POST",
     )({
-      request: new Request("http://localhost/api/worker/inference/claim", {
+      request: workerRequest("http://localhost/api/worker/inference/claim", {
         method: "POST",
         headers: { authorization },
         body: JSON.stringify({ sessionId: "api-session" }),
@@ -225,7 +233,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
     "POST",
   )({
     params: { versionId: version.id, digest },
-    request: new Request(
+    request: workerRequest(
       `http://localhost/api/worker/inference/claims/${version.id}/${digest}/lease`,
       {
         method: "POST",
@@ -248,7 +256,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
         InferenceClaimRoute,
         "POST",
       )({
-        request: new Request("http://localhost/api/worker/inference/claim", {
+        request: workerRequest("http://localhost/api/worker/inference/claim", {
           method: "POST",
           headers: { authorization },
           body: JSON.stringify({}),
@@ -262,7 +270,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
     "GET",
   )({
     params: { digest },
-    request: new Request(
+    request: workerRequest(
       `http://localhost/api/worker/inference/images/${digest}`,
       { headers: { authorization } },
     ),
@@ -293,7 +301,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
       "PUT",
     )({
       params: target,
-      request: new Request(
+      request: workerRequest(
         `http://localhost/api/worker/inference/results/${version.id}/${digest}?sessionId=${sessionId}&attempt=${assignment!.attempt}`,
         {
           method: "PUT",
@@ -308,7 +316,7 @@ test("inference HTTP routes carry an image from upload to detection", async () =
       "PUT",
     )({
       params,
-      request: new Request(
+      request: workerRequest(
         `http://localhost/api/worker/inference/results/${params.versionId}/${params.digest}?sessionId=api-session&attempt=${assignment!.attempt}`,
         { method: "PUT", headers: { authorization }, body },
       ),
@@ -361,13 +369,13 @@ test("inference HTTP routes carry an image from upload to detection", async () =
 });
 
 test("readiness names the enrolled worker a token belongs to", async () => {
-  const { token } = await enrollWorker("ready-worker");
+  const { token } = await enrollWorker("ready-worker", null);
   const ready = (authorization: string) =>
     workerRoute(
       InferenceReadyRoute,
       "GET",
     )({
-      request: new Request("http://localhost/api/worker/ready", {
+      request: workerRequest("http://localhost/api/worker/ready", {
         headers: { authorization },
       }),
     } as never);
@@ -375,6 +383,58 @@ test("readiness names the enrolled worker a token belongs to", async () => {
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ workerId: "ready-worker" });
   expect((await ready("Bearer vfw_unknown")).status).toBe(401);
+});
+
+test("a personal worker is refused while its owner's account is suspended", async () => {
+  const admin = await signInAs("admin");
+  const owner = await signInAs("member");
+  const { token } = await enrollWorker("suspended-laptop", owner.user.id);
+  const ready = () =>
+    workerRoute(
+      InferenceReadyRoute,
+      "GET",
+    )({
+      request: workerRequest("http://localhost/api/worker/ready", {
+        headers: { authorization: `Bearer ${token}` },
+      }),
+    } as never);
+  const suspend = (suspended: boolean) =>
+    setUserStatus(admin.user, { user: owner.user.id, suspended });
+  expect((await ready()).status).toBe(200);
+
+  await suspend(true);
+  const refused = await ready();
+  expect(refused.status).toBe(403);
+  expect(await refused.text()).toContain("is suspended");
+  await suspend(false);
+  expect((await ready()).status).toBe(200);
+});
+
+test("a request stating another protocol revision is refused before its token is read", async () => {
+  const { token } = await enrollWorker("protocol-worker", null);
+  const ready = (headers: Record<string, string>) =>
+    workerRoute(
+      InferenceReadyRoute,
+      "GET",
+    )({
+      request: new Request("http://localhost/api/worker/ready", {
+        headers: { authorization: `Bearer ${token}`, ...headers },
+      }),
+    } as never);
+  const stating = (revision: number | string) => ({
+    [WORKER_PROTOCOL_HEADER]: String(revision),
+  });
+  expect((await ready(stating(WORKER_PROTOCOL))).status).toBe(200);
+  for (const headers of [{}, stating(WORKER_PROTOCOL + 1), stating("latest")]) {
+    const refused = await ready(headers);
+    expect(refused.status).toBe(426);
+    expect(refused.headers.get("Upgrade")).toBe(
+      `seedbuddy-worker/${WORKER_PROTOCOL}`,
+    );
+    expect(await refused.text()).toContain(
+      `speaks worker protocol ${WORKER_PROTOCOL}`,
+    );
+  }
 });
 
 test("storing an image rejects an absent or excessive body before reading it", async () => {
@@ -417,22 +477,21 @@ test.each([...TRAINING_PRESETS])(
       ["first", "second"],
     );
 
-    const created = await createTrainingRun(dataset.id, recipe, null);
-    const { token } = await enrollWorker(`api-trainer-${preset.id}`);
+    const created = await createTrainingRun(dataset.id, recipe, null, account);
+    const { token } = await enrollWorker(`api-trainer-${preset.id}`, null);
     const authorization = `Bearer ${token}`;
 
     const heartbeat = await workerRoute(
       TrainingHeartbeatRoute,
       "POST",
     )({
-      request: new Request("http://localhost/api/worker/heartbeat", {
+      request: workerRequest("http://localhost/api/worker/heartbeat", {
         method: "POST",
         headers: { authorization },
         body: JSON.stringify({
           ...SESSION,
           startedAt: "2026-08-27T00:00:00.000Z",
           runtimes: [ULTRALYTICS_RUNTIME],
-          memoryBytes: 24 * 1024 ** 3,
         }),
       }),
     } as never);
@@ -442,7 +501,7 @@ test.each([...TRAINING_PRESETS])(
       TrainingClaimRoute,
       "POST",
     )({
-      request: new Request("http://localhost/api/worker/training/claim", {
+      request: workerRequest("http://localhost/api/worker/training/claim", {
         method: "POST",
         headers: { authorization },
         body: JSON.stringify(SESSION),
@@ -458,7 +517,7 @@ test.each([...TRAINING_PRESETS])(
       "GET",
     )({
       params: { runId: created.id },
-      request: new Request(
+      request: workerRequest(
         `http://localhost/api/worker/training/runs/${created.id}/snapshot?${new URLSearchParams({ ...SESSION, attempt: "1" })}`,
         { headers: { authorization } },
       ),
@@ -472,7 +531,7 @@ test.each([...TRAINING_PRESETS])(
       "GET",
     )({
       params: { runId: created.id, digest },
-      request: new Request(
+      request: workerRequest(
         `http://localhost/api/worker/training/runs/${created.id}/images/${digest}?${new URLSearchParams({ ...SESSION, attempt: "1" })}`,
         { headers: { authorization } },
       ),
@@ -487,7 +546,7 @@ test.each([...TRAINING_PRESETS])(
       "POST",
     )({
       params: { runId: created.id },
-      request: new Request("http://localhost/phase", {
+      request: workerRequest("http://localhost/phase", {
         method: "POST",
         headers: { authorization },
         body: JSON.stringify({ ...SESSION, attempt: 1, phase: "training" }),
@@ -500,7 +559,7 @@ test.each([...TRAINING_PRESETS])(
       "POST",
     )({
       params: { runId: created.id },
-      request: new Request("http://localhost/epochs", {
+      request: workerRequest("http://localhost/epochs", {
         method: "POST",
         headers: { authorization },
         body: JSON.stringify({
@@ -530,7 +589,7 @@ test.each([...TRAINING_PRESETS])(
       "POST",
     )({
       params: { runId: created.id },
-      request: new Request("http://localhost/lease", {
+      request: workerRequest("http://localhost/lease", {
         method: "POST",
         headers: { authorization },
         body: JSON.stringify({ ...SESSION, attempt: 1 }),
@@ -544,7 +603,7 @@ test.each([...TRAINING_PRESETS])(
       "POST",
     )({
       params: { runId: created.id },
-      request: new Request("http://localhost/phase", {
+      request: workerRequest("http://localhost/phase", {
         method: "POST",
         headers: { authorization },
         body: JSON.stringify({ ...SESSION, attempt: 1, phase: "validating" }),
@@ -601,7 +660,7 @@ test.each([...TRAINING_PRESETS])(
       "PUT",
     )({
       params: { runId: created.id },
-      request: new Request(`http://localhost/artifact-parts?${partQuery}`, {
+      request: workerRequest(`http://localhost/artifact-parts?${partQuery}`, {
         method: "PUT",
         headers: {
           authorization,
@@ -617,7 +676,7 @@ test.each([...TRAINING_PRESETS])(
       "POST",
     )({
       params: { runId: created.id },
-      request: new Request(`http://localhost/artifact?${artifactQuery}`, {
+      request: workerRequest(`http://localhost/artifact?${artifactQuery}`, {
         method: "POST",
         headers: {
           authorization,
@@ -641,7 +700,7 @@ test.each([...TRAINING_PRESETS])(
       "POST",
     )({
       params: { runId: created.id },
-      request: new Request(`http://localhost/artifact?${artifactQuery}`, {
+      request: workerRequest(`http://localhost/artifact?${artifactQuery}`, {
         method: "POST",
         headers: {
           authorization,
@@ -661,7 +720,7 @@ test.each([...TRAINING_PRESETS])(
       "GET",
     )({
       params: { versionId },
-      request: new Request("http://localhost/weights", {
+      request: workerRequest("http://localhost/weights", {
         headers: { authorization },
       }),
     });
@@ -670,14 +729,14 @@ test.each([...TRAINING_PRESETS])(
 );
 
 test("training HTTP routes distinguish invalid requests from lease conflicts", async () => {
-  const { token } = await enrollWorker("api-conflict-trainer");
+  const { token } = await enrollWorker("api-conflict-trainer", null);
   const authorization = `Bearer ${token}`;
   const invalid = await workerRoute(
     TrainingPhaseRoute,
     "POST",
   )({
     params: { runId: "train-invalid" },
-    request: new Request("http://localhost/phase", {
+    request: workerRequest("http://localhost/phase", {
       method: "POST",
       headers: { authorization },
       body: JSON.stringify({
@@ -693,7 +752,7 @@ test("training HTTP routes distinguish invalid requests from lease conflicts", a
     "POST",
   )({
     params: { runId: "train-missing" },
-    request: new Request("http://localhost/lease", {
+    request: workerRequest("http://localhost/lease", {
       method: "POST",
       headers: { authorization },
       body: JSON.stringify({ sessionId: "trainer-session", attempt: 1 }),
@@ -703,7 +762,7 @@ test("training HTTP routes distinguish invalid requests from lease conflicts", a
 });
 
 test("training artifact admission rejects unknown and excessive request sizes", async () => {
-  const { token } = await enrollWorker("api-boundary-trainer");
+  const { token } = await enrollWorker("api-boundary-trainer", null);
   const authorization = `Bearer ${token}`;
   const put = (request: Request) =>
     workerRoute(
@@ -712,7 +771,7 @@ test("training artifact admission rejects unknown and excessive request sizes", 
     )({ params: { runId: "train-boundary" }, request } as never);
 
   const unknown = await put(
-    new Request("http://localhost/artifact", {
+    workerRequest("http://localhost/artifact", {
       method: "POST",
       headers: { authorization },
     }),
@@ -720,7 +779,7 @@ test("training artifact admission rejects unknown and excessive request sizes", 
   expect(unknown.status).toBe(411);
 
   const excessive = await put(
-    new Request("http://localhost/artifact", {
+    workerRequest("http://localhost/artifact", {
       method: "POST",
       headers: {
         authorization,

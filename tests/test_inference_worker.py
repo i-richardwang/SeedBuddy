@@ -20,7 +20,7 @@ from seedctl.worker.model_store import ModelStore
 from seedctl.worker.session import LeaseLostError, WorkerClient, WorkerSession
 
 RUNTIME = RuntimeDescriptor(adapter="traditional", fingerprint="b" * 64)
-SESSION = WorkerSession("test-session", "2026-08-27T00:00:00+00:00", (RUNTIME,), 8192)
+SESSION = WorkerSession("test-session", "2026-08-27T00:00:00+00:00", (RUNTIME,))
 MANIFEST = {
     "schemaVersion": 1,
     "modelVersionId": "traditional-v1",

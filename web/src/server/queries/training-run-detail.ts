@@ -24,11 +24,13 @@ import { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
 /**
  * One run with its whole epoch history and its attempts, whether it has
  * stalled as of `at` or waits for another run of its model, the version it
- * published, and whether that version reads.
+ * published, whether that version reads, and the workers the user may send
+ * the run to.
  */
 export async function trainingRunDetail(
   datasetId: string,
   runId: string,
+  user: string,
   suppliedAt?: Date,
 ): Promise<TrainingRunDetail | null> {
   return snapshot(async (db) => {
@@ -56,7 +58,7 @@ export async function trainingRunDetail(
       blockedBy: await blockingRun(run, db),
       epochs: await listTrainingEpochs(runId, db),
       attempts: await listTrainingAttempts(runId, db),
-      workers: await listTrainingWorkerOverviews(at, db),
+      workers: await listTrainingWorkerOverviews(user, at, db),
       version,
       current:
         version !== null &&

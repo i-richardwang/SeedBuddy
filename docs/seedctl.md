@@ -6,7 +6,17 @@ Worker profile management uses `launchd` and requires macOS. The `dataset`, `rec
 
 ## Install
 
-Install `seedctl` from source.
+A workbench ships the `seedctl` package built from its own source, so a Worker installed from it speaks that workbench's protocol. The Workers page gives the install command in its menu, and again when a Worker is enrolled:
+
+```bash
+uv tool install --reinstall 'seedctl[yolo] @ https://<workbench>/worker-package/<file>'
+```
+
+The workbench serves the file without asking for a credential. The command replaces a package already installed, so it also updates a Worker after the workbench is deployed again.
+
+The `yolo` extra installs the pinned Ultralytics runtime that Worker processes advertise. Without it, a Worker process serves the bundled traditional detector and takes no training runs.
+
+To work on `seedctl` itself, or to use its `dataset`, `recognize`, `traditional`, `training` and `models` commands without a workbench, install it from source:
 
 ```bash
 git clone https://github.com/i-richardwang/SeedBuddy.git
@@ -14,11 +24,11 @@ cd SeedBuddy
 uv tool install --from '.[yolo]' seedctl
 ```
 
-The `yolo` extra installs the pinned Ultralytics runtime that Worker processes advertise. Without it, a Worker process serves the bundled traditional detector and takes no training runs.
-
 ## Workers
 
-An administrator enrolls each Worker on the workbench's Workers page, which shows its token and setup command once. Each Worker profile holds that token and a private work directory; [Worker identity](backend-architecture.md#worker-control-planes) defines its authentication. Setup validates the token, runtime imports, and the selected device before saving the profile, then installs and starts a LaunchAgent:
+A Worker is enrolled on the workbench's Workers page, which shows its token once, with the install and setup commands. An administrator enrolls a shared Worker, which serves detection and training for everyone. Any account enrolls its own computer as a personal Worker: it detects for everyone while it runs, and trains only the runs its owner sends it by name. An administrator removes any Worker and an account its own. Deleting an account removes its personal Workers. Suspending it stops them: the workbench refuses their requests with 403, each process stops and stays stopped, and `worker list` shows `suspended`. Once the account is reinstated, `seedctl worker start <profile>` brings each back.
+
+Each Worker profile holds that token and a private work directory; [Worker identity](backend-architecture.md#worker-control-planes) defines its authentication. Setup validates the token, runtime imports, and the selected device before saving the profile, then installs and starts a LaunchAgent:
 
 ```bash
 seedctl worker setup mac-studio \
@@ -45,13 +55,13 @@ seedctl worker stop mac-studio
 
 `seedctl worker start <profile>` checks the profile, writes its LaunchAgent and loads it or asks `launchd` to start the loaded job. `stop` and `restart` return once the Worker process has exited; `restart` then loads the current LaunchAgent definition. Training runs in a child process. On cancellation, shutdown or lease loss, the Worker process supervisor terminates the child’s process group, including data-loader children, even during a blocked GPU operation. The server revokes ownership immediately; the Worker process detects revocation on its next training request or lease renewal.
 
-Inference execution and retry policy are described in the [Worker control planes](backend-architecture.md#worker-control-planes). Worker processes make outbound calls only and expose no inbound port. The workbench and Worker processes share wire contracts with no mixed-version protocol: stop Worker processes, deploy the workbench, install the matching Worker package, then start Worker processes with `seedctl worker restart <profile>`.
+Inference execution and retry policy are described in the [Worker control planes](backend-architecture.md#worker-control-planes). Worker processes make outbound calls only and expose no inbound port. The workbench and Worker processes share one protocol revision with no mixed-revision support. Every Worker request states the revision its package speaks, and a workbench that speaks another refuses it with 426 before reading its token; the process then stops and stays stopped, and `worker list` shows `incompatible` with the workbench's answer. To deploy a workbench with a new revision, stop Worker processes, deploy it, install [the package it ships](#install), then start Worker processes with `seedctl worker restart <profile>`.
 
 Training presets pin model weights, parameters, and the framework version. The workbench dialog accepts parameter adjustments, and the server validates and freezes the resolved recipe in the run; resuming does not consult the preset registry.
 
 Worker processes validate both training recipes and the training metadata in published model manifests. A framework version match alone does not establish application-contract compatibility; both sides validate the shared contracts.
 
-The training dialog assigns work automatically or to a specific enrolled Worker. The [training-run status menu](interface.md#pages-and-interaction-ownership) exposes run controls. Pause revokes the current attempt and releases the model immediately; cancellation ends the task. A paused or failed task continues once no other run of its model is in progress. A task pinned before its first claim waits for its selected Worker.
+The training dialog assigns work automatically, to whichever shared Worker claims it first, or to a specific Worker: a shared one, or one of the personal Workers of the account starting the run. A run sent to a personal Worker trains while that computer is awake and its Worker process is running, and stays with the account that sent it: a Worker enrolled later under the same name by someone else does not take it. The [training-run status menu](interface.md#pages-and-interaction-ownership) exposes run controls. Pause revokes the current attempt and releases the model immediately; cancellation ends the task. A paused or failed task continues once no other run of its model is in progress, sent again by whoever continues it. Saved progress is picked up on the Worker holding it, by someone who may send training to that Worker; anyone else restarts the run on another Worker. A task pinned before its first claim waits for its selected Worker.
 
 Each epoch saves `weights/last.pt`, `weights/best.pt` and `epochs.jsonl` on the Worker; `detectors/ultralytics/checkpoints.py` owns this layout. Only metrics and the local recovery location are reported to the workbench; checkpoint bytes stay on the Worker during training. A run becomes bound to its Worker when first claimed. Pause or contact loss retains its local state, and resume uses that same Worker. Missing or invalid files fail with an explicit restart instruction; host or disk loss is not recoverable from the workbench.
 

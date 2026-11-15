@@ -22,7 +22,7 @@ bun run dev
 
 Use `bun run format` in `web/` to format source and messages, and `bun run format:check` to check them. Generate database migrations with `bun run db:generate` (`drizzle-kit generate`); startup applies them as described in [Database schema](architecture.md#database-schema).
 
-Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](accounts.md); Worker installation is in [seedctl](seedctl.md#install).
+Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](accounts.md); Worker installation is in [seedctl](seedctl.md#install). A development server ships the Worker package found in `web/worker-package/` when it starts, built with `uv build --wheel --out-dir web/worker-package`; without one it ships none, and a Worker runs against it on `seedctl` installed from source.
 
 ## Deployment
 
@@ -33,7 +33,7 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Compose runs the workbench, maintenance, Postgres, RustFS and a one-shot bucket initializer. `Dockerfile.web` starts the built server through `bun run start` (`bun dist/server.js`); Compose uses that image command for the workbench and overrides it with `bun dist/maintenance.js` for maintenance. The workbench is exposed on port 3000, RustFS on 9000 and its console on 9001. Long-running services restart unless stopped. The three image variables accept immutable mirror references.
+Compose runs the workbench, maintenance, Postgres, RustFS and a one-shot bucket initializer. `Dockerfile.web` starts the built server through `bun run start` (`bun dist/server.js`); Compose uses that image command for the workbench and overrides it with `bun dist/maintenance.js` for maintenance. The image also builds the `seedctl` wheel from the same source into `worker-package/` beside the server, which the workbench serves as [the Worker package it ships](seedctl.md#install). The workbench is exposed on port 3000, RustFS on 9000 and its console on 9001. Long-running services restart unless stopped. The three image variables accept immutable mirror references.
 
 [zeabur-template.yaml](../zeabur-template.yaml) deploys the application roles with PostgreSQL and MinIO; its deployment form and service instructions define domain binding and storage setup. MinIO creates the bucket in its start command. Workers run outside the hosting platform.
 

@@ -26,6 +26,15 @@ export const API_SCOPES = [...MCP_SERVERS, "transfer"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 const apiScopeSchema = z.enum(API_SCOPES);
 
+/**
+ * Who a programmatic request acts for: an account, through the API key or
+ * the MCP client whose credential it presents.
+ */
+export interface Principal {
+  user: string;
+  client: string;
+}
+
 /** Every key starts with this so a leaked one is recognisable. */
 export const API_KEY_PREFIX = "vf_";
 

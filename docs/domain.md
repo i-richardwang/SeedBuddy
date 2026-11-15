@@ -6,7 +6,7 @@ The [reading rules](readings.md) define counts, exclusions, summaries and export
 
 A reading is a count for a unit and observation, read from a photograph by a model or a person or entered by hand; a detection is a model’s reading.
 
-A Worker is a enrolled machine. A Worker process is the running program that authenticates as that Worker and supervises execution.
+A Worker is an enrolled machine: a shared one an administrator enrolled for everyone, or a personal one, an account's own computer. A Worker process is the running program that authenticates as that Worker and supervises execution.
 
 API key scope names follow the UI: Dataset transfer, Experiment records and Image annotation.
 

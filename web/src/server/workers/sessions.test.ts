@@ -7,13 +7,8 @@ import {
   workerPresence,
 } from "../../domain/workers/presence";
 import { database } from "../infra/db/client";
-import {
-  recordTestHeartbeat,
-  TEST_RUNTIME,
-  testHeartbeat,
-  ULTRALYTICS_RUNTIME,
-} from "../testing/workers";
-import { currentWorkerSession, listOnlineTrainers } from "./sessions";
+import { recordTestHeartbeat, testHeartbeat } from "../testing/workers";
+import { currentWorkerSession } from "./sessions";
 
 function later(from: Date, seconds: number): Date {
   return new Date(from.getTime() + seconds * 1000);
@@ -31,23 +26,6 @@ test("presence follows the age of the last heartbeat", async () => {
   expect(presence(WORKER_ONLINE_SECONDS)).toBe("online");
   expect(presence(WORKER_ONLINE_SECONDS + 1)).toBe("stale");
   expect(presence(WORKER_STALE_SECONDS + 1)).toBe("offline");
-});
-
-test("a worker trains only with the ultralytics runtime", async () => {
-  const seen = new Date("2026-02-01T00:00:00.000Z");
-  await recordTestHeartbeat(testHeartbeat("detector-only"), seen);
-  await recordTestHeartbeat(
-    {
-      ...testHeartbeat("trainer"),
-      runtimes: [TEST_RUNTIME, ULTRALYTICS_RUNTIME],
-    },
-    seen,
-  );
-  const trainers = (await listOnlineTrainers(seen, await database())).map(
-    (worker) => worker.workerId,
-  );
-  expect(trainers).toContain("trainer");
-  expect(trainers).not.toContain("detector-only");
 });
 
 test("an older session cannot replace a newer process with the same worker id", async () => {

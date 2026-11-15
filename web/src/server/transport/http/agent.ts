@@ -3,7 +3,7 @@ import {
   describeAgentOperations,
   executeAgentOperation,
 } from "../../agent/public";
-import { authorizeApiKey } from "../../auth/public";
+import { apiKeyPrincipal } from "../../auth/public";
 
 type HttpFailureCode = AgentFailureCode | "unauthorized";
 
@@ -23,21 +23,29 @@ export function agentFailureResponse(
   return Response.json({ error: { code, message } }, { status });
 }
 
+/** The account whose live experiments-scoped API key the request presents, or null. */
+async function agentKeyAccount(request: Request): Promise<string | null> {
+  return (await apiKeyPrincipal(request, "experiments"))?.user ?? null;
+}
+
+function agentKeyRefusal(): Response {
+  return agentFailureResponse(
+    "unauthorized",
+    "An API key with the experiments scope is required",
+  );
+}
+
 /** The refusal a request without a live experiments-scoped API key gets, or null. */
 export async function refuseWithoutAgentKey(
   request: Request,
 ): Promise<Response | null> {
-  return (await authorizeApiKey(request, "experiments"))
-    ? null
-    : agentFailureResponse(
-        "unauthorized",
-        "An API key with the experiments scope is required",
-      );
+  return (await agentKeyAccount(request)) === null ? agentKeyRefusal() : null;
 }
 
 async function handleAgentOperationCall(
   operation: string,
   request: Request,
+  user: string,
 ): Promise<Response> {
   let input: unknown = {};
   const body = await request.text();
@@ -51,7 +59,7 @@ async function handleAgentOperationCall(
       );
     }
   }
-  const outcome = await executeAgentOperation(operation, input);
+  const outcome = await executeAgentOperation(operation, input, user);
   return outcome.ok
     ? Response.json({ result: outcome.output })
     : agentFailureResponse(outcome.code, outcome.message);
@@ -61,10 +69,10 @@ export async function serveAgentOperationCall(
   operation: string,
   request: Request,
 ): Promise<Response> {
-  return (
-    (await refuseWithoutAgentKey(request)) ??
-    handleAgentOperationCall(operation, request)
-  );
+  const user = await agentKeyAccount(request);
+  return user === null
+    ? agentKeyRefusal()
+    : handleAgentOperationCall(operation, request, user);
 }
 
 function handleAgentInterface(): Response {

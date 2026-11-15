@@ -19,6 +19,10 @@ import {
   trainingRecipeSchema,
   trainingRunSchema,
 } from "../src/domain/training/schema";
+import {
+  WORKER_PROTOCOL,
+  WORKER_PROTOCOL_HEADER,
+} from "../src/domain/workers/protocol";
 
 const OUTPUT = path.resolve(import.meta.dir, "../../src/seedctl/contracts");
 const CHECK = process.argv.includes("--check");
@@ -38,14 +42,25 @@ const contracts: ReadonlyArray<[string, ZodType]> = [
   ["training-snapshot", datasetSnapshotSchema],
 ];
 
+/** Every generated file by name: the contract schemas and the worker protocol. */
+const documents: ReadonlyArray<[string, unknown]> = [
+  ...contracts.map(([name, schema]): [string, unknown] => [
+    `${name}.schema.json`,
+    {
+      $id: `https://seedbuddy.local/contracts/${name}.schema.json`,
+      ...z.toJSONSchema(schema, { io: "input" }),
+    },
+  ]),
+  [
+    "worker-protocol.json",
+    { revision: WORKER_PROTOCOL, header: WORKER_PROTOCOL_HEADER },
+  ],
+];
+
 if (!CHECK) await mkdir(OUTPUT, { recursive: true });
 let stale = false;
-for (const [name, schema] of contracts) {
-  const target = path.join(OUTPUT, `${name}.schema.json`);
-  const document = {
-    $id: `https://seedbuddy.local/contracts/${name}.schema.json`,
-    ...z.toJSONSchema(schema, { io: "input" }),
-  };
+for (const [name, document] of documents) {
+  const target = path.join(OUTPUT, name);
   const expected = `${JSON.stringify(document, null, 2)}\n`;
   if (!CHECK) {
     await writeFile(target, expected);

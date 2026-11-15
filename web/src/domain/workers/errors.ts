@@ -11,3 +11,8 @@ export class WorkerNameTakenError extends ConflictError {
 export class WorkerSessionConflictError extends ConflictError {
   readonly code = "worker_session_conflict";
 }
+
+/** A personal worker takes training only from the account it belongs to. */
+export class WorkerOwnerConflictError extends ConflictError {
+  readonly code = "worker_owner_conflict";
+}

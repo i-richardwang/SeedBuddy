@@ -35,11 +35,11 @@ const paused: Run = {
   state: { status: "paused" },
 };
 /** The dialog reads the run, its training set and the Workers it can go to. */
-const detail = (run: Run) =>
+const detail = (run: Run, workerId = "gpu-1") =>
   ({
     dataset: { id: "test" },
     run,
-    workers: [{ workerId: "gpu-1", online: true }],
+    workers: [{ workerId, online: true, personal: false }],
   }) as unknown as Detail;
 const submit = () =>
   act(async () => {
@@ -91,15 +91,44 @@ try {
   assert.ok(body.textContent?.includes(m.training_resume_no_progress()));
   await submit();
 
-  const resume = (restart: boolean) => ({
+  await render(
+    <ResumeTrainingDialog
+      key="elsewhere"
+      detail={detail(paused, "gpu-2")}
+      open
+      onClose={() => {}}
+    />,
+  );
+  assert.ok(
+    button(m.training_resume_from_saved({ epoch: 7 }))?.hasAttribute(
+      "disabled",
+    ),
+    "progress on a Worker the person is not offered cannot be picked up",
+  );
+  assert.ok(
+    body.textContent?.includes(
+      m.training_worker_resume_unavailable({ worker: "gpu-1" }),
+    ),
+  );
+  await submit();
+
+  const resume = (
+    restart: boolean,
+    targetWorkerId: string | null = "gpu-1",
+  ) => ({
     data: {
       dataset: "test",
       runId: "train-run",
       attempt: 2,
-      control: { action: "resume", targetWorkerId: "gpu-1", restart },
+      control: { action: "resume", targetWorkerId, restart },
     },
   });
-  assert.deepEqual(submissions, [resume(false), resume(true), resume(true)]);
+  assert.deepEqual(submissions, [
+    resume(false),
+    resume(true),
+    resume(true),
+    resume(true, null),
+  ]);
   console.log("resuming training behaves");
 } finally {
   await unmount();

@@ -10,6 +10,7 @@ import {
 import { database } from "../infra/db/client";
 import { models } from "../infra/db/schema";
 import { requireModel, setModelSettings } from "../models/registry";
+import { signInAs } from "../testing/auth";
 import { reviewedDataset } from "../testing/datasets";
 import {
   analyzedWithDish,
@@ -26,21 +27,35 @@ import {
   snapshotForRun,
 } from "./snapshots";
 
+/** The account that sends this file's runs. */
+const account = (await signInAs("member")).user.id;
+
 test("snapshot access distinguishes a missing run from a run the worker does not own", async () => {
   const owner = await trainer("snapshot-access-worker");
   await expect(
     snapshotForRun("missing-snapshot-run", owner),
   ).rejects.toBeInstanceOf(TrainingRunNotFoundError);
   const dataset = await trainingDataset("snapshot-access-dataset");
-  const run = await createTrainingRun(dataset.id, recipe, owner.workerId);
+  const run = await createTrainingRun(
+    dataset.id,
+    recipe,
+    owner.workerId,
+    account,
+  );
   try {
     await expect(snapshotForRun(run.id, owner)).rejects.toBeInstanceOf(
       TrainingRunConflictError,
     );
   } finally {
-    await controlTrainingRun(dataset.id, run.id, run.attempt, {
-      action: "cancel",
-    });
+    await controlTrainingRun(
+      dataset.id,
+      run.id,
+      run.attempt,
+      {
+        action: "cancel",
+      },
+      account,
+    );
   }
 });
 

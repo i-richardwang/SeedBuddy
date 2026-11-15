@@ -20,7 +20,10 @@ import { Select } from "../../ui/kit/Select";
 import { toast } from "../../ui/kit/Toast";
 import { trainingPresetDescription, trainingPresetLabel } from "./labels";
 import { TrainingParametersForm } from "./TrainingParametersForm";
-import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
+import {
+  TrainingWorkerSelect,
+  trainingWorkerHint,
+} from "./TrainingWorkerSelect";
 
 const FORM_ID = "train";
 
@@ -75,6 +78,10 @@ function TrainSession({
   const preset = presetOf(presetId);
   const [targetWorkerId, setTargetWorkerId] = useState<string | null>(null);
   const valid = trainingOverridesSchema.safeParse(overrides).success;
+  // Automatic assignment goes to a shared Worker.
+  const awaitsSharedWorker =
+    targetWorkerId === null &&
+    !training.workers.some((worker) => worker.online && !worker.personal);
 
   const submit = () => {
     void action.run(
@@ -110,7 +117,7 @@ function TrainSession({
           submit();
         }}
       >
-        {training.workerMemoryBytes === null ? (
+        {awaitsSharedWorker ? (
           <Alert type="warning" title={m.training_worker_unavailable()} />
         ) : null}
         <Form.Field
@@ -132,7 +139,10 @@ function TrainSession({
             }}
           />
         </Form.Field>
-        <Form.Field label={m.worker_label()}>
+        <Form.Field
+          label={m.worker_label()}
+          desc={trainingWorkerHint(training.workers, targetWorkerId)}
+        >
           <TrainingWorkerSelect
             workers={training.workers}
             value={targetWorkerId}

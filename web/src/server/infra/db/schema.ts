@@ -1,7 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
-  bigint,
   boolean,
   check,
   date,
@@ -1058,19 +1057,27 @@ export const experimentManualReadings = pgTable(
 );
 
 /**
- * A machine an administrator enrolled as a worker. Its token is its identity:
- * only the token's hash is kept, and removing the worker revokes it.
+ * A machine enrolled as a worker. One an administrator enrolled for everyone
+ * is shared and has no owner; one an account enrolled is that account's own
+ * computer and goes when the account does. Its token is its identity: only
+ * the token's hash is kept, and removing the worker revokes it.
  */
-export const workers = pgTable("workers", {
-  id: text("id").primaryKey(),
-  tokenHash: text("token_hash").notNull().unique(),
-  enrolledAt: instant("enrolled_at"),
-});
+export const workers = pgTable(
+  "workers",
+  {
+    id: text("id").primaryKey(),
+    tokenHash: text("token_hash").notNull().unique(),
+    enrolledAt: instant("enrolled_at"),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
+  },
+  (table) => [index("workers_owner_idx").on(table.ownerId)],
+);
 
 /**
- * The process currently serving as a worker, by what it can execute and how
- * much memory it offers a task. What it is doing follows from the lease it
- * holds.
+ * The process currently serving as a worker, by what it can execute. What it
+ * is doing follows from the lease it holds.
  */
 export const workerSessions = pgTable(
   "worker_sessions",
@@ -1081,7 +1088,6 @@ export const workerSessions = pgTable(
     sessionId: text("session_id").notNull(),
     startedAt: instant("started_at"),
     runtimes: jsonb("runtimes").$type<RuntimeDescriptor[]>().notNull(),
-    memoryBytes: bigint("memory_bytes", { mode: "number" }).notNull(),
     lastSeenAt: instant("last_seen_at"),
   },
   (table) => [index("worker_sessions_seen_idx").on(table.lastSeenAt)],
@@ -1249,6 +1255,14 @@ export const trainingRuns = pgTable(
     createdAt: instant("created_at"),
     attempt: integer("attempt").notNull(),
     targetWorkerId: text("target_worker_id"),
+    /**
+     * The account that sent the run to its worker, when it started the run or
+     * last resumed it; null once that account is deleted. A personal worker
+     * takes a run only from its owner.
+     */
+    senderId: text("sender_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     lastProgressAt: timestamp("last_progress_at", {
       withTimezone: true,
       mode: "date",

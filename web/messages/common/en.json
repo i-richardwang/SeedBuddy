@@ -45,6 +45,7 @@
   "error_training_conflict": "Training cannot start or change in the current state. Check the reviewed images and active runs.",
   "error_user_rejected": "This change would affect your own access or leave no usable administrator.",
   "error_worker_name_taken": "A Worker with this name is already enrolled.",
+  "error_worker_owner_conflict": "Only its owner can send training to this Worker.",
   "experiments_label": "Experiments",
   "explant_type_label": "Explant type",
   "failed_label": "Failed",

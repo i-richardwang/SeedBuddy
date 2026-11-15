@@ -1,9 +1,11 @@
 import { requireMcpAuth } from "@better-auth/mcp";
 import {
+  type AuthInfo,
   bearerAuthChallengeResponse,
   hostHeaderValidationResponse,
   localhostAllowedHostnames,
   localhostAllowedOrigins,
+  type McpHttpHandler,
   OAuthError,
   OAuthErrorCode,
   originValidationResponse,
@@ -12,12 +14,13 @@ import {
 import {
   API_KEY_PREFIX,
   type McpServerName,
+  type Principal,
 } from "../../../domain/auth/integrations";
 import {
+  apiKeyPrincipal,
   auth,
-  authorizeApiKey,
   bearerToken,
-  mcpAuthorizationIsLive,
+  mcpClientPrincipal,
 } from "../../auth/public";
 import { deploymentEndpoint } from "../../infra/deployment";
 
@@ -57,19 +60,42 @@ function rejectUnsupportedMcpMethod(request: Request): Response | null {
 
 const METADATA_PATH = "/.well-known/oauth-protected-resource";
 
-type AdmittedHandler = (request: Request) => Promise<Response>;
+/**
+ * The access token of a request whose token was verified, under either
+ * scheme a client may use: Bearer, or DPoP for a token bound to the client's
+ * key.
+ */
+function verifiedAccessToken(verified: Request): string {
+  const [, token] = (verified.headers.get("authorization") ?? "")
+    .trim()
+    .split(/\s+/);
+  if (!token) throw new Error("A verified request presents an access token");
+  return token;
+}
+
+/** The account an admitted request acts for. */
+export function admittedAccount(authInfo: AuthInfo | undefined): string {
+  const user = authInfo?.extra?.user;
+  if (typeof user !== "string")
+    throw new Error("An MCP server serves admitted requests only");
+  return user;
+}
 
 /**
  * One MCP server behind its two credentials. A client an account approved
  * presents an OAuth access token bound to that server's resource; a script or
  * an agent configured by hand presents a personal API key holding the scope
- * named after the server. Any other request is answered with the RFC 9728
- * challenge that points clients at the authorization server.
+ * named after the server. Either way the request acts for that account, and
+ * the server is handed what the credential proved in the record the SDK
+ * surfaces to its tools: the token, the client it was issued to, the scopes
+ * it holds and, as `extra.user`, the account. Any other request is answered
+ * with the RFC 9728 challenge that points clients at the authorization
+ * server.
  */
 export async function serveAuthorized(
   server: McpServerName,
   request: Request,
-  handle: AdmittedHandler,
+  handler: Pick<McpHttpHandler, "fetch">,
 ): Promise<Response> {
   const deployment = deploymentEndpoint();
   const resource = deployment.mcpResources[server];
@@ -80,20 +106,47 @@ export async function serveAuthorized(
         resourceMetadataUrl: `${deployment.origin}${METADATA_PATH}${new URL(resource).pathname}`,
       },
     );
-  const admit = async (accepted: Request): Promise<Response> =>
-    rejectUnsupportedMcpMethod(accepted) ?? handle(accepted);
+  const admit = async (
+    accepted: Request,
+    principal: Principal | null,
+    credential: Pick<AuthInfo, "token" | "scopes">,
+    refusal: string,
+  ): Promise<Response> => {
+    if (principal === null) return refuse(refusal);
+    return (
+      rejectUnsupportedMcpMethod(accepted) ??
+      handler.fetch(accepted, {
+        authInfo: {
+          ...credential,
+          clientId: principal.client,
+          extra: { user: principal.user },
+        },
+      })
+    );
+  };
 
-  if (bearerToken(request)?.startsWith(API_KEY_PREFIX)) {
-    return (await authorizeApiKey(request, server))
-      ? admit(request)
-      : refuse("The API key is not active or does not open this MCP server");
+  const key = bearerToken(request);
+  if (key?.startsWith(API_KEY_PREFIX)) {
+    return admit(
+      request,
+      await apiKeyPrincipal(request, server),
+      { token: key, scopes: [server] },
+      "The API key is not active or does not open this MCP server",
+    );
   }
   return requireMcpAuth(
     await auth(),
     async (accepted, claims) =>
-      (await mcpAuthorizationIsLive(claims))
-        ? admit(accepted)
-        : refuse("The account or MCP authorization is no longer active"),
+      admit(
+        accepted,
+        await mcpClientPrincipal(claims),
+        {
+          token: verifiedAccessToken(accepted),
+          scopes:
+            typeof claims.scope === "string" ? claims.scope.split(" ") : [],
+        },
+        "The account or MCP authorization is no longer active",
+      ),
     { resource },
   )(request);
 }

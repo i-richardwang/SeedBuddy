@@ -37,7 +37,7 @@ class Worker:
         self.settings = settings
         self.client = WorkerClient(
             settings.connection,
-            WorkerSession.create(settings.device),
+            WorkerSession.create(),
             transport=transport,
         )
         self.inference = InferenceClient(self.client)

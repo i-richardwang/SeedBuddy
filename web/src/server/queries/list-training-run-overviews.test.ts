@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 
+import { signInAs } from "../testing/auth";
 import {
   epochReport,
   recipe,
@@ -15,13 +16,26 @@ import {
 } from "../training/runs";
 import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
+/** The account that sends this file's runs. */
+const account = (await signInAs("member")).user.id;
+
 test("training overviews list the dataset's runs and bound the requested page", async () => {
   const dataset = await trainingDataset("overview-runs");
   const owner = await trainer("listing-trainer");
-  const first = await createTrainingRun(dataset.id, recipe, owner.workerId);
+  const first = await createTrainingRun(
+    dataset.id,
+    recipe,
+    owner.workerId,
+    account,
+  );
   expect((await claimTrainingRun(owner))?.id).toBe(first.id);
   await failTrainingRun(first.id, "stopped", owner);
-  const next = await createTrainingRun(dataset.id, recipe, owner.workerId);
+  const next = await createTrainingRun(
+    dataset.id,
+    recipe,
+    owner.workerId,
+    account,
+  );
   expect((await claimTrainingRun(owner))?.id).toBe(next.id);
   await failTrainingRun(next.id, "stopped", owner);
   expect(
@@ -34,7 +48,12 @@ test("training overviews list the dataset's runs and bound the requested page", 
 test("training overviews count epochs and select metrics only from the current attempt", async () => {
   const dataset = await trainingDataset("overview-epochs");
   const owner = await trainer("listing-epoch-trainer");
-  const run = await createTrainingRun(dataset.id, recipe, owner.workerId);
+  const run = await createTrainingRun(
+    dataset.id,
+    recipe,
+    owner.workerId,
+    account,
+  );
   /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const start = new Date();
   expect((await claimTrainingRun(owner, start))?.id).toBe(run.id);

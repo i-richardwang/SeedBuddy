@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 
 import { TRAINING_ARTIFACT_PART_BYTES } from "../../domain/training/artifact";
 import { TrainingRunNotFoundError } from "../../domain/training/errors";
+import type { TrainingRun } from "../../domain/training/schema";
+import { WorkerOwnerConflictError } from "../../domain/workers/errors";
 import { imageBlobKey } from "../images/keys";
 import { markImageUnclear } from "../images/public";
 import { requireBlob } from "../infra/blobs/store";
@@ -9,12 +11,13 @@ import { database } from "../infra/db/client";
 import { contentDigest } from "../infra/digest";
 import { openModelWeights } from "../models/publication";
 import { readModelVersion } from "../models/registry";
+import { signInAs } from "../testing/auth";
 import { reviewedDataset as reviewed } from "../testing/datasets";
 import { imageDigest } from "../testing/images";
 import { trainingBundle } from "../testing/model-bundle";
 import { traditionalVersion } from "../testing/models";
 import { recordTestHeartbeat } from "../testing/workers";
-import { removeWorker } from "../workers/public";
+import { enrollWorker, removeWorker } from "../workers/public";
 import {
   readTrainingArtifactParts,
   saveTrainingArtifactPart,
@@ -90,23 +93,26 @@ import {
 } from "../testing/training";
 import { trainingHeartbeat } from "../testing/workers";
 
+/** The account that sends this file's runs. */
+const account = (await signInAs("member")).user.id;
+
 test("a model has at most one active training run", async () => {
   const dataset = await trainingDataset("exclusive-run");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   expect((await activeTrainingRun(run.modelId, await database()))?.id).toBe(
     run.id,
   );
-  await expect(createTrainingRun(dataset.id, recipe, null)).rejects.toThrow(
-    /still active/,
-  );
+  await expect(
+    createTrainingRun(dataset.id, recipe, null, account),
+  ).rejects.toThrow(/still active/);
   const trainerOwner = await trainer("exclusive-trainer");
   expect((await claimTrainingRun(trainerOwner))?.id).toBe(run.id);
-  await expect(createTrainingRun(dataset.id, recipe, null)).rejects.toThrow(
-    /still active/,
-  );
+  await expect(
+    createTrainingRun(dataset.id, recipe, null, account),
+  ).rejects.toThrow(/still active/);
   await failTrainingRun(run.id, "stopped", trainerOwner);
   expect(await activeTrainingRun(run.modelId, await database())).toBeNull();
-  const next = await createTrainingRun(dataset.id, recipe, null);
+  const next = await createTrainingRun(dataset.id, recipe, null, account);
   expect(next.id).not.toBe(run.id);
   expect((await claimTrainingRun(trainerOwner))?.id).toBe(next.id);
   await failTrainingRun(next.id, "stopped", trainerOwner);
@@ -114,7 +120,7 @@ test("a model has at most one active training run", async () => {
 
 test("concurrent claims lease a run to exactly one worker", async () => {
   const dataset = await trainingDataset("contended-run");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   const workers = ["contender-1", "contender-2", "contender-3"];
   const owners = await Promise.all(workers.map(trainer));
   const claims = await Promise.all(
@@ -134,7 +140,7 @@ test("concurrent claims lease a run to exactly one worker", async () => {
 
 test("a training run owns an immutable self-contained snapshot", async () => {
   const dataset = await trainingDataset("snapshot-contract");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   await trainer("snapshot-trainer");
   const claimed = await claimTrainingRun(owner("snapshot-trainer"));
   expect(claimed?.id).toBe(run.id);
@@ -174,7 +180,7 @@ test("a snapshot takes an unclear photograph like any other", async () => {
   const [clear, fogged] = await Promise.all(contents.map(imageDigest));
   await markImageUnclear({ digest: fogged! });
 
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   await trainer("unclear-trainer");
   const claimed = await claimTrainingRun(owner("unclear-trainer"));
   if (!claimed) throw new Error("run was not claimed");
@@ -190,7 +196,7 @@ test("a snapshot takes an unclear photograph like any other", async () => {
 
 test("publication registers one immutable version per training run", async () => {
   const dataset = await trainingDataset("publish-contract");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   await trainer("publisher");
   expect((await claimTrainingRun(owner("publisher")))?.id).toBe(run.id);
   await enterTrainingPhase(run.id, "training", owner("publisher"));
@@ -266,7 +272,7 @@ test("publication registers one immutable version per training run", async () =>
 
 test("epochs carry the run's progress and a reclaimed attempt draws its own curve", async () => {
   const dataset = await trainingDataset("epoch-history");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   await trainer("epoch-trainer");
   await trainer("epoch-successor");
   /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
@@ -391,7 +397,7 @@ test("epochs carry the run's progress and a reclaimed attempt draws its own curv
 
 test("an expired attempt cannot report after the same worker reclaims its run", async () => {
   const dataset = await trainingDataset("missing-lease");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   await trainer("slow-trainer");
   await trainer("fast-trainer");
   /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
@@ -415,7 +421,7 @@ test("an expired attempt cannot report after the same worker reclaims its run", 
 
 test("a restarted worker reclaims its run as a new fenced attempt", async () => {
   const dataset = await trainingDataset("restarted-worker");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   const oldSession = owner("restarting-trainer", "session-old");
   const newSession = {
     ...owner("restarting-trainer", "session-new"),
@@ -448,9 +454,14 @@ test("a restarted worker reclaims its run as a new fenced attempt", async () => 
 
 test("a removed worker requires explicit restart before its run can move", async () => {
   const dataset = await trainingDataset("removed-worker");
-  const run = await createTrainingRun(dataset.id, recipe, null);
   await trainer("removed-trainer");
   await trainer("remaining-trainer");
+  const run = await createTrainingRun(
+    dataset.id,
+    recipe,
+    "removed-trainer",
+    account,
+  );
   /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   const at = new Date();
   expect((await claimTrainingRun(owner("removed-trainer"), at))?.id).toBe(
@@ -458,12 +469,27 @@ test("a removed worker requires explicit restart before its run can move", async
   );
   await removeWorker("removed-trainer");
   expect(await claimTrainingRun(owner("remaining-trainer"), at)).toBeNull();
-  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
-  await controlTrainingRun(dataset.id, run.id, 1, {
-    action: "resume",
-    targetWorkerId: "remaining-trainer",
-    restart: true,
-  });
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" }, account);
+  await expect(
+    controlTrainingRun(
+      dataset.id,
+      run.id,
+      1,
+      { action: "resume", targetWorkerId: null, restart: false },
+      account,
+    ),
+  ).rejects.toThrow(/Unknown worker/);
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    1,
+    {
+      action: "resume",
+      targetWorkerId: "remaining-trainer",
+      restart: true,
+    },
+    account,
+  );
   expect(
     await claimTrainingRun(owner("remaining-trainer", undefined, 2), at),
   ).toMatchObject({
@@ -481,7 +507,7 @@ test("pause releases the model and fences the previous attempt even on the same 
   const dataset = await trainingDataset("controlled-training");
   const a = await trainer("controlled-a");
   const b = await trainer("controlled-b");
-  const run = await createTrainingRun(dataset.id, recipe, a.workerId);
+  const run = await createTrainingRun(dataset.id, recipe, a.workerId, account);
   expect(await claimTrainingRun(b)).toBeNull();
   expect((await claimTrainingRun(a))?.id).toBe(run.id);
   await enterTrainingPhase(run.id, "training", a);
@@ -493,22 +519,34 @@ test("pause releases the model and fences the previous attempt even on the same 
   ).toBe(before?.lastProgressAt);
   const otherDataset = await trainingDataset("other-controlled-training");
   await expect(
-    controlTrainingRun(otherDataset.id, run.id, 1, { action: "pause" }),
+    controlTrainingRun(
+      otherDataset.id,
+      run.id,
+      1,
+      { action: "pause" },
+      account,
+    ),
   ).rejects.toThrow(/not found/);
   expect((await readTrainingRun(run.id, await database()))?.state.status).toBe(
     "running",
   );
-  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" }, account);
   expect(await activeTrainingRun(run.modelId, await database())).toBeNull();
   expect(await claimTrainingRun(b)).toBeNull();
   await expect(recordTrainingEpoch(run.id, epochReport(2), a)).rejects.toThrow(
     /not owned/,
   );
-  await controlTrainingRun(dataset.id, run.id, 1, {
-    action: "resume",
-    targetWorkerId: a.workerId,
-    restart: false,
-  });
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    1,
+    {
+      action: "resume",
+      targetWorkerId: a.workerId,
+      restart: false,
+    },
+    account,
+  );
   expect((await claimTrainingRun(a))?.attempt).toBe(2);
   await expect(renewTrainingRun(run.id, a)).rejects.toThrow(/not owned/);
   await expect(failTrainingRun(run.id, "late failure", a)).rejects.toThrow(
@@ -518,19 +556,31 @@ test("pause releases the model and fences the previous attempt even on the same 
     completeTrainingRun(run.id, new Uint8Array([1]), a, publication),
   ).rejects.toThrow(/not owned/);
   await expect(
-    controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" }),
+    controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" }, account),
   ).rejects.toThrow(/refresh/);
-  await controlTrainingRun(dataset.id, run.id, 2, { action: "cancel" });
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    2,
+    { action: "cancel" },
+    account,
+  );
   expect(await listTrainingAttempts(run.id, await database())).toMatchObject([
     { attempt: 2, workerId: a.workerId, outcome: "cancelled" },
     { attempt: 1, workerId: a.workerId, outcome: "paused" },
   ]);
   await expect(
-    controlTrainingRun(dataset.id, run.id, 2, {
-      action: "resume",
-      targetWorkerId: null,
-      restart: false,
-    }),
+    controlTrainingRun(
+      dataset.id,
+      run.id,
+      2,
+      {
+        action: "resume",
+        targetWorkerId: null,
+        restart: false,
+      },
+      account,
+    ),
   ).rejects.toThrow(/Only paused or failed/);
 });
 
@@ -538,7 +588,7 @@ test("local progress pins resume to its worker, while explicit restart can move"
   const dataset = await trainingDataset("local-training");
   const a = await trainer("local-a");
   const b = await trainer("local-b");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   await claimTrainingRun(a);
   await enterTrainingPhase(run.id, "training", a);
   const reported = await recordTrainingEpoch(run.id, epochReport(1), a);
@@ -547,39 +597,187 @@ test("local progress pins resume to its worker, while explicit restart can move"
     epoch: 1,
     workerId: a.workerId,
   });
-  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" }, account);
   await expect(
-    controlTrainingRun(dataset.id, run.id, 1, {
-      action: "resume",
-      targetWorkerId: b.workerId,
-      restart: false,
-    }),
+    controlTrainingRun(
+      dataset.id,
+      run.id,
+      1,
+      {
+        action: "resume",
+        targetWorkerId: b.workerId,
+        restart: false,
+      },
+      account,
+    ),
   ).rejects.toThrow(/original worker/);
-  await controlTrainingRun(dataset.id, run.id, 1, {
-    action: "resume",
-    targetWorkerId: null,
-    restart: false,
-  });
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    1,
+    {
+      action: "resume",
+      targetWorkerId: null,
+      restart: false,
+    },
+    account,
+  );
   expect(await claimTrainingRun(b)).toBeNull();
   const resumed = await claimTrainingRun(a);
   expect(resumed?.attempt).toBe(2);
   expect(resumed?.checkpoint).toEqual(reported.checkpoint);
-  await controlTrainingRun(dataset.id, run.id, 2, { action: "pause" });
-  await controlTrainingRun(dataset.id, run.id, 2, {
-    action: "resume",
-    targetWorkerId: b.workerId,
-    restart: true,
-  });
+  await controlTrainingRun(dataset.id, run.id, 2, { action: "pause" }, account);
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    2,
+    {
+      action: "resume",
+      targetWorkerId: b.workerId,
+      restart: true,
+    },
+    account,
+  );
   const restarted = await claimTrainingRun(b);
   expect(restarted?.checkpoint).toBeNull();
   expect(restarted?.state.status).toBe("running");
-  await controlTrainingRun(dataset.id, run.id, 3, { action: "cancel" });
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    3,
+    { action: "cancel" },
+    account,
+  );
+});
+
+test("a personal worker trains only the runs its owner sends it", async () => {
+  const dataset = await trainingDataset("personal-training");
+  const { user: laptopOwner } = await signInAs("member");
+  const { user: other } = await signInAs("member");
+  await enrollWorker("personal-laptop", laptopOwner.id);
+  const laptop = await trainer("personal-laptop");
+  const shared = await trainer("personal-shared");
+
+  const unaddressed = await createTrainingRun(
+    dataset.id,
+    recipe,
+    null,
+    account,
+  );
+  expect(await claimTrainingRun(laptop)).toBeNull();
+  expect((await claimTrainingRun(shared))?.id).toBe(unaddressed.id);
+  await controlTrainingRun(
+    dataset.id,
+    unaddressed.id,
+    1,
+    { action: "cancel" },
+    account,
+  );
+
+  await expect(
+    createTrainingRun(dataset.id, recipe, laptop.workerId, other.id),
+  ).rejects.toBeInstanceOf(WorkerOwnerConflictError);
+  const sent = await createTrainingRun(
+    dataset.id,
+    recipe,
+    laptop.workerId,
+    laptopOwner.id,
+  );
+  expect(await claimTrainingRun(shared)).toBeNull();
+  expect((await claimTrainingRun(laptop))?.id).toBe(sent.id);
+
+  await controlTrainingRun(
+    dataset.id,
+    sent.id,
+    1,
+    { action: "pause" },
+    account,
+  );
+  const resume = { action: "resume", targetWorkerId: null } as const;
+  await expect(
+    controlTrainingRun(
+      dataset.id,
+      sent.id,
+      1,
+      { ...resume, restart: false },
+      other.id,
+    ),
+  ).rejects.toBeInstanceOf(WorkerOwnerConflictError);
+  await controlTrainingRun(
+    dataset.id,
+    sent.id,
+    1,
+    { ...resume, restart: false },
+    laptopOwner.id,
+  );
+  expect((await claimTrainingRun(laptop))?.attempt).toBe(2);
+
+  await controlTrainingRun(
+    dataset.id,
+    sent.id,
+    2,
+    { action: "pause" },
+    account,
+  );
+  await controlTrainingRun(
+    dataset.id,
+    sent.id,
+    2,
+    { ...resume, restart: true },
+    other.id,
+  );
+  expect(await claimTrainingRun(laptop)).toBeNull();
+  expect((await claimTrainingRun(shared))?.id).toBe(sent.id);
+  await controlTrainingRun(
+    dataset.id,
+    sent.id,
+    3,
+    { action: "cancel" },
+    account,
+  );
+});
+
+test("a run sent to a worker stays with its sender when the worker's name changes hands", async () => {
+  const { user: first } = await signInAs("member");
+  const { user: second } = await signInAs("member");
+  const dataset = await trainingDataset("handed-over");
+  const cancel = (run: TrainingRun) =>
+    controlTrainingRun(
+      dataset.id,
+      run.id,
+      run.attempt,
+      { action: "cancel" },
+      first.id,
+    );
+
+  for (const [name, owner] of [
+    ["handed-bench", null],
+    ["handed-laptop", first.id],
+  ] as const) {
+    await enrollWorker(name, owner);
+    await trainer(name);
+    const run = await createTrainingRun(dataset.id, recipe, name, first.id);
+    await removeWorker(name);
+    await enrollWorker(name, second.id);
+    expect(await claimTrainingRun(await trainer(name))).toBeNull();
+    await cancel(run);
+  }
+
+  const sent = await createTrainingRun(
+    dataset.id,
+    recipe,
+    "handed-laptop",
+    second.id,
+  );
+  const claimed = await claimTrainingRun(await trainer("handed-laptop"));
+  expect(claimed?.id).toBe(sent.id);
+  if (claimed) await cancel(claimed);
 });
 
 test("final artifact parts verify size and integrity before assembly and expire with the attempt", async () => {
   const dataset = await trainingDataset("artifact-parts");
   const a = await trainer("artifact-parts-a");
-  const run = await createTrainingRun(dataset.id, recipe, a.workerId);
+  const run = await createTrainingRun(dataset.id, recipe, a.workerId, account);
   await claimTrainingRun(a);
   const bytes = new Uint8Array(TRAINING_ARTIFACT_PART_BYTES + 3).fill(42);
   const upload = { bytes: bytes.length, digest: contentDigest(bytes) };
@@ -605,7 +803,7 @@ test("final artifact parts verify size and integrity before assembly and expire 
   expect(await collectTrainingArtifactParts()).not.toContain(
     artifactPartKey(run.id, 1, upload, 0),
   );
-  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" });
+  await controlTrainingRun(dataset.id, run.id, 1, { action: "pause" }, account);
   await expect(put(1, last)).rejects.toThrow(/not owned/);
   expect(await collectTrainingArtifactParts()).toContain(
     artifactPartKey(run.id, 1, upload, 0),
@@ -615,23 +813,29 @@ test("final artifact parts verify size and integrity before assembly and expire 
 test("an expired lease cannot be renewed or publish before another worker claims it", async () => {
   const dataset = await trainingDataset("expired-authority");
   const a = await trainer("expired-authority-worker");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
   await claimTrainingRun(a, new Date(Date.now() - 6 * 60_000));
   await expect(renewTrainingRun(run.id, a)).rejects.toThrow(/not owned/);
   await expect(
     completeTrainingRun(run.id, new Uint8Array([1]), a, publication),
   ).rejects.toThrow(/not owned/);
-  await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    1,
+    { action: "cancel" },
+    account,
+  );
 });
 
 test("pausing and model publication serialize to one consistent outcome", async () => {
   const dataset = await trainingDataset("pause-publication");
   const a = await trainer("pause-publication-worker");
-  const run = await createTrainingRun(dataset.id, recipe, null);
+  const run = await createTrainingRun(dataset.id, recipe, null, account);
   await claimTrainingRun(a);
   const results = await Promise.allSettled([
-    controlTrainingRun(dataset.id, run.id, 1, { action: "pause" }),
+    controlTrainingRun(dataset.id, run.id, 1, { action: "pause" }, account),
     completeTrainingRun(run.id, new Uint8Array([1]), a, publication),
   ]);
   expect(
@@ -670,7 +874,12 @@ test.each([-1, 1])(
   async (direction) => {
     const dataset = await trainingDataset(`clock-${direction}`);
     const worker = await trainer(`clock-worker-${direction}`);
-    const run = await createTrainingRun(dataset.id, recipe, worker.workerId);
+    const run = await createTrainingRun(
+      dataset.id,
+      recipe,
+      worker.workerId,
+      account,
+    );
     /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
     const at = new Date(Date.now() + direction * 24 * 60 * 60_000);
     expect((await claimTrainingRun(worker, at))?.id).toBe(run.id);
@@ -704,7 +913,13 @@ test.each([-1, 1])(
         1,
       );
     } finally {
-      await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
+      await controlTrainingRun(
+        dataset.id,
+        run.id,
+        1,
+        { action: "cancel" },
+        account,
+      );
     }
   },
 );

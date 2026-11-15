@@ -90,13 +90,13 @@ Domain error classes inherit `ValidationError` for `<subject>_invalid` or `<subj
 | inference | `detection_conflict`, `detection_outcome_invalid`, `detection_image_not_found`, `producer_mismatch`, `inference_attempt_conflict` |
 | models | `model_not_found`, `model_version_not_found`, `model_upload_not_found`, `model_name_taken`, `model_usage_conflict`, `class_invalid`, `model_publication_invalid` |
 | training | `training_run_conflict`, `training_run_not_found`, `training_artifact_invalid` |
-| workers | `worker_not_found`, `worker_name_taken`, `worker_session_conflict` |
+| workers | `worker_not_found`, `worker_name_taken`, `worker_session_conflict`, `worker_owner_conflict` |
 
 `dataset_manifest_too_large` and `class_invalid` map to `invalid_request`. Unknown manual-count and inference classes use `class_invalid`; a missing annotation image uses `image_not_found`. Assignment conflicts use `ObservationImageConflictError` (`observation_image_conflict`) and `ExperimentObservationImageConflictError` (`experiment_observation_image_conflict`).
 
 Both MCP servers report tool handler failures as `isError: true` with JSON `{ "code": "…", "message": "…" }` in text content. The MCP SDK owns argument validation before handlers run.
 
-HTTP image and weight uploads, Worker artifact parts and dataset manifest PUTs share `exactLengthBody` admission in `transport/http/upload-body.ts`. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. Browser `/api/images` refusals use `{ "error": "…" }`, with a plain-text 500 for unexpected storage failure. Transfer responses are described [below](#transfer-surface). Worker API errors are plain text: invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
+HTTP image and weight uploads, Worker artifact parts and dataset manifest PUTs share `exactLengthBody` admission in `transport/http/upload-body.ts`. A declared size above the endpoint's limit or bytes exceeding `Content-Length` return 413; the size-limit message derives from that endpoint's byte limit. Missing or invalid length returns 411, and a short body returns 400. Every `/api/agent/*` error, including upload refusals, uses `{ "error": { "code": "…", "message": "…" } }`. Browser `/api/images` refusals use `{ "error": "…" }`, with a plain-text 500 for unexpected storage failure. Transfer responses are described [below](#transfer-surface). Worker API errors are plain text: a request stating another protocol revision returns 426, an unknown token 401, a personal Worker whose owner is suspended 403, invalid detection outcomes return 422, a missing training run returns 404, and a run the caller does not own returns 409.
 
 ## Transfer surface
 
@@ -163,4 +163,4 @@ Record commands such as entering counts, moving units and creating an observatio
 
 ## Training and model delivery
 
-`list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload` and `use-model-version` expose training and model delivery through both surfaces. The [operator workflow](seedctl.md#training-and-model-delivery) describes recipes, recovery and local file uploads.
+`list-training-workers`, `start-training-run`, `get-training-run`, `list-training-runs`, `control-training-run`, `list-model-versions`, `prepare-model-upload`, `register-model-upload` and `use-model-version` expose training and model delivery through both surfaces. They act for the account behind the credential, as the workbench does for the person signed in: `list-training-workers` lists the shared Workers and that account's personal ones, each marked `personal`, and a run it starts or resumes is sent by that account. Sending or resuming a run on another account's personal Worker is refused as a `conflict` (`worker_owner_conflict` within the application). The [operator workflow](seedctl.md#training-and-model-delivery) describes recipes, recovery and local file uploads.

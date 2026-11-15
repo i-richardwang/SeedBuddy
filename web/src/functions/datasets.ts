@@ -20,10 +20,13 @@ import {
   datasetImageDetail,
   modelDatasetsDetail,
 } from "../server/queries/public";
+import { requireAccount } from "./access";
 
 export const getDatasetDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema)
-  .handler(({ data }) => datasetDetail(data.dataset));
+  .handler(async ({ data }) =>
+    datasetDetail(data.dataset, (await requireAccount()).id),
+  );
 
 /** The datasets that train a model, which its photographs may join. */
 export const getModelDatasets = createServerFn({ method: "GET" })

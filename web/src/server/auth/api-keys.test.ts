@@ -4,7 +4,7 @@ import { ApiKeyNotFoundError } from "../../domain/auth/errors";
 import { API_KEY_PREFIX } from "../../domain/auth/integrations";
 import { apiKeyHeaders, signInAs } from "../testing/auth";
 import {
-  authorizeApiKey,
+  apiKeyPrincipal,
   issueApiKey,
   listApiKeys,
   revokeApiKey,
@@ -43,16 +43,16 @@ describe("API keys", () => {
       scopes: ["transfer"],
       expiresInDays: null,
     });
-    expect(await authorizeApiKey(requestWith(issued.secret), "transfer")).toBe(
-      true,
-    );
     expect(
-      await authorizeApiKey(requestWith(issued.secret), "experiments"),
-    ).toBe(false);
-    expect(await authorizeApiKey(requestWith(null), "transfer")).toBe(false);
-    expect(await authorizeApiKey(requestWith("vf_nonsense"), "transfer")).toBe(
-      false,
-    );
+      await apiKeyPrincipal(requestWith(issued.secret), "transfer"),
+    ).toEqual({ user: user.id, client: issued.id });
+    expect(
+      await apiKeyPrincipal(requestWith(issued.secret), "experiments"),
+    ).toBeNull();
+    expect(await apiKeyPrincipal(requestWith(null), "transfer")).toBeNull();
+    expect(
+      await apiKeyPrincipal(requestWith("vf_nonsense"), "transfer"),
+    ).toBeNull();
     const [listed] = await listApiKeys(user.id);
     expect(listed?.lastUsedAt).not.toBeNull();
   });
@@ -72,8 +72,8 @@ describe("API keys", () => {
     await revokeApiKey(owner.user.id, issued.id);
     expect(await listApiKeys(owner.user.id)).toEqual([]);
     expect(
-      await authorizeApiKey(requestWith(issued.secret), "experiments"),
-    ).toBe(false);
+      await apiKeyPrincipal(requestWith(issued.secret), "experiments"),
+    ).toBeNull();
   });
 
   test("a suspended owner's keys admit nobody", async () => {
@@ -86,7 +86,7 @@ describe("API keys", () => {
     });
     await setUserStatus(admin.user, { suspended: true, user: user.id });
     expect(
-      await authorizeApiKey(requestWith(issued.secret), "experiments"),
-    ).toBe(false);
+      await apiKeyPrincipal(requestWith(issued.secret), "experiments"),
+    ).toBeNull();
   });
 });

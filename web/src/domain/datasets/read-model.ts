@@ -59,8 +59,7 @@ export interface DatasetTrainingReadiness {
   /** The model's run in progress, whichever training set feeds it. */
   active: TrainingRun | null;
   reviewedSinceLastRun: number;
-  /** The least memory among the online trainers, or null when none is online. */
-  workerMemoryBytes: number | null;
+  /** The workers the reader may send a run to. */
   workers: TrainingWorkerOverview[];
 }
 

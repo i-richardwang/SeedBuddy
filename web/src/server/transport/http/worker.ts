@@ -4,6 +4,10 @@ import type { ZodType } from "zod";
 import { failureCategory } from "../../../domain/errors";
 import { artifactUploadSchema } from "../../../domain/training/artifact";
 import {
+  WORKER_PROTOCOL,
+  WORKER_PROTOCOL_HEADER,
+} from "../../../domain/workers/protocol";
+import {
   type AttemptOwner,
   attemptClaimSchema,
 } from "../../../domain/workers/schema";
@@ -11,8 +15,12 @@ import { bearerToken } from "../../auth/public";
 import { authenticateWorker } from "../../workers/public";
 
 /** Worker protocol refusals are plain text under the actionable HTTP status. */
-export function workerFailure(message: string, status: number): Response {
-  return new Response(message, { status });
+export function workerFailure(
+  message: string,
+  status: number,
+  headers?: HeadersInit,
+): Response {
+  return new Response(message, { status, headers });
 }
 
 /** A request a worker route refuses before touching any record. */
@@ -26,15 +34,38 @@ export class WorkerRequestError extends Error {
 }
 
 /**
- * The worker API answers only to an enrolled worker's token, and hands the
- * worker it proves to the route.
+ * The refusal a request stating another protocol revision gets, or null: 426
+ * naming the revision this workbench speaks.
+ */
+function refuseOtherProtocol(request: Request): Response | null {
+  const stated = request.headers.get(WORKER_PROTOCOL_HEADER);
+  if (stated === String(WORKER_PROTOCOL)) return null;
+  return workerFailure(
+    `This workbench speaks worker protocol ${WORKER_PROTOCOL}, not ${stated ?? "none"}; install the worker package it ships`,
+    426,
+    { Upgrade: `seedbuddy-worker/${WORKER_PROTOCOL}` },
+  );
+}
+
+/**
+ * The worker API answers only to a process that speaks this workbench's
+ * protocol revision and presents an enrolled worker's token, and hands the
+ * worker it proves to the route. A personal worker is refused while its
+ * owner's account is suspended.
  */
 export const requireEnrolledWorker = createMiddleware().server(
   async ({ request, next }) => {
+    const refusal = refuseOtherProtocol(request);
+    if (refusal) return refusal;
     const token = bearerToken(request);
-    const workerId = token ? await authenticateWorker(token) : null;
-    if (!workerId) return workerFailure("Unknown worker token", 401);
-    return next({ context: { workerId } });
+    const worker = token ? await authenticateWorker(token) : null;
+    if (!worker) return workerFailure("Unknown worker token", 401);
+    if (worker.suspended)
+      return workerFailure(
+        "The account this worker belongs to is suspended; start the worker again once the account is reinstated",
+        403,
+      );
+    return next({ context: { workerId: worker.workerId } });
   },
 );
 

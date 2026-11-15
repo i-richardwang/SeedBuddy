@@ -1,6 +1,6 @@
 # Accounts
 
-Everyone signs in with an email address and password; there is no self-service sign-up. Accounts hold one of two roles: administrators maintain the account directory under Users, and members use the workbench. Every user changes their own password under Account; administrators reset passwords for other accounts under Users. Suspending an account ends its sessions and refuses sign-in until it is reinstated; deleting one removes the account and its sessions and leaves experiment records untouched.
+Everyone signs in with an email address and password; there is no self-service sign-up. Accounts hold one of two roles: administrators maintain the account directory under Users, and members use the workbench. Every user changes their own password under Account; administrators reset passwords for other accounts under Users. Suspending an account ends its sessions and refuses sign-in and the tokens of its [personal Workers](seedctl.md#workers) until it is reinstated; deleting one removes the account, its sessions and its personal Workers and leaves experiment records untouched.
 
 Bootstrap credentials and the public origin are configured in the shared authentication block of [the environment example](../.env.example).
 

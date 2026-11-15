@@ -1,8 +1,12 @@
 import { eq } from "drizzle-orm";
 
+import type { WorkbenchUser } from "../../domain/auth/schema";
 import { workerPresence } from "../../domain/workers/presence";
 import type { WorkerPresenceDetail } from "../../domain/workers/read-model";
-import type { WorkerActivity } from "../../domain/workers/schema";
+import {
+  removesWorker,
+  type WorkerActivity,
+} from "../../domain/workers/schema";
 import { attemptIsActive } from "../inference/public";
 import { type Executor, operationTime, snapshot } from "../infra/db/client";
 import {
@@ -86,10 +90,13 @@ async function trainingActivity(
 }
 
 /**
- * Every enrolled worker with its latest session: presence, what it is doing,
- * and how long ago it was heard from. A worker that never connected has none.
+ * Every enrolled worker as the reader sees it: whose it is, whether the
+ * reader removes it, and its latest session: presence, what it is doing, and
+ * how long ago it was heard from. A worker that never connected has none.
  */
-export async function workerPresenceDetail(): Promise<WorkerPresenceDetail> {
+export async function workerPresenceDetail(
+  reader: Pick<WorkbenchUser, "id" | "role">,
+): Promise<WorkerPresenceDetail> {
   return snapshot(async (db) => {
     const at = await operationTime(db);
     const age = (timestamp: string) =>
@@ -104,18 +111,23 @@ export async function workerPresenceDetail(): Promise<WorkerPresenceDetail> {
       sessions.map((session) => [session.workerId, session]),
     );
     return {
-      workers: enrolled.map((workerId) => {
+      workers: enrolled.map(({ workerId, owner }) => {
+        const worker = {
+          workerId,
+          ownerName: owner?.name ?? null,
+          removable: removesWorker(reader, owner?.id ?? null),
+        };
         const session = sessionOf.get(workerId);
         if (!session) {
           return {
-            workerId,
+            ...worker,
             presence: "offline" as const,
             lastSeenSeconds: null,
             activity: null,
           };
         }
         return {
-          workerId,
+          ...worker,
           presence: workerPresence(session.lastSeenAt, at),
           lastSeenSeconds: age(session.lastSeenAt),
           activity: inference.get(workerId) ?? training.get(workerId) ?? null,

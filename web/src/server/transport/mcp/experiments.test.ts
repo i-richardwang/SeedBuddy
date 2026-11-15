@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { McpClientNotFoundError } from "../../../domain/auth/errors";
+import type { TrainingWorkerOverview } from "../../../domain/workers/read-model";
 import { agentOperations } from "../../agent/operations";
 import { disconnectMcpClient, listMcpClients } from "../../auth/mcp-clients";
 import { revokeUserSessions, setUserStatus } from "../../auth/users";
 import { agentHeaders, authorizeMcpClient, signInAs } from "../../testing/auth";
 import { legacyRequest, modernRequest, rpcMessage } from "../../testing/mcp";
+import { enrollWorker } from "../../workers/public";
 import { serveExperimentsMcp } from "./experiments";
 
 async function rpc(method: string, params?: unknown): Promise<unknown> {
@@ -176,6 +178,36 @@ describe("experiment MCP authorization", () => {
     expect((await call(accessToken)).status).toBe(200);
     await revokeUserSessions({ user: member.user.id });
     expect((await call(accessToken)).status).toBe(401);
+  });
+
+  test("a tool call acts for the account its credential belongs to", async () => {
+    const offered = async (token: string) => {
+      const response = await serveExperimentsMcp(
+        modernRequest(
+          endpoint(),
+          "tools/call",
+          { name: "list-training-workers", arguments: {} },
+          token,
+        ),
+      );
+      const { structuredContent } = (await rpcMessage(response)).result as {
+        structuredContent: TrainingWorkerOverview[];
+      };
+      return structuredContent.filter(
+        (worker) => worker.workerId === "mcp-laptop",
+      );
+    };
+    const owner = await signInAs("member");
+    const other = await signInAs("member");
+    await enrollWorker("mcp-laptop", owner.user.id);
+
+    const { accessToken } = await authorizeMcpClient(owner.headers);
+    expect(await offered(accessToken)).toEqual([
+      { workerId: "mcp-laptop", online: false, personal: true },
+    ]);
+    expect(
+      await offered((await authorizeMcpClient(other.headers)).accessToken),
+    ).toEqual([]);
   });
 
   test("a forged token is refused", async () => {
