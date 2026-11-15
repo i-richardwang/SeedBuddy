@@ -3,7 +3,7 @@ name = "seedctl"
 version = "0.1.0"
 description = "Operator CLI and native Worker runtime for a SeedBuddy workbench"
 readme = "docs/seedctl.md"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [{ name = "Richard Wang" }]
 keywords = ["seed-germination", "seed-counting", "object-detection", "yolo", "worker"]

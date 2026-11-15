@@ -3,7 +3,8 @@ name = "seedbuddy"
 version = "0.2.0"
 description = "Prepare culture-dish photographs for a SeedBuddy workbench"
 readme = "README.md"
-license = "MIT"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [{ name = "Richard Wang" }]
 keywords = ["seed-germination", "culture-dish", "photography", "focus"]
 classifiers = [
