@@ -6,3 +6,4 @@ src/routeTree.gen.ts
 .pglite/
 
 src/paraglide/
+worker-package/

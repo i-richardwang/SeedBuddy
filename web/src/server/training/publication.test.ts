@@ -5,6 +5,7 @@ import { listBlobs } from "../infra/blobs/store";
 import { database } from "../infra/db/client";
 import { modelUploads, trainingRuns } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
+import { signInAs } from "../testing/auth";
 import { trainingBundle } from "../testing/model-bundle";
 import {
   publication,
@@ -18,10 +19,18 @@ import { completeTrainingRun } from "./publication";
 import { claimTrainingRun, createTrainingRun } from "./runs";
 import { readDatasetSnapshot } from "./snapshots";
 
+/** The account that sends this file's runs. */
+const account = (await signInAs("member")).user.id;
+
 async function preparedPublication(name: string) {
   const dataset = await trainingDataset(name);
   const owner = await trainer(`${name}-worker`);
-  const run = await createTrainingRun(dataset.id, recipe, owner.workerId);
+  const run = await createTrainingRun(
+    dataset.id,
+    recipe,
+    owner.workerId,
+    account,
+  );
   expect((await claimTrainingRun(owner))?.id).toBe(run.id);
   const db = await database();
   const snapshot = (await readDatasetSnapshot(run.datasetSnapshotId, db))!;
@@ -69,15 +78,27 @@ test.each([
       reason === "paused" ||
       reason === "superseded"
     ) {
-      await controlTrainingRun(dataset.id, run.id, 1, {
-        action: reason === "cancelled" ? "cancel" : "pause",
-      });
+      await controlTrainingRun(
+        dataset.id,
+        run.id,
+        1,
+        {
+          action: reason === "cancelled" ? "cancel" : "pause",
+        },
+        account,
+      );
       if (reason === "superseded") {
-        await controlTrainingRun(dataset.id, run.id, 1, {
-          action: "resume",
-          targetWorkerId: owner.workerId,
-          restart: true,
-        });
+        await controlTrainingRun(
+          dataset.id,
+          run.id,
+          1,
+          {
+            action: "resume",
+            targetWorkerId: owner.workerId,
+            restart: true,
+          },
+          account,
+        );
         expect((await claimTrainingRun(owner))?.attempt).toBe(2);
       }
     } else if (reason === "expired") {
@@ -99,6 +120,7 @@ test.each([
         run.id,
         reason === "superseded" ? 2 : 1,
         { action: "cancel" },
+        account,
       );
     }
   },
@@ -135,7 +157,13 @@ test("a bundle must find the classes its snapshot froze", async () => {
   await expect(completeTrainingRun(run.id, fewer, owner)).rejects.toThrow(
     /classes the snapshot froze/,
   );
-  await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    1,
+    { action: "cancel" },
+    account,
+  );
 });
 
 test("a bundle must read in the mode its snapshot was framed for", async () => {
@@ -149,5 +177,11 @@ test("a bundle must read in the mode its snapshot was framed for", async () => {
   await expect(completeTrainingRun(run.id, framed, owner)).rejects.toThrow(
     /dish mode; the snapshot was framed for whole_image/,
   );
-  await controlTrainingRun(dataset.id, run.id, 1, { action: "cancel" });
+  await controlTrainingRun(
+    dataset.id,
+    run.id,
+    1,
+    { action: "cancel" },
+    account,
+  );
 });

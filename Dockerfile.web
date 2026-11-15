@@ -8,6 +8,15 @@ COPY configs /app/configs
 COPY src/seedctl/image_geometry/dish-recipe.json /app/src/seedctl/image_geometry/dish-recipe.json
 RUN bun run build
 
+# The Worker package the workbench ships: seedctl built from this same source,
+# so a Worker installed from the workbench speaks its protocol revision.
+FROM ghcr.io/astral-sh/uv:0.11.28-python3.12-trixie-slim@sha256:3137a0b606f65a74ee0245f43dae219b09e8af98fc37fef20841cbceef35a646 AS worker-package
+WORKDIR /src
+COPY pyproject.toml LICENSE ./
+COPY docs/seedctl.md docs/seedctl.md
+COPY src/seedctl src/seedctl
+RUN uv build --wheel --out-dir /worker-package
+
 FROM oven/bun:1.4.0-slim@sha256:e0ee68d16ccb9927bf02aa7dd8fd4bf3369ee6d46da04faa72b05ce8bfd135f6
 WORKDIR /app/web
 ENV NODE_ENV=production
@@ -15,5 +24,6 @@ COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile --production --network-concurrency=4
 COPY --from=build /app/web/dist ./dist
 COPY web/drizzle ./drizzle
+COPY --from=worker-package /worker-package/*.whl ./worker-package/
 EXPOSE 3000
 CMD ["bun", "run", "start"]

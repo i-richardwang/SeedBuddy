@@ -44,7 +44,6 @@ def process(tmp_path: Path, monkeypatch, target) -> InferenceProcess:
         "test",
         "2026-10-27T00:00:00Z",
         (RuntimeDescriptor("traditional", "b" * 64),),
-        8192,
     )
     monkeypatch.setattr("seedctl.worker.inference_process._execute", target)
     return InferenceProcess(settings, session)

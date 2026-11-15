@@ -8,7 +8,6 @@ protocols for the work itself.
 
 from __future__ import annotations
 
-import os
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -72,26 +71,6 @@ def available_runtimes() -> tuple[RuntimeDescriptor, ...]:
     return tuple(runtimes)
 
 
-def cuda_device_index(device: str) -> int:
-    return int(device.partition(":")[2] or "0")
-
-
-def device_memory_bytes(device: str) -> int:
-    """The device memory available for inference and training.
-
-    Unified-memory Macs report Metal's recommended working set, CUDA devices
-    their total memory, and the CPU the machine's physical memory.
-    """
-    if device == "cpu":
-        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
-    import torch
-
-    if device == "mps":
-        return int(torch.mps.recommended_max_memory())
-    index = cuda_device_index(device)
-    return int(torch.cuda.mem_get_info(index)[1])
-
-
 @dataclass(frozen=True)
 class WorkerSession:
     """One process incarnation of a worker and what it can do."""
@@ -99,15 +78,13 @@ class WorkerSession:
     session_id: str
     started_at: str
     runtimes: tuple[RuntimeDescriptor, ...]
-    memory_bytes: int
 
     @classmethod
-    def create(cls, device: str | None) -> WorkerSession:
+    def create(cls) -> WorkerSession:
         return cls(
             f"session-{uuid4()}",
             datetime.now(UTC).isoformat(),
             available_runtimes(),
-            device_memory_bytes(device or "cpu"),
         )
 
     @property
@@ -124,7 +101,6 @@ class WorkerSession:
             **self.identity,
             "startedAt": self.started_at,
             "runtimes": [runtime.to_dict() for runtime in self.runtimes],
-            "memoryBytes": self.memory_bytes,
         }
 
 

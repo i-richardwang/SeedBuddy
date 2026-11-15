@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isAdmin, type WorkbenchUser } from "../auth/schema";
 import type { NamedDataset } from "../datasets/schema";
 import { resourceIdSchema } from "../identifiers/schema";
 import { runtimeDescriptorSchema } from "../inference/schema";
@@ -34,7 +35,6 @@ export type AttemptOwner = WorkerIdentity & AttemptClaim;
 export const workerReportSchema = workerSessionSchema.extend({
   startedAt: timestampSchema,
   runtimes: runtimesSchema,
-  memoryBytes: z.number().int().positive(),
 });
 
 export const workerSchema = workerReportSchema.extend({
@@ -42,8 +42,30 @@ export const workerSchema = workerReportSchema.extend({
   lastSeenAt: timestampSchema,
 });
 
-/** A worker by the name its administrator enrolled it under. */
+/** A worker by the name it was enrolled under. */
 export const workerRefSchema = z.strictObject({ workerId: resourceIdSchema });
+
+/**
+ * A worker to enroll and who it is for: everyone, or the account enrolling
+ * it. A shared worker serves both queues unasked. A personal one is its
+ * owner's computer: it detects for everyone while it runs and trains only
+ * what its owner sends it.
+ */
+export const workerEnrollmentRequestSchema = workerRefSchema.extend({
+  personal: z.boolean(),
+});
+
+/** The account a personal worker belongs to. */
+export interface WorkerOwner {
+  id: string;
+  name: string;
+}
+
+/** An enrolled worker and the account it belongs to, or null when it is shared. */
+export interface WorkerOwnership {
+  workerId: string;
+  owner: WorkerOwner | null;
+}
 
 export type WorkerActivity =
   | { kind: "inference"; subject: { digest: string; filename: string | null } }
@@ -62,6 +84,22 @@ export type Worker = z.infer<typeof workerSchema>;
 export interface EnrolledWorker {
   workerId: string;
   token: string;
+}
+
+/**
+ * Whether a worker takes the training an account sends it: a shared worker
+ * from anyone, a personal one only from the account that owns it.
+ */
+export function takesTrainingFrom(owner: string | null, user: string): boolean {
+  return owner === null || owner === user;
+}
+
+/** Whether an account removes a worker: an administrator any, an account its own. */
+export function removesWorker(
+  user: Pick<WorkbenchUser, "id" | "role">,
+  owner: string | null,
+): boolean {
+  return isAdmin(user) || owner === user.id;
 }
 
 /** Training runs on the ultralytics runtime; a worker without it only detects. */

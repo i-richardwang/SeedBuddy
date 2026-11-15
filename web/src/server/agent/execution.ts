@@ -44,14 +44,15 @@ function prepareOperation(
 
 /**
  * The execution boundary both protocol faces share: it parses the input
- * against the operation's schema, runs a command in one transaction that a
- * failure rolls back whole, classifies a failure by the domain error that
- * raised it, and checks the result against the published output contract
- * before it leaves.
+ * against the operation's schema, runs the operation for the account the
+ * caller acts for, a command in one transaction that a failure rolls back
+ * whole, classifies a failure by the domain error that raised it, and checks
+ * the result against the published output contract before it leaves.
  */
 export async function executeAgentOperation(
   name: string,
   input: unknown,
+  user: string,
 ): Promise<AgentCallResult> {
   const prepared = prepareOperation(name, input, agentOperations);
   if ("ok" in prepared) return prepared;
@@ -61,9 +62,9 @@ export async function executeAgentOperation(
     const output =
       operation.kind === "command" && operation.transaction === "operation"
         ? await transaction(async (db) =>
-            validate(await operation.handler(parsed, db)),
+            validate(await operation.handler(parsed, db, user)),
           )
-        : validate(await operation.handler(parsed));
+        : validate(await operation.handler(parsed, user));
     return { ok: true, output };
   } catch (error) {
     return classifyAgentFailure(error, operation.name);

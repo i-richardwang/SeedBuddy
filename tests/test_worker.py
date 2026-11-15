@@ -7,9 +7,10 @@ from pathlib import Path
 import httpx
 import pytest
 
+from seedctl.contracts.protocol import WORKER_PROTOCOL, WORKER_PROTOCOL_HEADER
 from seedctl.detectors.contract import RuntimeDescriptor
 from seedctl.worker import session as worker_session
-from seedctl.worker.connection import WorkerNotEnrolledError
+from seedctl.worker.connection import WorkerNotEnrolledError, WorkerProtocolError
 from seedctl.worker.service import Worker
 from seedctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSettings
 
@@ -23,9 +24,14 @@ class Workbench:
     def __init__(self) -> None:
         self.calls: list[str] = []
         self.enrolled = True
+        self.protocol = WORKER_PROTOCOL
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.calls.append(request.url.path)
+        if request.headers.get(WORKER_PROTOCOL_HEADER) != str(self.protocol):
+            return httpx.Response(
+                426, text=f"This workbench speaks worker protocol {self.protocol}"
+            )
         if not self.enrolled:
             return httpx.Response(401)
         if request.url.path == "/api/worker/heartbeat":
@@ -41,7 +47,6 @@ def _worker(
     tmp_path: Path, monkeypatch, runtimes: tuple[RuntimeDescriptor, ...]
 ) -> tuple[Worker, Workbench]:
     monkeypatch.setattr(worker_session, "available_runtimes", lambda: runtimes)
-    monkeypatch.setattr(worker_session, "device_memory_bytes", lambda _device: 1)
     workbench = Workbench()
     settings = WorkerSettings(
         server_url="https://example.test",
@@ -95,6 +100,21 @@ def test_a_removed_worker_stops_instead_of_retrying(
     workbench.enrolled = False
     try:
         with pytest.raises(WorkerNotEnrolledError):
+            served.serve_once(threading.Event())
+    finally:
+        served.close()
+    assert workbench.calls == ["/api/worker/heartbeat"]
+
+
+def test_a_worker_of_another_protocol_revision_stops_instead_of_retrying(
+    tmp_path: Path, monkeypatch
+) -> None:
+    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL,))
+    workbench.protocol = WORKER_PROTOCOL + 1
+    try:
+        with pytest.raises(
+            WorkerProtocolError, match=f"protocol {WORKER_PROTOCOL + 1}"
+        ):
             served.serve_once(threading.Event())
     finally:
         served.close()

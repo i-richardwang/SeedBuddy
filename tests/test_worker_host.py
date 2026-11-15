@@ -6,7 +6,13 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from seedctl.worker.connection import WorkerHttpClient, WorkerNotEnrolledError
+from seedctl.contracts.protocol import WORKER_PROTOCOL, WORKER_PROTOCOL_HEADER
+from seedctl.worker.connection import (
+    WorkerHttpClient,
+    WorkerNotEnrolledError,
+    WorkerProtocolError,
+    WorkerSuspendedError,
+)
 from seedctl.worker.host import operations as worker_host
 from seedctl.worker.host.profiles import (
     WorkerProfile,
@@ -66,6 +72,7 @@ def test_preflight_checks_the_authenticated_server_and_runtimes(
 
     assert requests[0].url.path == "/api/worker/ready"
     assert requests[0].headers["authorization"] == "Bearer training-secret"
+    assert requests[0].headers[WORKER_PROTOCOL_HEADER] == str(WORKER_PROTOCOL)
     assert "worker: trainer" in checks
     assert checks[4:] == expected
 
@@ -91,14 +98,22 @@ def test_preflight_surfaces_an_installed_but_broken_runtime(
         worker_host.preflight_profile("mac-mps", profile)
 
 
-def test_preflight_refuses_a_token_the_workbench_does_not_know(
-    tmp_path, monkeypatch
+@pytest.mark.parametrize(
+    ("refusal", "said"),
+    [
+        (httpx.Response(401), "Workers page"),
+        (httpx.Response(403, text="The account is suspended"), "is suspended"),
+        (httpx.Response(426, text="This workbench speaks worker protocol 2"), "2"),
+    ],
+)
+def test_preflight_fails_for_a_worker_the_workbench_turns_away(
+    tmp_path, monkeypatch, refusal: httpx.Response, said: str
 ) -> None:
     monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
-    _serve_ready(monkeypatch, lambda _: httpx.Response(401))
-    profile = WorkerProfile(server_url="https://example.test", token="removed")
+    _serve_ready(monkeypatch, lambda _: refusal)
+    profile = WorkerProfile(server_url="https://example.test", token="refused")
 
-    with pytest.raises(WorkerNotEnrolledError, match="Status page"):
+    with pytest.raises(RuntimeError, match=said):
         worker_host.preflight_profile("trainer", profile)
 
 
@@ -159,15 +174,25 @@ def test_profile_host_records_startup_failures_in_status_and_log(
     assert "startup failed" in (directory / "worker.log").read_text(encoding="utf-8")
 
 
-def test_an_unenrolled_worker_stops_cleanly_and_says_why(tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("refusal", "state"),
+    [
+        (WorkerNotEnrolledError(), "unenrolled"),
+        (WorkerSuspendedError("The account is suspended"), "suspended"),
+        (WorkerProtocolError("This workbench speaks protocol 2"), "incompatible"),
+    ],
+)
+def test_a_worker_the_workbench_turns_away_stops_cleanly_and_says_why(
+    tmp_path, monkeypatch, refusal: Exception, state: str
+) -> None:
     monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     save_profile(
         "trainer",
-        WorkerProfile(server_url="https://example.test", token="removed"),
+        WorkerProfile(server_url="https://example.test", token="refused"),
     )
 
     def refused(_settings, *, on_ready) -> None:
-        raise WorkerNotEnrolledError
+        raise refusal
 
     monkeypatch.setattr(worker_host, "run_worker", refused)
 
@@ -176,8 +201,7 @@ def test_an_unenrolled_worker_stops_cleanly_and_says_why(tmp_path, monkeypatch) 
     status = json.loads(
         (profile_directory("trainer") / "status.json").read_text(encoding="utf-8")
     )
-    assert status["state"] == "unenrolled"
-    assert "Status page" in status["detail"]
+    assert status == {"state": state, "detail": str(refusal)}
 
 
 def _status_profile(name: str, state: str, **document: object) -> None:

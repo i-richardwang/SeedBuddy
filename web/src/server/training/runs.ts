@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, desc, eq, gt, inArray, isNull, not, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, not, or } from "drizzle-orm";
 
 import { DatasetNotFoundError } from "../../domain/datasets/errors";
 import {
@@ -39,7 +39,7 @@ import { latestTrainingEpoch, saveTrainingEpoch } from "./epochs";
 import { toTrainingRun } from "./records";
 import { ownershipConflict, requireTrainingRun } from "./runs-access";
 import { createDatasetSnapshot } from "./snapshots";
-import { validateTrainingTarget } from "./targets";
+import { sentToWorker, validateTrainingTarget } from "./targets";
 
 const MESSAGE_LIMIT = 2000;
 const LEASE_MILLISECONDS = 5 * 60 * 1000;
@@ -222,13 +222,18 @@ export async function activeTrainingRun(
   return row ? toTrainingRun(row) : null;
 }
 
+/**
+ * Freezes the dataset into a snapshot and queues one run of the recipe, for
+ * any shared worker or for the worker named, as sent by the user.
+ */
 export async function createTrainingRun(
   datasetId: string,
   recipe: TrainingRecipe,
   targetWorkerId: string | null,
+  user: string,
 ): Promise<TrainingRun> {
-  await validateTrainingTarget(targetWorkerId);
   return transaction(async (db) => {
+    await validateTrainingTarget(targetWorkerId, user, db);
     const dataset = await readDataset(datasetId, db);
     if (!dataset)
       throw new DatasetNotFoundError(`Unknown dataset: ${datasetId}`);
@@ -251,6 +256,7 @@ export async function createTrainingRun(
           createdAt: at,
           attempt: 0,
           targetWorkerId,
+          senderId: user,
           recipe,
           ...stateColumns({ status: "queued" }),
         })
@@ -264,7 +270,8 @@ export async function createTrainingRun(
 /**
  * Leases the oldest claimable run to a worker session. A live session gets its
  * run back idempotently; a run whose lease no longer holds starts a fresh
- * attempt under whichever session claims it first.
+ * attempt under whichever session claims it first. A worker claims only the
+ * runs sent to it.
  */
 export async function claimTrainingRun(
   owner: WorkerIdentity,
@@ -304,10 +311,7 @@ export async function claimTrainingRun(
       .from(trainingRuns)
       .where(
         and(
-          or(
-            isNull(trainingRuns.targetWorkerId),
-            eq(trainingRuns.targetWorkerId, owner.workerId),
-          ),
+          sentToWorker(owner.workerId),
           or(
             eq(trainingRuns.status, "queued"),
             and(

@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=https://schema.zeabur.app/template.json
 #
 # Deploys the SeedBuddy server side: workbench, maintenance, Postgres and the
-# S3-compatible store. Workers hold the GPUs and stay outside Zeabur; an
-# administrator enrolls each one on the workbench's Workers page.
+# S3-compatible store. Workers hold the GPUs and stay outside Zeabur; each is
+# enrolled on the workbench's Workers page.
 #
 # The Zeabur GitHub App needs access to the source repository.
 apiVersion: zeabur.com/v1

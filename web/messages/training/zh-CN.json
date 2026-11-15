@@ -161,8 +161,12 @@
   "training_worker_auto": "自动分配",
   "training_worker_lost": "{worker} 已失去联系",
   "training_worker_offline": "{worker} · 离线",
+  "training_worker_personal": "{worker} · 个人",
+  "training_worker_personal_hint": "只有这台电脑未休眠、计算节点在运行时，训练才会进行。",
+  "training_worker_personal_offline": "{worker} · 个人 · 离线",
   "training_worker_resume_local": "续训使用 {worker} 上的本地文件。文件丢失时，需要从头训练。",
+  "training_worker_resume_unavailable": "已保存的进度在 {worker} 上，你不能把训练指定给它。请从头开始，改用其他计算节点。",
   "training_worker_running": "在 {worker} 上运行",
-  "training_worker_unavailable": "没有在线的训练计算节点",
+  "training_worker_unavailable": "没有在线的共用训练计算节点",
   "training_worker_waiting": "等待 {worker} 领取"
 }

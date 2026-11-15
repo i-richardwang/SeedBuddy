@@ -8,10 +8,14 @@ import { database } from "../infra/db/client";
 import { models } from "../infra/db/schema";
 import { createModel } from "../models/public";
 import { readModel } from "../models/registry";
+import { signInAs } from "../testing/auth";
 import { type AgentOperation, command, query } from "./definition";
 import { executeAgentOperation } from "./execution";
 import { agentOperations } from "./operations";
 import { failure } from "./testing";
+
+/** The account these calls act for. */
+const account = (await signInAs("member")).user.id;
 
 async function executeWithRegistry(
   name: string,
@@ -22,7 +26,7 @@ async function executeWithRegistry(
     registry.get(key),
   );
   try {
-    return await executeAgentOperation(name, input);
+    return await executeAgentOperation(name, input, account);
   } finally {
     get.mockRestore();
   }
@@ -36,48 +40,64 @@ function registryOf(
 
 describe("agent execution", () => {
   test("an unknown operation names the known ones", async () => {
-    const result = await executeAgentOperation("open-portal", {});
+    const result = await executeAgentOperation("open-portal", {}, account);
     expect(failure(result).code).toBe("not_found");
     expect(failure(result).message).toContain("list-experiments");
   });
 
   test("prototype members are not operations", async () => {
     for (const name of ["toString", "constructor", "__proto__"]) {
-      expect(failure(await executeAgentOperation(name, {})).code).toBe(
+      expect(failure(await executeAgentOperation(name, {}, account)).code).toBe(
         "not_found",
       );
     }
   });
 
   test("invalid input reports validation, not a defect", async () => {
-    const result = await executeAgentOperation("create-experiment", {
-      name: "",
-    });
+    const result = await executeAgentOperation(
+      "create-experiment",
+      {
+        name: "",
+      },
+      account,
+    );
     expect(failure(result).code).toBe("invalid_request");
     expect(failure(result).message).toContain("Experiment name is required");
   });
 
   test("a missing record answers not found, not an empty success", async () => {
     const absent = crypto.randomUUID();
-    const read = await executeAgentOperation("get-experiment", {
-      experiment: absent,
-    });
+    const read = await executeAgentOperation(
+      "get-experiment",
+      {
+        experiment: absent,
+      },
+      account,
+    );
     expect(failure(read)).toEqual({
       code: "not_found",
       message: `Unknown experiment: ${absent}`,
     });
 
-    const created = await executeAgentOperation("create-experiment", {
-      name: `Orphan ${crypto.randomUUID()}`,
-      inoculatedOn: "2026-08-01",
-      treatments: [{ name: "T1", replicates: 1 }],
-    });
+    const created = await executeAgentOperation(
+      "create-experiment",
+      {
+        name: `Orphan ${crypto.randomUUID()}`,
+        inoculatedOn: "2026-08-01",
+        treatments: [{ name: "T1", replicates: 1 }],
+      },
+      account,
+    );
     if (!created.ok) throw new Error(created.message);
-    const observe = await executeAgentOperation("create-observation", {
-      experiment: (created.output as { id: string }).id,
-      observedOn: "2026-08-01",
-      modelId: "nobody",
-    });
+    const observe = await executeAgentOperation(
+      "create-observation",
+      {
+        experiment: (created.output as { id: string }).id,
+        observedOn: "2026-08-01",
+        modelId: "nobody",
+      },
+      account,
+    );
     expect(failure(observe).code).toBe("not_found");
     expect(failure(observe).message).toContain("Unknown model");
   });
@@ -205,11 +225,11 @@ describe("agent execution", () => {
       inoculatedOn: "2026-09-01",
       treatments: [{ name: "T1", replicates: 1 }],
     };
-    expect((await executeAgentOperation("create-experiment", input)).ok).toBe(
-      true,
-    );
     expect(
-      await executeAgentOperation("create-experiment", input),
+      (await executeAgentOperation("create-experiment", input, account)).ok,
+    ).toBe(true);
+    expect(
+      await executeAgentOperation("create-experiment", input, account),
     ).toMatchObject({ ok: false, code: "conflict" });
   });
 });
@@ -260,9 +280,9 @@ test("model commands roll back writes when their output contract fails", async (
   }
 });
 
-test("queries and service-owned commands receive no operation db", async () => {
+test("queries and service-owned commands receive the acting account and no operation db", async () => {
   const handler = async (...args: unknown[]) => {
-    expect(args).toEqual([{}]);
+    expect(args).toEqual([{}, account]);
     return null;
   };
   const input = z.strictObject({});

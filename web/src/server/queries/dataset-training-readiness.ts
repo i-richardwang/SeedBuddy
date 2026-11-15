@@ -10,7 +10,6 @@ import {
   latestTrainingRun,
   readDatasetSnapshot,
 } from "../training/public";
-import { listOnlineTrainers } from "../workers/public";
 import { listTrainingWorkerOverviews } from "./list-training-worker-overviews";
 
 /**
@@ -51,25 +50,23 @@ function boxes(annotation: AnnotationDocument): string {
 
 /**
  * Readiness is the dataset's own; the active run is the model's, because one
- * run at a time trains a model whichever dataset feeds it.
+ * run at a time trains a model whichever dataset feeds it. The workers are
+ * the ones the user may send a run to.
  */
 export async function datasetTrainingReadiness(
   dataset: Dataset,
   records: ImageRecord[],
+  user: string,
   at: Date,
   db: Executor,
 ): Promise<DatasetTrainingReadiness> {
-  const [online, active, latest] = await Promise.all([
-    listOnlineTrainers(at, db),
+  const [active, latest] = await Promise.all([
     activeTrainingRun(dataset.modelId, db),
     latestTrainingRun(dataset.id, db),
   ]);
   return {
     active,
-    workers: await listTrainingWorkerOverviews(at, db),
+    workers: await listTrainingWorkerOverviews(user, at, db),
     reviewedSinceLastRun: await reviewedSinceLastRun(records, latest, db),
-    workerMemoryBytes: online.length
-      ? Math.min(...online.map((worker) => worker.memoryBytes))
-      : null,
   };
 }

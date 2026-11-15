@@ -1,5 +1,6 @@
 import {
   createMcpHandler,
+  type McpRequestContext,
   McpServer,
   type ToolAnnotations,
 } from "@modelcontextprotocol/server";
@@ -10,7 +11,7 @@ import {
   agentOperations,
   executeAgentOperation,
 } from "../../agent/public";
-import { guardMcpRequest, serveAuthorized } from "./access";
+import { admittedAccount, guardMcpRequest, serveAuthorized } from "./access";
 import { mcpErrorContent } from "./errors";
 
 /**
@@ -23,7 +24,9 @@ function toolAnnotations(operation: AgentOperation): ToolAnnotations {
     : { destructiveHint: operation.destructive, openWorldHint: false };
 }
 
-function buildServer(): McpServer {
+/** Every tool runs for the account the request's credential acts for. */
+function buildServer({ authInfo }: McpRequestContext): McpServer {
+  const user = admittedAccount(authInfo);
   const server = new McpServer({
     name: "seedbuddy-experiments",
     version: packageJson.version,
@@ -38,7 +41,7 @@ function buildServer(): McpServer {
         annotations: toolAnnotations(operation),
       },
       async (args) => {
-        const outcome = await executeAgentOperation(operation.name, args);
+        const outcome = await executeAgentOperation(operation.name, args, user);
         if (!outcome.ok) {
           return mcpErrorContent(outcome);
         }
@@ -60,8 +63,6 @@ const experimentsMcpHandler = createMcpHandler(buildServer, {
 export async function serveExperimentsMcp(request: Request): Promise<Response> {
   return (
     guardMcpRequest(request) ??
-    serveAuthorized("experiments", request, (accepted) =>
-      experimentsMcpHandler.fetch(accepted),
-    )
+    serveAuthorized("experiments", request, experimentsMcpHandler)
   );
 }

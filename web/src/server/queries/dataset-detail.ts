@@ -16,6 +16,7 @@ import { listTrainingRunOverviews } from "./list-training-run-overviews";
 
 export async function datasetDetail(
   datasetId: string,
+  user: string,
   suppliedAt?: Date,
 ): Promise<DatasetDetail | null> {
   return snapshot(async (db) => {
@@ -29,7 +30,7 @@ export async function datasetDetail(
       model,
       images: records.map(summarizeDatasetImage),
       reviewedCount: countReviewedDatasetImages(records),
-      training: await datasetTrainingReadiness(dataset, records, at, db),
+      training: await datasetTrainingReadiness(dataset, records, user, at, db),
       trainingPresets: TRAINING_PRESETS,
       defaultTrainingPresetId: DEFAULT_TRAINING_PRESET_ID,
       runs: await listTrainingRunOverviews({ datasetId: dataset.id }, db),

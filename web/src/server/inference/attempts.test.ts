@@ -322,7 +322,7 @@ test("expired attempts do not appear as active recognition on the status page", 
     later(1),
   );
   expect(
-    (await workerPresenceDetail()).workers.find(
+    (await workerPresenceDetail({ id: "reader", role: "member" })).workers.find(
       (w) => w.workerId === o.workerId,
     )?.activity,
   ).toBeNull();

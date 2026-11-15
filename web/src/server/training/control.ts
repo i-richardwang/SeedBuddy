@@ -20,15 +20,18 @@ import {
 import { readDatasetSnapshot } from "./snapshots";
 import { validateTrainingTarget } from "./targets";
 
-/** Control and worker writes serialize on the task, making revocation immediate. */
+/**
+ * Control and worker writes serialize on the task, making revocation
+ * immediate. The user is the account that asks; a resume sends the run to a
+ * worker again, with that user as its sender.
+ */
 export async function controlTrainingRun(
   datasetId: string,
   runId: string,
   expectedAttempt: number,
   control: TrainingControl,
+  user: string,
 ): Promise<TrainingRun> {
-  if (control.action === "resume")
-    await validateTrainingTarget(control.targetWorkerId);
   return transaction(async (db) => {
     const run = await lockTrainingRun(runId, db);
     const at = await operationTime(db);
@@ -61,12 +64,15 @@ export async function controlTrainingRun(
         throw new TrainingRunConflictError(
           `Training run ${active.id} is still active for ${run.modelId}`,
         );
+      const targetWorkerId = control.restart
+        ? control.targetWorkerId
+        : (localWorker ?? control.targetWorkerId);
+      await validateTrainingTarget(targetWorkerId, user, db);
       await db
         .update(trainingRuns)
         .set({
-          targetWorkerId: control.restart
-            ? control.targetWorkerId
-            : (localWorker ?? control.targetWorkerId),
+          targetWorkerId,
+          senderId: user,
           ...(control.restart ? { checkpoint: null } : {}),
           lastProgressAt: null,
         })

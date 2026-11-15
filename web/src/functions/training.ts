@@ -14,14 +14,17 @@ import {
   controlTrainingRun,
   createTrainingRun as createTrainingRunService,
 } from "../server/training/public";
+import { requireAccount } from "./access";
 
 export const getTrainingRunDetail = createServerFn({ method: "GET" })
   .validator(datasetRefSchema.extend({ runId: resourceIdSchema }))
-  .handler(({ data }) => trainingRunDetail(data.dataset, data.runId));
+  .handler(async ({ data }) =>
+    trainingRunDetail(data.dataset, data.runId, (await requireAccount()).id),
+  );
 
 /**
  * Freezes the reviewed annotations into a snapshot and queues one training run
- * of the recipe with the chosen parameters.
+ * of the recipe with the chosen parameters, as the signed-in account.
  */
 export const createTrainingRun = createServerFn({ method: "POST" })
   .validator(
@@ -31,11 +34,12 @@ export const createTrainingRun = createServerFn({ method: "POST" })
       targetWorkerId: resourceIdSchema.nullable(),
     }),
   )
-  .handler(({ data }) =>
+  .handler(async ({ data }) =>
     createTrainingRunService(
       data.dataset,
       resolveTrainingRecipe(data.presetId, data.overrides),
       data.targetWorkerId,
+      (await requireAccount()).id,
     ),
   );
 
@@ -47,6 +51,12 @@ export const updateTrainingRun = createServerFn({ method: "POST" })
       control: trainingControlSchema,
     }),
   )
-  .handler(({ data }) =>
-    controlTrainingRun(data.dataset, data.runId, data.attempt, data.control),
+  .handler(async ({ data }) =>
+    controlTrainingRun(
+      data.dataset,
+      data.runId,
+      data.attempt,
+      data.control,
+      (await requireAccount()).id,
+    ),
   );

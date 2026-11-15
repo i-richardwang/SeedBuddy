@@ -1,6 +1,7 @@
 import type { JWTPayload } from "better-auth";
 import { and, eq, gt } from "drizzle-orm";
 
+import type { Principal } from "../../domain/auth/integrations";
 import { database, operationTime } from "../infra/db/client";
 import {
   oauthClients,
@@ -20,16 +21,17 @@ function mcpClientId(claims: JWTPayload): string | null {
 }
 
 /**
- * Whether a verified MCP JWT still stands for a live authorization. The
- * token's audience already names the server it opens; what can lapse is the
- * account, the client, the consent and the browser session behind it.
+ * The account and MCP client a verified JWT acts for, or null once its
+ * authorization is no longer live. The token's audience already names the
+ * server it opens; what can lapse is the account, the client, the consent and
+ * the browser session behind it.
  */
-export async function mcpAuthorizationIsLive(
+export async function mcpClientPrincipal(
   claims: JWTPayload,
-): Promise<boolean> {
+): Promise<Principal | null> {
   const userId = stringClaim(claims, "sub");
   const clientId = mcpClientId(claims);
-  if (!userId || !clientId) return false;
+  if (!userId || !clientId) return null;
 
   const db = await database();
   const [authorization] = await db
@@ -47,11 +49,11 @@ export async function mcpAuthorizationIsLive(
       ),
     );
   if (!authorization || authorization.banned || authorization.clientDisabled) {
-    return false;
+    return null;
   }
 
   const sessionId = stringClaim(claims, "sid");
-  if (!sessionId) return false;
+  if (!sessionId) return null;
   const [session] = await db
     .select({ id: sessions.id })
     .from(sessions)
@@ -62,5 +64,5 @@ export async function mcpAuthorizationIsLive(
         gt(sessions.expiresAt, await operationTime(db)),
       ),
     );
-  return session !== undefined;
+  return session ? { user: userId, client: clientId } : null;
 }

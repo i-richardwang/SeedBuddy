@@ -209,8 +209,6 @@ const annotationMcpHandler = createMcpHandler(buildServer, {
 export async function serveAnnotationMcp(request: Request): Promise<Response> {
   return (
     guardMcpRequest(request) ??
-    serveAuthorized("annotation", request, (accepted) =>
-      annotationMcpHandler.fetch(accepted),
-    )
+    serveAuthorized("annotation", request, annotationMcpHandler)
   );
 }

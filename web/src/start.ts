@@ -11,17 +11,19 @@ import { withRequestLocale } from "./server/transport/http/locale";
 import { readSession, redirect } from "./server/transport/http/session";
 
 /**
- * Paths that answer without a browser session: readiness, sign-in, the auth
- * API with its OAuth discovery documents, the agent API, which resolves the
- * account behind the API key it is given, the worker API, whose parent route
- * admits only an enrolled worker's token, and the two MCP servers, which
- * verify their credentials themselves so they can issue the discovery
- * challenge.
+ * Paths that answer without a browser session: readiness, sign-in, the
+ * worker package this workbench ships, which is installed before a worker
+ * holds any credential, the auth API with its OAuth discovery documents, the
+ * agent API, which resolves the account behind the API key it is given, the
+ * worker API, whose parent route admits only an enrolled worker's token, and
+ * the two MCP servers, which verify their credentials themselves so they can
+ * issue the discovery challenge.
  */
 function answersForItself(pathname: string): boolean {
   return (
     pathname === "/healthz" ||
     pathname === "/login" ||
+    pathname.startsWith("/worker-package/") ||
     pathname === "/api/experiments/mcp" ||
     pathname === "/api/annotation/mcp" ||
     pathname.startsWith("/api/agent/") ||

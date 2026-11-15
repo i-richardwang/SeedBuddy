@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import threading
 import time
 from contextlib import nullcontext
@@ -103,35 +102,7 @@ def _snapshot_image(
     }
 
 
-def session(memory_bytes: int) -> WorkerSession:
-    return WorkerSession(
-        "trainer-session", "2026-08-27T00:00:00.000Z", (), memory_bytes
-    )
-
-
-def test_worker_memory_capacity_follows_the_selected_device(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    pages = {"SC_PAGE_SIZE": 4096, "SC_PHYS_PAGES": 1_000_000}
-    monkeypatch.setattr(worker_session.os, "sysconf", pages.__getitem__)
-    assert worker_session.device_memory_bytes("cpu") == 4_096_000_000
-
-    cuda_devices: list[int] = []
-
-    def cuda_memory(index: int) -> tuple[int, int]:
-        cuda_devices.append(index)
-        return 8_000_000_000, 24_000_000_000
-
-    torch = SimpleNamespace(
-        mps=SimpleNamespace(recommended_max_memory=lambda: 18_000_000_000),
-        cuda=SimpleNamespace(mem_get_info=cuda_memory),
-    )
-    monkeypatch.setitem(sys.modules, "torch", torch)
-
-    assert worker_session.device_memory_bytes("mps") == 18_000_000_000
-    assert worker_session.device_memory_bytes("cuda") == 24_000_000_000
-    assert worker_session.device_memory_bytes("cuda:2") == 24_000_000_000
-    assert cuda_devices == [0, 2]
+SESSION = WorkerSession("trainer-session", "2026-08-27T00:00:00.000Z", ())
 
 
 def test_training_client_uses_its_own_control_plane_contract(tmp_path: Path) -> None:
@@ -172,7 +143,7 @@ def test_training_client_uses_its_own_control_plane_contract(tmp_path: Path) -> 
             WorkerConnection(
                 server_url="https://example.test", token="training-secret"
             ),
-            session(24 * 1024**3),
+            SESSION,
             transport=httpx.MockTransport(server),
         )
     )
@@ -190,7 +161,6 @@ def test_training_client_uses_its_own_control_plane_contract(tmp_path: Path) -> 
     finally:
         client.worker.close()
 
-    assert json.loads(requests[0].content)["memoryBytes"] == 24 * 1024**3
     assert json.loads(requests[0].content)["sessionId"] == "trainer-session"
     paths = [request.url.path for request in requests]
     assert paths[:3] == [
@@ -334,7 +304,7 @@ def test_training_client_returns_image_bytes_for_cache_verification() -> None:
     client = TrainingClient(
         WorkerClient(
             WorkerConnection(server_url="https://example.test", token="secret"),
-            session(8 * 1024**3),
+            SESSION,
             transport=httpx.MockTransport(
                 lambda _: httpx.Response(200, content=b"bad")
             ),
@@ -353,7 +323,7 @@ def test_training_client_surfaces_lease_loss() -> None:
     client = TrainingClient(
         WorkerClient(
             WorkerConnection(server_url="https://example.test", token="secret"),
-            session(8 * 1024**3),
+            SESSION,
             transport=httpx.MockTransport(
                 lambda _: httpx.Response(409, text="lease expired")
             ),
@@ -370,7 +340,7 @@ def test_claim_response_requires_a_run_object() -> None:
     client = TrainingClient(
         WorkerClient(
             WorkerConnection(server_url="https://example.test", token="secret"),
-            session(8 * 1024**3),
+            SESSION,
             transport=httpx.MockTransport(
                 lambda _: httpx.Response(200, content=json.dumps({"run": []}))
             ),
@@ -694,7 +664,7 @@ def test_training_requests_keep_the_identity_of_their_claim() -> None:
 
     worker = WorkerClient(
         WorkerConnection(server_url="https://example.test", token="secret"),
-        session(8 * 1024**3),
+        SESSION,
         transport=httpx.MockTransport(respond),
     )
     client = TrainingClient(worker)
@@ -788,7 +758,7 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
 
     worker = WorkerClient(
         WorkerConnection(server_url="https://example.test", token="secret"),
-        session(8 * 1024**3),
+        SESSION,
         transport=httpx.MockTransport(respond),
     )
     try:
@@ -841,7 +811,7 @@ def test_retry_delivers_retained_bundle_without_training_again(
 
     worker = WorkerClient(
         WorkerConnection(server_url="https://example.test", token="secret"),
-        session(8 * 1024**3),
+        SESSION,
         transport=httpx.MockTransport(respond),
     )
     images = ImageCache(tmp_path / "images")
@@ -910,7 +880,7 @@ def test_epoch_reports_no_weight_bytes_and_interruption_retains_local_state(
     monkeypatch.setattr(training_worker, "run_training_process", train)
     worker = WorkerClient(
         WorkerConnection(server_url="https://example.test", token="secret"),
-        session(8 * 1024**3),
+        SESSION,
         transport=httpx.MockTransport(respond),
     )
     images = ImageCache(tmp_path / "images")
@@ -1002,7 +972,7 @@ def test_epoch_report_rejects_invalid_metrics_before_send(precision):
 
     worker = WorkerClient(
         WorkerConnection(server_url="https://example.test", token="secret"),
-        session(8192),
+        SESSION,
         transport=httpx.MockTransport(respond),
     )
     report = EpochReport(
@@ -1041,7 +1011,7 @@ def test_publication_validates_the_document_read_from_disk(tmp_path, recipe):
 
     worker = WorkerClient(
         WorkerConnection(server_url="https://example.test", token="secret"),
-        session(8192),
+        SESSION,
         transport=httpx.MockTransport(respond),
     )
     try:
@@ -1081,7 +1051,7 @@ def test_claim_rejects_another_worker_session():
     state["sessionId"] = "another-session"
     worker = WorkerClient(
         WorkerConnection(server_url="https://example.test", token="secret"),
-        session(8192),
+        SESSION,
         transport=httpx.MockTransport(
             lambda request: httpx.Response(200, json={"run": document})
         ),

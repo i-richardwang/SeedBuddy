@@ -20,26 +20,31 @@ import { command, query } from "./definition";
 export const trainingOperations = [
   query({
     name: "list-training-workers",
-    description: "List training workers and whether they are online",
+    description:
+      "List the workers training can be sent to and whether they are online: the shared ones, and the personal ones of the account this call acts for",
     input: z.strictObject({}),
     output: z.array(
-      z.strictObject({ workerId: resourceIdSchema, online: z.boolean() }),
+      z.strictObject({
+        workerId: resourceIdSchema,
+        online: z.boolean(),
+        personal: z.boolean(),
+      }),
     ),
-    handler: () => listTrainingWorkerOverviews(),
+    handler: (_input, user) => listTrainingWorkerOverviews(user),
   }),
   command({
     transaction: "service",
     name: "start-training-run",
     description:
-      "Freeze reviewed dataset contents and queue training on an optional target worker; returns immediately with a run id. Supply the complete immutable recipe.",
+      "Freeze reviewed dataset contents and queue training on any shared worker or on the worker named, one that list-training-workers offers; returns immediately with a run id. Supply the complete immutable recipe.",
     destructive: false,
     input: datasetRefSchema.extend({
       recipe: trainingRecipeSchema,
       targetWorkerId: resourceIdSchema.nullable(),
     }),
     output: trainingRunSchema,
-    handler: ({ dataset, recipe, targetWorkerId }) =>
-      createTrainingRun(dataset, recipe, targetWorkerId),
+    handler: ({ dataset, recipe, targetWorkerId }, user) =>
+      createTrainingRun(dataset, recipe, targetWorkerId, user),
   }),
   query({
     name: "get-training-run",
@@ -67,7 +72,7 @@ export const trainingOperations = [
     transaction: "service",
     name: "control-training-run",
     description:
-      "Pause, cancel or resume a training run using the observed attempt number; resume can assign another worker or explicitly restart",
+      "Pause, cancel or resume a training run using the observed attempt number; resume can assign another worker that list-training-workers offers or explicitly restart",
     destructive: true,
     input: datasetRefSchema.extend({
       runId: resourceIdSchema,
@@ -75,7 +80,7 @@ export const trainingOperations = [
       control: trainingControlSchema,
     }),
     output: trainingRunSchema,
-    handler: ({ dataset, runId, attempt, control }) =>
-      controlTrainingRun(dataset, runId, attempt, control),
+    handler: ({ dataset, runId, attempt, control }, user) =>
+      controlTrainingRun(dataset, runId, attempt, control, user),
   }),
 ];

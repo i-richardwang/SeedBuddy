@@ -45,6 +45,7 @@
   "error_training_conflict": "当前状态无法启动或更新训练，请检查已复核的图片和进行中的训练。",
   "error_user_rejected": "此修改会影响你自己的访问权限，或导致没有可用的管理员。",
   "error_worker_name_taken": "已有同名的计算节点。",
+  "error_worker_owner_conflict": "只有归属者本人可以把训练指定给这个计算节点。",
   "experiments_label": "实验",
   "explant_type_label": "外植体类型",
   "failed_label": "失败",

@@ -13,6 +13,7 @@ import {
   apiKeySchema,
   type IssuedApiKey,
   issuedApiKeySchema,
+  type Principal,
   permissionScopes,
   scopePermissions,
 } from "../../domain/auth/integrations";
@@ -101,27 +102,29 @@ export async function revokeApiKey(user: string, id: string): Promise<void> {
 }
 
 /**
- * Whether a request's bearer API key admits it to `scope`. A request carrying
- * no key, an unknown, expired, or out-of-scope one, or a key whose owner has
- * been suspended or removed is not admitted.
+ * The account and key a request's bearer API key admits to `scope`, or null.
+ * A request carrying no key, an unknown, expired, or out-of-scope one, or a
+ * key whose owner has been suspended or removed is not admitted.
  */
-export async function authorizeApiKey(
+export async function apiKeyPrincipal(
   request: Request,
   scope: ApiScope,
-): Promise<boolean> {
+): Promise<Principal | null> {
   const secret = bearerToken(request);
-  if (!secret) return false;
+  if (!secret) return null;
   const verdict = await (
     await auth()
   ).api.verifyApiKey({
     body: { key: secret, permissions: scopePermissions([scope]) },
   });
-  if (!verdict.valid || !verdict.key) return false;
+  if (!verdict.valid || !verdict.key) return null;
   const [owner] = await (
     await database()
   )
-    .select({ banned: users.banned })
+    .select({ id: users.id, banned: users.banned })
     .from(users)
     .where(eq(users.id, verdict.key.referenceId));
-  return owner !== undefined && !owner.banned;
+  return owner && !owner.banned
+    ? { user: owner.id, client: verdict.key.id }
+    : null;
 }

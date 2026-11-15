@@ -27,13 +27,12 @@ import {
   workerPresenceTone,
 } from "./labels";
 
+/** Every enrolled Worker with whose it is, and the ones the reader removes. */
 export function WorkersTable({
   workers,
-  administers,
   empty,
 }: {
   workers: WorkerOverview[];
-  administers: boolean;
   empty: ReactNode;
 }) {
   useRouteRefresh(5000);
@@ -46,6 +45,7 @@ export function WorkersTable({
       <TableHeader>
         <tr>
           <TableHead>{m.worker_label()}</TableHead>
+          <TableHead>{m.worker_owner_label()}</TableHead>
           <TableHead className="w-28">{m.status_label()}</TableHead>
           <TableHead>{m.worker_column_activity()}</TableHead>
           <TableHead className="w-36">{m.worker_column_seen()}</TableHead>
@@ -56,27 +56,20 @@ export function WorkersTable({
       </TableHeader>
       <TableBody>
         {workers.map((worker) => (
-          <WorkerRow
-            key={worker.workerId}
-            worker={worker}
-            administers={administers}
-          />
+          <WorkerRow key={worker.workerId} worker={worker} />
         ))}
       </TableBody>
     </Table>
   );
 }
 
-function WorkerRow({
-  worker,
-  administers,
-}: {
-  worker: WorkerOverview;
-  administers: boolean;
-}) {
+function WorkerRow({ worker }: { worker: WorkerOverview }) {
   return (
     <TableRow>
       <TableCell cellSlot="title">{worker.workerId}</TableCell>
+      <TableCell cellLabel={m.worker_owner_label()}>
+        {worker.ownerName ?? m.worker_owner_shared()}
+      </TableCell>
       <TableCell cellLabel={m.status_label()}>
         <Status tone={workerPresenceTone(worker.presence)}>
           {workerPresenceLabel(worker.presence)}
@@ -94,7 +87,7 @@ function WorkerRow({
           : formatAge(worker.lastSeenSeconds)}
       </TableCell>
       <TableCell cellSlot="actions" className="text-end">
-        {administers ? <WorkerMenu workerId={worker.workerId} /> : null}
+        {worker.removable ? <WorkerMenu workerId={worker.workerId} /> : null}
       </TableCell>
     </TableRow>
   );

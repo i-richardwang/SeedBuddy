@@ -1,3 +1,7 @@
+import {
+  WORKER_PROTOCOL,
+  WORKER_PROTOCOL_HEADER,
+} from "../../../domain/workers/protocol";
 import { Route as WorkerApiRoute } from "../../../routes/api.worker";
 
 type Method = "GET" | "POST" | "PUT";
@@ -20,6 +24,13 @@ export function routeHandler(route: ServerRoute, method: Method): Handler {
   const selected = handlers?.[method];
   if (!selected) throw new Error(`Missing ${method} route handler`);
   return selected;
+}
+
+/** A request as a worker process of this workbench's protocol revision sends it. */
+export function workerRequest(url: string, init?: RequestInit): Request {
+  const headers = new Headers(init?.headers);
+  headers.set(WORKER_PROTOCOL_HEADER, String(WORKER_PROTOCOL));
+  return new Request(url, { ...init, headers });
 }
 
 /**

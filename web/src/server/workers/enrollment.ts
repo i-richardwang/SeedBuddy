@@ -1,25 +1,32 @@
 import { randomBytes } from "node:crypto";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, type SQL } from "drizzle-orm";
 
 import {
   WorkerNameTakenError,
   WorkerNotFoundError,
 } from "../../domain/workers/errors";
-import type { EnrolledWorker } from "../../domain/workers/schema";
+import type {
+  EnrolledWorker,
+  WorkerOwnership,
+} from "../../domain/workers/schema";
 import { database, type Executor, operationTime } from "../infra/db/client";
 import { refusingUnique } from "../infra/db/errors";
-import { workers } from "../infra/db/schema";
+import { users, workers } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
 
 const TOKEN_PREFIX = "vfw_";
 
 /**
- * An administrator enrolls a machine under a name and hands it the token
- * returned here. The token is the worker's identity on every request, and
- * only its hash is kept.
+ * Enrolls a machine under a name and returns the token to hand it. The token
+ * is the worker's identity on every request, and only its hash is kept. A
+ * worker without an owner is shared; one with an owner is that account's own
+ * computer.
  */
-export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
+export async function enrollWorker(
+  workerId: string,
+  owner: string | null,
+): Promise<EnrolledWorker> {
   const token = `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
   const db = await database();
   const at = await operationTime(db);
@@ -34,9 +41,21 @@ export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
         id: workerId,
         tokenHash: contentDigest(token),
         enrolledAt: at,
+        ownerId: owner,
       }),
   );
   return { workerId, token };
+}
+
+/** Removes the named worker, provided it also meets `condition`. */
+async function remove(workerId: string, condition?: SQL): Promise<void> {
+  const [removed] = await (
+    await database()
+  )
+    .delete(workers)
+    .where(and(eq(workers.id, workerId), condition))
+    .returning({ id: workers.id });
+  if (!removed) throw new WorkerNotFoundError(`No worker named ${workerId}`);
 }
 
 /**
@@ -45,34 +64,46 @@ export async function enrollWorker(workerId: string): Promise<EnrolledWorker> {
  * recovery remains bound to that worker until explicitly restarted.
  */
 export async function removeWorker(workerId: string): Promise<void> {
-  const [removed] = await (
-    await database()
-  )
-    .delete(workers)
-    .where(eq(workers.id, workerId))
-    .returning({ id: workers.id });
-  if (!removed) throw new WorkerNotFoundError(`No worker named ${workerId}`);
+  await remove(workerId);
 }
 
-/** The enrolled worker a token belongs to, or null for any other string. */
+/** Removes a personal worker of the user's; anyone else's is not found. */
+export async function removePersonalWorker(
+  user: string,
+  workerId: string,
+): Promise<void> {
+  await remove(workerId, eq(workers.ownerId, user));
+}
+
+/**
+ * What a token proves: the enrolled worker it belongs to, and whether that
+ * worker is a personal one whose owner's account is suspended; null for any
+ * other string.
+ */
 export async function authenticateWorker(
   token: string,
-): Promise<string | null> {
+): Promise<{ workerId: string; suspended: boolean } | null> {
   if (!token.startsWith(TOKEN_PREFIX)) return null;
   const [worker] = await (
     await database()
   )
-    .select({ id: workers.id })
+    .select({ workerId: workers.id, ownerBanned: users.banned })
     .from(workers)
+    .leftJoin(users, eq(users.id, workers.ownerId))
     .where(eq(workers.tokenHash, contentDigest(token)));
-  return worker?.id ?? null;
+  return worker
+    ? { workerId: worker.workerId, suspended: worker.ownerBanned === true }
+    : null;
 }
 
-/** The names of the enrolled workers, in the order they were enrolled. */
-export async function listEnrolledWorkers(db: Executor): Promise<string[]> {
-  const rows = await db
-    .select({ id: workers.id })
+/** The enrolled workers with their owners, in the order they were enrolled. */
+export function listEnrolledWorkers(db: Executor): Promise<WorkerOwnership[]> {
+  return db
+    .select({
+      workerId: workers.id,
+      owner: { id: users.id, name: users.name },
+    })
     .from(workers)
+    .leftJoin(users, eq(users.id, workers.ownerId))
     .orderBy(asc(workers.enrolledAt), asc(workers.id));
-  return rows.map((row) => row.id);
 }

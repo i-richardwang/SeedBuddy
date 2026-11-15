@@ -131,7 +131,7 @@ describe("MCP OAuth request lifecycle", () => {
       const response = await serveAuthorized(
         "experiments",
         modernRequest(endpoint, "tools/list", undefined, accessToken),
-        async () => Response.json({ label }),
+        { fetch: async () => Response.json({ label }) },
       );
       expect(await response.json()).toEqual({ label });
     }

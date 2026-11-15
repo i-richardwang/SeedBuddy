@@ -13,13 +13,18 @@ import { Text } from "../../ui/kit/Text";
 import { toast } from "../../ui/kit/Toast";
 import { ToggleGroup } from "../../ui/kit/ToggleGroup";
 import { controlRun } from "./run-control";
-import { TrainingWorkerSelect } from "./TrainingWorkerSelect";
+import {
+  TrainingWorkerSelect,
+  trainingWorkerHint,
+} from "./TrainingWorkerSelect";
 
 const FORM_ID = "resume-training";
 
 /**
  * Continues a paused run or retries a failed one, on the Worker it names;
- * a run with saved progress picks it up there unless told to start over.
+ * a run with saved progress picks it up on the Worker holding it unless told
+ * to start over, and can only start over when the person cannot send
+ * training to that Worker.
  */
 export function ResumeTrainingDialog({
   detail,
@@ -61,15 +66,18 @@ function ResumeTrainingForm({
   onDone: () => void;
 }) {
   const { run, workers } = detail;
-  const [targetWorkerId, setTargetWorkerId] = useState(run.targetWorkerId);
+  const saved = run.checkpoint;
+  const offered = (workerId: string | null) =>
+    workers.some((worker) => worker.workerId === workerId);
+  const resumable = saved !== null && offered(saved.workerId);
+  const [targetWorkerId, setTargetWorkerId] = useState(
+    offered(run.targetWorkerId) ? run.targetWorkerId : null,
+  );
   const [from, setFrom] = useState<"saved" | "start">(
-    run.checkpoint ? "saved" : "start",
+    resumable ? "saved" : "start",
   );
 
-  const workerId =
-    from === "saved"
-      ? (run.checkpoint?.workerId ?? run.targetWorkerId)
-      : targetWorkerId;
+  const workerId = from === "saved" && saved ? saved.workerId : targetWorkerId;
   return (
     <Form
       id={FORM_ID}
@@ -94,7 +102,10 @@ function ResumeTrainingForm({
         );
       }}
     >
-      <Form.Field label={m.worker_label()}>
+      <Form.Field
+        label={m.worker_label()}
+        desc={trainingWorkerHint(workers, workerId)}
+      >
         <TrainingWorkerSelect
           workers={workers}
           value={workerId}
@@ -102,12 +113,17 @@ function ResumeTrainingForm({
           disabled={action.busy || from === "saved"}
         />
       </Form.Field>
-      {from === "saved" && run.checkpoint && (
+      {from === "saved" && saved && (
         <Text size="sm" type="secondary">
-          {m.training_worker_resume_local({ worker: run.checkpoint.workerId })}
+          {m.training_worker_resume_local({ worker: saved.workerId })}
         </Text>
       )}
-      {run.checkpoint ? (
+      {saved && !resumable && (
+        <Text size="sm" type="secondary">
+          {m.training_worker_resume_unavailable({ worker: saved.workerId })}
+        </Text>
+      )}
+      {saved ? (
         <Form.Field label={m.training_resume_from()} fieldset>
           <ToggleGroup
             aria-label={m.training_resume_from()}
@@ -116,10 +132,8 @@ function ResumeTrainingForm({
             options={[
               {
                 value: "saved",
-                label: m.training_resume_from_saved({
-                  epoch: run.checkpoint.epoch,
-                }),
-                disabled: action.busy,
+                label: m.training_resume_from_saved({ epoch: saved.epoch }),
+                disabled: action.busy || !resumable,
               },
               {
                 value: "start",

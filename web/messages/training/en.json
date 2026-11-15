@@ -161,8 +161,12 @@
   "training_worker_auto": "Automatic assignment",
   "training_worker_lost": "{worker} lost contact",
   "training_worker_offline": "{worker} · offline",
+  "training_worker_personal": "{worker} · personal",
+  "training_worker_personal_hint": "Training runs only while this computer is awake and its Worker is running.",
+  "training_worker_personal_offline": "{worker} · personal · offline",
   "training_worker_resume_local": "Continue uses local files on {worker}. If they are missing, restart training.",
+  "training_worker_resume_unavailable": "Saved progress is on {worker}, which you cannot send training to. Restart training to use another Worker.",
   "training_worker_running": "Running on {worker}",
-  "training_worker_unavailable": "No training Worker is online",
+  "training_worker_unavailable": "No shared training Worker is online",
   "training_worker_waiting": "Waiting for {worker} to pick it up"
 }
