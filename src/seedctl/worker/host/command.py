@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import sys
 from typing import Any, Protocol
 
 from seedctl.worker.host.launchd import (
@@ -27,14 +28,22 @@ from seedctl.worker.host.profiles import (
 from seedctl.worker.session import DEFAULT_POLL_SECONDS
 
 
+def _read_token() -> str:
+    """The token a person types at a terminal, or a program pipes in."""
+    if sys.stdin.isatty():
+        return getpass.getpass("Worker token from the workbench: ")
+    return sys.stdin.readline().strip()
+
+
 def _setup(args: argparse.Namespace) -> int:
     replacing = profile_exists(args.profile)
     if replacing and not args.force:
         raise FileExistsError(
             f"worker profile already exists: {args.profile}; use --force to replace it"
         )
-    require_launchd()
-    token = getpass.getpass("Worker token from the workbench: ")
+    if not args.no_service:
+        require_launchd()
+    token = _read_token()
     profile = WorkerProfile(
         server_url=args.server,
         token=token,
@@ -45,6 +54,8 @@ def _setup(args: argparse.Namespace) -> int:
         print(check)
     path = save_profile(args.profile, profile)
     print(f"saved worker profile: {path}")
+    if args.no_service:
+        return 0
     if replacing:
         restart_service(args.profile)
     else:
@@ -113,7 +124,7 @@ def add_worker_commands(commands: SubparserCollection) -> None:
     worker = commands.add_parser("worker", help="Manage native Worker services")
     worker_commands = worker.add_subparsers(dest="worker_command", required=True)
     setup = worker_commands.add_parser(
-        "setup", help="Create and start a Worker profile"
+        "setup", help="Create a Worker profile and start its service"
     )
     setup.add_argument("profile")
     setup.add_argument("--server", required=True)
@@ -121,6 +132,11 @@ def add_worker_commands(commands: SubparserCollection) -> None:
     setup.add_argument("--poll-seconds", type=float, default=DEFAULT_POLL_SECONDS)
     setup.add_argument(
         "--force", action="store_true", help="Replace an existing profile"
+    )
+    setup.add_argument(
+        "--no-service",
+        action="store_true",
+        help="Save the profile without a launchd service, for `worker run`",
     )
     setup.set_defaults(handler=_setup)
 

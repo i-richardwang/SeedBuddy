@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 
 import { contentDigest } from "../../infra/digest";
-import { workerPackageResponse } from "./worker-package";
+import {
+  workerPackageDescription,
+  workerPackageResponse,
+} from "./worker-package";
 
 const content = new TextEncoder().encode("wheel bytes");
 const shipped = {
@@ -42,4 +45,14 @@ test("any other name, and a workbench that ships no package, answer 404", () => 
   expect(workerPackageResponse(null, shipped.filename, request).status).toBe(
     404,
   );
+});
+
+test("the description names the shipped package and its digest", async () => {
+  const described = workerPackageDescription(shipped);
+  expect(described.headers.get("Cache-Control")).toBe("no-cache");
+  expect(await described.json()).toEqual({
+    filename: shipped.filename,
+    digest: shipped.digest,
+  });
+  expect(workerPackageDescription(null).status).toBe(404);
 });

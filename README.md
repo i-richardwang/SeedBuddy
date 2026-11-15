@@ -12,6 +12,7 @@ SeedBuddy is a workbench for seed germination experiments. It counts the seeds i
 - **Model training**: train new detector versions from annotated images and compare them before switching.
 - **Hand counts and exclusions**: enter counts made at the bench, and leave unclear photographs or contaminated dishes out of the statistics.
 - **Statistics and export**: germination rate, mean, SD and SE by treatment and day, exported to Excel.
+- **Desktop app**: the workbench as a Mac app that makes the computer a Worker for your account while it runs, with nothing to install or enroll by hand.
 - **Photo preparation**: the [`seedbuddy`](packages/seedbuddy/README.md) CLI picks the sharpest countable photograph of each dish before upload.
 - **AI agents**: agents can keep experiment records, annotate images and run training over MCP and HTTP.
 
@@ -64,6 +65,7 @@ flowchart LR
 | --- | --- |
 | `web/` | The workbench: interface, server, database schema, Agent API and MCP servers |
 | `src/seedctl/` | `seedctl`: Workers, dataset transfer, detection and training |
+| `desktop/` | The desktop app: the workbench in a window, hosting a Worker |
 | `packages/seedbuddy/` | `seedbuddy`: photo sorting and review |
 | `docs/` | Design and reference documentation |
 
@@ -75,6 +77,7 @@ Setup, deployment and verification are covered in [Development](docs/development
 - [Readings](docs/readings.md): counts, exclusions, rates, summaries and the spreadsheet.
 - [Images](docs/images.md): canonical pixels, dish analysis and maintenance.
 - [seedctl](docs/seedctl.md): Workers, local training and model delivery.
+- [Desktop app](docs/desktop.md): the Mac app and how it serves as a Worker.
 - [seedbuddy](packages/seedbuddy/README.md): photograph sorting and review.
 - [Agent API](docs/agent-api.md): HTTP and MCP access to application operations.
 - [AI annotation](docs/ai-annotation.md): the annotation MCP server, plus the [annotator](docs/ai-annotation-prompts/annotator.md) and [coordinator](docs/ai-annotation-prompts/coordinator.md) prompts.

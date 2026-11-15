@@ -10,7 +10,12 @@ import type {
   EnrolledWorker,
   WorkerOwnership,
 } from "../../domain/workers/schema";
-import { database, type Executor, operationTime } from "../infra/db/client";
+import {
+  database,
+  type Executor,
+  operationTime,
+  transaction,
+} from "../infra/db/client";
 import { refusingUnique } from "../infra/db/errors";
 import { users, workers } from "../infra/db/schema";
 import { contentDigest } from "../infra/digest";
@@ -19,16 +24,14 @@ const TOKEN_PREFIX = "vfw_";
 
 /**
  * Enrolls a machine under a name and returns the token to hand it. The token
- * is the worker's identity on every request, and only its hash is kept. A
- * worker without an owner is shared; one with an owner is that account's own
- * computer.
+ * is the worker's identity on every request, and only its hash is kept.
  */
-export async function enrollWorker(
+async function enroll(
+  db: Executor,
   workerId: string,
   owner: string | null,
 ): Promise<EnrolledWorker> {
   const token = `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
-  const db = await database();
   const at = await operationTime(db);
   await refusingUnique(
     "workers_pkey",
@@ -45,6 +48,35 @@ export async function enrollWorker(
       }),
   );
   return { workerId, token };
+}
+
+/**
+ * Enrolls a worker under a name nobody holds. A worker without an owner is
+ * shared; one with an owner is that account's own computer.
+ */
+export async function enrollWorker(
+  workerId: string,
+  owner: string | null,
+): Promise<EnrolledWorker> {
+  return enroll(await database(), workerId, owner);
+}
+
+/**
+ * Enrolls the user's own computer under a name it may have held before. A
+ * personal worker the user already has under it gives way, which revokes its
+ * token and ends its session, so a computer that lost its token takes its
+ * name back. A name any other worker holds is taken.
+ */
+export async function reenrollPersonalWorker(
+  user: string,
+  workerId: string,
+): Promise<EnrolledWorker> {
+  return transaction(async (db) => {
+    await db
+      .delete(workers)
+      .where(and(eq(workers.id, workerId), eq(workers.ownerId, user)));
+    return enroll(db, workerId, user);
+  });
 }
 
 /** Removes the named worker, provided it also meets `condition`. */

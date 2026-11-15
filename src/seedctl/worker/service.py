@@ -26,15 +26,20 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Worker:
-    """One session serves training and inference over one connection."""
+    """
+    One session serves training and inference over one connection, and tells
+    `on_training` when a training run begins and when it ends.
+    """
 
     def __init__(
         self,
         settings: WorkerSettings,
         *,
+        on_training: Callable[[bool], None],
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self.settings = settings
+        self.on_training = on_training
         self.client = WorkerClient(
             settings.connection,
             WorkerSession.create(),
@@ -63,6 +68,7 @@ class Worker:
                 self.runner.close()
                 images = ImageCache(self.settings.work_dir / "images")
                 try:
+                    self.on_training(True)
                     serve_training_claim(
                         self.training,
                         claim,
@@ -74,6 +80,7 @@ class Worker:
                 finally:
                     images.close()
                     release_accelerator()
+                    self.on_training(False)
                 return True
         return self.runner.run_once(stopped)
 
@@ -82,9 +89,10 @@ def run_worker(
     settings: WorkerSettings,
     *,
     on_ready: Callable[[], None],
+    on_training: Callable[[bool], None],
 ) -> None:
     settings.work_dir.mkdir(parents=True, exist_ok=True)
-    worker = Worker(settings)
+    worker = Worker(settings, on_training=on_training)
     try:
         with shutdown_signals() as stopped:
             on_ready()

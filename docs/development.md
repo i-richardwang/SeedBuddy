@@ -7,6 +7,7 @@ Requirements are Python 3.11+, [uv](https://docs.astral.sh/uv/), Bun 1.4.0 and D
 ```bash
 uv sync --all-extras --group dev --locked
 cd web && bun install --frozen-lockfile && cd ..
+cd desktop && bun install --frozen-lockfile && cd ..
 cp .env.example .env
 cp web/.env.example web/.env
 ```
@@ -23,6 +24,8 @@ bun run dev
 Use `bun run format` in `web/` to format source and messages, and `bun run format:check` to check them. Generate database migrations with `bun run db:generate` (`drizzle-kit generate`); startup applies them as described in [Database schema](architecture.md#database-schema).
 
 Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](accounts.md); Worker installation is in [seedctl](seedctl.md#install). A development server ships the Worker package found in `web/worker-package/` when it starts, built with `uv build --wheel --out-dir web/worker-package`; without one it ships none, and a Worker runs against it on `seedctl` installed from source.
+
+The desktop app has its own dependencies and commands in `desktop/`; see [Desktop app](desktop.md#development).
 
 ## Deployment
 
@@ -47,7 +50,7 @@ The default suite uses PGlite and in-memory blobs without external services. Web
 make check
 ```
 
-It runs `make check-python` (the architecture check, Ruff lint and format check, Pyright and pytest) and `make check-web` (the production build, the architecture, contract and Prettier checks, Biome lint, TypeScript and the Web tests).
+It runs `make check-python` (the architecture check, Ruff lint and format check, Pyright and pytest), `make check-web` (the production build, the architecture, contract and Prettier checks, Biome lint, TypeScript and the Web tests) and `make check-desktop` (the desktop app's build, Prettier check, Biome lint, TypeScript and tests).
 
 Build the pinned production image:
 
