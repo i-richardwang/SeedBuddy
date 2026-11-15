@@ -1,0 +1,61 @@
+name: Desktop package
+on:
+  pull_request:
+    paths: ["desktop/**", ".github/workflows/desktop-package.yml"]
+  push:
+    tags: ["desktop-v*"]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+jobs:
+  mac:
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.0"
+      - name: Check the tag names the app's version
+        if: github.ref_type == 'tag'
+        run: test "$GITHUB_REF_NAME" = "desktop-v$(jq -r .version package.json)"
+      - run: bun install --frozen-lockfile
+      - run: bun run package
+        env:
+          # electron-builder leaves a pull request's build unsigned to keep a
+          # certificate from it. The ad hoc signature involves none.
+          CSC_FOR_PULL_REQUEST: "true"
+      - name: Check the app's signature
+        run: codesign --verify --deep --strict release/mac-arm64/SeedBuddy.app
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mac
+          path: desktop/release/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+  publish:
+    if: github.ref_type == 'tag'
+    needs: mac
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: packages
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" packages/* \
+            --verify-tag \
+            --title "SeedBuddy ${GITHUB_REF_NAME#desktop-v}" \
+            --notes-file desktop/release-notes.md
