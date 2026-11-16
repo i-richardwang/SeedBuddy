@@ -25,6 +25,9 @@ import { HostedWorker, type WorkerStatus, workerNameFor } from "./worker";
 const SEEDCTL = `#!/bin/sh
 profile="$SEEDBUDDY_HOME/profiles/$3"
 mkdir -p "$profile"
+status() {
+  printf '{"state":"%s","pid":%s,"hostRun":"%s"}\\n' "$1" "$$" "$SEEDBUDDY_HOST_RUN" > "$profile/status.json"
+}
 case "$2" in
   setup)
     read token
@@ -33,10 +36,20 @@ case "$2" in
   run)
     echo "$* $$" > "$profile/run"
     if [ -f "$profile/removed" ]; then
-      echo '{"state": "unenrolled", "detail": "removed"}' > "$profile/status.json"
+      printf '{"state":"unenrolled","detail":"removed","pid":%s,"hostRun":"%s"}\\n' "$$" "$SEEDBUDDY_HOST_RUN" > "$profile/status.json"
       exit 0
     fi
     [ -f "$profile/crashing" ] && exit 1
+    if [ -f "$profile/foreign" ]; then
+      SEEDBUDDY_HOST_RUN=previous-run
+      status unenrolled
+      exit 1
+    fi
+    if [ -f "$profile/descendant" ]; then
+      sleep 30 >&2 &
+      echo $! > "$profile/descendant-pid"
+      exit 1
+    fi
     if [ -f "$profile/stalling" ]; then
       mkfifo "$profile/status.json"
       exit 1
@@ -45,9 +58,16 @@ case "$2" in
       echo '{"state": 3}' > "$profile/status.json"
       exit 1
     fi
-    echo '{"state": "running"}' > "$profile/status.json"
-    cat > /dev/null
-    echo '{"state": "stopped"}' > "$profile/status.json"
+    status running
+    while read command; do
+      if [ "$command" = drain ]; then
+        touch "$profile/draining"
+        [ -f "$profile/busy" ] || break
+      else
+        break
+      fi
+    done
+    status stopped
     ;;
 esac
 `;
@@ -61,7 +81,7 @@ async function hosted() {
   await chmod(seedctl, 0o755);
   const home = path.join(directory, "home");
   await mkdir(home);
-  return { seedctl, home, worker: new HostedWorker(seedctl, home) };
+  return { seedctl, home, worker: new HostedWorker(() => seedctl, home) };
 }
 
 /** What a Worker process reported, and whether and how it was told it ended. */
@@ -88,7 +108,14 @@ function listener() {
 /** Marks the profile for the stand-in to end `how` when it is run. */
 async function marked(
   home: string,
-  how: "removed" | "crashing" | "garbled" | "stalling",
+  how:
+    | "removed"
+    | "crashing"
+    | "garbled"
+    | "stalling"
+    | "foreign"
+    | "descendant"
+    | "busy",
 ) {
   const profile = path.join(home, "profiles", "lab-mac");
   await mkdir(profile, { recursive: true });
@@ -174,12 +201,15 @@ test("a status left by an earlier process is not this one's", async () => {
 
   await worker.start("lab-mac", heard.onStatus, heard.onExit);
 
-  expect(await heard.exited).toBeNull();
+  expect(await heard.exited).toMatchObject({
+    state: "failed",
+    detail: "Worker exited with 1",
+  });
 });
 
 test("a Worker that cannot be run says why", async () => {
   const { home } = await hosted();
-  const worker = new HostedWorker("/no/such/seedctl", home);
+  const worker = new HostedWorker(() => "/no/such/seedctl", home);
   const heard = listener();
 
   await worker.start("lab-mac", heard.onStatus, heard.onExit);
@@ -198,16 +228,18 @@ test("a status that is none seedctl writes is not reported", async () => {
 
   await worker.start("lab-mac", heard.onStatus, heard.onExit);
 
-  expect(await heard.exited).toBeNull();
+  expect(await heard.exited).toMatchObject({
+    state: "failed",
+    detail: "Worker exited with 1",
+  });
 });
 
-test("stopping during a start ends the process it starts", async () => {
+test("stopping immediately after launch waits for the child to exit", async () => {
   const { home, worker } = await hosted();
   const heard = listener();
 
-  const starting = worker.start("lab-mac", heard.onStatus, heard.onExit);
+  worker.start("lab-mac", heard.onStatus, heard.onExit);
   await worker.stop();
-  await starting;
 
   expect(heard.told).toBe(true);
   expect(alive((await ran(home)).pid)).toBe(false);
@@ -227,7 +259,10 @@ test("stopping a process that ended on its own waits until its end is told", asy
   await writeFile(path.join(profile, "status.json"), '{"state": "failed"}');
 
   expect(await stopped).toBe(true);
-  expect(await heard.exited).toEqual({ state: "failed" });
+  expect(await heard.exited).toEqual({
+    state: "failed",
+    detail: "Worker exited with 1",
+  });
 });
 
 test("stopping with no process running resolves", async () => {
@@ -235,3 +270,54 @@ test("stopping with no process running resolves", async () => {
 
   await worker.stop();
 });
+
+test("a terminal status written during this run still needs this run's identity", async () => {
+  const { home, worker } = await hosted();
+  await marked(home, "foreign");
+  const heard = listener();
+  await worker.start("lab-mac", heard.onStatus, heard.onExit);
+  expect(await heard.exited).toEqual({
+    state: "failed",
+    detail: "Worker exited with 1",
+  });
+});
+
+test("an exited root is reported even when a descendant retains stderr", async () => {
+  const { home, worker } = await hosted();
+  const profile = await marked(home, "descendant");
+  const heard = listener();
+  await worker.start("lab-mac", heard.onStatus, heard.onExit);
+  const file = path.join(profile, "descendant-pid");
+  while (!(await Bun.file(file).exists())) await wait(5);
+  const pid = Number(await readFile(file, "utf8"));
+  try {
+    expect(
+      await Promise.race([heard.exited, wait(1000).then(() => "timed out")]),
+    ).toEqual({ state: "failed", detail: "Worker exited with 1" });
+    await worker.stop();
+    expect(alive(pid)).toBe(true);
+  } finally {
+    if (alive(pid)) process.kill(pid, "SIGKILL");
+  }
+});
+
+test.each([false, true])(
+  "drain finishes idle work; EOF can interrupt an admitted task: busy=%s",
+  async (busy) => {
+    const { home, worker } = await hosted();
+    if (busy) await marked(home, "busy");
+    const heard = listener();
+    await worker.start("lab-mac", heard.onStatus, heard.onExit);
+    await ran(home);
+    worker.drain();
+    while (
+      !(await Bun.file(path.join(home, "profiles/lab-mac/draining")).exists())
+    )
+      await wait(5);
+    if (busy) {
+      expect(heard.told).toBe(false);
+      await worker.stop();
+    }
+    expect(await heard.exited).toEqual({ state: "stopped" });
+  },
+);

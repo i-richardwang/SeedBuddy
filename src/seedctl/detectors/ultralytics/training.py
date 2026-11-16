@@ -14,6 +14,7 @@ from seedctl.contracts.validation import validate_wire_contract
 from seedctl.detectors.ultralytics.checkpoints import EPOCH_JOURNAL, LAST_CHECKPOINT
 from seedctl.detectors.ultralytics.runtime import (
     load_training_trainer,
+    load_training_validator,
     load_yolo,
     require_ultralytics_version,
 )
@@ -219,12 +220,6 @@ def _load_checkpoint(path: Path) -> Mapping[str, Any]:
     return torch_load(path, map_location="cpu")
 
 
-def _save_checkpoint(state: dict[str, Any], path: Path) -> None:
-    import torch
-
-    torch.save(state, path)
-
-
 def _completed_epochs(output: Path, epochs: int) -> tuple[EpochReport, ...]:
     """The epochs an interrupted training in ``output`` resumes after.
 
@@ -293,20 +288,16 @@ def train_yolo_detector(
     yolo = load_yolo()
     train_options: dict[str, object]
     if completed:
-        # The checkpoint carries the arguments the run started with.
         checkpoint_path = output / LAST_CHECKPOINT
-        state = dict(_load_checkpoint(checkpoint_path))
-        state["train_args"] = {
-            **state["train_args"],
+        trainer_model = yolo(str(checkpoint_path))
+        train_options = {
+            "resume": True,
             "data": str(data_path),
             "project": str(output.parent),
             "name": output.name,
             "save_dir": str(output),
             "exist_ok": True,
         }
-        _save_checkpoint(state, checkpoint_path)
-        trainer_model = yolo(str(checkpoint_path))
-        train_options = {"resume": True, "data": str(data_path)}
     else:
         model_source = _model_source(model, output.parent / "weights")
         trainer_model = yolo(str(model_source))
@@ -383,6 +374,7 @@ def train_yolo_detector(
     if on_validation_start:
         on_validation_start()
     metrics = validator_model.val(
+        validator=load_training_validator(),
         data=str(data_path),
         batch=trainer.test_loader.batch_size,
         imgsz=trained_args.imgsz,

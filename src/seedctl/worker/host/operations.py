@@ -16,15 +16,14 @@ from seedctl.worker.connection import (
     WorkerSuspendedError,
 )
 from seedctl.worker.host.launchd import service_loaded
-from seedctl.worker.host.lock import running_alone
 from seedctl.worker.host.logging import profile_logging
 from seedctl.worker.host.profiles import (
     WorkerProfile,
     load_profile,
     profile_directory,
 )
+from seedctl.worker.host.runtime import running_profile
 from seedctl.worker.process import process_exists
-from seedctl.worker.runtime import HOSTED_HANDOVER_SECONDS, shutdown_requests
 from seedctl.worker.service import run_worker
 from seedctl.worker.session import available_runtimes
 
@@ -107,22 +106,12 @@ def _write_status(name: str, state: str, *, detail: str | None = None) -> None:
     how it left off, and why when it failed.
     """
     path = profile_directory(name) / "status.json"
-    document: dict[str, object] = {"state": state}
-    if state in _SERVING:
-        document["pid"] = os.getpid()
+    document: dict[str, object] = {"state": state, "pid": os.getpid()}
+    if host_run := os.environ.get("SEEDBUDDY_HOST_RUN"):
+        document["hostRun"] = host_run
     if detail:
         document["detail"] = detail
     write_text_atomically(path, json.dumps(document, indent=2) + "\n")
-
-
-def _stop_refused(name: str, state: str, refusal: Exception) -> int:
-    """
-    Records why the workbench turned the worker away. Exiting cleanly keeps
-    launchd from restarting a worker that can only be refused again.
-    """
-    LOGGER.error("worker stopped: %s", refusal)
-    _write_status(name, state, detail=str(refusal))
-    return 0
 
 
 def run_profile(name: str, *, hosted: bool = False) -> int:
@@ -133,11 +122,14 @@ def run_profile(name: str, *, hosted: bool = False) -> int:
     """
     directory = profile_directory(name)
     directory.mkdir(parents=True, exist_ok=True)
-    wait = HOSTED_HANDOVER_SECONDS if hosted else 0
+    state, detail, code = "stopped", None, 0
     with (
-        shutdown_requests(hosted=hosted) as stopped,
-        running_alone(directory, stopped, wait=wait),
         profile_logging(directory / "worker.log"),
+        running_profile(
+            directory,
+            hosted=hosted,
+            on_closed=lambda: _write_status(name, state, detail=detail),
+        ) as control,
     ):
         _write_status(name, "starting")
         try:
@@ -151,22 +143,23 @@ def run_profile(name: str, *, hosted: bool = False) -> int:
 
             run_worker(
                 profile.settings(name),
-                stopped,
+                control,
                 on_ready=ready,
                 on_training=training,
             )
         except WorkerNotEnrolledError as error:
-            return _stop_refused(name, "unenrolled", error)
+            state, detail = "unenrolled", str(error)
         except WorkerSuspendedError as error:
-            return _stop_refused(name, "suspended", error)
+            state, detail = "suspended", str(error)
         except WorkerProtocolError as error:
-            return _stop_refused(name, "incompatible", error)
+            state, detail = "incompatible", str(error)
         except Exception as error:
             LOGGER.exception("worker stopped after an error")
-            _write_status(name, "failed", detail=str(error))
-            return 1
-        _write_status(name, "stopped")
-        return 0
+            state, detail, code = "failed", str(error), 1
+        if detail is not None and code == 0:
+            # A refusal exits cleanly so launchd does not keep retrying it.
+            LOGGER.error("worker stopped: %s", detail)
+    return code
 
 
 def _read_status(name: str) -> dict[str, object] | None:

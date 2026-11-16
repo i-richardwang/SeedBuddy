@@ -25,6 +25,7 @@ TRAINER = object()
 @pytest.fixture(autouse=True)
 def fake_training_adapter(monkeypatch):
     monkeypatch.setattr(training, "load_training_trainer", lambda: TRAINER)
+    monkeypatch.setattr(training, "load_training_validator", lambda: TRAINER)
 
 
 class _BoxMetrics:
@@ -189,11 +190,6 @@ def _checkpointing_yolo(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(training, "load_yolo", lambda: FakeYolo)
     monkeypatch.setattr(training, "_load_checkpoint", FakeYolo.checkpoints.__getitem__)
     monkeypatch.setattr(
-        training,
-        "_save_checkpoint",
-        lambda state, path: FakeYolo.checkpoints.__setitem__(path, state),
-    )
-    monkeypatch.setattr(
         "seedctl.detectors.ultralytics.runtime.version", lambda _: "8.4.131"
     )
     return FakeYolo
@@ -242,6 +238,10 @@ def test_interrupted_training_resumes_after_its_last_completed_epoch(
         "trainer": TRAINER,
         "resume": True,
         "data": str(dataset),
+        "project": str(output.parent),
+        "name": output.name,
+        "save_dir": str(output),
+        "exist_ok": True,
         "device": "mps",
     }
     assert result.best_weights == output / "weights" / "best.pt"

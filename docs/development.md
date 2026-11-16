@@ -23,7 +23,7 @@ bun run dev
 
 Use `bun run format` in `web/` to format source and messages, and `bun run format:check` to check them. Generate database migrations with `bun run db:generate` (`drizzle-kit generate`); startup applies them as described in [Database schema](architecture.md#database-schema).
 
-Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](accounts.md); Worker installation is in [seedctl](seedctl.md#install). A development server ships the Worker package found in `web/worker-package/` when it starts, built with `uv build --wheel --out-dir web/worker-package`; without one it ships none, and a Worker runs against it on `seedctl` installed from source.
+Sign in with the administrator credentials configured in `.env`. Account behavior is described in [Accounts](accounts.md); Worker installation is in [seedctl](seedctl.md#install). A development server ships the Worker package found in `web/worker-package/` when it starts, built with `uv run python scripts/build_worker_package.py web/worker-package` from the repository root. This produces a wheel and `runtime.json` containing its digest, hosted protocol, exact Python version and dependency constraints exported from `uv.lock`. Ship both files together. Without a wheel the server ships none, and a Worker runs against it on `seedctl` installed from source.
 
 The desktop app has its own dependencies and commands in `desktop/`; see [Desktop app](desktop.md#development).
 

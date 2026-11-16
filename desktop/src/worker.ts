@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { run } from "./commands";
@@ -19,10 +20,10 @@ export interface WorkerStatus {
 const DEVICE = "mps";
 const STATUS_POLL_MS = 2_000;
 /**
- * How long a process let go of is given before the app ends it: longer than
- * the 30 seconds after which a hosted process ends itself.
+ * A stop can fail without surrendering the still-running owner's identity.
+ * Python owns execution cleanup and its own cooperative shutdown deadline.
  */
-const STOP_GRACE_MS = 35_000;
+const STOP_GRACE_MS = 40_000;
 
 /**
  * A Worker name for the computer called `hostname`: that name in the
@@ -39,10 +40,14 @@ export function workerNameFor(hostname: string, suffix: string): string {
   return `${base || "computer"}-${suffix}`;
 }
 
-function isWorkerStatus(value: unknown): value is WorkerStatus {
+function isWorkerStatus(
+  value: unknown,
+): value is WorkerStatus & { pid: number; hostRun: string } {
   if (typeof value !== "object" || value === null) return false;
-  const { state, detail } = value as Record<string, unknown>;
+  const { state, detail, pid, hostRun } = value as Record<string, unknown>;
   return (
+    typeof pid === "number" &&
+    typeof hostRun === "string" &&
     typeof state === "string" &&
     (detail === undefined || typeof detail === "string")
   );
@@ -51,18 +56,16 @@ function isWorkerStatus(value: unknown): value is WorkerStatus {
 /**
  * The Worker process this app keeps: one `seedctl` profile under a home of
  * the app's, run in the foreground as the app's child instead of as a
- * system service. The process is hosted: it finishes when the app closes its
- * standard input, by asking or by ending itself, so none outlives the app
- * for long, and one started while an earlier one is finishing waits for it.
+ * system service. Closing standard input requests cleanup. The app retains
+ * the process until it exits, including when cleanup exceeds the stop timeout.
  */
 export class HostedWorker {
-  readonly #seedctl: string;
+  readonly #seedctl: () => string;
   readonly #home: string;
   /** The process, and when its end has been told. */
   #running: { child: ChildProcess; ended: Promise<void> } | null = null;
-  #starting: Promise<void> = Promise.resolve();
 
-  constructor(seedctl: string, home: string) {
+  constructor(seedctl: () => string, home: string) {
     this.#seedctl = seedctl;
     this.#home = home;
   }
@@ -82,7 +85,7 @@ export class HostedWorker {
     signal: AbortSignal,
   ): Promise<void> {
     await run(
-      this.#seedctl,
+      this.#seedctl(),
       [
         "worker",
         "setup",
@@ -98,16 +101,25 @@ export class HostedWorker {
     );
   }
 
-  /** The status the profile's process has written since `since`, or null. */
+  /** Only the process launched for this host run may report its status. */
   async #status(
     workerName: string,
-    since: number,
+    hostRun: string,
+    pid: number | undefined,
   ): Promise<WorkerStatus | null> {
+    if (pid === undefined) return null;
     const file = path.join(this.#home, "profiles", workerName, "status.json");
     try {
-      if ((await stat(file)).mtimeMs < since) return null;
       const status: unknown = JSON.parse(await readFile(file, "utf8"));
-      return isWorkerStatus(status) ? status : null;
+      if (
+        !isWorkerStatus(status) ||
+        status.pid !== pid ||
+        status.hostRun !== hostRun
+      )
+        return null;
+      return status.detail === undefined
+        ? { state: status.state }
+        : { state: status.state, detail: status.detail };
     } catch {
       return null;
     }
@@ -122,37 +134,37 @@ export class HostedWorker {
     workerName: string,
     onStatus: (status: WorkerStatus) => void,
     onExit: (status: WorkerStatus | null) => void,
-  ): Promise<void> {
-    this.#starting = this.#start(workerName, onStatus, onExit);
-    return this.#starting;
-  }
-
-  async #start(
-    workerName: string,
-    onStatus: (status: WorkerStatus) => void,
-    onExit: (status: WorkerStatus | null) => void,
-  ): Promise<void> {
-    const since = Date.now();
+  ): void {
+    if (this.#running !== null) throw new Error("A Worker is still running");
+    const hostRun = randomUUID();
     const child = spawn(
-      this.#seedctl,
+      this.#seedctl(),
       ["worker", "run", workerName, "--hosted"],
-      { env: this.#env, stdio: ["pipe", "ignore", "ignore"] },
+      {
+        env: { ...this.#env, SEEDBUDDY_HOST_RUN: hostRun },
+        stdio: ["pipe", "ignore", "pipe"],
+      },
     );
+    let stderr = "";
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderr = (stderr + chunk.toString("utf8")).slice(-4000);
+    });
+    child.stdin?.on("error", () => {});
     /** Why the process could not be run or kept, when it could not. */
     let failure: Error | null = null;
     /** Whether the process has ended, after which it reports nothing more. */
     let over = false;
-    const exited = new Promise<void>((resolve) => {
-      child.once("exit", () => resolve());
+    const exited = new Promise<number | null>((resolve) => {
+      child.once("exit", resolve);
       child.once("error", (error) => {
         failure = error;
-        resolve();
+        if (child.pid === undefined) resolve(null);
       });
     });
 
     let reported = "";
     const watch = setInterval(() => {
-      void this.#status(workerName, since).then((status) => {
+      void this.#status(workerName, hostRun, child.pid).then((status) => {
         const key = JSON.stringify(status);
         if (status === null || key === reported || over) return;
         reported = key;
@@ -161,13 +173,32 @@ export class HostedWorker {
     }, STATUS_POLL_MS);
     const running = {
       child,
-      ended: exited.then(async () => {
+      ended: exited.then(async (code) => {
         over = true;
         clearInterval(watch);
+        // A descendant may keep stderr open after the root exits. Diagnostics
+        // have a bounded tail drain; they never define process completion.
+        await new Promise<void>((resolve) => {
+          const stream = child.stderr;
+          if (!stream || stream.destroyed) return resolve();
+          const timer = setTimeout(() => {
+            stream.destroy();
+            resolve();
+          }, 100);
+          stream.once("close", () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        });
+        if (code !== 0)
+          failure ??= new Error(stderr.trim() || `Worker exited with ${code}`);
+        const status = await this.#status(workerName, hostRun, child.pid);
         onExit(
-          failure
-            ? { state: "failed", detail: failure.message }
-            : await this.#status(workerName, since),
+          status && !["running", "training", "starting"].includes(status.state)
+            ? status
+            : failure
+              ? { state: "failed", detail: failure.message }
+              : status,
         );
         if (this.#running === running) this.#running = null;
       }),
@@ -176,18 +207,31 @@ export class HostedWorker {
   }
 
   /**
-   * Asks the process to finish, a start under way first getting as far as
-   * its process, and resolves once `onExit` has been told of its end. One
-   * that has not finished in time is ended.
+   * Requests cleanup and waits for exit. A timeout retains the owner: killing
+   * it would release the profile lock without proving its executions ended.
    */
   async stop(): Promise<void> {
-    await this.#starting.catch(() => {});
     const running = this.#running;
     if (running === null) return;
     const { child } = running;
     child.stdin?.end();
-    const overdue = setTimeout(() => child.kill("SIGKILL"), STOP_GRACE_MS);
-    await running.ended;
-    clearTimeout(overdue);
+    let overdue: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        running.ended,
+        new Promise<never>((_, reject) => {
+          overdue = setTimeout(
+            () => reject(new Error("Worker cleanup is still in progress")),
+            STOP_GRACE_MS,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(overdue);
+    }
+  }
+
+  drain(): void {
+    this.#running?.child.stdin?.write("drain\n");
   }
 }

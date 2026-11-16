@@ -149,8 +149,9 @@ def test_local_training_produces_a_portable_bundle_once_and_refuses_changed_resu
         (destination / "manifest.json").write_text(
             json.dumps({"class_names": ["seed"], "mode": "whole_image", "images": []})
         )
+        return destination / "dataset.yaml"
 
-    monkeypatch.setattr(training, "export_yolo_dataset", export)
+    monkeypatch.setattr(training, "prepare_yolo_dataset", export)
     calls = []
 
     def train(_dataset, output, **options):

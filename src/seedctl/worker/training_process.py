@@ -8,7 +8,6 @@ import multiprocessing
 import queue
 from collections.abc import Callable, Mapping
 from contextlib import suppress
-from multiprocessing.connection import Connection
 from pathlib import Path
 from typing import Any
 
@@ -19,9 +18,9 @@ from seedctl.detectors.ultralytics import (
     train_yolo_detector,
 )
 from seedctl.worker.process import (
-    lead_process_group,
+    Connection,
+    ProcessScope,
     read_events,
-    terminate_process_group,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -30,8 +29,6 @@ LOGGER = logging.getLogger(__name__)
 def _train(
     connection: Connection, dataset: Path, output: Path, options: dict[str, Any]
 ) -> None:
-    lead_process_group()
-
     def emit(kind: str, value: Any = None) -> None:
         connection.send((kind, value))
         connection.recv()
@@ -70,6 +67,7 @@ def run_training_process(
     runtime_version: str,
     device: str | None,
     resume_required: bool,
+    processes: ProcessScope,
 ) -> YoloTrainingResult:
     options = {
         "parameters": parameters,
@@ -81,11 +79,15 @@ def run_training_process(
     }
     context = multiprocessing.get_context("spawn")
     parent, child = context.Pipe()
-    process = context.Process(
-        target=_train, args=(child, dataset, output, options), name="seedbuddy-trainer"
-    )
-    process.start()
-    child.close()
+    try:
+        process = processes.start(
+            _train, (child, dataset, output, options), name="seedbuddy-trainer"
+        )
+    except BaseException:
+        parent.close()
+        raise
+    finally:
+        child.close()
     events, reader = read_events(parent, None)
     try:
         while True:
@@ -118,5 +120,7 @@ def run_training_process(
             parent.send(None)
     finally:
         parent.close()
-        terminate_process_group(process)
-        reader.join(timeout=2)
+        try:
+            processes.close_execution(process)
+        finally:
+            reader.join(timeout=2)

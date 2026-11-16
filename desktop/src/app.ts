@@ -17,6 +17,7 @@ import {
 
 import { messages } from "./messages";
 import { destination, opensInBrowser } from "./navigation";
+import { finishBeforeQuit } from "./quit";
 import { newerRelease, type Release } from "./release";
 import { Runtime } from "./runtime";
 import { Serial } from "./serial";
@@ -72,6 +73,7 @@ let release: Release | null = null;
 const writes = new Serial();
 /** Changes of workbench, one at a time. */
 const connections = new Serial();
+let acceptingConnections = true;
 
 /** Keeps `detail` as what last went wrong; there is nowhere to say it cannot. */
 function record(detail: string): void {
@@ -177,7 +179,10 @@ function serve(): void {
     return;
   }
   const runtime = new Runtime(path.join(data, "runtime"), uv);
-  const worker = new HostedWorker(runtime.seedctl, path.join(data, "worker"));
+  const worker = new HostedWorker(
+    () => runtime.seedctl,
+    path.join(data, "worker"),
+  );
   supervisor = new Supervisor(
     {
       describe: (signal) => describePackage(sessionFetch, server, signal),
@@ -193,6 +198,7 @@ function serve(): void {
         worker.configure(name, server, token, signal),
       start: (name, onStatus, onExit) => worker.start(name, onStatus, onExit),
       stop: () => worker.stop(),
+      drain: () => worker.drain(),
       newWorkerName,
       save,
       later: (ms, task) => {
@@ -214,13 +220,13 @@ function serve(): void {
  */
 function connect(server: string | null): Promise<void> {
   return connections.run(async () => {
-    if (server === settings.server) return;
+    if (!acceptingConnections || server === settings.server) return;
     // The menu's controls go with the workbench being left.
     const leaving = supervisor;
+    await leaving?.close();
     supervisor = null;
     keepAwake(false);
     say(text.noWorkbench);
-    await leaving?.close();
     await save({ server, enrolled: false });
     serve();
   });
@@ -355,9 +361,22 @@ Menu.setApplicationMenu(
 app.on("window-all-closed", () => {});
 app.on("activate", showWindow);
 app.on("second-instance", showWindow);
-// Quitting asks the Worker process to finish and does not wait for it: one
-// still finishing when the app is next opened is waited for by the next.
-app.on("will-quit", () => void supervisor?.close());
+finishBeforeQuit(
+  app,
+  () => {
+    acceptingConnections = false;
+    return connections.run(async () => {
+      await supervisor?.close();
+      await writes.run(async () => {});
+    });
+  },
+  (error) => {
+    acceptingConnections = true;
+    const detail = error instanceof Error ? error.message : String(error);
+    record(detail);
+    dialog.showErrorBox(app.getName(), detail);
+  },
+);
 setInterval(() => void supervisor?.update(), UPDATE_CHECK_MS);
 setInterval(() => void offerRelease(), RELEASE_CHECK_MS);
 

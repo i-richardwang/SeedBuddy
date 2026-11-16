@@ -1,6 +1,10 @@
 import { Serial } from "./serial";
 import type { Settings } from "./settings";
-import type { Enrollment, WorkerPackage } from "./workbench";
+import {
+  type Enrollment,
+  IncompatibleRuntime,
+  type WorkerPackage,
+} from "./workbench";
 import type { WorkerStatus } from "./worker";
 
 /** What this computer is doing as a Worker, as the app shows it. */
@@ -33,7 +37,7 @@ export type ServingSettings = Omit<Settings, "server">;
 export interface Ports {
   /** The package the workbench ships, or null when it ships none. */
   describe(signal: AbortSignal): Promise<WorkerPackage | null>;
-  /** The digest of the package installed on this computer, or null. */
+  /** The complete runtime identity installed on this computer, or null. */
   installed(): Promise<string | null>;
   install(shipped: WorkerPackage, signal: AbortSignal): Promise<void>;
   enroll(workerName: string, signal: AbortSignal): Promise<Enrollment>;
@@ -47,9 +51,11 @@ export interface Ports {
     workerName: string,
     onStatus: (status: WorkerStatus) => void,
     onExit: (status: WorkerStatus | null) => void,
-  ): Promise<void>;
+  ): void;
   /** Resolves once the Worker process, if any, has ended and `onExit` was told. */
   stop(): Promise<void>;
+  /** End admission, finish the current task, then report exit normally. */
+  drain(): void;
   /** A name for this computer, new each time. */
   newWorkerName(): string;
   save(settings: ServingSettings): Promise<void>;
@@ -70,9 +76,11 @@ export class Supervisor {
   readonly #onPhase: (phase: Phase) => void;
   #settings: ServingSettings;
   #phase: Phase;
-  #alive = false;
-  /** The process is being stopped from here, so its end is no news. */
-  #stopping = false;
+  #running: { draining: boolean; stopping: boolean } | null = null;
+  /** Identity of the credentials, independent of the user's serving intent. */
+  #enrollment = {};
+  /** Invalidates queued process events when control intent changes. */
+  #revision = 0;
   #closed = false;
   /** Passes and update checks, one at a time. */
   readonly #passes = new Serial();
@@ -103,18 +111,20 @@ export class Supervisor {
   /** A pass under way answers what was asked before, so it is dropped. */
   async setServing(serving: boolean): Promise<void> {
     if (this.#closed) return;
+    this.#revision++;
     this.#abort.abort();
     await Promise.all([this.#save({ serving }), this.reconcile()]);
   }
 
   /** The window went somewhere: someone may have signed in to enroll for. */
   navigated(): void {
-    if (this.#phase.kind === "signed-out") void this.reconcile();
+    if (this.#settings.serving && !this.#settings.enrolled)
+      void this.reconcile();
   }
 
   /**
-   * Installs what the workbench ships now when it differs from what is
-   * installed, unless the Worker is training.
+   * Requests a handover when a new runtime is available. Draining never
+   * occupies the serial queue, so turning serving off or quitting can stop it.
    */
   update(): Promise<void> {
     return this.#passes.run(() => this.#update());
@@ -126,6 +136,7 @@ export class Supervisor {
    */
   async close(): Promise<void> {
     this.#closed = true;
+    this.#revision++;
     this.#cancelRetry?.();
     this.#abort.abort();
     await this.#stop();
@@ -156,12 +167,11 @@ export class Supervisor {
   }
 
   async #stop(): Promise<void> {
-    this.#stopping = true;
-    try {
-      await this.#ports.stop();
-    } finally {
-      this.#stopping = false;
-    }
+    this.#revision++;
+    const running = this.#running;
+    if (running !== null) running.stopping = true;
+    await this.#ports.stop();
+    if (this.#running === running) this.#running = null;
   }
 
   async #reconcile(): Promise<void> {
@@ -178,7 +188,8 @@ export class Supervisor {
         this.#show({ kind: "off" });
         return;
       }
-      if (this.#alive) return;
+      if (this.#running?.stopping) await this.#stop();
+      if (this.#running !== null) return;
       this.#show({ kind: "starting" });
       const shipped = await this.#ports.describe(signal);
       if (shipped === null) {
@@ -186,7 +197,7 @@ export class Supervisor {
         this.#retry(SLOW_RETRY_MS);
         return;
       }
-      if ((await this.#ports.installed()) !== shipped.digest) {
+      if ((await this.#ports.installed()) !== shipped.id) {
         this.#show({ kind: "installing" });
         await this.#ports.install(shipped, signal);
         this.#show({ kind: "starting" });
@@ -195,14 +206,37 @@ export class Supervisor {
       // No signal drops reading what is installed or saving the settings,
       // and a process is not started for what was asked before.
       signal.throwIfAborted();
-      this.#alive = true;
-      await this.#ports.start(
-        this.#settings.workerName,
-        (status) => this.#observed(status),
-        (status) => void this.#exited(status),
-      );
+      const running = { draining: false, stopping: false };
+      const enrollment = this.#enrollment;
+      this.#revision++;
+      this.#running = running;
+      try {
+        this.#ports.start(
+          this.#settings.workerName,
+          (status) => {
+            if (this.#running === running && !running.stopping)
+              this.#observed(status);
+          },
+          (status) => {
+            const persisted =
+              status?.state === "unenrolled" && this.#enrollment === enrollment
+                ? this.#save({ enrolled: false })
+                : Promise.resolve();
+            const current = this.#running === running && !running.stopping;
+            if (this.#running === running) this.#running = null;
+            const revision = this.#revision;
+            void this.#passes.run(async () => {
+              await persisted;
+              if (current)
+                await this.#exited(status, running.draining, revision);
+            });
+          },
+        );
+      } catch (error) {
+        if (this.#running === running) this.#running = null;
+        throw error;
+      }
     } catch (error) {
-      this.#alive = false;
       // Dropped for what was asked since, which the pass behind this one
       // answers.
       if (signal.aborted) return;
@@ -210,7 +244,9 @@ export class Supervisor {
         kind: "failed",
         detail: error instanceof Error ? error.message : String(error),
       });
-      this.#retry(RETRY_MS);
+      this.#retry(
+        error instanceof IncompatibleRuntime ? SLOW_RETRY_MS : RETRY_MS,
+      );
     }
   }
 
@@ -237,22 +273,21 @@ export class Supervisor {
       enrollment.token,
       signal,
     );
+    this.#enrollment = {};
     await this.#save({ enrolled: true });
     return true;
   }
 
   async #update(): Promise<void> {
-    /** By what the process last reported. */
-    const idle = () => this.#alive && this.#phase.kind === "running";
-    if (this.#closed || !idle()) return;
-    const shipped = await this.#ports.describe(this.#begin()).catch(() => null);
-    if (shipped === null || shipped.digest === (await this.#ports.installed()))
+    const running = this.#running;
+    if (this.#closed || running === null || running.draining) return;
+    const signal = this.#begin();
+    const shipped = await this.#ports.describe(signal).catch(() => null);
+    if (shipped === null || shipped.id === (await this.#ports.installed()))
       return;
-    // Asked again last of all: a run may have begun while the workbench
-    // answered.
-    if (!idle()) return;
-    await this.#stop();
-    await this.#reconcile();
+    if (signal.aborted || this.#closed || this.#running !== running) return;
+    running.draining = true;
+    this.#ports.drain();
   }
 
   #observed({ state }: WorkerStatus): void {
@@ -260,15 +295,21 @@ export class Supervisor {
       this.#show({ kind: state });
   }
 
-  async #exited(status: WorkerStatus | null): Promise<void> {
-    this.#alive = false;
-    // Whoever stopped the process goes on from its end.
-    if (this.#stopping || this.#closed) return;
+  async #exited(
+    status: WorkerStatus | null,
+    drained: boolean,
+    revision: number,
+  ): Promise<void> {
+    if (this.#closed || revision !== this.#revision) return;
+    if (drained && status?.state === "stopped") {
+      await this.#reconcile();
+      return;
+    }
     switch (status?.state) {
       // Someone removed this Worker in the workbench: it stays out until
       // serving is turned on again here.
       case "unenrolled":
-        await this.#save({ enrolled: false, serving: false });
+        await this.#save({ serving: false });
         this.#show({ kind: "removed" });
         return;
       case "suspended":

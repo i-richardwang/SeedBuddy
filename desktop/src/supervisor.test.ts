@@ -9,7 +9,14 @@ import {
 import type { Enrollment, WorkerPackage } from "./workbench";
 import type { WorkerStatus } from "./worker";
 
-const SHIPPED: WorkerPackage = { filename: "seedctl.whl", digest: "new" };
+const SHIPPED: WorkerPackage = {
+  id: "new",
+  filename: "seedctl.whl",
+  digest: "wheel",
+  hostProtocol: 1,
+  python: "3.13.14",
+  requirements: "pillow==12.3.0\n",
+};
 
 /** `step`, unless the signal drops it first. */
 function unlessDropped<T>(step: Promise<T>, signal: AbortSignal): Promise<T> {
@@ -25,7 +32,7 @@ function unlessDropped<T>(step: Promise<T>, signal: AbortSignal): Promise<T> {
 /** A computer and a workbench the supervisor acts on, and what it did to them. */
 class World implements Ports {
   shipped: WorkerPackage | null = SHIPPED;
-  installedDigest: string | null = null;
+  installedId: string | null = null;
   enrollments: Enrollment[] = [];
   failure: Error | null = null;
   /** What an install waits for before it is done, unless it is dropped. */
@@ -67,13 +74,13 @@ class World implements Ports {
 
   async installed() {
     await this.reading;
-    return this.installedDigest;
+    return this.installedId;
   }
 
   async install(shipped: WorkerPackage, signal: AbortSignal) {
-    this.did.push(`install ${shipped.digest}`);
+    this.did.push(`install ${shipped.id}`);
     await unlessDropped(this.installing, signal);
-    this.installedDigest = shipped.digest;
+    this.installedId = shipped.id;
   }
 
   async enroll(workerName: string, signal: AbortSignal) {
@@ -87,7 +94,7 @@ class World implements Ports {
     this.did.push(`configure ${workerName} ${token}`);
   }
 
-  async start(
+  start(
     workerName: string,
     onStatus: (status: WorkerStatus) => void,
     onExit: (status: WorkerStatus | null) => void,
@@ -108,6 +115,10 @@ class World implements Ports {
     this.did.push("stop");
     await this.ending;
     if (this.running) await this.exit(this.leaves);
+  }
+
+  drain() {
+    this.did.push("drain");
   }
 
   newWorkerName() {
@@ -136,15 +147,15 @@ class World implements Ports {
 /** A computer set up from the package a workbench shipped before this one. */
 function setUpFromAnOlderPackage(): World {
   const world = new World({ enrolled: true });
-  world.shipped = { filename: "seedctl.whl", digest: "old" };
-  world.installedDigest = "old";
+  world.shipped = { ...SHIPPED, id: "old", requirements: "pillow==12.2.0\n" };
+  world.installedId = "old";
   return world;
 }
 
 /** A computer set up from the package the workbench ships. */
 function setUp(): World {
   const world = new World({ enrolled: true });
-  world.installedDigest = SHIPPED.digest;
+  world.installedId = SHIPPED.id;
   return world;
 }
 
@@ -310,7 +321,7 @@ test("serving turned on again while the process ends is not shown as off", async
   expect(world.phases).toEqual(["starting"]);
 });
 
-test("a process that had to be killed to stop it is no failure", async () => {
+test("a failed process exit during a requested stop does not restart serving", async () => {
   const world = setUp();
   await world.supervisor.reconcile();
   world.running?.onStatus({ state: "training" });
@@ -394,7 +405,7 @@ test("a Worker of another protocol revision is replaced by the package shipped n
   expect(world.did).toEqual(["install new", "start lab-mac"]);
 });
 
-test("a new package is installed while the Worker is idle", async () => {
+test("dependency-only updates wait for the Worker to finish, regardless of stale displayed status", async () => {
   const world = setUpFromAnOlderPackage();
   await world.supervisor.reconcile();
   world.running?.onStatus({ state: "running" });
@@ -403,7 +414,11 @@ test("a new package is installed while the Worker is idle", async () => {
 
   await world.supervisor.update();
 
-  expect(world.did).toEqual(["stop", "install new", "start lab-mac"]);
+  expect(world.did).toEqual(["drain"]);
+  expect(world.installedId).toBe("old");
+  // The real process can already be training before its next status poll.
+  await world.exit("stopped");
+  expect(world.did).toEqual(["drain", "install new", "start lab-mac"]);
 });
 
 test("a workbench that does not answer the check leaves the Worker serving", async () => {
@@ -428,8 +443,11 @@ test("a training run is never interrupted to install a new package", async () =>
 
   await world.supervisor.update();
 
-  expect(world.did).toEqual([]);
+  expect(world.did).toEqual(["drain"]);
   expect(world.supervisor.phase).toEqual({ kind: "training" });
+  await world.supervisor.setServing(false);
+  expect(world.running).toBeNull();
+  expect(world.installedId).toBe("old");
 });
 
 test("a run that begins while the workbench is asked is not interrupted", async () => {
@@ -446,7 +464,24 @@ test("a run that begins while the workbench is asked is not interrupted", async 
 
   await world.supervisor.update();
 
-  expect(world.did).toEqual([]);
+  expect(world.did).toEqual(["drain"]);
+});
+
+test("login navigation while an earlier enrollment is pending is reconciled", async () => {
+  const world = new World();
+  const first = Promise.withResolvers<Enrollment>();
+  const original = world.enroll.bind(world);
+  let asked = 0;
+  world.enroll = (name, signal) =>
+    ++asked === 1 ? first.promise : original(name, signal);
+  const starting = world.supervisor.reconcile();
+  await world.settled();
+  world.supervisor.navigated();
+  first.resolve({ kind: "signed-out" });
+  await starting;
+  await world.settled();
+  expect(world.settings.enrolled).toBe(true);
+  expect(world.running).not.toBeNull();
 });
 
 test("closing stops the Worker and leaves it stopped", async () => {
@@ -501,4 +536,63 @@ test("closing during a step no signal drops starts no Worker", async () => {
 
   expect(world.did).toEqual(["stop"]);
   expect(world.phases).toEqual(["starting"]);
+});
+
+test("a later stop supersedes display decisions, not credential revocation", async () => {
+  for (const terminal of ["failed", "unenrolled"]) {
+    const world = setUp();
+    await world.supervisor.reconcile();
+    const read = Promise.withResolvers<void>();
+    world.reading = read.promise;
+    const update = world.supervisor.update();
+    await world.settled();
+    const stopped = world.supervisor.setServing(false);
+    await world.exit(terminal, "old process ended");
+    read.resolve();
+    await Promise.all([update, stopped]);
+    await world.settled();
+    expect(world.supervisor.phase).toEqual({ kind: "off" });
+    expect(world.settings).toMatchObject({
+      serving: false,
+      enrolled: terminal !== "unenrolled",
+    });
+    expect(world.retries).toEqual([]);
+    await world.supervisor.setServing(true);
+    expect(world.settings).toMatchObject({ serving: true, enrolled: true });
+    expect(world.did.filter((action) => action.startsWith("enroll "))).toEqual(
+      terminal === "unenrolled" ? ["enroll lab-mac"] : [],
+    );
+  }
+});
+
+test("a retired process cannot revoke replacement credentials", async () => {
+  const world = setUp();
+  await world.supervisor.reconcile();
+  const retired = world.running;
+  if (retired === null) throw new Error("Worker did not start");
+  await world.exit("unenrolled");
+  await world.supervisor.setServing(true);
+  retired.onExit({ state: "unenrolled" });
+  await world.settled();
+  expect(world.settings).toMatchObject({ serving: true, enrolled: true });
+  expect(world.running).not.toBeNull();
+});
+
+test("a failed stop keeps ownership and prevents a replacement until cleanup succeeds", async () => {
+  const world = setUp();
+  await world.supervisor.reconcile();
+  const stop = world.stop.bind(world);
+  world.stop = async () => {
+    throw new Error("cleanup pending");
+  };
+  await world.supervisor.setServing(false);
+  await world.supervisor.setServing(true);
+  expect(world.did).toEqual(["start lab-mac"]);
+  expect(world.supervisor.phase).toEqual({
+    kind: "failed",
+    detail: "cleanup pending",
+  });
+  world.stop = stop;
+  await world.supervisor.reconcile();
+  expect(world.did).toEqual(["start lab-mac", "stop", "start lab-mac"]);
 });

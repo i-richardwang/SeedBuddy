@@ -13,7 +13,8 @@ from seedctl.cli.output import json_output
 from seedctl.contracts.inference import inference_mode_for_area
 from seedctl.contracts.validation import outbound
 from seedctl.datasets.manifest import load_dataset_manifest, manifest_path
-from seedctl.detectors.ultralytics import export_yolo_dataset, train_yolo_detector
+from seedctl.detectors.ultralytics import train_yolo_detector
+from seedctl.detectors.ultralytics.dataset import prepare_yolo_dataset
 from seedctl.models.bundle import training_bundle, training_provenance, write_bundle
 from seedctl.training.recipe import TrainingRecipe
 
@@ -63,18 +64,16 @@ def _run(args: argparse.Namespace) -> int:
             raise ValueError("Cannot resume a missing training directory")
         output.mkdir(parents=True)
         input_path.write_text(identity_text)
-    exported_path = output / "dataset"
-    if not (exported_path / "dataset.yaml").exists():
-        export_yolo_dataset(
-            manifest.annotated,
-            manifest.classes,
-            data_root,
-            exported_path,
-            seed=recipe.parameters["seed"],
-            mode=inference_mode_for_area(manifest.area),
-        )
+    dataset = prepare_yolo_dataset(
+        manifest.annotated,
+        manifest.classes,
+        data_root,
+        output / "dataset",
+        seed=recipe.parameters["seed"],
+        mode=inference_mode_for_area(manifest.area),
+    )
     result = train_yolo_detector(
-        exported_path / "dataset.yaml",
+        dataset,
         output / "training",
         parameters=recipe.parameters,
         model=recipe.base_model_reference,
@@ -84,7 +83,7 @@ def _run(args: argparse.Namespace) -> int:
         resume_required=args.resume,
         on_epoch=lambda epoch: print(json.dumps(epoch.to_dict()), flush=True),
     )
-    exported = json.loads((exported_path / "manifest.json").read_text())
+    exported = json.loads(dataset.with_name("manifest.json").read_text())
     fingerprint = hashlib.sha256(
         json.dumps(
             {"input": identity, "export": exported},
@@ -95,7 +94,7 @@ def _run(args: argparse.Namespace) -> int:
     provenance = training_provenance(
         fingerprint=fingerprint,
         snapshot_id=None,
-        dataset_description=f"Pulled dataset {manifest.dataset}; exact input and exported splits in input.json and dataset/manifest.json",
+        dataset_description=f"Pulled dataset {manifest.dataset}; exact input in input.json and exported splits in {dataset.with_name('manifest.json').relative_to(output)}",
         evaluation_description="Exported validation split",
     )
     document = training_bundle(

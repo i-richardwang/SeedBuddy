@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import hashlib
 import json
 import os
@@ -8,7 +7,7 @@ import shutil
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from seedctl.contracts.annotation import AnnotationInstance
 from seedctl.contracts.coverage import ImageCoverage
@@ -16,11 +15,12 @@ from seedctl.contracts.inference import INFERENCE_MODES, InferenceMode
 from seedctl.datasets.geometry import require_image_dimensions
 from seedctl.datasets.manifest import AnnotatedImage, verified_blob
 from seedctl.image_geometry.window import PixelWindow, coverage_window
-from seedctl.io.files import atomic_directory
+from seedctl.io.files import atomic_directory, file_digest, verify_digest
 from seedctl.io.image_io import CANONICAL_EXTENSION, image_shape
 
 DEFAULT_VALIDATION_FRACTION = 0.2
 DEFAULT_SEED = 0
+DATASET_LAYOUT = 2
 
 
 class DatasetSplitError(ValueError):
@@ -38,6 +38,7 @@ class YoloManifestImage(TypedDict):
 
 
 class YoloDatasetManifest(TypedDict):
+    layout_version: int
     class_names: list[str]
     mode: InferenceMode
     seed: int
@@ -189,6 +190,7 @@ def export_dataset_images(
             manifest_images.append(entry)
 
         manifest = YoloDatasetManifest(
+            layout_version=DATASET_LAYOUT,
             class_names=list(classes),
             mode=mode,
             seed=seed,
@@ -205,21 +207,25 @@ def export_dataset_images(
     return manifest
 
 
-@functools.cache
-def _exported_windows(dataset: Path) -> dict[str, PixelWindow]:
+def read_export(dataset: Path) -> YoloDatasetManifest:
+    """Open a published export without accepting an incomplete frozen sample set."""
     manifest: YoloDatasetManifest = json.loads(
         (dataset / "manifest.json").read_text("utf-8")
     )
-    return {
-        Path(image["image"]).name: PixelWindow(**image["window"])
+    if manifest.get("layout_version") != DATASET_LAYOUT:
+        raise ValueError(
+            "Prepare this dataset with the current exporter before training"
+        )
+    files = [dataset / "dataset.yaml"]
+    files.extend(
+        dataset / image[key]
         for image in manifest["images"]
-    }
-
-
-def exported_window(image_file: str | Path) -> PixelWindow:
-    """The window training reads an exported image through."""
-    path = Path(image_file)
-    return _exported_windows(path.parents[2])[path.name]
+        for key in ("image", "label")
+    )
+    for file in files:
+        if not file.is_file():
+            raise ValueError(f"Frozen dataset file is missing: {file}")
+    return manifest
 
 
 def export_yolo_dataset(
@@ -253,3 +259,99 @@ def export_yolo_dataset(
         seed=seed,
         mode=mode,
     )
+
+
+def prepare_yolo_dataset(
+    annotated: Sequence[AnnotatedImage],
+    class_names: Sequence[str],
+    data_root: str | Path,
+    output_dir: Path,
+    *,
+    mode: InferenceMode,
+    seed: int,
+) -> Path:
+    """Open a current export, or publish it once from frozen inputs."""
+    current = output_dir / f"layout-{DATASET_LAYOUT}"
+    for directory in (current, output_dir):
+        manifest_file = directory / "manifest.json"
+        if not manifest_file.is_file():
+            continue
+        manifest = json.loads(manifest_file.read_text())
+        version = manifest.get("layout_version")
+        if version == DATASET_LAYOUT:
+            read_export(directory)
+            return directory / "dataset.yaml"
+        if version is not None or directory == current:
+            raise ValueError(f"Unsupported dataset layout: {version}")
+        _migrate_export(
+            manifest, annotated, class_names, data_root, output_dir, current, mode
+        )
+        return current / "dataset.yaml"
+    export_yolo_dataset(
+        annotated, class_names, data_root, current, mode=mode, seed=seed
+    )
+    return current / "dataset.yaml"
+
+
+def _migrate_export(
+    manifest: dict[str, Any],
+    annotated: Sequence[AnnotatedImage],
+    class_names: Sequence[str],
+    data_root: str | Path,
+    source: Path,
+    destination: Path,
+    mode: InferenceMode,
+) -> None:
+    """Convert a frozen export once; loaders never interpret historical layouts.
+
+    Canonical exports already own their image bytes. Only cropped PNG exports
+    need the original blob; their labels, split and window are retained as facts.
+    """
+    if manifest["class_names"] != list(class_names) or manifest["mode"] != mode:
+        raise ValueError("Saved export classes or mode differ from the fixed inputs")
+    images = {image.digest: image for image in annotated}
+    entries = manifest["images"]
+    if len(entries) != len(images) or {entry["digest"] for entry in entries} != set(
+        images
+    ):
+        raise ValueError("Saved export images differ from the fixed inputs")
+    with atomic_directory(destination) as working:
+        for entry in entries:
+            image = images[entry["digest"]]
+            expected = (
+                coverage_window(image.coverage, image.width, image.height)
+                if image.coverage
+                else PixelWindow.whole(image.width, image.height)
+            )
+            window = (
+                entry["window"]
+                or PixelWindow.whole(image.width, image.height).to_dict()
+            )
+            if window != expected.to_dict() or entry["split"] not in ("train", "val"):
+                raise ValueError("Saved export window or split cannot be preserved")
+            old_image = source / entry["image"]
+            original = (
+                old_image
+                if old_image.suffix == CANONICAL_EXTENSION
+                else verified_blob(data_root, image.digest)
+            )
+            verify_digest(file_digest(original), image.digest)
+            require_image_dimensions(
+                image_shape(original), image.width, image.height, image.digest
+            )
+            image_path = (
+                Path("images") / entry["split"] / f"{image.digest}{CANONICAL_EXTENSION}"
+            )
+            label_path = Path("labels") / entry["split"] / f"{image.digest}.txt"
+            (working / image_path).parent.mkdir(parents=True, exist_ok=True)
+            (working / label_path).parent.mkdir(parents=True, exist_ok=True)
+            _link_or_copy(original, working / image_path)
+            shutil.copy2(source / entry["label"], working / label_path)
+            entry.update(
+                image=image_path.as_posix(), label=label_path.as_posix(), window=window
+            )
+        manifest["layout_version"] = DATASET_LAYOUT
+        (working / "manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+        )
+        shutil.copy2(source / "dataset.yaml", working / "dataset.yaml")

@@ -12,6 +12,10 @@ const WHEEL = /^seedctl-.+\.whl$/;
  * workbench's protocol revision.
  */
 export interface WorkerPackage {
+  id: string;
+  hostProtocol: number;
+  python: string;
+  requirements: string;
   /** The wheel's file name, which an installer reads its version from. */
   filename: string;
   /** The SHA-256 of the content, as lower-case hex. */
@@ -38,7 +42,34 @@ export async function readWorkerPackage(
       `${folder} holds ${wheels.length} worker packages; a workbench ships one`,
     );
   const content = new Uint8Array(await readFile(path.join(folder, filename)));
-  return { filename, digest: contentDigest(content), content };
+  const manifest = new Uint8Array(
+    await readFile(path.join(folder, "runtime.json")),
+  );
+  const description = JSON.parse(new TextDecoder().decode(manifest)) as Record<
+    string,
+    unknown
+  >;
+  const { digest, hostProtocol, python, requirements } = description;
+  if (
+    description.filename !== filename ||
+    digest !== contentDigest(content) ||
+    typeof hostProtocol !== "number" ||
+    !Number.isInteger(hostProtocol) ||
+    typeof python !== "string" ||
+    !/^3\.\d+\.\d+$/.test(python) ||
+    typeof requirements !== "string" ||
+    !requirements.trim()
+  )
+    throw new Error("The Worker runtime manifest does not match its package");
+  return {
+    id: contentDigest(manifest),
+    filename,
+    digest,
+    hostProtocol,
+    python,
+    requirements,
+    content,
+  };
 }
 
 let shipped: Promise<WorkerPackage | null> | undefined;

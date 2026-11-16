@@ -8,6 +8,10 @@ import {
 
 const content = new TextEncoder().encode("wheel bytes");
 const shipped = {
+  id: "cd".repeat(32),
+  hostProtocol: 1,
+  python: "3.13.14",
+  requirements: "pillow==12.3.0\n",
   filename: "seedctl-0.1.0-py3-none-any.whl",
   digest: contentDigest(content),
   content: new Uint8Array(content),
@@ -51,6 +55,10 @@ test("the description names the shipped package and its digest", async () => {
   const described = workerPackageDescription(shipped);
   expect(described.headers.get("Cache-Control")).toBe("no-cache");
   expect(await described.json()).toEqual({
+    id: shipped.id,
+    hostProtocol: shipped.hostProtocol,
+    python: shipped.python,
+    requirements: shipped.requirements,
     filename: shipped.filename,
     digest: shipped.digest,
   });

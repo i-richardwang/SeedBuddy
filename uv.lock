@@ -1651,6 +1651,7 @@ dependencies = [
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "opencv-python-headless" },
     { name = "pillow" },
+    { name = "psutil" },
 ]
 
 [package.optional-dependencies]
@@ -1673,6 +1674,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0" },
     { name = "opencv-python-headless", specifier = ">=5.0" },
     { name = "pillow", specifier = ">=11.3" },
+    { name = "psutil", specifier = ">=7.0" },
     { name = "ultralytics", marker = "extra == 'yolo'", specifier = "==8.4.131" },
 ]
 provides-extras = ["yolo"]

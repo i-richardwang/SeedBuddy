@@ -39,12 +39,18 @@ def release_accelerator() -> None:
 
 def load_training_trainer() -> type:
     """Load the detection adapter only when training is requested."""
-    from seedctl.detectors.ultralytics.trainer import MemoryBoundedDetectionTrainer
+    from seedctl.detectors.ultralytics.trainer import StoredImageDetectionTrainer
 
-    return MemoryBoundedDetectionTrainer
+    return StoredImageDetectionTrainer
 
 
 def require_ultralytics_version(required: str) -> None:
     installed = version("ultralytics")
     if installed != required:
         raise ValueError(f"Requires ultralytics {required}; installed {installed}")
+
+
+def load_training_validator() -> type:
+    from seedctl.detectors.ultralytics.trainer import StoredImageValidator
+
+    return StoredImageValidator

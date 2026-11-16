@@ -96,7 +96,7 @@ class ImageCache:
                 self.release(digest)
 
     def close(self) -> None:
-        self._pool.shutdown(wait=False, cancel_futures=True)
+        self._pool.shutdown(wait=True, cancel_futures=True)
 
     def _download(self, digest: str, download: Download) -> Path:
         try:

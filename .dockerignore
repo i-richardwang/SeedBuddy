@@ -3,6 +3,12 @@
 !configs/
 !configs/**
 !pyproject.toml
+!uv.lock
+!packages/
+!packages/seedbuddy/
+!packages/seedbuddy/pyproject.toml
+!scripts/
+!scripts/build_worker_package.py
 !LICENSE
 !docs/seedctl.md
 !src/

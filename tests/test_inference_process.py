@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
+import psutil
 import pytest
 
 from seedctl.detectors.contract import RuntimeDescriptor
 from seedctl.worker.inference_process import InferenceProcess
-from seedctl.worker.process import lead_process_group
 from seedctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSession, WorkerSettings
 
 
 def warm_child(connection, settings, session):
-    lead_process_group()
     count = 0
     while True:
         connection.recv()
@@ -23,18 +23,16 @@ def warm_child(connection, settings, session):
 
 
 def blocked_child(connection, settings, session):
-    lead_process_group()
     connection.recv()
     time.sleep(600)
 
 
 def crash_child(connection, settings, session):
-    lead_process_group()
     connection.recv()
     os._exit(2)
 
 
-def process(tmp_path: Path, monkeypatch, target) -> InferenceProcess:
+def process(tmp_path: Path, monkeypatch, target, processes) -> InferenceProcess:
     settings = WorkerSettings(
         server_url="https://example.test",
         token="secret",
@@ -48,11 +46,12 @@ def process(tmp_path: Path, monkeypatch, target) -> InferenceProcess:
         (RuntimeDescriptor("traditional", "b" * 64),),
     )
     monkeypatch.setattr("seedctl.worker.inference_process._execute", target)
-    return InferenceProcess(settings, session)
+    return InferenceProcess(settings, session, processes)
 
 
-def test_execution_process_is_warm_across_tasks(tmp_path, monkeypatch):
-    worker = process(tmp_path, monkeypatch, warm_child)
+def test_execution_process_is_warm_across_tasks(tmp_path, monkeypatch, processes):
+    worker = process(tmp_path, monkeypatch, warm_child, processes)
+    threads = set(threading.enumerate())
     try:
         first = worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
         second = worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
@@ -60,13 +59,15 @@ def test_execution_process_is_warm_across_tasks(tmp_path, monkeypatch):
         assert second["count"] == 2
     finally:
         worker.close()
-    assert worker._process is None
+    assert isinstance(first["pid"], int)
+    assert not psutil.pid_exists(first["pid"])
+    assert set(threading.enumerate()) <= threads
 
 
 def test_blocked_native_call_is_killed_and_the_process_can_restart(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, processes
 ):
-    worker = process(tmp_path, monkeypatch, blocked_child)
+    worker = process(tmp_path, monkeypatch, blocked_child, processes)
     deadline = time.monotonic() + 1
 
     def check():
@@ -84,8 +85,10 @@ def test_blocked_native_call_is_killed_and_the_process_can_restart(
     assert worker._process is None
 
 
-def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path, monkeypatch):
-    worker = process(tmp_path, monkeypatch, crash_child)
+def test_crashed_process_is_reported_without_waiting_for_a_lease(
+    tmp_path, monkeypatch, processes
+):
+    worker = process(tmp_path, monkeypatch, crash_child, processes)
     try:
         with pytest.raises(RuntimeError, match="disconnected|exited"):
             worker.run(None, time.monotonic() + 20, lambda: None)  # type: ignore[arg-type]
@@ -97,7 +100,6 @@ def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path, monke
 def partial_reply_child(connection, settings, session):
     import struct
 
-    lead_process_group()
     connection.recv()
     os.write(connection.fileno(), struct.pack("!i", 1024) + b"partial")
     time.sleep(600)
@@ -106,8 +108,11 @@ def partial_reply_child(connection, settings, session):
 @pytest.mark.skipif(
     sys.platform == "win32", reason="a Windows pipe carries whole messages"
 )
-def test_partial_pipe_frame_cannot_block_the_supervisor(tmp_path, monkeypatch):
-    worker = process(tmp_path, monkeypatch, partial_reply_child)
+def test_partial_pipe_frame_cannot_block_the_supervisor(
+    tmp_path, monkeypatch, processes
+):
+    worker = process(tmp_path, monkeypatch, partial_reply_child, processes)
+    threads = set(threading.enumerate())
     deadline = time.monotonic() + 1
 
     def check():
@@ -119,4 +124,4 @@ def test_partial_pipe_frame_cannot_block_the_supervisor(tmp_path, monkeypatch):
             worker.run(None, deadline, check)  # type: ignore[arg-type]
     finally:
         worker.close()
-    assert worker._process is None
+    assert set(threading.enumerate()) <= threads

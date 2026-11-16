@@ -2,7 +2,7 @@ import {
   MAX_UPLOADED_IMAGE_PIXELS,
   reducedImageSize,
 } from "../../domain/images/canonical";
-import { encodedImageSize, type PixelSize } from "../../lib/image/size";
+import { encodedImageSize } from "../../lib/image/size";
 import { m } from "../../paraglide/messages";
 
 /** Enough of a file to reach its size declaration past a camera's metadata. */
@@ -12,13 +12,16 @@ const HEADER_BYTES = 512 * 1024;
 const REDUCED_QUALITY = 0.95;
 
 /**
- * The photograph drawn at `target` as a JPEG, on the white the store lays
+ * The decoded, oriented photograph reduced as a JPEG, on the white the store lays
  * under a transparent source. A canvas the browser could not back takes no
  * paint, which the corner tells before anything blank is encoded.
  */
-async function reduce(file: File, target: PixelSize): Promise<Blob> {
+async function reduce(file: File): Promise<Blob> {
   const source = await createImageBitmap(file);
   try {
+    // Headers can describe unrotated pixels; the bitmap already applies EXIF.
+    const target = reducedImageSize(source);
+    if (!target) return file;
     const canvas = new OffscreenCanvas(target.width, target.height);
     const context = canvas.getContext("2d");
     if (!context) throw new Error("No canvas to draw the photograph on");
@@ -51,9 +54,8 @@ export async function reducedForUpload(file: File): Promise<File> {
     await file.slice(0, HEADER_BYTES).arrayBuffer(),
   );
   const declared = encodedImageSize(header);
-  const target = declared && reducedImageSize(declared);
-  if (!target) return file;
-  const reduced = await reduce(file, target).catch(() => {
+  if (!declared || !reducedImageSize(declared)) return file;
+  const reduced = await reduce(file).catch(() => {
     throw new Error(
       m.image_not_reduced({
         megapixels: MAX_UPLOADED_IMAGE_PIXELS / 1_000_000,

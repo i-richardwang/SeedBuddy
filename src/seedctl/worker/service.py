@@ -14,10 +14,12 @@ import httpx
 
 from seedctl.detectors.ultralytics import YoloTrainingInterruptedError
 from seedctl.detectors.ultralytics.runtime import release_accelerator
+from seedctl.worker.control import WorkerControl
 from seedctl.worker.images import ImageCache
 from seedctl.worker.inference import WORKER_ERRORS, InferenceRunner
 from seedctl.worker.inference_process import InferenceProcess
 from seedctl.worker.inference_protocol import InferenceClient
+from seedctl.worker.process import ProcessScope
 from seedctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
 from seedctl.worker.training import TrainingClient, serve_training_claim
 
@@ -36,9 +38,11 @@ class Worker:
         *,
         on_training: Callable[[bool], None],
         transport: httpx.BaseTransport | None = None,
+        processes: ProcessScope,
     ) -> None:
         self.settings = settings
         self.on_training = on_training
+        self.processes = processes
         self.client = WorkerClient(
             settings.connection,
             WorkerSession.create(),
@@ -47,7 +51,8 @@ class Worker:
         self.inference = InferenceClient(self.client)
         self.training = TrainingClient(self.client)
         self.runner = InferenceRunner(
-            self.inference, InferenceProcess(settings, self.client.session)
+            self.inference,
+            InferenceProcess(settings, self.client.session, self.processes),
         )
 
     def close(self) -> None:
@@ -56,10 +61,12 @@ class Worker:
         finally:
             self.client.close()
 
-    def serve_once(self, stopped: threading.Event) -> bool:
+    def serve_once(
+        self, stopped: threading.Event, draining: threading.Event | None = None
+    ) -> bool:
         """Take at most one task; whether one was taken paces the outer loop."""
         self.client.heartbeat()
-        if stopped.is_set():
+        if stopped.is_set() or (draining is not None and draining.is_set()):
             return False
         if self.client.session.can_train:
             claim = self.training.claim()
@@ -75,30 +82,33 @@ class Worker:
                         self.settings.device,
                         images,
                         stopped=stopped,
+                        processes=self.processes,
                     )
                 finally:
                     images.close()
                     release_accelerator()
                     self.on_training(False)
                 return True
+        if draining is not None and draining.is_set():
+            return False
         return self.runner.run_once(stopped)
 
 
 def run_worker(
     settings: WorkerSettings,
-    stopped: threading.Event,
+    control: WorkerControl,
     *,
     on_ready: Callable[[], None],
     on_training: Callable[[bool], None],
 ) -> None:
-    """Serve the workbench until `stopped` is set."""
+    """Serve until admission closes; only an explicit stop interrupts execution."""
     settings.work_dir.mkdir(parents=True, exist_ok=True)
-    worker = Worker(settings, on_training=on_training)
+    worker = Worker(settings, on_training=on_training, processes=control.processes)
     try:
         on_ready()
-        while not stopped.is_set():
+        while not control.draining.is_set():
             try:
-                worked = worker.serve_once(stopped)
+                worked = worker.serve_once(control.stopped, control.draining)
             except YoloTrainingInterruptedError:
                 LOGGER.info("training interrupted; the lease will be reclaimed")
                 worked = False
@@ -106,6 +116,6 @@ def run_worker(
                 LOGGER.error("worker error: %s", error)
                 worked = False
             if not worked:
-                stopped.wait(settings.poll_seconds)
+                control.draining.wait(settings.poll_seconds)
     finally:
         worker.close()

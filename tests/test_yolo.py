@@ -1,4 +1,7 @@
+import json
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conftest import (
@@ -10,6 +13,7 @@ from conftest import (
     write_blob,
     write_manifest,
 )
+from PIL import Image
 
 from seedctl.contracts.annotation import (
     AnnotationInstance,
@@ -27,9 +31,12 @@ from seedctl.detectors.ultralytics import (
     export_dataset_images,
     export_yolo_dataset,
 )
-from seedctl.detectors.ultralytics.dataset import assign_splits, exported_window
+from seedctl.detectors.ultralytics.dataset import (
+    assign_splits,
+    prepare_yolo_dataset,
+)
 from seedctl.image_geometry.window import PixelWindow
-from seedctl.io.image_io import CANONICAL_EXTENSION
+from seedctl.io.image_io import CANONICAL_EXTENSION, read_image
 
 
 def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
@@ -60,6 +67,67 @@ def _annotated_blobs(
         )
         for variant in range(count)
     ]
+
+
+@pytest.mark.parametrize(
+    "mode,layout",
+    [("whole_image", "null-window"), ("dish", "cropped-png"), ("dish", "canonical")],
+)
+def test_resume_migration_preserves_frozen_export_without_requiring_available_canonical_sources(
+    tmp_path, mode, layout
+):
+    data = tmp_path / "data"
+    images = _annotated_blobs(data, 4, ("val", "train", "val", "train"))
+    if mode == "dish":
+        images = [
+            replace(image, coverage=ImageCoverage(x=50, y=40, radius=30, margin=0.15))
+            for image in images
+        ]
+    output = tmp_path / "run"
+    old = output / "dataset"
+    exported = export_yolo_dataset(images, SEED_CLASSES, data, old, mode=mode, seed=13)
+    legacy: dict[str, Any] = json.loads(json.dumps(exported))
+    legacy.pop("layout_version")
+    for entry in legacy["images"]:
+        if mode == "whole_image":
+            entry["window"] = None
+        elif layout == "cropped-png":
+            # Legacy dish exports are already-cropped PNGs, never migration inputs.
+            destination = Path(entry["image"]).with_suffix(".png")
+            source = old / entry["image"]
+            pixels = PixelWindow(**entry["window"]).of(read_image(source))
+            Image.fromarray(pixels[..., ::-1]).save(old / destination)
+            source.unlink()
+            entry["image"] = destination.as_posix()
+    old_manifest = json.dumps(legacy)
+    (old / "manifest.json").write_text(old_manifest)
+    if layout != "cropped-png":
+        for image in images:
+            blob_path(data, image.digest).unlink()
+    # Assigning again would yield different splits: saved export membership wins.
+    unassigned = [replace(image, split=None) for image in images]
+    dataset = prepare_yolo_dataset(
+        unassigned, SEED_CLASSES, data, old, mode=mode, seed=999
+    )
+    current = json.loads(dataset.with_name("manifest.json").read_text())
+    assert current["layout_version"] == 2
+    assert current["seed"] == 13
+    assert current["class_names"] == list(SEED_CLASSES)
+    assert [(entry["digest"], entry["split"]) for entry in current["images"]] == [
+        (entry["digest"], entry["split"]) for entry in legacy["images"]
+    ]
+    for entry in current["images"]:
+        assert PixelWindow(**entry["window"]).width == (70 if mode == "dish" else 100)
+        assert (dataset.parent / entry["label"]).read_bytes() == (
+            old / entry["label"]
+        ).read_bytes()
+    assert (old / "manifest.json").read_text() == old_manifest
+    # Opening a published current export no longer consults its migration source.
+    (old / "manifest.json").unlink()
+    assert (
+        prepare_yolo_dataset(unassigned, SEED_CLASSES, data, old, mode=mode, seed=999)
+        == dataset
+    )
 
 
 def test_yolo_export_is_deterministic_and_self_contained(tmp_path: Path) -> None:
@@ -338,7 +406,7 @@ def test_dish_export_frames_an_image_and_its_labels_to_the_covered_dish(
     assert (output / framed["image"]).stat().st_ino == blob_path(
         data_root, framed_digest
     ).stat().st_ino
-    assert exported_window(output / framed["image"]) == PixelWindow(15, 5, 70, 70)
+    assert PixelWindow(**framed["window"]) == PixelWindow(15, 5, 70, 70)
     assert (output / framed["label"]).read_text().splitlines() == [
         "0 0.28571429 0.28571429 0.14285714 0.14285714",
         "0 0.03571429 0.21428571 0.07142857 0.14285714",

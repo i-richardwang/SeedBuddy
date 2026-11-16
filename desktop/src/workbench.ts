@@ -5,10 +5,18 @@ export type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 /** The Worker package a workbench ships, as `/worker-package.json` describes it. */
 export interface WorkerPackage {
+  /** Identity of the wheel, pinned dependencies, Python and host contract. */
+  id: string;
   filename: string;
   /** The SHA-256 of the package, as lower-case hex. */
   digest: string;
+  hostProtocol: number;
+  python: string;
+  requirements: string;
 }
+
+export class IncompatibleRuntime extends Error {}
+export const HOST_PROTOCOL = 1;
 
 /**
  * What asking a workbench to enroll this computer comes to: the Worker's
@@ -82,22 +90,33 @@ export async function describePackage(
     throw new Error(
       `The workbench did not describe its Worker package (${response.status})`,
     );
-  const { filename, digest } = await fieldsOf(response);
+  const { id, filename, digest, hostProtocol, python, requirements } =
+    await fieldsOf(response);
+  if (hostProtocol !== HOST_PROTOCOL)
+    throw new IncompatibleRuntime(
+      "This workbench and Desktop use different Worker host protocols. Update the workbench and Desktop before serving.",
+    );
   if (
+    typeof id !== "string" ||
+    !SHA256.test(id) ||
+    typeof python !== "string" ||
+    !/^3\.\d+\.\d+$/.test(python) ||
+    typeof requirements !== "string" ||
+    !requirements.trim() ||
     typeof filename !== "string" ||
     typeof digest !== "string" ||
     !WHEEL.test(filename) ||
     !SHA256.test(digest)
   )
     throw new Error("The workbench described no Worker package this app reads");
-  return { filename, digest };
+  return { id, filename, digest, hostProtocol, python, requirements };
 }
 
 /** The package the workbench ships, once what arrived is what it described. */
 export async function downloadPackage(
   fetch: Fetch,
   server: string,
-  { filename, digest }: WorkerPackage,
+  { filename, digest }: Pick<WorkerPackage, "filename" | "digest">,
   signal: AbortSignal,
 ): Promise<Uint8Array> {
   const response = await fetch(`${server}/worker-package/${filename}`, {

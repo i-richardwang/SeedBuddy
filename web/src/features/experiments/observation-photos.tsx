@@ -1,5 +1,5 @@
 import { FolderInput } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { onBenchOn } from "../../domain/experiments/culture-events";
 import { pairInOrder, suggestUnit } from "../../domain/experiments/naming";
@@ -118,6 +118,7 @@ export function useObservationPhotos({
   const placed = usePlacedPhotos(experiment);
   const onHand = usePhotosOnHand({ onStored: placed.check });
   const adding = useAsyncAction();
+  const batchRead = useRef<Promise<unknown> | null>(null);
   const [choices, setChoices] = useState<Record<number, string | null>>({});
   const vacantUnits = units.filter((unit) => !assigned.has(unit.id));
   const stored = storedOnHand(onHand.photos);
@@ -136,15 +137,23 @@ export function useObservationPhotos({
   return {
     onHand,
     batches: batches.filter((batch) => batch.photoCount > 0),
-    addBatch: (batch) =>
-      void adding.run(
-        async () => {
-          const detail = found(await getPhotoBatchDetail({ data: { batch } }));
-          onHand.take(detail.photos);
-        },
-        m.observation_photos_batch_not_added(),
-        { invalidate: false },
-      ),
+    addBatch: (batch) => {
+      if (batchRead.current !== null) return;
+      batchRead.current = adding
+        .run(
+          async () => {
+            const detail = found(
+              await getPhotoBatchDetail({ data: { batch } }),
+            );
+            onHand.take(detail.photos);
+          },
+          m.observation_photos_batch_not_added(),
+          { invalidate: false },
+        )
+        .finally(() => {
+          batchRead.current = null;
+        });
+    },
     addingBatch: adding.busy,
     units,
     assigned,
@@ -170,6 +179,7 @@ export function useObservationPhotos({
     checkFailed: answered.failed,
     recheck: answered.retry,
     pending:
+      adding.busy ||
       onHand.storing ||
       onHand.failed ||
       answered.checking ||
@@ -261,7 +271,7 @@ export function ObservationPhotosField({
         <div className="flex justify-end">
           <DropdownMenu
             align="end"
-            disabled={disabled}
+            disabled={disabled || photos.addingBatch}
             items={photos.batches.map((batch) => ({
               key: batch.id,
               label: m.observation_photos_batch_item({

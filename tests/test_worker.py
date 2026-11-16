@@ -48,6 +48,7 @@ def _worker(
     tmp_path: Path,
     monkeypatch,
     runtimes: tuple[RuntimeDescriptor, ...],
+    processes,
     on_training: Callable[[bool], None] = lambda _active: None,
 ) -> tuple[Worker, Workbench]:
     monkeypatch.setattr(worker_session, "available_runtimes", lambda: runtimes)
@@ -62,15 +63,18 @@ def _worker(
     worker = Worker(
         settings,
         on_training=on_training,
+        processes=processes,
         transport=httpx.MockTransport(workbench),
     )
     return worker, workbench
 
 
 def test_a_worker_that_can_train_asks_for_a_run_before_an_image(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, processes
 ) -> None:
-    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS))
+    served, workbench = _worker(
+        tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS), processes
+    )
     try:
         assert served.serve_once(threading.Event()) is False
     finally:
@@ -82,8 +86,10 @@ def test_a_worker_that_can_train_asks_for_a_run_before_an_image(
     ]
 
 
-def test_a_worker_without_ultralytics_only_detects(tmp_path: Path, monkeypatch) -> None:
-    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL,))
+def test_a_worker_without_ultralytics_only_detects(
+    tmp_path: Path, monkeypatch, processes
+) -> None:
+    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL,), processes)
     try:
         assert served.serve_once(threading.Event()) is False
     finally:
@@ -91,8 +97,12 @@ def test_a_worker_without_ultralytics_only_detects(tmp_path: Path, monkeypatch) 
     assert workbench.calls == ["/api/worker/heartbeat", "/api/worker/inference/claim"]
 
 
-def test_a_stopping_worker_takes_nothing(tmp_path: Path, monkeypatch) -> None:
-    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS))
+def test_a_stopping_worker_takes_nothing(
+    tmp_path: Path, monkeypatch, processes
+) -> None:
+    served, workbench = _worker(
+        tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS), processes
+    )
     stopped = threading.Event()
     stopped.set()
     try:
@@ -102,10 +112,40 @@ def test_a_stopping_worker_takes_nothing(tmp_path: Path, monkeypatch) -> None:
     assert workbench.calls == ["/api/worker/heartbeat"]
 
 
+def test_drain_during_claim_finishes_that_task_and_takes_no_more(
+    tmp_path, monkeypatch, processes
+):
+    from seedctl.worker import service
+
+    served, workbench = _worker(
+        tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS), processes
+    )
+    draining, stopped = threading.Event(), threading.Event()
+    completed = []
+
+    def claim():
+        draining.set()
+        return object()
+
+    def train(*_args, **options):
+        assert not options["stopped"].is_set()
+        completed.append("trained")
+
+    monkeypatch.setattr(served.training, "claim", claim)
+    monkeypatch.setattr(service, "serve_training_claim", train)
+    try:
+        assert served.serve_once(stopped, draining)
+        assert not served.serve_once(stopped, draining)
+        assert completed == ["trained"]
+        assert workbench.calls == ["/api/worker/heartbeat", "/api/worker/heartbeat"]
+    finally:
+        served.close()
+
+
 def test_a_removed_worker_stops_instead_of_retrying(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, processes
 ) -> None:
-    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL,))
+    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL,), processes)
     workbench.enrolled = False
     try:
         with pytest.raises(WorkerNotEnrolledError):
@@ -116,9 +156,9 @@ def test_a_removed_worker_stops_instead_of_retrying(
 
 
 def test_a_worker_of_another_protocol_revision_stops_instead_of_retrying(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, processes
 ) -> None:
-    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL,))
+    served, workbench = _worker(tmp_path, monkeypatch, (TRADITIONAL,), processes)
     workbench.protocol = WORKER_PROTOCOL + 1
     try:
         with pytest.raises(
@@ -131,13 +171,13 @@ def test_a_worker_of_another_protocol_revision_stops_instead_of_retrying(
 
 
 def test_training_stops_the_inference_process_and_releases_its_own_allocations(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, processes
 ) -> None:
     from seedctl.worker import service as worker
 
     reported: list[bool] = []
     served, _ = _worker(
-        tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS), reported.append
+        tmp_path, monkeypatch, (TRADITIONAL, ULTRALYTICS), processes, reported.append
     )
     events: list[str] = []
     claims = iter([None, object(), object()])

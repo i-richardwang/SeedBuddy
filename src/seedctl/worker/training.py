@@ -32,6 +32,7 @@ from seedctl.training.documents import (
 )
 from seedctl.worker.images import ImageCache, wait_for
 from seedctl.worker.local_training import attempt_directory, prepare_local_training
+from seedctl.worker.process import ProcessScope
 from seedctl.worker.session import LeaseLostError, WorkerClient, keep_lease
 from seedctl.worker.training_process import run_training_process
 
@@ -232,6 +233,7 @@ def _train_bundle(
     device: str | None,
     images: ImageCache,
     cancelled: Callable[[], bool],
+    processes: ProcessScope,
 ) -> Path:
     """Train against the frozen snapshot and produce the final model bundle."""
     recipe = claim.recipe
@@ -251,6 +253,7 @@ def _train_bundle(
         model_digest=recipe.base_model_digest,
         runtime_version=recipe.runtime_version,
         device=device,
+        processes=processes,
         cancelled=cancelled,
         on_training_start=lambda: client.enter_phase(claim, "training"),
         on_epoch=lambda epoch: client.report_epoch(claim, epoch),
@@ -281,6 +284,7 @@ def serve_training_claim(
     device: str | None,
     images: ImageCache,
     stopped: threading.Event,
+    processes: ProcessScope,
 ) -> None:
     runs = work_root / RUNS_DIRECTORY
     _prune_stale_runs(runs)
@@ -297,7 +301,9 @@ def serve_training_claim(
             prepare_local_training(claim, root)
             bundle = root / "bundle"
             if not bundle.is_dir():
-                bundle = _train_bundle(client, claim, root, device, images, cancelled)
+                bundle = _train_bundle(
+                    client, claim, root, device, images, cancelled, processes
+                )
             if cancelled():
                 raise YoloTrainingInterruptedError("training interrupted")
             client.publish_artifact(claim, bundle)

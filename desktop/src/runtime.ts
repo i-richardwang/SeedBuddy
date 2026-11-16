@@ -1,12 +1,16 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { run } from "./commands";
-import type { WorkerPackage } from "./workbench";
-
-/** The Python the Worker runtime is installed on. */
-const PYTHON = "3.13";
+import { HOST_PROTOCOL, type WorkerPackage } from "./workbench";
 
 /**
  * The Worker runtime this app keeps for itself: `seedctl` with its own
@@ -16,43 +20,59 @@ const PYTHON = "3.13";
 export class Runtime {
   readonly #root: string;
   readonly #uv: string;
+  #active: string | null = null;
 
   constructor(root: string, uv: string) {
-    this.#root = root;
+    // A runtime identity also includes the native platform it was resolved for.
+    this.#root = path.join(root, `${process.platform}-${process.arch}`);
     this.#uv = uv;
   }
 
   /** The `seedctl` this runtime installs. */
   get seedctl(): string {
-    return path.join(this.#root, "bin", "seedctl");
+    if (this.#active === null) throw new Error("No Worker runtime is active");
+    return path.join(this.#root, "releases", this.#active, "bin", "seedctl");
   }
 
   get #record(): string {
-    return path.join(this.#root, "installed-package");
+    return path.join(this.#root, "active-runtime");
   }
 
-  /** The digest of the package installed here, or null when none is. */
+  /** The complete runtime identity, not just the wheel digest. */
   async installed(): Promise<string | null> {
-    const digest = await readFile(this.#record, "utf8").catch(() => null);
-    return digest?.trim() || null;
+    const id = await readFile(this.#record, "utf8").catch(() => null);
+    this.#active = id?.trim() || null;
+    return this.#active;
   }
 
   /**
-   * Installs a package a workbench ships, with the `yolo` extra a Worker
-   * detects and trains with, in place of the one installed. Until it is done
-   * none counts as installed.
+   * Prepares at its final path (venvs cannot move), validates, then atomically
+   * switches the launch reference. Failure never mutates the active runtime.
+   * The caller has already drained the previous Worker before activating.
    */
   async install(
     shipped: WorkerPackage,
     content: Uint8Array,
     signal: AbortSignal,
   ): Promise<void> {
-    const folder = path.join(this.#root, "package");
+    const releases = path.join(this.#root, "releases");
+    const folder = path.join(releases, shipped.id);
     const file = path.join(folder, shipped.filename);
-    await rm(this.#record, { force: true });
+    if ((await this.installed()) === shipped.id) return;
     await rm(folder, { recursive: true, force: true });
     await mkdir(folder, { recursive: true });
     await writeFile(file, content);
+    const constraints = path.join(folder, "requirements.txt");
+    await writeFile(constraints, shipped.requirements);
+    const env = {
+      ...process.env,
+      UV_TOOL_DIR: path.join(folder, "tools"),
+      UV_TOOL_BIN_DIR: path.join(folder, "bin"),
+      UV_PYTHON_INSTALL_DIR: path.join(this.#root, "python"),
+      UV_CACHE_DIR: path.join(this.#root, "cache"),
+      UV_PYTHON_PREFERENCE: "only-managed",
+      UV_NO_PROGRESS: "1",
+    };
     await run(
       this.#uv,
       [
@@ -60,22 +80,34 @@ export class Runtime {
         "install",
         "--reinstall",
         "--python",
-        PYTHON,
+        shipped.python,
+        "--constraint",
+        constraints,
         `seedctl[yolo] @ ${pathToFileURL(file).href}`,
       ],
       {
-        env: {
-          ...process.env,
-          UV_TOOL_DIR: path.join(this.#root, "tools"),
-          UV_TOOL_BIN_DIR: path.join(this.#root, "bin"),
-          UV_PYTHON_INSTALL_DIR: path.join(this.#root, "python"),
-          UV_CACHE_DIR: path.join(this.#root, "cache"),
-          UV_PYTHON_PREFERENCE: "only-managed",
-          UV_NO_PROGRESS: "1",
-        },
+        env,
         signal,
       },
     );
-    await writeFile(this.#record, `${shipped.digest}\n`);
+    const checked = await run(
+      path.join(folder, "bin", "seedctl"),
+      ["worker", "runtime"],
+      { env, signal },
+    );
+    if (JSON.parse(checked.stdout)?.hostProtocol !== HOST_PROTOCOL)
+      throw new Error(
+        "The installed Worker does not implement the declared host protocol",
+      );
+    signal.throwIfAborted();
+    const previous = this.#active;
+    await writeFile(`${this.#record}.next`, `${shipped.id}\n`);
+    await rename(`${this.#record}.next`, this.#record);
+    this.#active = shipped.id;
+    // Retain the last good environment; discard only older owned installations.
+    for (const id of await readdir(releases)) {
+      if (id !== shipped.id && id !== previous)
+        await rm(path.join(releases, id), { recursive: true, force: true });
+    }
   }
 }

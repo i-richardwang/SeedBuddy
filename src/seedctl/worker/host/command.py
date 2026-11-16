@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import sys
+from contextlib import redirect_stdout
 from typing import Any, Protocol
 
 from seedctl.worker.host.launchd import (
@@ -25,6 +27,7 @@ from seedctl.worker.host.profiles import (
     profile_exists,
     save_profile,
 )
+from seedctl.worker.runtime import runtime_description
 from seedctl.worker.session import DEFAULT_POLL_SECONDS
 
 
@@ -116,6 +119,15 @@ def _doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def _runtime(_args: argparse.Namespace) -> int:
+    """Checks a candidate's runtime imports without enrollment or network access."""
+    # Dependency initialization may print notices; stdout is the host response.
+    with redirect_stdout(sys.stderr):
+        description = runtime_description()
+    print(json.dumps(description))
+    return 0
+
+
 class SubparserCollection(Protocol):
     def add_parser(self, name: str, **kwargs: Any) -> argparse.ArgumentParser: ...
 
@@ -123,6 +135,10 @@ class SubparserCollection(Protocol):
 def add_worker_commands(commands: SubparserCollection) -> None:
     worker = commands.add_parser("worker", help="Manage native Worker services")
     worker_commands = worker.add_subparsers(dest="worker_command", required=True)
+    runtime = worker_commands.add_parser(
+        "runtime", help="Check the installed hosted runtime"
+    )
+    runtime.set_defaults(handler=_runtime)
     setup = worker_commands.add_parser(
         "setup", help="Create a Worker profile and start its service"
     )

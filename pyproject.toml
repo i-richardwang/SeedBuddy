@@ -27,6 +27,7 @@ dependencies = [
   "numpy>=2.0",
   "opencv-python-headless>=5.0",
   "pillow>=11.3",
+  "psutil>=7.0",
 ]
 
 [project.optional-dependencies]
@@ -89,4 +90,3 @@ include = [
   "/pyproject.toml",
   "/src/seedctl",
 ]
-

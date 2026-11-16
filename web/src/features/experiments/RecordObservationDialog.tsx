@@ -68,6 +68,7 @@ function RecordObservationSession({
     placing,
     day: value.observedOn,
   });
+  const canSubmit = !action.busy && !photos.pending;
 
   return (
     <FormDialog
@@ -84,13 +85,14 @@ function RecordObservationSession({
       }
       formId={FORM_ID}
       busy={action.busy}
-      okDisabled={photos.pending}
+      okDisabled={!canSubmit}
       width="wide"
     >
       <Form
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canSubmit) return;
           void action.run(
             () =>
               createObservation({

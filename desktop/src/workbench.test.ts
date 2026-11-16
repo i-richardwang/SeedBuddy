@@ -8,10 +8,17 @@ import {
   downloadPackage,
   enroll,
   type Fetch,
+  IncompatibleRuntime,
   parseServer,
 } from "./workbench";
 
 const SERVER = "https://seedbuddy.example.org";
+const RUNTIME = {
+  id: "cd".repeat(32),
+  hostProtocol: 1,
+  python: "3.13.14",
+  requirements: "pillow==12.3.0\n",
+};
 
 const { signal } = new AbortController();
 
@@ -58,6 +65,7 @@ test("no workbench answers where the request fails or is refused", async () => {
 
 test("the package a workbench ships is the one it describes", async () => {
   const shipped = {
+    ...RUNTIME,
     filename: "seedctl-1.0.0-py3-none-any.whl",
     digest: "ab".repeat(32),
   };
@@ -77,10 +85,29 @@ test.each([
 ])(
   "a description that names no seedctl wheel and digest is refused",
   async (described) => {
-    const { fetch } = workbench(() => Response.json(described));
+    const { fetch } = workbench(() =>
+      Response.json({ ...RUNTIME, ...described }),
+    );
 
     await expect(describePackage(fetch, SERVER, signal)).rejects.toThrow(
       "described no Worker package",
+    );
+  },
+);
+
+test.each([undefined, 0, 2])(
+  "a missing or unsupported host contract fails before download",
+  async (hostProtocol) => {
+    const { fetch } = workbench(() =>
+      Response.json({
+        ...RUNTIME,
+        hostProtocol,
+        filename: "seedctl-1.0.0-py3-none-any.whl",
+        digest: "ab".repeat(32),
+      }),
+    );
+    await expect(describePackage(fetch, SERVER, signal)).rejects.toBeInstanceOf(
+      IncompatibleRuntime,
     );
   },
 );

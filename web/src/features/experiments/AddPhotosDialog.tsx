@@ -45,6 +45,7 @@ function AddPhotosSession({
     placing,
     day: observation.observedOn,
   });
+  const canSubmit = !action.busy && !photos.pending && photos.ready.length > 0;
 
   return (
     <FormDialog
@@ -61,13 +62,14 @@ function AddPhotosSession({
       }
       formId={FORM_ID}
       busy={action.busy}
-      okDisabled={photos.pending || photos.ready.length === 0}
+      okDisabled={!canSubmit}
       width="wide"
     >
       <Form
         id={FORM_ID}
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canSubmit) return;
           void action.run(
             () =>
               updateObservationImages({

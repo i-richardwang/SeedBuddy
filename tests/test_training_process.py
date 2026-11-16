@@ -2,22 +2,25 @@ from __future__ import annotations
 
 import multiprocessing
 import sys
+import threading
 import time
+from functools import partial
 from pathlib import Path
 
 import pytest
 
 from seedctl.detectors.ultralytics import YoloTrainingInterruptedError
 from seedctl.worker import training_process
-from seedctl.worker.process import lead_process_group
-
-# The stand-in trainers reach the trainer process by fork, which Windows lacks.
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32", reason="the stand-in trainers need fork"
-)
 
 
-def _hung_trainer(*_args, **_kwargs):
+def _run_trainer(trainer, *args):
+    """A spawn-importable task using the real training event protocol."""
+    training_process.train_yolo_detector = trainer
+    training_process._train(*args)
+
+
+def _hung_trainer(*_args, **options):
+    options["on_training_start"]()
     while True:
         time.sleep(0.05)
 
@@ -30,15 +33,16 @@ def _broken_trainer(*_args, **_kwargs):
     "trainer,interrupted", [(_hung_trainer, True), (_broken_trainer, False)]
 )
 def test_supervisor_terminates_an_unresponsive_trainer_and_surfaces_failures(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, trainer, interrupted: bool
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    trainer,
+    interrupted: bool,
+    processes,
 ) -> None:
-    context = multiprocessing.get_context("fork")
-    monkeypatch.setattr(
-        training_process.multiprocessing, "get_context", lambda _: context
-    )
-    monkeypatch.setattr(training_process, "train_yolo_detector", trainer)
+    monkeypatch.setattr(training_process, "_train", partial(_run_trainer, trainer))
     before = {child.pid for child in multiprocessing.active_children()}
-    deadline = time.monotonic() + 0.3
+    threads = set(threading.enumerate())
+    admitted = []
     with pytest.raises(
         YoloTrainingInterruptedError if interrupted else RuntimeError,
         match="revoked" if interrupted else "invalid checkpoint",
@@ -46,18 +50,20 @@ def test_supervisor_terminates_an_unresponsive_trainer_and_surfaces_failures(
         training_process.run_training_process(
             tmp_path / "dataset.yaml",
             tmp_path / "run",
+            processes=processes,
             parameters={},
             model="base.pt",
             model_digest="a" * 64,
             runtime_version="8.4.131",
             device=None,
             resume_required=False,
-            cancelled=lambda: interrupted and time.monotonic() >= deadline,
-            on_training_start=lambda: None,
+            cancelled=lambda: interrupted and bool(admitted),
+            on_training_start=lambda: admitted.append(True),
             on_epoch=lambda _: None,
             on_validation_start=lambda: None,
         )
     assert {child.pid for child in multiprocessing.active_children()} == before
+    assert set(threading.enumerate()) <= threads
 
 
 def _trainer_with_surviving_child(_dataset, output, **_options):
@@ -90,18 +96,16 @@ while True:
 def test_supervisor_cleans_descendants_after_the_trainer_has_exited(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    processes,
 ) -> None:
-    context = multiprocessing.get_context("fork")
     monkeypatch.setattr(
-        training_process.multiprocessing, "get_context", lambda _: context
-    )
-    monkeypatch.setattr(
-        training_process, "train_yolo_detector", _trainer_with_surviving_child
+        training_process, "_train", partial(_run_trainer, _trainer_with_surviving_child)
     )
     output = tmp_path / "run"
     training_process.run_training_process(
         tmp_path / "dataset.yaml",
         output,
+        processes=processes,
         parameters={},
         model="base.pt",
         model_digest="a" * 64,
@@ -124,17 +128,16 @@ def _diagnostic_trainer(_dataset, _output, *, on_execution, **_options):
 
 
 def test_supervisor_persists_child_execution_diagnostics_in_worker_log(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog, processes
 ) -> None:
-    context = multiprocessing.get_context("fork")
     monkeypatch.setattr(
-        training_process.multiprocessing, "get_context", lambda _: context
+        training_process, "_train", partial(_run_trainer, _diagnostic_trainer)
     )
-    monkeypatch.setattr(training_process, "train_yolo_detector", _diagnostic_trainer)
     with caplog.at_level("INFO", logger=training_process.__name__):
         training_process.run_training_process(
             tmp_path / "dataset.yaml",
             tmp_path / "run",
+            processes=processes,
             parameters={},
             model="base.pt",
             model_digest="a" * 64,
@@ -150,36 +153,43 @@ def test_supervisor_persists_child_execution_diagnostics_in_worker_log(
     assert '"accumulate": 8' in caplog.text
 
 
-def _partial_message(connection, _dataset, _output, _options):
+def _partial_message(connection, _dataset, output, _options):
     import os
     import struct
 
-    lead_process_group()
     os.write(connection.fileno(), struct.pack("!i", 1024) + b"partial")
+    output.mkdir(parents=True)
+    (output / "partial").touch()
     time.sleep(2)
 
 
-def test_partial_event_does_not_block_training_cancellation(tmp_path, monkeypatch):
-    context = multiprocessing.get_context("fork")
-    monkeypatch.setattr(
-        training_process.multiprocessing, "get_context", lambda _: context
-    )
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows pipes carry complete messages"
+)
+def test_partial_event_does_not_block_training_cancellation(
+    tmp_path, monkeypatch, processes
+):
     monkeypatch.setattr(training_process, "_train", _partial_message)
     before = {child.pid for child in multiprocessing.active_children()}
+    threads = set(threading.enumerate())
     started = time.monotonic()
     with pytest.raises(YoloTrainingInterruptedError, match="revoked"):
         training_process.run_training_process(
             tmp_path / "dataset.yaml",
             tmp_path / "run",
+            processes=processes,
             parameters={},
             model="base.pt",
             model_digest="a" * 64,
             runtime_version="8.4.131",
             device=None,
             resume_required=False,
-            cancelled=lambda: time.monotonic() - started > 0.2,
+            cancelled=lambda: (
+                (tmp_path / "run/partial").exists() and time.monotonic() - started > 0.2
+            ),
             on_training_start=lambda: None,
             on_epoch=lambda _: None,
             on_validation_start=lambda: None,
         )
     assert {child.pid for child in multiprocessing.active_children()} == before
+    assert set(threading.enumerate()) <= threads

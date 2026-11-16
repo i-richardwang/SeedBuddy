@@ -29,16 +29,15 @@ export function workerPackageResponse(
 }
 
 /**
- * Describes the worker package this workbench ships, for a program that
- * installs it and keeps it current: the name it is served under and the
- * digest of its content, which changes when a deployment ships another.
+ * Describes the complete installable runtime: wheel, Python, dependencies
+ * and host protocol. Its identity changes even for dependency-only releases.
  */
 export function workerPackageDescription(
   shipped: WorkerPackage | null,
 ): Response {
   if (!shipped) return new Response("No worker package", { status: 404 });
-  return Response.json(
-    { filename: shipped.filename, digest: shipped.digest },
-    { headers: { "Cache-Control": "no-cache" } },
-  );
+  const { content: _content, ...description } = shipped;
+  return Response.json(description, {
+    headers: { "Cache-Control": "no-cache" },
+  });
 }

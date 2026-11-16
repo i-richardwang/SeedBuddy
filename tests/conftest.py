@@ -20,6 +20,14 @@ from seedctl.models.bundle import weights_descriptor
 SEED_CLASSES = ("ungerminated", "germinated")
 
 
+@pytest.fixture
+def processes():
+    from seedctl.worker.process import ProcessScope
+
+    with ProcessScope() as scope:
+        yield scope
+
+
 def annotation_document(
     digest: str,
     boxes: list[dict[str, float]] | None = None,

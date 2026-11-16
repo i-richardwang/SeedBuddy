@@ -424,7 +424,7 @@ def test_lease_refresh_failure_cancels_training_and_surfaces_lease_loss(
 
 @pytest.mark.parametrize("delivery_fails", [False, True])
 def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, delivery_fails: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, delivery_fails: bool, processes
 ) -> None:
     posted: list[tuple[str, dict[str, object]]] = []
     artifacts: list[tuple[str, bytes, dict[str, object]]] = []
@@ -551,6 +551,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
             "mps",
             ImageCache(tmp_path / "images"),
             stopped=threading.Event(),
+            processes=processes,
         )
     if delivery_fails:
         retained = tmp_path / "training-runs" / "train-one-1" / "bundle"
@@ -572,7 +573,7 @@ def test_training_claim_reports_each_epoch_and_publishes_the_artifact(
 
 
 def test_interrupted_training_claim_cleans_its_attempt_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, processes
 ) -> None:
     outputs: list[Path] = []
 
@@ -610,6 +611,7 @@ def test_interrupted_training_claim_cleans_its_attempt_directory(
                 "mps",
                 ImageCache(tmp_path / "images"),
                 stopped=threading.Event(),
+                processes=processes,
             )
 
     assert outputs[0] == outputs[1] == tmp_path / "training-runs/train-one-1/run"
@@ -617,7 +619,7 @@ def test_interrupted_training_claim_cleans_its_attempt_directory(
 
 
 def test_training_claim_reports_an_unexpected_adapter_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, processes
 ) -> None:
     failures: list[tuple[str, str]] = []
 
@@ -647,6 +649,7 @@ def test_training_claim_reports_an_unexpected_adapter_failure(
             "mps",
             ImageCache(tmp_path / "images"),
             stopped=threading.Event(),
+            processes=processes,
         )
 
     assert failures == [("train-broken", "'unexpected Ultralytics field'")]
@@ -774,7 +777,7 @@ def test_final_artifact_uses_bounded_parts_and_retries_only_failed_requests(
 
 @pytest.mark.parametrize("cancelled", [False, True])
 def test_retry_delivers_retained_bundle_without_training_again(
-    tmp_path, monkeypatch, cancelled, recipe
+    tmp_path, monkeypatch, cancelled, recipe, processes
 ):
     from dataclasses import replace
 
@@ -826,6 +829,7 @@ def test_retry_delivers_retained_bundle_without_training_again(
                 "cpu",
                 images,
                 stopped=threading.Event(),
+                processes=processes,
             )
     finally:
         images.close()
@@ -840,7 +844,7 @@ def test_retry_delivers_retained_bundle_without_training_again(
 
 
 def test_epoch_reports_no_weight_bytes_and_interruption_retains_local_state(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, processes
 ):
     monkeypatch.setattr(
         training_worker, "keep_lease", lambda *a, **kw: nullcontext(lambda: False)
@@ -893,6 +897,7 @@ def test_epoch_reports_no_weight_bytes_and_interruption_retains_local_state(
                 "cpu",
                 images,
                 stopped=threading.Event(),
+                processes=processes,
             )
     finally:
         images.close()

@@ -6,8 +6,6 @@ import multiprocessing
 import queue
 from collections.abc import Callable
 from functools import partial
-from multiprocessing.connection import Connection
-from typing import Any
 
 import httpx
 
@@ -16,9 +14,10 @@ from seedctl.worker.images import ImageCache
 from seedctl.worker.inference_protocol import Assignment, InferenceClient
 from seedctl.worker.model_store import ModelStore
 from seedctl.worker.process import (
-    lead_process_group,
+    Connection,
+    ExecutionProcess,
+    ProcessScope,
     read_events,
-    terminate_process_group,
 )
 from seedctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
 
@@ -32,7 +31,6 @@ class InferenceExecutionError(RuntimeError):
 def _execute(
     connection: Connection, settings: WorkerSettings, session: WorkerSession
 ) -> None:
-    lead_process_group()
     worker = WorkerClient(settings.connection, session)
     client = InferenceClient(worker)
     models = ModelStore(client, settings.work_dir, settings.device)
@@ -86,10 +84,12 @@ class InferenceProcess:
         self,
         settings: WorkerSettings,
         session: WorkerSession,
+        processes: ProcessScope,
     ) -> None:
         self.settings = settings
         self.session = session
-        self._process: Any = None
+        self._scope = processes
+        self._process: ExecutionProcess | None = None
         self._connection: Connection | None = None
 
     def _start(self) -> Connection:
@@ -97,13 +97,17 @@ class InferenceProcess:
             return self._connection
         context = multiprocessing.get_context("spawn")
         parent, child = context.Pipe()
-        process = context.Process(
-            target=_execute,
-            args=(child, self.settings, self.session),
-            name="seedbuddy-inference",
-        )
-        process.start()
-        child.close()
+        try:
+            process = self._scope.start(
+                _execute,
+                (child, self.settings, self.session),
+                name="seedbuddy-inference",
+            )
+        except BaseException:
+            parent.close()
+            raise
+        finally:
+            child.close()
         self._process = process
         self._connection = parent
         return parent
@@ -113,6 +117,8 @@ class InferenceProcess:
     ) -> dict[str, object]:
         check()
         connection = self._start()
+        process = self._process
+        assert process is not None
         replies, reader = read_events(connection, (assignment, deadline))
         try:
             while True:
@@ -120,10 +126,10 @@ class InferenceProcess:
                 try:
                     kind, value = replies.get(timeout=0.1)
                 except queue.Empty:
-                    if not self._process.is_alive():
+                    if not process.is_alive():
                         raise InferenceExecutionError(
                             "execution",
-                            f"Inference process exited with code {self._process.exitcode}",
+                            f"Inference process exited with code {process.exitcode}",
                         )
                     continue
                 check()
@@ -147,4 +153,4 @@ class InferenceProcess:
             connection.close()
         if process is None:
             return
-        terminate_process_group(process)
+        self._scope.close_execution(process)
