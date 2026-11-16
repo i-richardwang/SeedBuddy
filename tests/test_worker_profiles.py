@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import stat
+import sys
 
 import pytest
 
@@ -12,7 +13,7 @@ from seedctl.worker.host.profiles import (
 )
 
 
-def test_profile_round_trip_is_private(tmp_path, monkeypatch) -> None:
+def test_a_saved_profile_is_loaded_and_listed(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
     profile = WorkerProfile(
         server_url="https://example.test/",
@@ -20,10 +21,20 @@ def test_profile_round_trip_is_private(tmp_path, monkeypatch) -> None:
         device="mps",
     )
 
-    path = save_profile("seed-v3", profile)
+    save_profile("seed-v3", profile)
 
     assert load_profile("seed-v3") == profile
     assert list_profiles() == ("seed-v3",)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows has no file modes")
+def test_a_saved_profile_is_kept_from_other_accounts(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
+
+    path = save_profile(
+        "seed-v3", WorkerProfile(server_url="https://example.test/", token="secret")
+    )
+
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
 

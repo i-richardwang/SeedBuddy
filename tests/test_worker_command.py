@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import sys
 
 import pytest
 
@@ -250,6 +251,7 @@ def test_list_reports_each_profile(tmp_path, monkeypatch, capsys) -> None:
     assert capsys.readouterr().out == ("trainer\tnever started\tnot loaded\tcpu\n")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="launchd services are for macOS")
 @pytest.mark.parametrize("action", ["start", "restart", "stop"])
 def test_service_commands_check_platform_and_profile_once(
     tmp_path, monkeypatch, action
@@ -285,3 +287,18 @@ def test_service_commands_check_platform_and_profile_once(
     assert main(["worker", action, "trainer"]) == 0
     assert loads == ["trainer"]
     assert checks == (["platform"] if action == "stop" else ["platform", profile])
+
+
+@pytest.mark.parametrize(("arguments", "hosted"), [([], False), (["--hosted"], True)])
+def test_run_says_whether_a_program_hosts_the_process(
+    monkeypatch, arguments, hosted
+) -> None:
+    runs = []
+    monkeypatch.setattr(
+        worker_command,
+        "run_profile",
+        lambda name, *, hosted: runs.append((name, hosted)) or 0,
+    )
+
+    assert main(["worker", "run", "trainer", *arguments]) == 0
+    assert runs == [("trainer", hosted)]

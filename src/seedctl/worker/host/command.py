@@ -107,7 +107,7 @@ def _logs(args: argparse.Namespace) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
-    return run_profile(args.profile)
+    return run_profile(args.profile, hosted=args.hosted)
 
 
 def _doctor(args: argparse.Namespace) -> int:
@@ -148,11 +148,18 @@ def add_worker_commands(commands: SubparserCollection) -> None:
         ("stop", "Stop and unload a Worker service", _stop),
         ("restart", "Restart a Worker service", _restart),
         ("doctor", "Validate a profile, runtime, and accelerator", _doctor),
-        ("run", "Run a profile in the foreground", _run),
     ):
         command = worker_commands.add_parser(action, help=help_text)
         command.add_argument("profile")
         command.set_defaults(handler=handler)
+    run = worker_commands.add_parser("run", help="Run a profile in the foreground")
+    run.add_argument("profile")
+    run.add_argument(
+        "--hosted",
+        action="store_true",
+        help="Stop when the program that started this one closes its standard input",
+    )
+    run.set_defaults(handler=_run)
     logs = worker_commands.add_parser("logs", help="Show Worker logs")
     logs.add_argument("profile")
     logs.add_argument("--lines", type=int, default=100)

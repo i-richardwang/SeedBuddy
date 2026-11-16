@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import multiprocessing
-import os
 import queue
 from collections.abc import Callable
 from functools import partial
@@ -16,7 +15,11 @@ from seedctl.detectors.contract import DetectionProducer
 from seedctl.worker.images import ImageCache
 from seedctl.worker.inference_protocol import Assignment, InferenceClient
 from seedctl.worker.model_store import ModelStore
-from seedctl.worker.process import read_events, terminate_process_group
+from seedctl.worker.process import (
+    lead_process_group,
+    read_events,
+    terminate_process_group,
+)
 from seedctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
 
 
@@ -29,7 +32,7 @@ class InferenceExecutionError(RuntimeError):
 def _execute(
     connection: Connection, settings: WorkerSettings, session: WorkerSession
 ) -> None:
-    os.setsid()
+    lead_process_group()
     worker = WorkerClient(settings.connection, session)
     client = InferenceClient(worker)
     models = ModelStore(client, settings.work_dir, settings.device)

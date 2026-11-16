@@ -7,7 +7,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import cv2
 import numpy as np
 import pytest
 from conftest import encoded_image
@@ -244,14 +243,6 @@ def test_yolo_fingerprint_covers_weights_and_inference_settings(tmp_path: Path) 
     # The frame is recorded on the version, not hashed into its weights.
     assert framed.artifact_digest == baseline.artifact_digest
     assert baseline.runtime == changed.runtime
-
-
-def test_source_pixels_are_read_the_way_training_read_them(tmp_path: Path) -> None:
-    source = _source(tmp_path, 10, 8)
-    assert np.array_equal(
-        ultralytics_module.read_image(source),
-        cv2.imdecode(np.fromfile(source, np.uint8), cv2.IMREAD_COLOR),
-    )
 
 
 def _weights(tmp_path: Path) -> Path:

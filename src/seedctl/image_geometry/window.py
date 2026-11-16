@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+import numpy as np
+
 from seedctl.contracts.annotation import BoundingBox
 from seedctl.contracts.coverage import ImageCoverage
 
@@ -33,6 +35,10 @@ class PixelWindow:
 
     def to_dict(self) -> dict[str, int]:
         return {"x": self.x, "y": self.y, "width": self.width, "height": self.height}
+
+    def of(self, pixels: np.ndarray) -> np.ndarray:
+        """The window's pixels of an image."""
+        return pixels[self.y : self.bottom, self.x : self.right]
 
     def crop(self, box: BoundingBox) -> BoundingBox | None:
         """The box in window pixels, clipped to the window; None when outside."""

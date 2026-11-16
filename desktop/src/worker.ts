@@ -1,7 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { readFile, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { setTimeout as wait } from "node:timers/promises";
 
 import { run } from "./commands";
 
@@ -19,7 +18,11 @@ export interface WorkerStatus {
 /** The app runs on Apple Silicon, whose GPU a Worker detects and trains on. */
 const DEVICE = "mps";
 const STATUS_POLL_MS = 2_000;
-const STOP_GRACE_MS = 30_000;
+/**
+ * How long a process let go of is given before the app ends it: longer than
+ * the 30 seconds after which a hosted process ends itself.
+ */
+const STOP_GRACE_MS = 35_000;
 
 /**
  * A Worker name for the computer called `hostname`: that name in the
@@ -45,29 +48,12 @@ function isWorkerStatus(value: unknown): value is WorkerStatus {
   );
 }
 
-/** Whether `pid` was there to be sent the signal; 0 only asks. */
-function send(pid: number, signal: NodeJS.Signals | 0): boolean {
-  try {
-    return process.kill(pid, signal);
-  } catch {
-    return false;
-  }
-}
-
-/** Asks a process to finish, and makes it once it has had long enough. */
-async function end(pid: number): Promise<void> {
-  if (!send(pid, "SIGTERM")) return;
-  const deadline = Date.now() + STOP_GRACE_MS;
-  while (send(pid, 0)) {
-    if (Date.now() > deadline) send(pid, "SIGKILL");
-    await wait(200);
-  }
-}
-
 /**
  * The Worker process this app keeps: one `seedctl` profile under a home of
  * the app's, run in the foreground as the app's child instead of as a
- * system service.
+ * system service. The process is hosted: it finishes when the app closes its
+ * standard input, by asking or by ending itself, so none outlives the app
+ * for long, and one started while an earlier one is finishing waits for it.
  */
 export class HostedWorker {
   readonly #seedctl: string;
@@ -83,14 +69,6 @@ export class HostedWorker {
 
   get #env(): NodeJS.ProcessEnv {
     return { ...process.env, SEEDBUDDY_HOME: this.#home };
-  }
-
-  /**
-   * Names the process from the moment it is spawned, before it has recorded
-   * anything itself, for a later run of the app to find it by.
-   */
-  get #pidFile(): string {
-    return path.join(this.#home, "hosted.pid");
   }
 
   /**
@@ -136,21 +114,6 @@ export class HostedWorker {
   }
 
   /**
-   * Ends a Worker process an earlier run of the app left behind, because it
-   * was killed or quit while the process was finishing: two processes of one
-   * Worker would contend for it.
-   */
-  async #endLeftover(): Promise<void> {
-    const pid = Number(await readFile(this.#pidFile, "utf8").catch(() => ""));
-    if (!Number.isInteger(pid) || pid <= 0) return;
-    const command = await run("ps", ["-p", String(pid), "-o", "command="], {
-      env: process.env,
-    }).catch(() => "");
-    if (command.includes(this.#seedctl)) await end(pid);
-    await rm(this.#pidFile, { force: true });
-  }
-
-  /**
    * Runs the profile. `onStatus` is told each status the process reports
    * while it serves, and `onExit` the status it left: the one it ended with,
    * one of work under way when it was killed, or null when it wrote none.
@@ -169,12 +132,12 @@ export class HostedWorker {
     onStatus: (status: WorkerStatus) => void,
     onExit: (status: WorkerStatus | null) => void,
   ): Promise<void> {
-    await this.#endLeftover();
     const since = Date.now();
-    const child = spawn(this.#seedctl, ["worker", "run", workerName], {
-      env: this.#env,
-      stdio: "ignore",
-    });
+    const child = spawn(
+      this.#seedctl,
+      ["worker", "run", workerName, "--hosted"],
+      { env: this.#env, stdio: ["pipe", "ignore", "ignore"] },
+    );
     /** Why the process could not be run or kept, when it could not. */
     let failure: Error | null = null;
     /** Whether the process has ended, after which it reports nothing more. */
@@ -201,9 +164,6 @@ export class HostedWorker {
       ended: exited.then(async () => {
         over = true;
         clearInterval(watch);
-        // A file that stays names a process that is gone, which the next
-        // start finds.
-        await rm(this.#pidFile, { force: true }).catch(() => {});
         onExit(
           failure
             ? { state: "failed", detail: failure.message }
@@ -213,27 +173,21 @@ export class HostedWorker {
       }),
     };
     this.#running = running;
-    if (child.pid === undefined) return;
-    // A process no later run of the app could find is not left running.
-    await writeFile(this.#pidFile, String(child.pid)).catch((error: Error) => {
-      failure = error;
-      child.kill();
-    });
   }
 
   /**
    * Asks the process to finish, a start under way first getting as far as
-   * its process, and resolves once `onExit` has been told of its end. With
-   * none started here, one an earlier run of the app left behind is ended.
+   * its process, and resolves once `onExit` has been told of its end. One
+   * that has not finished in time is ended.
    */
   async stop(): Promise<void> {
     await this.#starting.catch(() => {});
     const running = this.#running;
-    if (running === null) return this.#endLeftover();
-    const { pid, exitCode, signalCode } = running.child;
-    // One that has ended is not signalled: its pid may be another's by now.
-    if (pid !== undefined && exitCode === null && signalCode === null)
-      void end(pid);
+    if (running === null) return;
+    const { child } = running;
+    child.stdin?.end();
+    const overdue = setTimeout(() => child.kill("SIGKILL"), STOP_GRACE_MS);
     await running.ended;
+    clearTimeout(overdue);
   }
 }

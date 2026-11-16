@@ -27,8 +27,9 @@ from seedctl.detectors.ultralytics import (
     export_dataset_images,
     export_yolo_dataset,
 )
-from seedctl.detectors.ultralytics.dataset import assign_splits
-from seedctl.io.image_io import CANONICAL_EXTENSION, read_image
+from seedctl.detectors.ultralytics.dataset import assign_splits, exported_window
+from seedctl.image_geometry.window import PixelWindow
+from seedctl.io.image_io import CANONICAL_EXTENSION
 
 
 def _annotated(digest: str, split: str | None = None) -> AnnotatedImage:
@@ -287,7 +288,7 @@ def test_export_requires_training_and_validation_images(tmp_path, splits):
     assert not (tmp_path / "export").exists()
 
 
-def test_dish_export_frames_pixels_and_labels_to_the_covered_dish(
+def test_dish_export_frames_an_image_and_its_labels_to_the_covered_dish(
     tmp_path: Path,
 ) -> None:
     data_root = tmp_path / "data"
@@ -332,18 +333,17 @@ def test_dish_export_frames_pixels_and_labels_to_the_covered_dish(
         manifest["images"], key=lambda e: e["digest"] != framed_digest
     )
     assert framed["window"] == {"x": 15, "y": 5, "width": 70, "height": 70}
-    assert framed["image"] == f"images/train/{framed_digest}.png"
+    assert framed["image"] == f"images/train/{framed_digest}{CANONICAL_EXTENSION}"
     assert framed["instances"] == 2
-    pixels = read_image(output / framed["image"])
-    assert pixels.shape == (70, 70, 3)
-    assert (
-        pixels == read_image(blob_path(data_root, framed_digest))[5:75, 15:85]
-    ).all()
+    assert (output / framed["image"]).stat().st_ino == blob_path(
+        data_root, framed_digest
+    ).stat().st_ino
+    assert exported_window(output / framed["image"]) == PixelWindow(15, 5, 70, 70)
     assert (output / framed["label"]).read_text().splitlines() == [
         "0 0.28571429 0.28571429 0.14285714 0.14285714",
         "0 0.03571429 0.21428571 0.07142857 0.14285714",
     ]
-    assert whole["window"] is None
+    assert whole["window"] == {"x": 0, "y": 0, "width": 100, "height": 80}
     assert whole["image"] == f"images/val/{whole_digest}{CANONICAL_EXTENSION}"
     assert (output / whole["image"]).stat().st_ino == blob_path(
         data_root, whole_digest

@@ -137,12 +137,12 @@ class UltralyticsDetector:
 
     def _window(
         self, coverage: ImageCoverage | None, width: int, height: int
-    ) -> PixelWindow | None:
+    ) -> PixelWindow:
+        if coverage is None:
+            return PixelWindow.whole(width, height)
         if self.settings.mode == "whole_image":
-            if coverage is not None:
-                raise ValueError("A whole_image version reads no dish coverage")
-            return None
-        return None if coverage is None else coverage_window(coverage, width, height)
+            raise ValueError("A whole_image version reads no dish coverage")
+        return coverage_window(coverage, width, height)
 
     def predict(
         self,
@@ -154,11 +154,7 @@ class UltralyticsDetector:
         pixels = read_image(image_path)
         height, width = pixels.shape[:2]
         window = self._window(coverage, width, height)
-        frame = (
-            pixels
-            if window is None
-            else pixels[window.y : window.bottom, window.x : window.right]
-        )
+        frame = window.of(pixels)
         options: dict[str, object] = {
             "source": frame,
             "conf": self.settings.confidence,
@@ -213,7 +209,7 @@ class UltralyticsDetector:
                     DetectionInstance(
                         instance_id=str(len(instances)),
                         class_name=self.class_names[class_index],
-                        bbox=box if window is None else window.restore(box),
+                        bbox=window.restore(box),
                         score=score,
                     )
                 )

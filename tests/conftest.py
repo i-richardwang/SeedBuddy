@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from pathlib import Path
 from typing import Any
 
-import cv2
 import numpy as np
 import pytest
+from PIL import Image
 
 from seedctl.datasets.manifest import (
     MANIFEST_SCHEMA_VERSION,
@@ -137,9 +138,9 @@ def encoded_image(width: int = 100, height: int = 80, variant: int = 0) -> bytes
         (variant * 67) % 256,
         (variant * 97) % 256,
     )
-    encoded, buffer = cv2.imencode(".avif", pixels, [cv2.IMWRITE_AVIF_QUALITY, 90])
-    assert encoded
-    return buffer.tobytes()
+    encoded = io.BytesIO()
+    Image.fromarray(pixels[..., ::-1]).save(encoded, "AVIF", quality=90)
+    return encoded.getvalue()
 
 
 def write_blob(data_root: Path, data: bytes) -> str:

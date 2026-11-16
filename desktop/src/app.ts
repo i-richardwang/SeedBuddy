@@ -356,7 +356,7 @@ app.on("window-all-closed", () => {});
 app.on("activate", showWindow);
 app.on("second-instance", showWindow);
 // Quitting asks the Worker process to finish and does not wait for it: one
-// still ending when the app is next opened is ended before another starts.
+// still finishing when the app is next opened is waited for by the next.
 app.on("will-quit", () => void supervisor?.close());
 setInterval(() => void supervisor?.update(), UPDATE_CHECK_MS);
 setInterval(() => void offerRelease(), RELEASE_CHECK_MS);

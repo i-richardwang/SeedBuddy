@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import os
@@ -9,8 +10,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
 
-import cv2
-
 from seedctl.contracts.annotation import AnnotationInstance
 from seedctl.contracts.coverage import ImageCoverage
 from seedctl.contracts.inference import INFERENCE_MODES, InferenceMode
@@ -18,12 +17,10 @@ from seedctl.datasets.geometry import require_image_dimensions
 from seedctl.datasets.manifest import AnnotatedImage, verified_blob
 from seedctl.image_geometry.window import PixelWindow, coverage_window
 from seedctl.io.files import atomic_directory
-from seedctl.io.image_io import CANONICAL_EXTENSION, read_image
+from seedctl.io.image_io import CANONICAL_EXTENSION, image_shape
 
 DEFAULT_VALIDATION_FRACTION = 0.2
 DEFAULT_SEED = 0
-#: A framed image is written losslessly; only whole images keep their bytes.
-FRAMED_EXTENSION = ".png"
 
 
 class DatasetSplitError(ValueError):
@@ -36,8 +33,8 @@ class YoloManifestImage(TypedDict):
     image: str
     label: str
     instances: int
-    #: The image pixels the exported file holds; None for the whole image.
-    window: dict[str, int] | None
+    #: The pixels of the image that training reads.
+    window: dict[str, int]
 
 
 class YoloDatasetManifest(TypedDict):
@@ -55,7 +52,7 @@ class DatasetImage:
     ``split`` carries the stable assignment the server recorded for the image;
     images without one are assigned locally from the seed and validation fraction.
     ``coverage`` is the dish the workbench framed the image to; the export
-    crops pixels and boxes alike to it, and None exports the whole image.
+    frames the image and its boxes to it, and None exports the whole image.
     """
 
     digest: str
@@ -131,12 +128,13 @@ def export_dataset_images(
     """
     Publish schema-sourced classes and resolved image files as a YOLO dataset.
 
-    In ``dish`` mode an image with coverage is framed to the square around
-    its dish, written losslessly with its labels clipped to the frame; an
-    image without coverage, and every image in ``whole_image`` mode, is the
-    file itself. A caller that owns immutable sources may link whole images
-    instead of copying; the dataset still outlives the sources, because a
-    hard link is the file itself.
+    Every image is the stored file itself. In ``dish`` mode an image with
+    coverage is framed to the square around its dish, and any other image
+    to the whole of itself: the manifest records that window, which training
+    reads the image through, and the labels are clipped to it. A caller that
+    owns immutable sources may link the images instead of copying; the
+    dataset still outlives the sources, because a hard link is the file
+    itself.
     """
     classes = tuple(class_names)
     class_indices = {name: index for index, name in enumerate(classes)}
@@ -156,36 +154,26 @@ def export_dataset_images(
         for image in sorted(images, key=lambda item: item.digest):
             split = splits[image.digest]
             source = image.file_path
-            pixels = read_image(source)
             require_image_dimensions(
-                pixels.shape, image.width, image.height, image.digest
+                image_shape(source), image.width, image.height, image.digest
             )
             window = (
                 coverage_window(image.coverage, image.width, image.height)
                 if image.coverage is not None
-                else None
+                else PixelWindow.whole(image.width, image.height)
             )
 
-            extension = CANONICAL_EXTENSION if window is None else FRAMED_EXTENSION
             image_destination = (
-                working / "images" / split / f"{image.digest}{extension}"
+                working / "images" / split / f"{image.digest}{CANONICAL_EXTENSION}"
             )
             label_destination = working / "labels" / split / f"{image.digest}.txt"
             image_destination.parent.mkdir(parents=True, exist_ok=True)
             label_destination.parent.mkdir(parents=True, exist_ok=True)
-            if window is not None:
-                framed = pixels[window.y : window.bottom, window.x : window.right]
-                if not cv2.imwrite(str(image_destination), framed):
-                    raise OSError(f"Unable to write framed image: {image.digest}")
-            elif link_images:
+            if link_images:
                 _link_or_copy(source, image_destination)
             else:
                 shutil.copy2(source, image_destination)
-            rows = _label_rows(
-                image,
-                window or PixelWindow.whole(image.width, image.height),
-                class_indices,
-            )
+            rows = _label_rows(image, window, class_indices)
             label_destination.write_text(
                 "".join(f"{row}\n" for row in rows), encoding="utf-8"
             )
@@ -196,7 +184,7 @@ def export_dataset_images(
                 image=image_destination.relative_to(working).as_posix(),
                 label=label_destination.relative_to(working).as_posix(),
                 instances=len(rows),
-                window=None if window is None else window.to_dict(),
+                window=window.to_dict(),
             )
             manifest_images.append(entry)
 
@@ -215,6 +203,23 @@ def export_dataset_images(
             f"train: images/train\nval: images/val\nnames:\n{names}", encoding="utf-8"
         )
     return manifest
+
+
+@functools.cache
+def _exported_windows(dataset: Path) -> dict[str, PixelWindow]:
+    manifest: YoloDatasetManifest = json.loads(
+        (dataset / "manifest.json").read_text("utf-8")
+    )
+    return {
+        Path(image["image"]).name: PixelWindow(**image["window"])
+        for image in manifest["images"]
+    }
+
+
+def exported_window(image_file: str | Path) -> PixelWindow:
+    """The window training reads an exported image through."""
+    path = Path(image_file)
+    return _exported_windows(path.parents[2])[path.name]
 
 
 def export_yolo_dataset(

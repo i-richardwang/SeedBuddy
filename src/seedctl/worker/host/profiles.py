@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -88,10 +89,15 @@ def load_profile(name: str) -> WorkerProfile:
 def save_profile(name: str, profile: WorkerProfile) -> Path:
     directory = profile_directory(name)
     directory.mkdir(parents=True, exist_ok=True)
-    directory.chmod(0o700)
     path = profile_path(name)
+    # Windows keeps a user's folder from other accounts by itself, and its
+    # file modes say only whether a file can be written.
+    modes_apply = sys.platform != "win32"
+    if modes_apply:
+        directory.chmod(0o700)
     with atomic_file(path) as handle:
-        os.fchmod(handle.fileno(), 0o600)
+        if modes_apply:
+            os.fchmod(handle.fileno(), 0o600)
         handle.write(profile.to_toml().encode("utf-8"))
     return path
 
