@@ -5,8 +5,8 @@ import { DialogSession, FormDialog } from "../../ui/FormDialog";
 import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Form } from "../../ui/kit/Form";
 import { ImageDropZone } from "../upload/ImageDropZone";
-import { useUploads } from "../upload/useUploads";
-import { storedPhotos } from "./observation-photos";
+import { storedOnHand } from "../upload/photos-on-hand";
+import { usePhotosOnHand } from "../upload/usePhotosOnHand";
 
 const FORM_ID = "replace-image";
 
@@ -35,9 +35,9 @@ function ReplaceObservationImageSession({
   onClose,
   afterClose,
 }: ReplaceObservationImageDialogProps & { afterClose: () => void }) {
-  const uploads = useUploads();
+  const onHand = usePhotosOnHand();
   const action = useAsyncAction();
-  const [photo] = storedPhotos(uploads.images);
+  const [photo] = storedOnHand(onHand.photos);
   const replacement = photo
     ? { unit: image.unit.id, digest: photo.digest, filename: photo.filename }
     : undefined;
@@ -49,11 +49,11 @@ function ReplaceObservationImageSession({
       afterClose={afterClose}
       title={m.unit_replace_heading({ file: image.review.filename })}
       okText={
-        uploads.storing ? m.observation_photos_uploading() : m.unit_replace()
+        onHand.storing ? m.observation_photos_uploading() : m.unit_replace()
       }
       formId={FORM_ID}
       busy={action.busy}
-      okDisabled={uploads.storing || replacement === undefined}
+      okDisabled={onHand.storing || replacement === undefined}
     >
       <Form
         id={FORM_ID}
@@ -77,9 +77,9 @@ function ReplaceObservationImageSession({
         }}
       >
         <ImageDropZone
-          images={uploads.images}
-          onAdd={uploads.add}
-          onRemove={uploads.remove}
+          photos={onHand.photos}
+          onUpload={onHand.upload}
+          onRemove={onHand.remove}
           disabled={action.busy}
           multiple={false}
         />

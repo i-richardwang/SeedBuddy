@@ -24,7 +24,7 @@
         "local formattedMegapixels = megapixels: number"
       ],
       "match": {
-        "megabytes=*": "JPEG、PNG 或 TIFF · {formattedMegabytes} MiB · {formattedMegapixels} MP"
+        "megabytes=*": "JPEG、PNG 或 TIFF · {formattedMegabytes} MiB · 超过 {formattedMegapixels} MP 的 JPEG、PNG 自动缩小"
       }
     }
   ],

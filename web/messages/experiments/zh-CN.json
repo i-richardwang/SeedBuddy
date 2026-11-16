@@ -142,6 +142,15 @@
   "observation_not_loaded": "观测日未加载",
   "observation_not_recorded": "观察未记录",
   "observation_not_saved": "观测日未保存",
+  "observation_photos_batch_item": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "{batch} · {formattedCount} 张"
+      }
+    }
+  ],
+  "observation_photos_batch_not_added": "批次照片未加入",
   "observation_photos_check_failed": "未能核对照片是否已在本实验中",
   "observation_photos_conflicting": [
     {
@@ -152,6 +161,7 @@
     }
   ],
   "observation_photos_fill_in_order": "按顺序对应",
+  "observation_photos_from_batch": "从批次添加",
   "observation_photos_heading": "{observation}的照片",
   "observation_photos_match_count": [
     {

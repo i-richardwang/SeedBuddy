@@ -10,6 +10,7 @@ import {
   datasetSnapshotImages,
   experimentObservationImages,
   images,
+  photoBatchPhotos,
 } from "../infra/db/schema";
 import { imageBlobKey, imagePreviewKey, imageRegionsPrefix } from "./keys";
 import { lockImage } from "./lock";
@@ -21,9 +22,10 @@ import { lockImage } from "./lock";
  */
 const GRACE_PERIOD_MS = 24 * 60 * 60 * 1000;
 
-/** No experiment, dataset, snapshot, or review refers to the image. */
+/** No experiment, batch, dataset, snapshot, or review refers to the image. */
 function unclaimed() {
   return sql`not exists (select 1 from ${experimentObservationImages} where ${experimentObservationImages.imageId} = ${images.id})
+    and not exists (select 1 from ${photoBatchPhotos} where ${photoBatchPhotos.imageId} = ${images.id})
     and not exists (select 1 from ${datasetImages} where ${datasetImages.imageId} = ${images.id})
     and not exists (select 1 from ${datasetSnapshotImages} where ${datasetSnapshotImages.imageId} = ${images.id})
     and not exists (select 1 from ${annotationRuns} where ${annotationRuns.imageId} = ${images.id})

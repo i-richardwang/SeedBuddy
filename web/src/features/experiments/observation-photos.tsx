@@ -1,3 +1,4 @@
+import { FolderInput } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { onBenchOn } from "../../domain/experiments/culture-events";
@@ -12,24 +13,67 @@ import type {
   PhotoSlot,
   PhotoSlots,
 } from "../../domain/experiments/read-model";
-import type { CalendarDay, UnitPhoto } from "../../domain/experiments/schema";
-import { getPlacedPhotos } from "../../functions/experiments";
+import type {
+  CalendarDay,
+  PhotoSlotsRequest,
+  UnitPhoto,
+} from "../../domain/experiments/schema";
+import type { PhotoBatchOverview } from "../../domain/photos/read-model";
+import { getPhotoSlots, getPlacedPhotos } from "../../functions/experiments";
+import { getPhotoBatchDetail, getPhotoBatches } from "../../functions/photos";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
+import { found } from "../../ui/found";
+import { useAsyncAction } from "../../ui/hooks/useAsyncAction";
 import { Alert } from "../../ui/kit/Alert";
 import { Button } from "../../ui/kit/Button";
+import { DropdownMenu } from "../../ui/kit/DropdownMenu";
 import { Select } from "../../ui/kit/Select";
 import { Tag } from "../../ui/kit/Tag";
 import { ImageDropZone } from "../upload/ImageDropZone";
-import type { ListedImage } from "../upload/useUploads";
-import { type Uploads, useUploads } from "../upload/useUploads";
+import {
+  type PhotoOnHand,
+  type StoredOnHand,
+  storedOnHand,
+} from "../upload/photos-on-hand";
+import {
+  type PhotosOnHandView,
+  usePhotosOnHand,
+} from "../upload/usePhotosOnHand";
+
+/**
+ * What placing a day's photographs is read with: the units the day's
+ * photographs go to, and the reader's batches of photographs still waiting.
+ */
+export interface PhotoPlacing {
+  slots: PhotoSlots;
+  batches: PhotoBatchOverview[];
+}
+
+/** Reads what placing photographs needs, when the dialog that places them opens. */
+export async function readPhotoPlacing(
+  request: PhotoSlotsRequest,
+): Promise<PhotoPlacing> {
+  const [slots, batches] = await Promise.all([
+    getPhotoSlots({ data: request }),
+    getPhotoBatches(),
+  ]);
+  return { slots: found(slots), batches };
+}
 
 /** A unit a photograph is matched to, by its code. */
 type PhotoUnit = Pick<PhotoSlot, "id" | "code">;
 
-/** Photographs being uploaded for one observation day and matched to its units. */
+/** The photographs on hand for one observation day, each matched to its unit. */
 interface ObservationPhotos {
-  uploads: Uploads;
+  /** The photographs to place: those uploaded here and those taken from batches. */
+  onHand: PhotosOnHandView;
+  /** The reader's batches that hold photographs to place. */
+  batches: readonly PhotoBatchOverview[];
+  /** Takes a batch's waiting photographs on hand, to be matched like uploaded ones. */
+  addBatch: (batch: string) => void;
+  /** Whether a batch's photographs are being read. */
+  addingBatch: boolean;
   /** The units on the bench that day, in the experiment's order. */
   units: readonly PhotoUnit[];
   /** Units that already have a photograph that day. */
@@ -53,28 +97,30 @@ interface ObservationPhotos {
 }
 
 /**
- * Uploads the photographs of one observation day and matches each to its
- * unit: the reader's choice where there is one, otherwise the unit its file
- * name suggests, or the shooting order on request. A photograph the
- * experiment already holds cannot be placed again.
+ * Uploads the photographs of one observation day, or takes them from the
+ * reader's batches, and matches each to its unit: the reader's choice where
+ * there is one, otherwise the unit its file name suggests, or the shooting
+ * order on request. A photograph the experiment already holds cannot be
+ * placed again.
  */
 export function useObservationPhotos({
   experiment,
-  slots,
+  placing: { slots, batches },
   day,
 }: {
   experiment: string;
-  slots: PhotoSlots;
+  placing: PhotoPlacing;
   /** The day photographed, which decides the units still on the bench. */
   day: CalendarDay;
 }): ObservationPhotos {
   const units = slots.units.filter((unit) => onBenchOn(unit.leftOn, day));
   const assigned = new Set(slots.taken);
   const placed = usePlacedPhotos(experiment);
-  const uploads = useUploads(placed.check);
+  const onHand = usePhotosOnHand({ onStored: placed.check });
+  const adding = useAsyncAction();
   const [choices, setChoices] = useState<Record<number, string | null>>({});
   const vacantUnits = units.filter((unit) => !assigned.has(unit.id));
-  const stored = storedPhotos(uploads.images);
+  const stored = storedOnHand(onHand.photos);
   const answered = placed.of(stored.map((photo) => photo.digest));
   const conflicts = photoConflicts(stored, answered.photos);
   const free = stored.filter((photo) => !conflicts.has(photo.id));
@@ -88,7 +134,18 @@ export function useObservationPhotos({
   const unmatched = free.length - ready.length;
 
   return {
-    uploads,
+    onHand,
+    batches: batches.filter((batch) => batch.photoCount > 0),
+    addBatch: (batch) =>
+      void adding.run(
+        async () => {
+          const detail = found(await getPhotoBatchDetail({ data: { batch } }));
+          onHand.take(detail.photos);
+        },
+        m.observation_photos_batch_not_added(),
+        { invalidate: false },
+      ),
+    addingBatch: adding.busy,
     units,
     assigned,
     conflicts,
@@ -113,8 +170,8 @@ export function useObservationPhotos({
     checkFailed: answered.failed,
     recheck: answered.retry,
     pending:
-      uploads.storing ||
-      uploads.failed ||
+      onHand.storing ||
+      onHand.failed ||
       answered.checking ||
       answered.failed ||
       conflicts.size > 0 ||
@@ -174,7 +231,6 @@ function usePlacedPhotos(experiment: string) {
     },
     [experiment],
   );
-  const check = useCallback((digest: string) => ask([digest]), [ask]);
   const of = (digests: readonly string[]) => {
     const failed = digests.filter((digest) => answers.get(digest) === "failed");
     return {
@@ -187,7 +243,7 @@ function usePlacedPhotos(experiment: string) {
       retry: () => ask(failed),
     };
   };
-  return { check, of };
+  return { check: ask, of };
 }
 
 /** The drop zone of an observation's photographs, each with the unit it shows. */
@@ -198,32 +254,56 @@ export function ObservationPhotosField({
   photos: ObservationPhotos;
   disabled: boolean;
 }) {
-  const { uploads, units, assigned, conflicts, chosen } = photos;
+  const { onHand, units, assigned, conflicts, chosen } = photos;
   return (
     <>
+      {photos.batches.length > 0 ? (
+        <div className="flex justify-end">
+          <DropdownMenu
+            align="end"
+            disabled={disabled}
+            items={photos.batches.map((batch) => ({
+              key: batch.id,
+              label: m.observation_photos_batch_item({
+                batch: batch.name,
+                count: batch.photoCount,
+              }),
+              onClick: () => photos.addBatch(batch.id),
+            }))}
+          >
+            <Button
+              size="small"
+              icon={FolderInput}
+              loading={photos.addingBatch}
+            >
+              {m.observation_photos_from_batch()}
+            </Button>
+          </DropdownMenu>
+        </div>
+      ) : null}
       <ImageDropZone
-        images={uploads.images}
-        onAdd={uploads.add}
-        onRemove={uploads.remove}
+        photos={onHand.photos}
+        onUpload={onHand.upload}
+        onRemove={onHand.remove}
         disabled={disabled}
-        annotate={(image) => {
-          const conflict = conflicts.get(image.id);
+        annotate={(photo) => {
+          const conflict = conflicts.get(photo.id);
           if (conflict) return <ConflictTag conflict={conflict} />;
           return (
             <UnitChoice
-              image={image}
+              photo={photo}
               units={units}
               unavailable={
                 new Set([
                   ...assigned,
                   ...[...chosen]
-                    .filter(([id]) => id !== image.id)
+                    .filter(([id]) => id !== photo.id)
                     .map(([, unit]) => unit),
                 ])
               }
-              value={chosen.get(image.id) ?? null}
+              value={chosen.get(photo.id) ?? null}
               disabled={disabled}
-              onChange={(unit) => photos.choose(image.id, unit)}
+              onChange={(unit) => photos.choose(photo.id, unit)}
             />
           );
         }}
@@ -266,19 +346,13 @@ export function ObservationPhotosField({
   );
 }
 
-interface StoredPhoto {
-  id: number;
-  digest: string;
-  filename: string;
-}
-
 /**
  * The unit each free photograph goes to: the reader's choice where there is
  * one and the unit can still take it, otherwise the unit its file name
  * suggests, unless an earlier photograph already holds that unit.
  */
 function matchPhotos(
-  free: readonly StoredPhoto[],
+  free: readonly StoredOnHand[],
   choices: Readonly<Record<number, string | null>>,
   vacantUnits: readonly PhotoUnit[],
 ): Map<number, string> {
@@ -302,20 +376,6 @@ function matchPhotos(
   return matched;
 }
 
-export function storedPhotos(images: readonly ListedImage[]): StoredPhoto[] {
-  return images.flatMap((image) =>
-    image.state.status === "stored"
-      ? [
-          {
-            id: image.id,
-            digest: image.state.digest,
-            filename: image.file.name,
-          },
-        ]
-      : [],
-  );
-}
-
 /** Where a photograph already is, in place of the unit it cannot take. */
 function ConflictTag({ conflict }: { conflict: PhotoConflict }) {
   return (
@@ -332,24 +392,24 @@ function ConflictTag({ conflict }: { conflict: PhotoConflict }) {
 
 /** The unit a stored photograph shows; clearing it leaves the photograph unmatched. */
 function UnitChoice({
-  image,
+  photo,
   units,
   unavailable,
   value,
   disabled,
   onChange,
 }: {
-  image: ListedImage;
+  photo: PhotoOnHand;
   units: readonly PhotoUnit[];
   unavailable: ReadonlySet<string>;
   value: string | null;
   disabled: boolean;
   onChange: (unit: string | null) => void;
 }) {
-  if (image.state.status !== "stored") return null;
+  if (photo.state.status !== "stored") return null;
   return (
     <Select
-      aria-label={m.observation_photos_unit_label({ file: image.file.name })}
+      aria-label={m.observation_photos_unit_label({ file: photo.filename })}
       className="w-28 mobile:w-44"
       size="small"
       variant="filled"

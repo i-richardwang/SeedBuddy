@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import postgres from "postgres";
 
 import {
   SEED_DETECTOR_BASELINE_VERSION_ID,
@@ -23,6 +22,11 @@ import { deleteObservation } from "../experiments/public";
 import { database } from "../infra/db/client";
 import { connect } from "../infra/db/connection";
 import { modelVersions } from "../infra/db/schema";
+import {
+  contendedTest,
+  testDatabaseUrl,
+  waitForLockContention,
+} from "../testing/contention";
 import { observeImagesForModel } from "../testing/experiments";
 import { registerTrainedVersion, traditionalVersion } from "../testing/models";
 import {
@@ -299,34 +303,6 @@ test("a review outliving its observation still holds its model", async () => {
     ModelUsageConflictError,
   );
 });
-
-/**
- * Two sessions can only meet on a real server, so the database a run is pointed
- * at decides whether the contended withdrawal is exercised.
- */
-const testDatabaseUrl = process.env.SEEDBUDDY_TEST_DATABASE_URL;
-const contendedTest = testDatabaseUrl ? test : test.skip;
-
-/** Returns once a session is waiting on a lock another session holds. */
-async function waitForLockContention(url: string): Promise<void> {
-  const observer = postgres(url, { max: 1, onnotice: () => {} });
-  try {
-    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
-    const deadline = Date.now() + 5_000;
-    /** Test wall clock anchors the fixture or expiry assertion relative to the live database. */
-    while (Date.now() < deadline) {
-      const [waiting] = await observer<{ sessions: number }[]>`
-        select count(*)::int as sessions from pg_stat_activity
-        where datname = current_database() and wait_event_type = 'Lock'
-      `;
-      if ((waiting?.sessions ?? 0) > 0) return;
-      await Bun.sleep(10);
-    }
-    throw new Error("The withdrawal never waited for the model row");
-  } finally {
-    await observer.end();
-  }
-}
 
 contendedTest(
   "a version recorded while a withdrawal waits still holds the model",

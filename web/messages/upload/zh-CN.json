@@ -10,5 +10,16 @@
     }
   ],
   "image_file_unsupported": "请选择 JPEG、PNG 或 TIFF 图片",
+  "image_not_reduced": [
+    {
+      "declarations": [
+        "input megapixels",
+        "local formattedMegapixels = megapixels: number"
+      ],
+      "match": {
+        "megapixels=*": "照片超过 {formattedMegapixels} MP，当前浏览器无法缩小"
+      }
+    }
+  ],
   "photos_not_added": "照片未加入：{files}"
 }

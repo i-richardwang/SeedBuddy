@@ -25,6 +25,7 @@ The source import rules and Vite protection are described in [Architecture](arch
 | `experiments.ts` | `getExperiments`, `getExperimentNames`, `getExperimentPage`, `getExperimentProgress`, `getPhotoSlots`, `getManualEntry`, `getPlacedPhotos`, `getUnitDetail` |
 | `integrations.ts` | `getIntegrations`, `getOAuthClient` |
 | `models.ts` | `getModels`, `getModelDetail`, `getVersionComparison` |
+| `photos.ts` | `getPhotoBatches`, `getPhotoBatchDetail` |
 | `session.ts` | `getSession` |
 | `training.ts` | `getTrainingRunDetail` |
 | `users.ts` | `getUsers` |
@@ -53,6 +54,7 @@ Paths are relative to `web/src/server/`; tests sit beside their subjects.
 | `experiments/` | `records.ts` reads records; `design.ts`, `observations.ts`, `observation-images.ts`, `manual-readings.ts` and `culture-events.ts` own writes. |
 | `datasets/` | `datasets.ts` owns memberships; `records.ts` reads contents and reviews; `transfer.ts` and `archive.ts` transfer them. |
 | `models/` | `records.ts` counts references; registry, publication and bootstrap follow the lifecycles below. |
+| `photos/` | `batches.ts` owns an account's batches of photographs waiting to be placed, takes a photograph out of them when it is placed in an experiment, and deletes a batch whose last photograph is placed. Writes lock images first, then the batch, then its photographs. |
 | `images/` | `store.ts`, `ingest.ts`, `records.ts`, `documents.ts` and `unclear.ts` own image records; processing, analysis, regions, previews and collection follow [Images](images.md). |
 | `annotations/`, `annotation-runs/`, `readings/` | Reviewed documents, annotation execution and combined annotation layers follow [Annotation execution and layers](#annotation-execution-and-layers). |
 | `inference/`, `workers/` | Attempts, demand, outcomes and tasks share Worker enrollment and sessions under the [Worker control planes](#worker-control-planes). |
@@ -124,7 +126,7 @@ The framework server entry, maintenance tools, and the test preload call `bootst
 
 Database checks, foreign keys, uniqueness constraints, advisory locks, immutable blob keys, and digest verification enforce persistence invariants. These rules apply across writers and concurrent requests.
 
-Blobs are immutable by digest; Postgres owns application records. The blob driver only knows object keys and immutable bytes. `images/keys.ts` owns image keys, the model registry owns delivery keys, and `training/keys.ts` owns final-model part keys. `images/lock.ts` coordinates writes and references to each digest. `images/collection.ts` first expires unreferenced database rows, then sweeps objects under that lock. Model upload and registration serialize on their reservation. Expired unregistered uploads are collected under that same lock; registered version locations are independent of execution. Object upload and hashing finish before a training completion transaction takes its run lock. `training/collection.ts` collects final-model parts under the run lock. `maintenance/collection.ts` invokes the image, model, and training-artifact collectors. Collection runs outside request handling and upload transactions.
+Blobs are immutable by digest; Postgres owns application records. The blob driver only knows object keys and immutable bytes. `images/keys.ts` owns image keys, the model registry owns delivery keys, and `training/keys.ts` owns final-model part keys. `images/lock.ts` coordinates writes and references to each digest. `images/collection.ts` first expires unreferenced database rows (an experiment, a photo batch, a dataset, a snapshot or a review refers to an image), then sweeps objects under that lock. Model upload and registration serialize on their reservation. Expired unregistered uploads are collected under that same lock; registered version locations are independent of execution. Object upload and hashing finish before a training completion transaction takes its run lock. `training/collection.ts` collects final-model parts under the run lock. `maintenance/collection.ts` invokes the image, model, and training-artifact collectors. Collection runs outside request handling and upload transactions.
 
 The images module owns canonical sources, previews, dish analysis, regional evidence and unclear marks. Its processing and maintenance rules are described in [Images](images.md); annotation evidence and overlays in [AI annotation](ai-annotation.md).
 

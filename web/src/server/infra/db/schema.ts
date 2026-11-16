@@ -1057,6 +1057,52 @@ export const experimentManualReadings = pgTable(
 );
 
 /**
+ * Photographs one account uploaded together and has yet to place in an
+ * experiment. A batch is its owner's alone and goes when the account does.
+ */
+export const photoBatches = pgTable(
+  "photo_batches",
+  {
+    id: uuid("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** What its owner calls it; it identifies nothing. */
+    name: text("name").notNull(),
+    createdAt: instant("created_at"),
+  },
+  (table) => [
+    index("photo_batches_owner_idx").on(table.ownerId, table.createdAt),
+    check(
+      "photo_batches_name_check",
+      sql`${table.name} = btrim(${table.name}) and length(${table.name}) between 1 and 120`,
+    ),
+  ],
+);
+
+/**
+ * A photograph waiting in a batch, under the name it was uploaded with. It
+ * leaves the batch when it is placed in an experiment.
+ */
+export const photoBatchPhotos = pgTable(
+  "photo_batch_photos",
+  {
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => photoBatches.id, { onDelete: "cascade" }),
+    /** A waiting photograph is a reference root; deletion is refused. */
+    imageId: text("image_id")
+      .notNull()
+      .references(() => images.id),
+    filename: text("filename").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.batchId, table.imageId] }),
+    index("photo_batch_photos_image_idx").on(table.imageId),
+  ],
+);
+
+/**
  * A machine enrolled as a worker. One an administrator enrolled for everyone
  * is shared and has no owner; one an account enrolled is that account's own
  * computer and goes when the account does. Its token is its identity: only

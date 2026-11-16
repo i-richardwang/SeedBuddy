@@ -10,5 +10,16 @@
     }
   ],
   "image_file_unsupported": "Choose a JPEG, PNG, or TIFF image",
+  "image_not_reduced": [
+    {
+      "declarations": [
+        "input megapixels",
+        "local formattedMegapixels = megapixels: number"
+      ],
+      "match": {
+        "megapixels=*": "The photo has more than {formattedMegapixels} MP and this browser could not reduce it"
+      }
+    }
+  ],
   "photos_not_added": "Photos not added: {files}"
 }
