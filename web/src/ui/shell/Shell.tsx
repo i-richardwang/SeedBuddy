@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-router";
 import {
   Beaker,
+  Camera,
   CircleUser,
   FlaskConical,
   KeyRound,
@@ -42,6 +43,7 @@ const HOME = "/experiments";
 function places(): AppNavItem[] {
   return [
     { href: HOME, icon: FlaskConical, label: m.experiments_label() },
+    { href: "/photos", icon: Camera, label: m.photos_label() },
     { href: "/models", icon: Network, label: m.models_label() },
   ];
 }

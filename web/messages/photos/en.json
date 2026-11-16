@@ -1,0 +1,55 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "photo_batch_add_photos": "Add photos",
+  "photo_batch_column_dimensions": "Dimensions",
+  "photo_batch_delete": "Delete batch",
+  "photo_batch_delete_content": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local formattedCount = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "The photo waiting in it is deleted with it.",
+        "countPlural=other": "The {formattedCount} photos waiting in it are deleted with it."
+      }
+    }
+  ],
+  "photo_batch_description": "Record an observation in an experiment, or add photos to one, and choose this batch to match its photos to units.",
+  "photo_batch_dimensions": [
+    {
+      "declarations": [
+        "input width",
+        "input height",
+        "local formattedWidth = width: number",
+        "local formattedHeight = height: number"
+      ],
+      "match": {
+        "width=*": "{formattedWidth} × {formattedHeight}"
+      }
+    }
+  ],
+  "photo_batch_empty": "No photos waiting",
+  "photo_batch_empty_description": "Photos added above wait here until they are matched to units.",
+  "photo_batch_menu_delete": "Delete batch…",
+  "photo_batch_new": "New batch",
+  "photo_batch_no_matches": "No photos match",
+  "photo_batch_no_matches_description": "Try another search.",
+  "photo_batch_not_created": "Batch not created",
+  "photo_batch_not_deleted": "Batch not deleted",
+  "photo_batch_page_title": "{batch} · Photos",
+  "photo_batch_photo_not_removed": "Photo not removed",
+  "photo_batch_photo_remove_title": "Remove {file} from {batch}?",
+  "photo_batch_photo_removed": "{file} removed from {batch}",
+  "photo_batch_photos_table": "Photos waiting in {batch}",
+  "photo_batch_search": "Search photos",
+  "photo_batch_waiting": "Waiting photos",
+  "photo_batches_column_created": "Created",
+  "photo_batches_empty": "No batches yet",
+  "photo_batches_empty_description": "Upload a day's photos as a batch now, and match them to an experiment's units when you are ready.",
+  "photo_batches_table": "Photo batches",
+  "photos_description": "Photos you have uploaded and not yet matched to units, in batches only you see.",
+  "photos_label": "Photos"
+}

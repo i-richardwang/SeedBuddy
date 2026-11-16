@@ -26,6 +26,7 @@ import {
   experimentUnits,
   images,
 } from "../infra/db/schema";
+import { releasePlacedPhotos } from "../photos/public";
 import { createObservation } from "./observations";
 import {
   atImageObservation,
@@ -151,6 +152,8 @@ export async function assignObservationImages(
         filename: assignment.filename,
       })),
     );
+    // Placing a photograph takes it out of the batches it waits in.
+    await releasePlacedPhotos(digests, db);
     // A photograph known to be unclear is marked in the same step that
     // places it; the mark is the image's, so it stays if the image moves.
     await insertUnclearImages(

@@ -16,6 +16,20 @@ export const imageRefSchema = z.strictObject({
 
 export type ImageRef = z.infer<typeof imageRefSchema>;
 
+/**
+ * The name a photograph was uploaded under. It is retained for traceability
+ * by whatever refers to the image and is not an identifier.
+ */
+export const imageFilenameSchema = z
+  .string()
+  .min(1, "Invalid image filename")
+  .max(255, "Invalid image filename")
+  .refine(
+    (filename) =>
+      filename !== "." && filename !== ".." && !/[\\/\0]/.test(filename),
+    "Invalid image filename",
+  );
+
 /** The pixel coordinate frame of one canonical image. */
 export const imageFrameSchema = imageRefSchema.extend({
   width: z.number().int().positive(),

@@ -2,6 +2,8 @@
 
 Uploaded JPEG, PNG and TIFF images are normalized to oriented, opaque sRGB AVIF. Those bytes determine the digest, dimensions, browser view, inference input and training input. Every image is stored once under its digest. Ingestion also finds the culture dish in it; a model whose area is `dish` bounds its [AI annotation](ai-annotation.md) to that dish and frames its [training and inference](seedctl.md#dish-framing) to it.
 
+A JPEG or PNG photograph is uploaded with at most 26 MP (`MAX_UPLOADED_IMAGE_PIXELS`). One whose header declares more is reduced to that in the browser first, keeping its shape, as an upright sRGB JPEG under the file's own name (`features/upload/reduce.ts`; the rule is `reducedImageSize` in `domain/images/canonical.ts`, and the size is read from the file's header by `lib/image/size.ts` without decoding it); one the browser cannot reduce fails to upload and says so. Photographs within the bound, the 24 MP and 26 MP cameras in use among them, go up as taken, so their bytes and digests are unchanged. The server bounds what it decodes by `MAX_SOURCE_IMAGE_PIXELS` and refuses a larger source that reaches it another way, a TIFF, which a browser neither measures nor reduces, or an upload through the agent API, naming the bound and the source's size.
+
 Python transfer admission owns `MAX_IMAGE_BYTES` in `src/seedctl/datasets/transfer.py`; the [dataset transfer contract](domain.md#dataset-transfer) defines the size limit.
 
 ## Dish analysis

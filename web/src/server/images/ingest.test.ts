@@ -73,3 +73,14 @@ test("canonical ingestion accepts exactly one JPEG, PNG, or TIFF image", async (
     .toBuffer();
   await expect(canonicalize(pages)).rejects.toThrow(/exactly one image/);
 });
+
+test("canonical ingestion refuses more pixels than it decodes", async () => {
+  const oversized = await sharp({
+    create: { width: 8000, height: 5001, channels: 3, background: "#606060" },
+  })
+    .png({ compressionLevel: 1 })
+    .toBuffer();
+  await expect(canonicalize(oversized)).rejects.toThrow(
+    /more than 40 megapixels cannot be stored: 8000x5001/,
+  );
+});

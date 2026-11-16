@@ -88,17 +88,20 @@ export async function canonicalize(
 }
 
 async function canonicalizeSource(source: Uint8Array): Promise<CanonicalImage> {
-  const image = sharp(source, {
-    failOn: "error",
-    limitInputPixels: MAX_SOURCE_IMAGE_PIXELS,
-  });
   const unsupported = () =>
     new ImageSourceInvalidError(
       "The file must contain a JPEG, PNG, or TIFF image",
     );
-  const metadata = await image.metadata().catch(() => {
-    throw unsupported();
-  });
+  // The header is read without the pixel limit, which would otherwise turn
+  // an image that is only too large away as one that is not an image.
+  const metadata = await sharp(source, {
+    failOn: "error",
+    limitInputPixels: false,
+  })
+    .metadata()
+    .catch(() => {
+      throw unsupported();
+    });
   const { format, width, height } = metadata;
   if (!format || !SOURCE_FORMAT_SET.has(format)) throw unsupported();
   if ((metadata.pages ?? 1) !== 1) {
@@ -114,7 +117,15 @@ async function canonicalizeSource(source: Uint8Array): Promise<CanonicalImage> {
       `Edges longer than ${MAX_EDGE_PIXELS} pixels cannot be stored: ${width}x${height}`,
     );
   }
-  const { data, info } = await image
+  if (width * height > MAX_SOURCE_IMAGE_PIXELS) {
+    throw new ImageSourceInvalidError(
+      `Images of more than ${MAX_SOURCE_IMAGE_PIXELS / 1_000_000} megapixels cannot be stored: ${width}x${height}`,
+    );
+  }
+  const { data, info } = await sharp(source, {
+    failOn: "error",
+    limitInputPixels: MAX_SOURCE_IMAGE_PIXELS,
+  })
     .rotate()
     .toColourspace("srgb")
     .flatten({ background: "#fff" })

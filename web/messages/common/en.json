@@ -24,7 +24,7 @@
         "local formattedMegapixels = megapixels: number"
       ],
       "match": {
-        "megabytes=*": "JPEG, PNG, or TIFF · {formattedMegabytes} MiB · {formattedMegapixels} MP"
+        "megabytes=*": "JPEG, PNG, or TIFF · {formattedMegabytes} MiB · a JPEG or PNG above {formattedMegapixels} MP is reduced to it"
       }
     }
   ],

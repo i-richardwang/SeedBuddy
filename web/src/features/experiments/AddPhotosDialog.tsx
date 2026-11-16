@@ -1,4 +1,3 @@
-import type { PhotoSlots } from "../../domain/experiments/read-model";
 import type { ExperimentObservation } from "../../domain/experiments/schema";
 import { updateObservationImages } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
@@ -8,6 +7,7 @@ import { Form } from "../../ui/kit/Form";
 import { observationLabel } from "./labels";
 import {
   ObservationPhotosField,
+  type PhotoPlacing,
   useObservationPhotos,
 } from "./observation-photos";
 
@@ -16,8 +16,8 @@ const FORM_ID = "add-photos";
 interface AddPhotosDialogProps {
   experiment: string;
   observation: ExperimentObservation;
-  /** The experiment's units, and those the day already holds a photograph of. */
-  slots: PhotoSlots;
+  /** The day's units with those it already holds a photograph of, and the reader's batches. */
+  placing: PhotoPlacing;
   open: boolean;
   onClose: () => void;
 }
@@ -34,7 +34,7 @@ export function AddPhotosDialog(props: AddPhotosDialogProps) {
 function AddPhotosSession({
   experiment,
   observation,
-  slots,
+  placing,
   open,
   onClose,
   afterClose,
@@ -42,7 +42,7 @@ function AddPhotosSession({
   const action = useAsyncAction();
   const photos = useObservationPhotos({
     experiment,
-    slots,
+    placing,
     day: observation.observedOn,
   });
 
@@ -55,7 +55,7 @@ function AddPhotosSession({
         observation: observationLabel(observation),
       })}
       okText={
-        photos.uploads.storing
+        photos.onHand.storing
           ? m.observation_photos_uploading()
           : m.observation_photos_match_count({ count: photos.ready.length })
       }

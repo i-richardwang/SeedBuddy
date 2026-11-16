@@ -2,20 +2,16 @@ import { FolderPlus, Images, Pencil, PencilLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { NamedDataset } from "../../domain/datasets/schema";
-import type {
-  ObservationFrame,
-  PhotoSlots,
-} from "../../domain/experiments/read-model";
+import type { ObservationFrame } from "../../domain/experiments/read-model";
 import type {
   ExperimentObservation,
   Treatment,
 } from "../../domain/experiments/schema";
 import type { Model } from "../../domain/models/schema";
 import { getModelDatasets } from "../../functions/datasets";
-import { getPhotoSlots, removeObservation } from "../../functions/experiments";
+import { removeObservation } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { useConfirmDestructive } from "../../ui/confirmDestructive";
-import { found } from "../../ui/found";
 import type { ShownDialog } from "../../ui/hooks/useDialog";
 import { useLoadedDialog } from "../../ui/hooks/useLoadedDialog";
 import type { DropdownItem } from "../../ui/kit/DropdownMenu";
@@ -32,10 +28,11 @@ import {
 } from "./EnterManualReadingsDialog";
 import { observationLabel } from "./labels";
 import { ObservationDialog } from "./ObservationDialog";
+import { type PhotoPlacing, readPhotoPlacing } from "./observation-photos";
 
 /** What each action on the day reads when it opens, and no more. */
 type DayReads = {
-  images: PhotoSlots;
+  images: PhotoPlacing;
   readings: ManualEntry;
   dataset: NamedDataset[];
 };
@@ -76,11 +73,7 @@ export function ObservationMenu({
     { nameModel: new Set(observations.map((item) => item.modelId)).size > 1 },
   );
   const addPhotos = () =>
-    day.show(
-      "images",
-      async () => found(await getPhotoSlots({ data: ref })),
-      m.observation_not_loaded(),
-    );
+    day.show("images", () => readPhotoPlacing(ref), m.observation_not_loaded());
   // Counts are entered only on a day with units on the bench, so the
   // experiment has a treatment to begin with.
   const enterCounts = () =>
@@ -220,7 +213,7 @@ function ObservationDayDialog({
         <AddPhotosDialog
           experiment={experiment}
           observation={observation}
-          slots={dialog.value}
+          placing={dialog.value}
           open={open}
           onClose={onClose}
         />

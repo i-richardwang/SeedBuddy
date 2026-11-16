@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { resourceIdSchema } from "../identifiers/schema";
-import { imageDigestSchema } from "../images/schema";
+import { imageDigestSchema, imageFilenameSchema } from "../images/schema";
 import { classListSchema, tallySchema } from "../models/classes";
 import { timestampSchema } from "../time";
 
@@ -384,6 +384,8 @@ export const photoSlotsRequestSchema = experimentRefSchema.extend({
   observation: observationIdSchema.optional(),
 });
 
+export type PhotoSlotsRequest = z.infer<typeof photoSlotsRequestSchema>;
+
 const observationRequestSchema = z.strictObject({
   experiment: experimentIdSchema,
   observedOn: calendarDaySchema,
@@ -410,17 +412,6 @@ export const observationImageRefSchema = z.strictObject({
 });
 
 export type ObservationImageRef = z.infer<typeof observationImageRefSchema>;
-
-/** The source filename is retained for traceability and is not an identifier. */
-const imageFilenameSchema = z
-  .string()
-  .min(1, "Invalid image filename")
-  .max(255, "Invalid image filename")
-  .refine(
-    (filename) =>
-      filename !== "." && filename !== ".." && !/[\\/\0]/.test(filename),
-    "Invalid image filename",
-  );
 
 /**
  * A stored photograph and the unit it shows. `unclear` marks it unclear in the

@@ -11,7 +11,6 @@ import {
   EXPERIMENT_TABS,
   type ExperimentFrame,
   type ExperimentView,
-  type PhotoSlots,
 } from "../../domain/experiments/read-model";
 import {
   DEFAULT_UNIT_PAGE_SIZE,
@@ -19,6 +18,10 @@ import {
   treatmentIdSchema,
 } from "../../domain/experiments/schema";
 import { ExperimentMenu } from "../../features/experiments/ExperimentMenu";
+import {
+  type PhotoPlacing,
+  readPhotoPlacing,
+} from "../../features/experiments/observation-photos";
 import { RecordObservationDialog } from "../../features/experiments/RecordObservationDialog";
 import { useReadingProgress } from "../../features/experiments/reading-progress";
 import { TreatmentSummary } from "../../features/experiments/TreatmentSummary";
@@ -29,11 +32,10 @@ import {
   unitTableSearch,
   unitTableSizeSchema,
 } from "../../features/experiments/unit-table";
-import { getExperimentPage, getPhotoSlots } from "../../functions/experiments";
+import { getExperimentPage } from "../../functions/experiments";
 import { m } from "../../paraglide/messages";
 import { formatDay } from "../../ui/Day";
 import { documentTitle } from "../../ui/documentTitle";
-import { found } from "../../ui/found";
 import { useLoadedDialog } from "../../ui/hooks/useLoadedDialog";
 import { Button } from "../../ui/kit/Button";
 import { Empty, EmptyPlace } from "../../ui/kit/Empty";
@@ -137,12 +139,11 @@ function ExperimentPage() {
   const { experiment, treatments, observations } = frame;
   // A new observation's photographs are matched to the experiment's units,
   // read when one is recorded rather than with every page.
-  const recording = useLoadedDialog<{ record: PhotoSlots }>();
+  const recording = useLoadedDialog<{ record: PhotoPlacing }>();
   const record = () =>
     recording.show(
       "record",
-      async () =>
-        found(await getPhotoSlots({ data: { experiment: experiment.id } })),
+      () => readPhotoPlacing({ experiment: experiment.id }),
       m.experiment_units_not_loaded(),
     );
   useReadingProgress(frame);
@@ -237,7 +238,7 @@ function ExperimentPage() {
           inoculatedOn={experiment.inoculatedOn}
           models={models}
           observations={observations}
-          slots={recording.last.value}
+          placing={recording.last.value}
           open={recording.open}
           onClose={recording.close}
         />

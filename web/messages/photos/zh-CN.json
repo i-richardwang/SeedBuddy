@@ -1,0 +1,49 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "photo_batch_add_photos": "添加照片",
+  "photo_batch_column_dimensions": "尺寸",
+  "photo_batch_delete": "删除批次",
+  "photo_batch_delete_content": [
+    {
+      "declarations": ["input count", "local formattedCount = count: number"],
+      "match": {
+        "count=*": "其中 {formattedCount} 张尚未对应的照片会一并删除。"
+      }
+    }
+  ],
+  "photo_batch_description": "在实验中记录观测日或补传照片时，选择这个批次，把照片对应到试验单元。",
+  "photo_batch_dimensions": [
+    {
+      "declarations": [
+        "input width",
+        "input height",
+        "local formattedWidth = width: number",
+        "local formattedHeight = height: number"
+      ],
+      "match": {
+        "width=*": "{formattedWidth} × {formattedHeight}"
+      }
+    }
+  ],
+  "photo_batch_empty": "没有等待对应的照片",
+  "photo_batch_empty_description": "在上面添加的照片会留在这里，直到对应到试验单元。",
+  "photo_batch_menu_delete": "删除批次…",
+  "photo_batch_new": "新建批次",
+  "photo_batch_no_matches": "没有符合条件的照片",
+  "photo_batch_no_matches_description": "换个关键词试试。",
+  "photo_batch_not_created": "批次未创建",
+  "photo_batch_not_deleted": "批次未删除",
+  "photo_batch_page_title": "{batch} · 照片",
+  "photo_batch_photo_not_removed": "照片未移除",
+  "photo_batch_photo_remove_title": "从 {batch} 移除 {file}？",
+  "photo_batch_photo_removed": "已从 {batch} 移除 {file}",
+  "photo_batch_photos_table": "{batch} 中等待对应的照片",
+  "photo_batch_search": "搜索照片",
+  "photo_batch_waiting": "等待对应的照片",
+  "photo_batches_column_created": "创建时间",
+  "photo_batches_empty": "还没有批次",
+  "photo_batches_empty_description": "先把一次拍摄的照片作为一个批次传上来，之后再在实验里对应到试验单元。",
+  "photo_batches_table": "照片批次",
+  "photos_description": "你已上传、尚未对应到试验单元的照片，按批次存放，只有你能看到。",
+  "photos_label": "照片"
+}

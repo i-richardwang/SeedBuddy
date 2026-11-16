@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import type { PhotoSlots } from "../../domain/experiments/read-model";
 import {
   type CalendarDay,
   type ExperimentObservation,
@@ -15,6 +14,7 @@ import { Form } from "../../ui/kit/Form";
 import { ObservationFields, type ObservationValue } from "./ObservationFields";
 import {
   ObservationPhotosField,
+  type PhotoPlacing,
   useObservationPhotos,
 } from "./observation-photos";
 
@@ -29,8 +29,8 @@ export function RecordObservationDialog(props: {
   inoculatedOn: CalendarDay;
   models: readonly Model[];
   observations: readonly ExperimentObservation[];
-  /** The experiment's units a photograph may be placed on. */
-  slots: PhotoSlots;
+  /** The experiment's units a photograph may be placed on, and the reader's batches. */
+  placing: PhotoPlacing;
   open: boolean;
   onClose: () => void;
 }) {
@@ -48,7 +48,7 @@ function RecordObservationSession({
   inoculatedOn,
   models,
   observations,
-  slots,
+  placing,
   open,
   onClose,
   afterClose,
@@ -65,7 +65,7 @@ function RecordObservationSession({
   }));
   const photos = useObservationPhotos({
     experiment,
-    slots,
+    placing,
     day: value.observedOn,
   });
 
@@ -76,7 +76,7 @@ function RecordObservationSession({
       afterClose={afterClose}
       title={m.observation_record()}
       okText={
-        photos.uploads.storing
+        photos.onHand.storing
           ? m.observation_photos_uploading()
           : photos.ready.length > 0
             ? m.observation_record_count({ count: photos.ready.length })

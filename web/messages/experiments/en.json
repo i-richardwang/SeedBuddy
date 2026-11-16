@@ -160,6 +160,21 @@
   "observation_not_loaded": "Observation not loaded",
   "observation_not_recorded": "Observation not recorded",
   "observation_not_saved": "Observation not saved",
+  "observation_photos_batch_item": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local formattedCount = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{batch} · {formattedCount} photo",
+        "countPlural=other": "{batch} · {formattedCount} photos"
+      }
+    }
+  ],
+  "observation_photos_batch_not_added": "Batch photos not added",
   "observation_photos_check_failed": "Could not check whether the experiment already holds these photographs",
   "observation_photos_conflicting": [
     {
@@ -176,6 +191,7 @@
     }
   ],
   "observation_photos_fill_in_order": "Match in order",
+  "observation_photos_from_batch": "Add from a batch",
   "observation_photos_heading": "Photos for {observation}",
   "observation_photos_match_count": [
     {
