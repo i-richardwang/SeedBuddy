@@ -157,6 +157,8 @@ Both presets use AdamW with learning rate 0.001 and disable Mosaic, MixUp, and C
 
 Validation uses at most the actual per-device training batch, including after automatic batch reduction. The best checkpoint is calibrated with best-F1 confidence. `execution.json` records actual framework arguments, batch sizes, and gradient accumulation. Local diagnostic documents omit `schemaVersion`. Worker processes preserve these diagnostics in their profile log before removing the attempt directory.
 
+On a Mac, loading the YOLO runtime holds PyTorch's Metal allocator to the working set macOS recommends (`MPS_MEMORY_BOUNDS` in `detectors/ultralytics/runtime.py`). PyTorch's own limit is 1.7 times that, more than the machine has, and a run that fills it swaps where it should fail: on a 16 GB Mac the YOLO26s preset held 20 GiB and swapped throughout, and bounded it holds 13 GiB and trains an epoch in two thirds of the time. A run that needs more than the bound raises PyTorch's out-of-memory error, which in the first epoch halves the batch as on any other device. Either `PYTORCH_MPS_*_WATERMARK_RATIO` variable set in the process's environment replaces both bounds.
+
 Preset manifests are immutable and their filenames identify their versions.
 
 ### Dish framing

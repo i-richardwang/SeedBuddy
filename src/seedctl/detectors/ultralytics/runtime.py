@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 import gc
+import os
 from importlib.metadata import PackageNotFoundError, version
+
+# PyTorch lets its Metal allocator hold 1.7 times the working set macOS
+# recommends, more than a Mac has, so a run that fills it swaps where it should
+# fail. Held to the recommendation the allocator reuses what it released, and
+# a run that needs more raises the out-of-memory error training recovers from.
+MPS_MEMORY_BOUNDS = {
+    "PYTORCH_MPS_HIGH_WATERMARK_RATIO": "1.0",
+    "PYTORCH_MPS_LOW_WATERMARK_RATIO": "0.8",
+}
 
 
 def ultralytics_installed() -> bool:
@@ -13,10 +23,13 @@ def ultralytics_installed() -> bool:
 
 
 def load_yolo() -> type:
+    """The YOLO runtime, its Metal memory bounded unless the operator set it."""
     if not ultralytics_installed():
         raise RuntimeError(
             "Ultralytics is not installed; run `uv sync --extra yolo` first"
         )
+    if not MPS_MEMORY_BOUNDS.keys() & os.environ.keys():
+        os.environ.update(MPS_MEMORY_BOUNDS)
     try:
         from ultralytics import YOLO
     except Exception as error:
