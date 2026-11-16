@@ -18,7 +18,6 @@ from seedctl.worker.images import ImageCache
 from seedctl.worker.inference import WORKER_ERRORS, InferenceRunner
 from seedctl.worker.inference_process import InferenceProcess
 from seedctl.worker.inference_protocol import InferenceClient
-from seedctl.worker.runtime import shutdown_signals
 from seedctl.worker.session import WorkerClient, WorkerSession, WorkerSettings
 from seedctl.worker.training import TrainingClient, serve_training_claim
 
@@ -87,25 +86,26 @@ class Worker:
 
 def run_worker(
     settings: WorkerSettings,
+    stopped: threading.Event,
     *,
     on_ready: Callable[[], None],
     on_training: Callable[[bool], None],
 ) -> None:
+    """Serve the workbench until `stopped` is set."""
     settings.work_dir.mkdir(parents=True, exist_ok=True)
     worker = Worker(settings, on_training=on_training)
     try:
-        with shutdown_signals() as stopped:
-            on_ready()
-            while not stopped.is_set():
-                try:
-                    worked = worker.serve_once(stopped)
-                except YoloTrainingInterruptedError:
-                    LOGGER.info("training interrupted; the lease will be reclaimed")
-                    worked = False
-                except WORKER_ERRORS as error:
-                    LOGGER.error("worker error: %s", error)
-                    worked = False
-                if not worked:
-                    stopped.wait(settings.poll_seconds)
+        on_ready()
+        while not stopped.is_set():
+            try:
+                worked = worker.serve_once(stopped)
+            except YoloTrainingInterruptedError:
+                LOGGER.info("training interrupted; the lease will be reclaimed")
+                worked = False
+            except WORKER_ERRORS as error:
+                LOGGER.error("worker error: %s", error)
+                worked = False
+            if not worked:
+                stopped.wait(settings.poll_seconds)
     finally:
         worker.close()

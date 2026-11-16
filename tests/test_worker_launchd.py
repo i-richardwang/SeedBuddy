@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+import pytest
 
 from seedctl.worker.host import launchd as worker_launchd
 from seedctl.worker.host.launchd import launch_agent_document, service_label
 from seedctl.worker.host.profiles import WorkerProfile, save_profile
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="launchd services are for macOS"
+)
 
 
 def test_launch_agent_runs_the_profile_in_foreground(tmp_path, monkeypatch) -> None:

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import multiprocessing
-import os
 import queue
 from collections.abc import Callable, Mapping
 from contextlib import suppress
@@ -19,7 +18,11 @@ from seedctl.detectors.ultralytics import (
     YoloTrainingResult,
     train_yolo_detector,
 )
-from seedctl.worker.process import read_events, terminate_process_group
+from seedctl.worker.process import (
+    lead_process_group,
+    read_events,
+    terminate_process_group,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +30,7 @@ LOGGER = logging.getLogger(__name__)
 def _train(
     connection: Connection, dataset: Path, output: Path, options: dict[str, Any]
 ) -> None:
-    os.setsid()
+    lead_process_group()
 
     def emit(kind: str, value: Any = None) -> None:
         connection.send((kind, value))

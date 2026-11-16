@@ -5,6 +5,9 @@ Imported lazily: the base seedctl installation does not require Ultralytics.
 
 from ultralytics.models.yolo.detect.train import DetectionTrainer
 
+# The datasets the trainer builds read exported images as inference reads them.
+import seedctl.detectors.ultralytics.image_loading  # noqa: F401
+
 
 class MemoryBoundedDetectionTrainer(DetectionTrainer):
     """Validate at no more than the actual per-device training batch size.

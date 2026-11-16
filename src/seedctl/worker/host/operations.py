@@ -16,12 +16,15 @@ from seedctl.worker.connection import (
     WorkerSuspendedError,
 )
 from seedctl.worker.host.launchd import service_loaded
+from seedctl.worker.host.lock import running_alone
 from seedctl.worker.host.logging import profile_logging
 from seedctl.worker.host.profiles import (
     WorkerProfile,
     load_profile,
     profile_directory,
 )
+from seedctl.worker.process import process_exists
+from seedctl.worker.runtime import HOSTED_HANDOVER_SECONDS, shutdown_requests
 from seedctl.worker.service import run_worker
 from seedctl.worker.session import available_runtimes
 
@@ -122,10 +125,20 @@ def _stop_refused(name: str, state: str, refusal: Exception) -> int:
     return 0
 
 
-def run_profile(name: str) -> int:
+def run_profile(name: str, *, hosted: bool = False) -> int:
+    """
+    Runs the profile until the process is asked to stop. A hosted process is
+    the child of a program that stops it by closing its standard input, and
+    waits for the process that program hosted before it to end.
+    """
     directory = profile_directory(name)
     directory.mkdir(parents=True, exist_ok=True)
-    with profile_logging(directory / "worker.log"):
+    wait = HOSTED_HANDOVER_SECONDS if hosted else 0
+    with (
+        shutdown_requests(hosted=hosted) as stopped,
+        running_alone(directory, stopped, wait=wait),
+        profile_logging(directory / "worker.log"),
+    ):
         _write_status(name, "starting")
         try:
             profile = load_profile(name)
@@ -136,7 +149,12 @@ def run_profile(name: str) -> int:
             def training(active: bool) -> None:
                 _write_status(name, "training" if active else "running")
 
-            run_worker(profile.settings(name), on_ready=ready, on_training=training)
+            run_worker(
+                profile.settings(name),
+                stopped,
+                on_ready=ready,
+                on_training=training,
+            )
         except WorkerNotEnrolledError as error:
             return _stop_refused(name, "unenrolled", error)
         except WorkerSuspendedError as error:
@@ -159,14 +177,9 @@ def _read_status(name: str) -> dict[str, object] | None:
     return value if isinstance(value, dict) else None
 
 
-def _process_exists(pid: object) -> bool:
-    if not isinstance(pid, int):
-        return False
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
+def _serving(pid: object) -> bool:
+    """Whether the process a status names is still there."""
+    return isinstance(pid, int) and process_exists(pid)
 
 
 def profile_summary(name: str) -> str:
@@ -178,7 +191,7 @@ def profile_summary(name: str) -> str:
     profile = load_profile(name)
     status = _read_status(name)
     state = str(status.get("state")) if status else "never started"
-    if status and state in _SERVING and not _process_exists(status.get("pid")):
+    if status and state in _SERVING and not _serving(status.get("pid")):
         state = "stale"
     if status and status.get("detail"):
         state = f"{state}: {status['detail']}"

@@ -2,7 +2,7 @@
 
 Operator CLI and native Worker process runtime for a [SeedBuddy](../README.md) workbench. The workbench owns experiments, datasets, review state, and training runs; this package runs the Worker processes that detect and train for it and moves datasets between a workbench and a local data root.
 
-Worker profile management uses `launchd` and requires macOS. The `dataset`, `recognize`, `traditional`, `training`, and `models` commands run wherever Python 3.11+ is available.
+Worker services use `launchd` and require macOS; elsewhere, Windows included, a Worker runs in the foreground with `worker run`. The `dataset`, `recognize`, `traditional`, `training`, and `models` commands run wherever Python 3.11+ is available.
 
 ## Install
 
@@ -73,9 +73,9 @@ Completed epochs report losses, precision, recall, mAP50, mAP50-95, fitness and 
 
 The run page lists execution attempts and the last reported local checkpoint epoch. Lease renewal does not count as training progress. An operator can pause a stalled run and explicitly restart elsewhere. A held run without progress for 15 minutes shows a warning. Every execution request carries its session and attempt, so cancelled or superseded attempts cannot report progress or publish models.
 
-`seedctl worker run <profile>` runs a Worker process in the foreground without `launchd`. Either way the process records its state in the profile's `status.json`, which `worker list` and a supervisor read: `starting`, `running`, `training` while it trains a run, and, once it has ended, `stopped`, `failed`, `unenrolled`, `suspended` or `incompatible`. A state of work names its process, and `worker list` shows `stale` once that process is gone without having recorded how it left off.
+`seedctl worker run <profile>` runs a Worker process in the foreground without `launchd`, until it is interrupted or sent a termination signal. One process runs a profile at a time, and a second is refused. With `--hosted` the process is the child of a program that keeps it: it finishes when that program closes its standard input, by asking or by ending itself, and ends at once if it has not finished 30 seconds later; started while the process hosted before it is finishing, it waits for that one to end. Either way the process records its state in the profile's `status.json`, which `worker list` and a supervisor read: `starting`, `running`, `training` while it trains a run, and, once it has ended, `stopped`, `failed`, `unenrolled`, `suspended` or `incompatible`. A state of work names its process, and `worker list` shows `stale` once that process is gone without having recorded how it left off.
 
-A Worker process keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
+A Worker process keeps the canonical images it has read in its work directory, by digest, for inference and training alike: another version reads the images an earlier one read without fetching them again, and a training run downloads missing snapshot images concurrently and links its dataset to the cached files. A dataset therefore holds no pixels of its own. Images an assignment or run is using stay; past a 20 GiB budget the least recently used of the rest are forgotten.
 
 ### Attempt storage
 
@@ -155,7 +155,9 @@ Preset manifests are immutable and their filenames identify their versions.
 
 ### Dish framing
 
-A snapshot of a `dish` model carries its `area` and, per image, the dish `coverage` the workbench froze when it was taken; a dataset manifest carries the same for local training. The exporter in `detectors/ultralytics/dataset.py` frames each covered image to the square around its dish, the circle's radius expanded by the coverage margin, rounded outward to whole pixels and clipped to the image. The frame is written losslessly as PNG, boxes are clipped to it and boxes wholly outside are dropped; an image without coverage is the canonical file itself, linked. The exported `manifest.json` records the `mode` and each image's `window`. `ImageCoverage` in `contracts/coverage.py` and `coverage_window` in `image_geometry/window.py` define this once for training and inference.
+A snapshot of a `dish` model carries its `area` and, per image, the dish `coverage` the workbench froze when it was taken; a dataset manifest carries the same for local training. The exporter in `detectors/ultralytics/dataset.py` frames each covered image to the square around its dish, the circle's radius expanded by the coverage margin, rounded outward to whole pixels and clipped to the image. Every exported image is the canonical file itself, linked: the exported `manifest.json` records the `mode` and each image's `window`, training reads the image through that window, and boxes are clipped to it, those wholly outside dropped. The window of an image without coverage is the whole of it. `ImageCoverage` in `contracts/coverage.py` and `coverage_window` in `image_geometry/window.py` define this once for training and inference.
+
+Inference and training decode a stored image with the same function and take the same window of it, so the pixels a model sees are the same on every Worker. For training, `detectors/ultralytics/image_loading.py` puts that reading in the place of the function the pinned Ultralytics datasets read files through and of the dataset class the framework builds; both are names inside the framework, checked by the trainer's tests when the pin moves.
 
 The bundle records the exported mode as `inference.mode` (`whole_image` or `dish`), and the workbench refuses a bundle whose mode differs from the snapshot's area. A `dish` version is handed the image's current coverage with each inference claim and reads the same frame, offsetting its boxes back into image pixels and reporting the dish under `diagnostics.dish`; without coverage it reads the whole image. A `whole_image` version is never handed coverage. The frame is recorded on the version, not hashed into its artifact digest.
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import multiprocessing
+import sys
 import time
 from pathlib import Path
 
@@ -8,6 +9,12 @@ import pytest
 
 from seedctl.detectors.ultralytics import YoloTrainingInterruptedError
 from seedctl.worker import training_process
+from seedctl.worker.process import lead_process_group
+
+# The stand-in trainers reach the trainer process by fork, which Windows lacks.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="the stand-in trainers need fork"
+)
 
 
 def _hung_trainer(*_args, **_kwargs):
@@ -147,7 +154,7 @@ def _partial_message(connection, _dataset, _output, _options):
     import os
     import struct
 
-    os.setsid()
+    lead_process_group()
     os.write(connection.fileno(), struct.pack("!i", 1024) + b"partial")
     time.sleep(2)
 

@@ -4,6 +4,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
+from conftest import encoded_image
 
 from seedctl.detectors.traditional.candidates import (
     FEATURE_NAMES,
@@ -164,8 +165,8 @@ def test_candidate_model_file_round_trip(tmp_path: Path) -> None:
 
 
 def test_count_seeds_records_the_image_identity(tmp_path: Path) -> None:
-    path = tmp_path / "downloaded.jpg"
-    cv2.imwrite(str(path), np.zeros((400, 600, 3), dtype=np.uint8))
+    path = tmp_path / "downloaded.avif"
+    path.write_bytes(encoded_image(600, 400))
 
     result = count_seeds(path, config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
 
@@ -189,8 +190,8 @@ def test_duplicate_response_keeps_the_stronger_candidate() -> None:
 
 
 def test_unrecognizable_dish_requires_review(tmp_path: Path) -> None:
-    path = tmp_path / "blank.jpg"
-    cv2.imwrite(str(path), np.zeros((400, 600, 3), dtype=np.uint8))
+    path = tmp_path / "blank.avif"
+    path.write_bytes(encoded_image(600, 400))
 
     recognition = recognize(path, config=DEFAULT_PIPELINE_CONFIG, model=DEFAULT_MODEL)
     result = recognition.result

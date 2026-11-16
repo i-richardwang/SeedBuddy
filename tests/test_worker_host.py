@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 from types import SimpleNamespace
 
 import httpx
@@ -17,6 +18,7 @@ from seedctl.worker.connection import (
     WorkerSuspendedError,
 )
 from seedctl.worker.host import operations as worker_host
+from seedctl.worker.host.lock import running_alone
 from seedctl.worker.host.profiles import (
     WorkerProfile,
     profile_directory,
@@ -141,7 +143,7 @@ def test_profile_host_passes_typed_settings_and_records_what_the_process_is_doin
 
     states: list[dict[str, object]] = []
 
-    def run(settings: WorkerSettings, *, on_ready, on_training) -> None:
+    def run(settings: WorkerSettings, _stopped, *, on_ready, on_training) -> None:
         received.append(settings)
         on_ready()
         states.append(status())
@@ -176,7 +178,7 @@ def test_profile_host_records_startup_failures_in_status_and_log(
         ),
     )
 
-    def fail(_settings, *, on_ready, on_training) -> None:
+    def fail(_settings, _stopped, *, on_ready, on_training) -> None:
         raise RuntimeError("startup failed")
 
     monkeypatch.setattr(worker_host, "run_worker", fail)
@@ -207,7 +209,7 @@ def test_a_worker_the_workbench_turns_away_stops_cleanly_and_says_why(
         WorkerProfile(server_url="https://example.test", token="refused"),
     )
 
-    def refused(_settings, *, on_ready, on_training) -> None:
+    def refused(_settings, _stopped, *, on_ready, on_training) -> None:
         raise refusal
 
     monkeypatch.setattr(worker_host, "run_worker", refused)
@@ -260,3 +262,96 @@ def test_profile_summary_reports_a_killed_worker_as_stale(
 
         _status_profile("trainer", state, pid=ended.pid)
         assert "\tstale\tnot loaded\t" in worker_host.profile_summary("trainer")
+
+
+def _profile(name: str) -> None:
+    save_profile(name, WorkerProfile(server_url="https://example.test", token="secret"))
+
+
+def test_a_profile_another_process_runs_is_refused_and_its_status_kept(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
+    _profile("trainer")
+    directory = profile_directory("trainer")
+    (directory / "status.json").write_text('{"state": "running", "pid": 1}\n')
+    monkeypatch.setattr(worker_host, "run_worker", lambda *_args, **_kwargs: None)
+
+    with (
+        running_alone(directory, threading.Event(), wait=0),
+        pytest.raises(RuntimeError, match="another process is running"),
+    ):
+        worker_host.run_profile("trainer")
+
+    assert json.loads((directory / "status.json").read_text("utf-8")) == {
+        "state": "running",
+        "pid": 1,
+    }
+
+
+def test_a_profile_is_free_again_once_the_process_running_it_has_ended(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("SEEDBUDDY_HOME", str(tmp_path))
+    _profile("trainer")
+    monkeypatch.setattr(worker_host, "run_worker", lambda *_args, **_kwargs: None)
+
+    assert worker_host.run_profile("trainer") == 0
+    assert worker_host.run_profile("trainer") == 0
+
+
+def test_a_process_waiting_for_a_profile_gives_up_when_asked_to_stop(tmp_path) -> None:
+    stopped = threading.Event()
+    stopped.set()
+
+    with (
+        running_alone(tmp_path, threading.Event(), wait=0),
+        pytest.raises(RuntimeError, match="another process is running"),
+        running_alone(tmp_path, stopped, wait=60),
+    ):
+        pass
+
+
+def _hosted(then: str, *, grace: float) -> subprocess.Popen[bytes]:
+    """A process that waits to be stopped as a hosted Worker does, and then does `then`."""
+    script = f"""
+import sys
+import time
+
+import seedctl.worker.runtime as runtime
+
+runtime.HOSTED_GRACE_SECONDS = {grace}
+with runtime.shutdown_requests(hosted=True) as stopped:
+    print("serving", flush=True)
+    stopped.wait()
+    {then}
+"""
+    process = subprocess.Popen(
+        [sys.executable, "-c", script], stdin=subprocess.PIPE, stdout=subprocess.PIPE
+    )
+    assert process.stdout is not None
+    assert process.stdout.readline().strip() == b"serving"
+    return process
+
+
+def _let_go(process: subprocess.Popen[bytes]) -> int:
+    """Closes the standard input of a hosted process, and says how it ended."""
+    assert process.stdin is not None and process.stdout is not None
+    process.stdin.close()
+    try:
+        return process.wait(timeout=20)
+    finally:
+        process.stdout.close()
+
+
+def test_a_hosted_process_stops_when_its_host_closes_its_standard_input() -> None:
+    process = _hosted("sys.exit(7)", grace=30)
+    assert process.poll() is None
+
+    assert _let_go(process) == 7
+
+
+def test_a_hosted_process_that_does_not_finish_in_time_ends_itself() -> None:
+    process = _hosted("time.sleep(600)", grace=0.2)
+
+    assert _let_go(process) == 1

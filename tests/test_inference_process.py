@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -8,11 +9,12 @@ import pytest
 
 from seedctl.detectors.contract import RuntimeDescriptor
 from seedctl.worker.inference_process import InferenceProcess
+from seedctl.worker.process import lead_process_group
 from seedctl.worker.session import DEFAULT_POLL_SECONDS, WorkerSession, WorkerSettings
 
 
 def warm_child(connection, settings, session):
-    os.setsid()
+    lead_process_group()
     count = 0
     while True:
         connection.recv()
@@ -21,13 +23,13 @@ def warm_child(connection, settings, session):
 
 
 def blocked_child(connection, settings, session):
-    os.setsid()
+    lead_process_group()
     connection.recv()
     time.sleep(600)
 
 
 def crash_child(connection, settings, session):
-    os.setsid()
+    lead_process_group()
     connection.recv()
     os._exit(2)
 
@@ -95,12 +97,15 @@ def test_crashed_process_is_reported_without_waiting_for_a_lease(tmp_path, monke
 def partial_reply_child(connection, settings, session):
     import struct
 
-    os.setsid()
+    lead_process_group()
     connection.recv()
     os.write(connection.fileno(), struct.pack("!i", 1024) + b"partial")
     time.sleep(600)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="a Windows pipe carries whole messages"
+)
 def test_partial_pipe_frame_cannot_block_the_supervisor(tmp_path, monkeypatch):
     worker = process(tmp_path, monkeypatch, partial_reply_child)
     deadline = time.monotonic() + 1
