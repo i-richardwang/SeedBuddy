@@ -25,7 +25,27 @@ test("presets resolve independent recipes with explicit accumulation settings", 
   expect(
     resolveTrainingRecipe("yolo26s-whole-2048-v1", {}).parameters.batch,
   ).toBe(1);
-  expect(TRAINING_PRESETS.map((preset) => preset.id)).toHaveLength(2);
+  expect(TRAINING_PRESETS.map((preset) => preset.id)).toHaveLength(3);
+});
+
+test("a tiled preset states the resolution and the tiles it reads through", () => {
+  const tiled = resolveTrainingRecipe("yolo26s-tiled-3072-v1", {});
+  expect(tiled.parameters).toMatchObject({ imgsz: 3072, tile: 1536 });
+  expect(
+    resolveTrainingRecipe("yolo26s-tiled-3072-v1", { tile: 1024 }).parameters
+      .tile,
+  ).toBe(1024);
+  // A recipe that states no tile reads whole, and may be given one.
+  expect(
+    resolveTrainingRecipe("yolo26s-whole-2048-v1", {}).parameters.tile,
+  ).toBeUndefined();
+  expect(
+    resolveTrainingRecipe("yolo26s-whole-2048-v1", { tile: 1024 }).parameters
+      .tile,
+  ).toBe(1024);
+  expect(() =>
+    resolveTrainingRecipe("yolo26s-tiled-3072-v1", { tile: 1000 }),
+  ).toThrow();
 });
 
 test("only supplied editable values override a preset", () => {

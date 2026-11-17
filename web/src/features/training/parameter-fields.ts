@@ -24,6 +24,7 @@ export const PARAMETER_GROUPS: ParameterGroup[] = [
       "patience",
       "batch",
       "imgsz",
+      "tile",
       "optimizer",
       "lr0",
       "warmup_epochs",
@@ -69,7 +70,8 @@ export interface ParameterField {
 const properties = z.toJSONSchema(trainingOverridesSchema).properties!;
 const FIELD_OPTIONS = {
   epochs: { step: 1, advanced: false },
-  imgsz: { step: 32, advanced: false },
+  imgsz: { step: 32, advanced: false, help: m.parameter_imgsz_help },
+  tile: { step: 32, advanced: false, help: m.parameter_tile_help },
   batch: { step: 1, advanced: false },
   patience: { step: 1, advanced: false, help: m.parameter_patience_help },
   lr0: { step: 0.00001, advanced: false },

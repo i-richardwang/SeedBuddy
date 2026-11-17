@@ -13,7 +13,11 @@ export type InferenceMode = z.infer<typeof inferenceModeSchema>;
 
 export const inferenceSettingsSchema = z.strictObject({
   confidence: z.number().finite().min(0).max(1),
+  /** The resolution a frame is read at: the pixels along its longer side. */
   imageSize: z.number().int().positive(),
+  /** The side of the tiles a frame is read through; without one it is read whole. */
+  tileSize: z.number().int().positive().optional(),
+  /** What one read may find; a frame read through tiles is read once a tile. */
   maxDetections: z.number().int().positive(),
   endToEnd: z.boolean(),
   mode: inferenceModeSchema,

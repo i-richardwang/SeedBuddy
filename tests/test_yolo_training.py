@@ -18,14 +18,24 @@ from seedctl.detectors.ultralytics.training import (
     epoch_report,
     train_yolo_detector,
 )
+from seedctl.image_geometry.tiles import Tiling
 
-TRAINER = object()
+READING = Tiling(768, 768)
+
+
+class Trainer:
+    """Stands in for the trainer and validator the adapter loads."""
+
+
+def _reading(injected: Any) -> tuple[object, dict[str, object]]:
+    """What a trainer or validator was handed to the framework with."""
+    return injected.func, injected.keywords
 
 
 @pytest.fixture(autouse=True)
 def fake_training_adapter(monkeypatch):
-    monkeypatch.setattr(training, "load_training_trainer", lambda: TRAINER)
-    monkeypatch.setattr(training, "load_training_validator", lambda: TRAINER)
+    monkeypatch.setattr(training, "load_training_trainer", lambda: Trainer)
+    monkeypatch.setattr(training, "load_training_validator", lambda: Trainer)
 
 
 class _BoxMetrics:
@@ -234,8 +244,9 @@ def test_interrupted_training_resumes_after_its_last_completed_epoch(
     assert first == [1, 2]
     assert resumed == [1, 2, 3]
     assert yolo.instances[1].source == output / "weights" / "last.pt"
-    assert yolo.instances[1].train_options == {
-        "trainer": TRAINER,
+    options = dict(yolo.instances[1].train_options)
+    assert _reading(options.pop("trainer")) == (Trainer, {"tiling": READING})
+    assert options == {
         "resume": True,
         "data": str(dataset),
         "project": str(output.parent),
@@ -245,6 +256,31 @@ def test_interrupted_training_resumes_after_its_last_completed_epoch(
         "device": "mps",
     }
     assert result.best_weights == output / "weights" / "best.pt"
+
+
+def test_a_tiled_recipe_trains_on_tiles_and_publishes_both_sizes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    yolo = _checkpointing_yolo(monkeypatch)
+    model, digest = _base_model(tmp_path)
+
+    result = train_yolo_detector(
+        _dataset(tmp_path),
+        tmp_path / "run",
+        parameters={**PARAMETERS, "tile": 384},
+        model=model,
+        model_digest=digest,
+        runtime_version="8.4.131",
+        device=None,
+        resume_required=False,
+    )
+
+    options = yolo.instances[0].train_options
+    assert _reading(options["trainer"]) == (Trainer, {"tiling": Tiling(768, 384)})
+    assert options["imgsz"] == 384
+    assert "tile" not in options
+    inference = json.loads(result.summary.read_text())["inference"]
+    assert (inference["imageSize"], inference["tileSize"]) == (768, 384)
 
 
 def test_finished_training_left_behind_starts_over(
@@ -346,15 +382,20 @@ def test_training_reports_epochs_and_publishes_validated_settings(
     assert json.loads(result.summary.read_text())["inference"][
         "confidence"
     ] == pytest.approx(0.2)
-    assert instances[0].train_options == {
+    options = dict(instances[0].train_options)
+    assert _reading(options.pop("trainer")) == (Trainer, {"tiling": READING})
+    assert options == {
         **PARAMETERS,
-        "trainer": TRAINER,
         "data": str(dataset),
         "project": str(tmp_path),
         "name": "run",
         "exist_ok": False,
         "device": "mps",
     }
+    assert _reading(instances[1].val_options["validator"]) == (
+        Trainer,
+        {"tiling": READING},
+    )
     assert instances[1].val_options["batch"] == 4
     execution = json.loads((output / "execution.json").read_text())
     assert execution["validationBatch"] == 4

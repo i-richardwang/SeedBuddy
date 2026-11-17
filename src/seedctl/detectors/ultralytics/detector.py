@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from importlib.metadata import version
 from pathlib import Path
@@ -25,6 +26,8 @@ from seedctl.detectors.contract import (
     adapter_fingerprint,
 )
 from seedctl.detectors.ultralytics.runtime import load_yolo
+from seedctl.image_geometry import tiles
+from seedctl.image_geometry.tiles import Tiling
 from seedctl.image_geometry.window import PixelWindow, coverage_window
 from seedctl.io.image_io import read_image
 
@@ -32,11 +35,15 @@ from seedctl.io.image_io import read_image
 @dataclass(frozen=True)
 class YoloInferenceSettings:
     confidence: float
+    #: The resolution a frame is read at: the pixels along its longer side.
     image_size: int
+    #: What one read may find; a frame read through tiles is read once a tile.
     max_detections: int
     end_to_end: bool
     #: The frame the version was trained on and reads; not part of its digest.
     mode: InferenceMode
+    #: The side of the tiles a frame is read through; None reads it whole.
+    tile_size: int | None = None
 
     def __post_init__(self) -> None:
         if self.mode not in INFERENCE_MODES:
@@ -50,16 +57,25 @@ class YoloInferenceSettings:
             document["maxDetections"],
             document["endToEnd"],
             document["mode"],
+            document.get("tileSize"),
         )
 
+    @property
+    def tiling(self) -> Tiling:
+        return Tiling.reading(self.image_size, self.tile_size)
+
     def to_dict(self) -> dict[str, object]:
-        """The settings the artifact digest binds to the weights."""
-        return {
+        """The settings the artifact digest binds to the weights; a version
+        that reads its frames whole states no tile size."""
+        settings: dict[str, object] = {
             "confidence": self.confidence,
             "imageSize": self.image_size,
             "maxDetections": self.max_detections,
             "endToEnd": self.end_to_end,
         }
+        if self.tile_size is not None:
+            settings["tileSize"] = self.tile_size
+        return settings
 
 
 def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
@@ -72,6 +88,7 @@ def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
                 "contract.py": Path(contract.__file__),
                 "annotation.py": Path(annotation.__file__),
                 "detector.py": Path(__file__),
+                "tiles.py": Path(tiles.__file__),
             },
         ),
     )
@@ -80,7 +97,8 @@ def ultralytics_runtime_descriptor() -> RuntimeDescriptor:
 @dataclass
 class UltralyticsDetector:
     """Run inference with the model document's calibrated settings, over the
-    whole image or the dish frame the version was trained on."""
+    whole image or the dish frame the version was trained on, read at its
+    resolution through its tiles."""
 
     weights: Path
     settings: YoloInferenceSettings
@@ -144,21 +162,13 @@ class UltralyticsDetector:
             raise ValueError("A whole_image version reads no dish coverage")
         return coverage_window(coverage, width, height)
 
-    def predict(
-        self,
-        image_path: Path,
-        digest: str,
-        producer: DetectionProducer,
-        coverage: ImageCoverage | None,
-    ) -> DetectionResult:
-        pixels = read_image(image_path)
-        height, width = pixels.shape[:2]
-        window = self._window(coverage, width, height)
-        frame = window.of(pixels)
+    def _read(self, pixels: np.ndarray) -> Iterator[tuple[str, float, BoundingBox]]:
+        """The class, score and box, clipped to the pixels, of each object one
+        read finds."""
         options: dict[str, object] = {
-            "source": frame,
+            "source": pixels,
             "conf": self.settings.confidence,
-            "imgsz": self.settings.image_size,
+            "imgsz": self.settings.tiling.tile,
             "max_det": self.settings.max_detections,
             "end2end": self.settings.end_to_end,
             "iou": YOLO_IOU,
@@ -170,46 +180,71 @@ class UltralyticsDetector:
         if len(results) != 1:
             raise RuntimeError("YOLO must return exactly one result for one image")
         result = results[0]
-        if tuple(map(int, result.orig_shape)) != frame.shape[:2]:
+        if tuple(map(int, result.orig_shape)) != pixels.shape[:2]:
             raise RuntimeError("YOLO read an image of another size")
+        if result.boxes is None:
+            return
+        height, width = pixels.shape[:2]
+        boxes = np.asarray(result.boxes.xyxy.cpu().numpy())
+        scores = np.asarray(result.boxes.conf.cpu().numpy())
+        classes = np.asarray(result.boxes.cls.cpu().numpy())
+        if (
+            boxes.ndim != 2
+            or boxes.shape[1] != 4
+            or scores.shape != boxes.shape[:1]
+            or classes.shape != boxes.shape[:1]
+        ):
+            raise RuntimeError("YOLO returned invalid detection boxes")
+        for coordinates, score, class_id in zip(boxes, scores, classes, strict=True):
+            x1, y1, x2, y2 = map(float, coordinates)
+            numeric_class = float(class_id)
+            class_index = int(numeric_class)
+            if numeric_class != class_index or not 0 <= class_index < len(
+                self.class_names
+            ):
+                raise RuntimeError(f"YOLO returned unknown class index {numeric_class}")
+            left = min(max(x1, 0.0), float(width))
+            top = min(max(y1, 0.0), float(height))
+            right = min(max(x2, 0.0), float(width))
+            bottom = min(max(y2, 0.0), float(height))
+            if right > left and bottom > top:
+                yield (
+                    self.class_names[class_index],
+                    float(score),
+                    BoundingBox(left, top, right - left, bottom - top),
+                )
+
+    def predict(
+        self,
+        image_path: Path,
+        digest: str,
+        producer: DetectionProducer,
+        coverage: ImageCoverage | None,
+    ) -> DetectionResult:
+        pixels = read_image(image_path)
+        height, width = pixels.shape[:2]
+        window = self._window(coverage, width, height)
+        frame = self.settings.tiling.scale(window.of(pixels))
         frame_height, frame_width = frame.shape[:2]
+        scale_x, scale_y = frame_width / window.width, frame_height / window.height
         instances = []
-        if result.boxes is not None:
-            boxes = np.asarray(result.boxes.xyxy.cpu().numpy())
-            scores = np.asarray(result.boxes.conf.cpu().numpy())
-            classes = np.asarray(result.boxes.cls.cpu().numpy())
-            if (
-                boxes.ndim != 2
-                or boxes.shape[1] != 4
-                or scores.shape != boxes.shape[:1]
-                or classes.shape != boxes.shape[:1]
-            ):
-                raise RuntimeError("YOLO returned invalid detection boxes")
-            for coordinates, score, class_id in zip(
-                boxes, scores, classes, strict=True
-            ):
-                x1, y1, x2, y2 = map(float, coordinates)
-                score = float(score)
-                numeric_class = float(class_id)
-                class_index = int(numeric_class)
-                if numeric_class != class_index or not 0 <= class_index < len(
-                    self.class_names
-                ):
-                    raise RuntimeError(
-                        f"YOLO returned unknown class index {numeric_class}"
-                    )
-                left = min(max(x1, 0.0), float(frame_width))
-                top = min(max(y1, 0.0), float(frame_height))
-                right = min(max(x2, 0.0), float(frame_width))
-                bottom = min(max(y2, 0.0), float(frame_height))
-                if right <= left or bottom <= top:
+        for tile in self.settings.tiling.tiles(frame_width, frame_height):
+            for class_name, score, found in self._read(tile.window.of(frame)):
+                box = tile.window.restore(found)
+                if not tile.owns(box.x + box.width / 2, box.y + box.height / 2):
                     continue
-                box = BoundingBox(left, top, right - left, bottom - top)
                 instances.append(
                     DetectionInstance(
                         instance_id=str(len(instances)),
-                        class_name=self.class_names[class_index],
-                        bbox=window.restore(box),
+                        class_name=class_name,
+                        bbox=window.restore(
+                            BoundingBox(
+                                box.x / scale_x,
+                                box.y / scale_y,
+                                box.width / scale_x,
+                                box.height / scale_y,
+                            )
+                        ),
                         score=score,
                     )
                 )

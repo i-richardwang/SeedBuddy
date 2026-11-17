@@ -104,6 +104,7 @@ const PARAMETER_LABELS = {
   batch: m.parameter_batch,
   nbs: m.parameter_nbs,
   imgsz: m.parameter_imgsz,
+  tile: m.parameter_tile,
   optimizer: m.parameter_optimizer,
   lr0: m.parameter_lr0,
   warmup_epochs: m.parameter_warmup_epochs,
@@ -127,6 +128,13 @@ export function parameterLabel(key: keyof TrainingParameters): string {
   return PARAMETER_LABELS[key]();
 }
 
+/** What a recipe that leaves a parameter out trains with. */
+export function unsetParameterLabel(key: keyof TrainingParameters): string {
+  return key === "tile"
+    ? m.parameter_tile_unset()
+    : m.parameter_runtime_default();
+}
+
 const PRESET_PRESENTATION = {
   "yolo26n-whole-v1": {
     label: m.training_preset_nano,
@@ -135,6 +143,10 @@ const PRESET_PRESENTATION = {
   "yolo26s-whole-2048-v1": {
     label: m.training_preset_small,
     description: m.training_preset_small_description,
+  },
+  "yolo26s-tiled-3072-v1": {
+    label: m.training_preset_tiled,
+    description: m.training_preset_tiled_description,
   },
 } as const satisfies Record<
   TrainingPresetId,

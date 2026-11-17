@@ -5,6 +5,7 @@ import json
 import shutil
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -18,6 +19,7 @@ from seedctl.detectors.ultralytics.runtime import (
     load_yolo,
     require_ultralytics_version,
 )
+from seedctl.image_geometry.tiles import Tiling
 from seedctl.io.files import file_digest, write_text_atomically
 
 
@@ -265,12 +267,15 @@ def train_yolo_detector(
 ) -> YoloTrainingResult:
     """Fine-tune, validate, and publish inference calibration for a YOLO detector.
 
-    `parameters` are the Ultralytics training arguments the run fixes; they are
-    recorded verbatim in the published summary. `output_dir` belongs to this
+    `parameters` are the training arguments the run fixes, recorded verbatim in
+    the published summary: Ultralytics' own, where `imgsz` is the resolution a
+    frame is read at, and `tile`, the side of the tiles it is read through.
+    Ultralytics is given the tile as its image size. `output_dir` belongs to this
     training: one interrupted there resumes after its last completed epoch, and
     `on_epoch` still sees every epoch from the first.
     """
     fixed_parameters = dict(parameters)
+    tiling = Tiling.reading(fixed_parameters["imgsz"], fixed_parameters.get("tile"))
     data_path = Path(dataset).resolve()
     if not data_path.is_file():
         raise FileNotFoundError(data_path)
@@ -304,7 +309,12 @@ def train_yolo_detector(
         if not model_source.is_file() or file_digest(model_source) != model_digest:
             raise ValueError("Training base model failed digest verification")
         train_options = {
-            **fixed_parameters,
+            **{
+                name: value
+                for name, value in fixed_parameters.items()
+                if name != "tile"
+            },
+            "imgsz": tiling.tile,
             "data": str(data_path),
             "project": str(output.parent),
             "name": output.name,
@@ -353,7 +363,9 @@ def train_yolo_detector(
     if on_epoch:
         for report in completed:
             on_epoch(report)
-    trainer_model.train(trainer=load_training_trainer(), **train_options)
+    trainer_model.train(
+        trainer=partial(load_training_trainer(), tiling=tiling), **train_options
+    )
     trainer = trainer_model.trainer
     save_dir = Path(trainer.save_dir)
     best_weights = Path(trainer.best)
@@ -374,7 +386,7 @@ def train_yolo_detector(
     if on_validation_start:
         on_validation_start()
     metrics = validator_model.val(
-        validator=load_training_validator(),
+        validator=partial(load_training_validator(), tiling=tiling),
         data=str(data_path),
         batch=trainer.test_loader.batch_size,
         imgsz=trained_args.imgsz,
@@ -388,15 +400,18 @@ def train_yolo_detector(
     confidence = best_f1_confidence(metrics)
     metric_values = _validation_summary(metrics)
 
+    inference = {
+        "ready": confidence is not None,
+        "confidence": confidence,
+        "imageSize": tiling.resolution,
+        "maxDetections": trained_args.max_det,
+        "endToEnd": False,
+    }
+    if "tile" in fixed_parameters:
+        inference["tileSize"] = tiling.tile
     summary_path = save_dir / "inference.json"
     summary = {
-        "inference": {
-            "ready": confidence is not None,
-            "confidence": confidence,
-            "imageSize": trained_args.imgsz,
-            "maxDetections": trained_args.max_det,
-            "endToEnd": False,
-        },
+        "inference": inference,
         "validation": metric_values,
         "training": {
             "baseModel": {
