@@ -40,6 +40,7 @@ class ImageCache:
         self.root = root
         self.budget_bytes = budget_bytes
         self._lock = threading.Lock()
+        #: By digest, in the order of use: the most recently used last.
         self._sizes: dict[str, int] = {}
         self._pins: Counter[str] = Counter()
         self._pending: dict[str, Future[Path]] = {}
@@ -48,10 +49,9 @@ class ImageCache:
         )
         # An interrupted write never became an image; nothing can resume it.
         shutil.rmtree(root / _PARTIAL, ignore_errors=True)
-        for path in root.glob(f"??/*{CANONICAL_EXTENSION}"):
-            self._sizes[path.name.removesuffix(CANONICAL_EXTENSION)] = (
-                path.stat().st_size
-            )
+        held = [(path, path.stat()) for path in root.glob(f"??/*{CANONICAL_EXTENSION}")]
+        for path, status in sorted(held, key=lambda image: image[1].st_mtime):
+            self._sizes[path.name.removesuffix(CANONICAL_EXTENSION)] = status.st_size
 
     def path(self, digest: str) -> Path:
         return self.root / digest[:2] / f"{digest}{CANONICAL_EXTENSION}"
@@ -126,6 +126,9 @@ class ImageCache:
         total = sum(self._sizes.values())
         if total <= self.budget_bytes:
             return
+        # File times order what every process sharing the directory used. A
+        # clock too coarse to tell two uses apart leaves this process's own
+        # order of use, which the sort keeps.
         idle = [digest for digest in self._sizes if digest not in self._pins]
         idle.sort(key=lambda digest: self.path(digest).stat().st_mtime)
         for digest in idle:
@@ -145,6 +148,7 @@ class ImageCache:
         except FileNotFoundError:
             del self._sizes[digest]
             return False
+        self._sizes[digest] = self._sizes.pop(digest)
         return True
 
 

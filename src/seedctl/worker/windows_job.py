@@ -46,8 +46,21 @@ class _Accounting(ctypes.Structure):
     ]
 
 
+class _Members(ctypes.Structure):
+    _fields_ = [
+        ("assigned", wintypes.DWORD),
+        ("listed", wintypes.DWORD),
+        ("identifiers", ctypes.c_size_t * 1024),
+    ]
+
+
+_SYNCHRONIZE = 0x00100000
+_WAIT_OBJECT_0 = 0
+
+
 class Job:
-    """Kills every member when closed, including descendants of an exited root."""
+    """Kills every member when closed, including descendants of an exited root,
+    and returns once they have ended and let go of what they held."""
 
     def __init__(self) -> None:
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -68,6 +81,15 @@ class Job:
             wintypes.DWORD,
             ctypes.c_void_p,
         )
+        kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.IsProcessInJob.argtypes = (
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+            ctypes.POINTER(wintypes.BOOL),
+        )
+        kernel.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        kernel.WaitForSingleObject.restype = wintypes.DWORD
         kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
         self._kernel = kernel
         self._handle = kernel.CreateJobObjectW(None, None)
@@ -86,29 +108,64 @@ class Job:
         if not self._kernel.AssignProcessToJobObject(self._handle, process_handle):
             raise ctypes.WinError(ctypes.get_last_error())
 
+    def _members(self) -> list[int]:
+        """A handle to each process in the job, for waiting on its end."""
+        listing = _Members()
+        # A listing too long for the buffer still fills it; `close` counts the
+        # members it could not wait on until none is left.
+        self._kernel.QueryInformationJobObject(
+            self._handle, 3, ctypes.byref(listing), ctypes.sizeof(listing), None
+        )
+        members = []
+        for identifier in listing.identifiers[: listing.listed]:
+            member = self._kernel.OpenProcess(_SYNCHRONIZE, False, identifier)
+            if not member:
+                continue
+            # The process listed may have ended and another taken its identifier.
+            inside = wintypes.BOOL()
+            if (
+                self._kernel.IsProcessInJob(member, self._handle, ctypes.byref(inside))
+                and inside
+            ):
+                members.append(member)
+            else:
+                self._kernel.CloseHandle(member)
+        return members
+
     def close(self) -> None:
-        if self._handle:
-            handle = self._handle
+        if not self._handle:
+            return
+        handle = self._handle
+        members = self._members()
+        deadline = time.monotonic() + 2
+        try:
             if not self._kernel.TerminateJobObject(handle, 1):
                 raise ctypes.WinError(ctypes.get_last_error())
-            deadline = time.monotonic() + 2
-            while True:
-                accounting = _Accounting()
-                if not self._kernel.QueryInformationJobObject(
-                    handle,
-                    1,
-                    ctypes.byref(accounting),
-                    ctypes.sizeof(accounting),
-                    None,
+            # A process leaves the job's count before the system has closed
+            # what it held; its own handle signals after.
+            for member in members:
+                remaining = max(0.0, deadline - time.monotonic())
+                if (
+                    self._kernel.WaitForSingleObject(member, int(remaining * 1000))
+                    != _WAIT_OBJECT_0
                 ):
-                    raise ctypes.WinError(ctypes.get_last_error())
-                if not accounting.active:
-                    break
-                if time.monotonic() >= deadline:
                     raise RuntimeError(
                         "Worker execution job did not finish terminating"
                     )
-                time.sleep(0.01)
-            if not self._kernel.CloseHandle(handle):
+        finally:
+            for member in members:
+                self._kernel.CloseHandle(member)
+        while True:
+            accounting = _Accounting()
+            if not self._kernel.QueryInformationJobObject(
+                handle, 1, ctypes.byref(accounting), ctypes.sizeof(accounting), None
+            ):
                 raise ctypes.WinError(ctypes.get_last_error())
-            self._handle = None
+            if not accounting.active:
+                break
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Worker execution job did not finish terminating")
+            time.sleep(0.01)
+        if not self._kernel.CloseHandle(handle):
+            raise ctypes.WinError(ctypes.get_last_error())
+        self._handle = None
