@@ -471,7 +471,11 @@ def test_execution_scope_reaps_descendants_after_the_root_exits(tmp_path):
     from seedctl.worker.host.lock import _try_lock
 
     with heartbeat.with_suffix(".lock").open("a+b") as resource:
-        assert _try_lock(resource)
+        # Windows lets go of an ended process's locks in its own time.
+        deadline = time.monotonic() + 5
+        while not _try_lock(resource):
+            assert time.monotonic() < deadline
+            time.sleep(0.01)
     time.sleep(0.1)
     assert heartbeat.stat().st_size == size
 
