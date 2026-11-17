@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -39,6 +40,10 @@ class PixelWindow:
     def of(self, pixels: np.ndarray) -> np.ndarray:
         """The window's pixels of an image."""
         return pixels[self.y : self.bottom, self.x : self.right]
+
+    def holds(self, x: Any, y: Any) -> Any:
+        """Whether the window holds a point: one, or each of an array of them."""
+        return (x >= self.x) & (x < self.right) & (y >= self.y) & (y < self.bottom)
 
     def crop(self, box: BoundingBox) -> BoundingBox | None:
         """The box in window pixels, clipped to the window; None when outside."""

@@ -63,6 +63,7 @@ test("the overview derives review progress and training readiness", async () => 
   expect(overview.trainingPresets.map((preset) => preset.id)).toEqual([
     "yolo26n-whole-v1",
     "yolo26s-whole-2048-v1",
+    "yolo26s-tiled-3072-v1",
   ]);
   expect(overview.reviewedCount).toBe(2);
   expect(overview.images.map((image) => image.detectionCount)).toEqual([

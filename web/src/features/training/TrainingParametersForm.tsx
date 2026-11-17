@@ -6,6 +6,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../../ui/kit/Button";
 import { Form } from "../../ui/kit/Form";
 import { InputNumber } from "../../ui/kit/Input";
+import { unsetParameterLabel } from "./labels";
 import { PARAMETER_FIELDS, type ParameterField } from "./parameter-fields";
 
 interface TrainingParametersFormProps {
@@ -83,7 +84,7 @@ function ParametersGroup({
           >
             <InputNumber
               value={overrides[field.key] ?? parameters[field.key] ?? null}
-              placeholder={m.parameter_runtime_default()}
+              placeholder={unsetParameterLabel(field.key)}
               min={field.min}
               max={field.max}
               step={field.step}

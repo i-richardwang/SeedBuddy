@@ -8,6 +8,7 @@ import sys
 from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 import pytest
@@ -36,6 +37,7 @@ from seedctl.detectors.ultralytics.training import (
     YoloTrainingInterruptedError,
     train_yolo_detector,
 )
+from seedctl.image_geometry.tiles import Tiling
 from seedctl.io.files import file_digest
 
 
@@ -69,15 +71,20 @@ def test_validation_uses_actual_per_device_batch(monkeypatch, actual_batch):
 
 def test_validator_creation_sets_the_same_final_evaluation_batch(tmp_path):
     trainer = object.__new__(StoredImageDetectionTrainer)
+    trainer.tiling = Tiling(640, 640)
     trainer.test_loader = SimpleNamespace(batch_size=1)
     trainer.save_dir = tmp_path
     trainer.args = get_cfg()
     trainer.callbacks = {}
-    assert trainer.get_validator().args.batch == 1
-    assert isinstance(trainer.get_validator(), StoredImageValidator)
+    validator = trainer.get_validator()
+    assert validator.args.batch == 1
+    assert isinstance(validator, StoredImageValidator)
+    assert validator.tiling == trainer.tiling
 
 
 COVERAGE = ImageCoverage(x=50.0, y=40.0, radius=30.0, margin=0.15)
+#: A dish frame, 70 pixels a side, read as it is stored.
+FRAME = Tiling(70, 70)
 
 
 def _coordinates(_path) -> np.ndarray:
@@ -89,24 +96,17 @@ def _coordinates(_path) -> np.ndarray:
 
 
 def _dataset(
-    tmp_path: Path, coverage: ImageCoverage | None, *, mode="val", size=(100, 80)
+    tmp_path: Path, coverage: ImageCoverage | None, tiling: Tiling, *, mode="val"
 ) -> StoredImageDataset:
-    """What the framework builds for validation over exported images under `coverage`."""
+    """What the framework builds over exported images under `coverage`."""
     data_root = tmp_path / "data"
     box = AnnotationInstance("seed", SEED_CLASSES[0], BoundingBox(40, 30, 10, 10))
     images = []
-    width, height = size
     for variant, split in enumerate(("train", "train", "train", "val")):
-        digest = write_blob(data_root, encoded_image(width, height, variant))
+        digest = write_blob(data_root, encoded_image(100, 80, variant))
         images.append(
             DatasetImage(
-                digest,
-                width,
-                height,
-                (box,),
-                blob_path(data_root, digest),
-                split,
-                coverage,
+                digest, 100, 80, (box,), blob_path(data_root, digest), split, coverage
             )
         )
     output = tmp_path / "dataset"
@@ -117,7 +117,8 @@ def _dataset(
         mode="whole_image" if coverage is None else "dish",
     )
     trainer = object.__new__(StoredImageDetectionTrainer)
-    trainer.args = get_cfg(overrides={"imgsz": 320})
+    trainer.tiling = tiling
+    trainer.args = get_cfg(overrides={"imgsz": tiling.tile})
     trainer.model = SimpleNamespace(stride=np.array([32]))
     trainer.data = {"names": dict(enumerate(SEED_CLASSES)), "channels": 3}
     dataset = trainer.build_dataset(str(output / "images" / mode), mode=mode, batch=1)
@@ -127,95 +128,183 @@ def _dataset(
 
 def test_detection_dataset_reads_a_whole_image_as_inference_does(tmp_path, monkeypatch):
     monkeypatch.setattr(image_loading, "read_image", _coordinates)
-    dataset = _dataset(tmp_path, None)
+    dataset = _dataset(tmp_path, None, Tiling(100, 100))
 
-    _pixels, original, _resized = dataset.load_image(0)
+    [sample] = [dataset.get_image_and_label(index) for index in range(len(dataset))]
 
-    assert original == (80, 100)
-    assert dataset.batch_shapes.tolist() == [[288, 352]]
+    assert np.array_equal(sample["img"], _coordinates(None))
+    assert sample["ori_shape"] == (80, 100)
+    assert sample["instances"].bboxes.tolist() == [
+        pytest.approx([0.45, 0.4375, 0.1, 0.125])
+    ]
+    assert dataset.batch_shapes.tolist() == [[96, 128]]
 
 
 def test_detection_dataset_reads_the_dish_frame_as_inference_does(
     tmp_path, monkeypatch
 ):
     monkeypatch.setattr(image_loading, "read_image", _coordinates)
-    dataset = _dataset(tmp_path, COVERAGE)
-    dataset.imgsz = 70  # the frame's own size, so that its pixels are not resampled
+    dataset = _dataset(tmp_path, COVERAGE, FRAME)
 
-    pixels, original, _resized = dataset.load_image(0)
+    pixels = dataset.get_image_and_label(0)["img"]
 
     # Reach 34.5 around (50, 40): x 15..85 and y 5..75.
-    assert original == (70, 70)
+    assert pixels.shape == (70, 70, 3)
     assert pixels[0, 0].tolist() == [15, 5, 0]
     assert pixels[-1, -1].tolist() == [84, 74, 0]
     # Validation batches take the shape of the frame, not of the stored image.
-    assert dataset.batch_shapes.tolist() == [[352, 352]]
+    assert dataset.batch_shapes.tolist() == [[96, 96]]
 
 
-def test_standalone_validation_reads_the_same_window_without_changing_global_loaders(
+def test_validation_reads_every_tile_of_a_frame_with_the_objects_it_holds(
     tmp_path, monkeypatch
 ):
     monkeypatch.setattr(image_loading, "read_image", _coordinates)
-    training = _dataset(tmp_path, COVERAGE)
+    dataset = _dataset(tmp_path, None, Tiling(100, 64))
+
+    samples = [dataset.get_image_and_label(index) for index in range(len(dataset))]
+
+    # Tiles start at x 0 and 36 and at y 0 and 16.
+    assert [sample["img"][0, 0].tolist() for sample in samples] == [
+        [0, 0, 0],
+        [36, 0, 0],
+        [0, 16, 0],
+        [36, 16, 0],
+    ]
+    assert {sample["img"].shape for sample in samples} == {(64, 64, 3)}
+    assert {sample["tiles"] for sample in samples} == {4}
+    assert len({sample["im_file"] for sample in samples}) == 1
+    # The object at 40..50 by 30..40 lies in all four, in each tile's own pixels.
+    assert [(sample["instances"].bboxes[0] * 64).tolist() for sample in samples] == [
+        pytest.approx([45, 35, 10, 10]),
+        pytest.approx([9, 35, 10, 10]),
+        pytest.approx([45, 19, 10, 10]),
+        pytest.approx([9, 19, 10, 10]),
+    ]
+    classes, boxes = dataset.truth[samples[0]["im_file"]]
+    assert classes.tolist() == [0.0]
+    assert boxes.tolist() == [pytest.approx([40, 30, 50, 40])]
+
+
+def test_training_draws_tiles_that_cover_each_frame_once(tmp_path, monkeypatch):
+    monkeypatch.setattr(image_loading, "read_image", _coordinates)
+    dataset = _dataset(tmp_path, None, Tiling(100, 64), mode="train")
+    dataset.max_buffer_length = 2
+
+    assert dataset.augment
+    # Three frames, each four tiles' worth of area.
+    assert len(dataset) == 12
+    assert len({id(label) for label in dataset.labels}) == 12
+    for index in range(len(dataset)):
+        sample = dataset.get_image_and_label(index)
+        assert sample["img"].shape == (64, 64, 3)
+        assert "tile" not in sample
+        x, y, _ = map(int, sample["img"][0, 0])
+        assert 0 <= x <= 36 and 0 <= y <= 16
+        # The object centred at (45, 35) is labelled where the drawn tile holds it.
+        held = x <= 45 < x + 64 and y <= 35 < y + 64
+        assert len(sample["cls"]) == held
+        if held:
+            centre = sample["instances"].bboxes[0, :2] * 64
+            assert centre.tolist() == pytest.approx([45 - x, 35 - y])
+    assert len(dataset.buffer) <= 2
+
+
+def test_a_tile_clips_the_objects_that_cross_its_edge(tmp_path, monkeypatch):
+    monkeypatch.setattr(image_loading, "read_image", _coordinates)
+    dataset = _dataset(tmp_path, None, Tiling(100, 48))
+
+    # Tiles start at x 0, 26 and 52: the middle one holds the centre of the
+    # object at 40..50 by 30..40 whole, the tile at y 32 only its lower part.
+    samples = [dataset.get_image_and_label(index) for index in range(len(dataset))]
+    lower = next(
+        sample for sample in samples if sample["img"][0, 0].tolist() == [26, 32, 0]
+    )
+    assert (lower["instances"].bboxes[0] * 48).tolist() == pytest.approx([19, 4, 10, 8])
+
+
+def test_standalone_validation_reads_the_same_tiles_without_changing_global_loaders(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(image_loading, "read_image", _coordinates)
+    training = _dataset(tmp_path, COVERAGE, FRAME)
     validator = object.__new__(StoredImageValidator)
+    validator.tiling = FRAME
     validator.args = get_cfg(overrides={"imgsz": 70})
     validator.stride = 32
     validator.data = {"names": dict(enumerate(SEED_CLASSES)), "channels": 3}
     validation = validator.build_dataset(
         str(tmp_path / "dataset" / "images" / "val"), batch=1
     )
-    training.imgsz = 70
-    assert np.array_equal(validation.load_image(0)[0], training.load_image(0)[0])
-    assert validation.load_image(0)[0][0, 0].tolist() == [15, 5, 0]
+    assert np.array_equal(
+        validation.get_image_and_label(0)["img"],
+        training.get_image_and_label(0)["img"],
+    )
     # Unrelated disk caches never override canonical pixels and crop windows.
-    validation.npy_files[0].write_bytes(b"")
-    assert validation.load_image(0)[1] == (70, 70)
     np.save(validation.npy_files[0], np.zeros((9, 13), dtype=np.uint8))
-    assert np.array_equal(validation.load_image(0)[0], training.load_image(0)[0])
+    validation._latest = None
+    assert validation.get_image_and_label(0)["img"][0, 0].tolist() == [15, 5, 0]
 
 
-def test_training_augmentation_uses_the_same_pixels_and_bounded_buffer(
-    tmp_path, monkeypatch
-):
-    monkeypatch.setattr(image_loading, "read_image", _coordinates)
-    dataset = _dataset(tmp_path, COVERAGE, mode="train")
-    dataset.imgsz = 70
-    dataset.max_buffer_length = 2
-    first = dataset.load_image(0)[0]
-    assert first[0, 0].tolist() == [15, 5, 0]
-    assert first[-1, -1].tolist() == [84, 74, 0]
-    assert dataset.augment
-    dataset.load_image(1)
-    dataset.load_image(2)
-    assert (
-        sum(image.nbytes for image in dataset.ims if image is not None) <= first.nbytes
+def test_validation_scores_a_frame_once_from_what_each_tile_answers_for():
+    import torch
+
+    scored = []
+    tiles = Tiling(100, 64).tiles(100, 64)
+    validator: Any = object.__new__(StoredImageValidator)
+    validator._reads = {}
+    validator.seen = 0
+    validator.device = "cpu"
+    validator.args = SimpleNamespace(plots=False)
+    validator.metrics = SimpleNamespace(update_stats=scored.append)
+    validator.dataloader = SimpleNamespace(
+        dataset=SimpleNamespace(
+            truth={
+                "frame.avif": (
+                    np.array([0.0], np.float32),
+                    np.array([[4, 4, 12, 12]], np.float32),
+                )
+            }
+        )
     )
-    assert dataset.ims[0] is None
-    assert np.array_equal(dataset.load_image(0)[0], first)
+    validator._prepare_pred = lambda pred: pred
+    validator._prepare_batch = lambda _index, _batch: None
+    validator.scale_preds = lambda pred, _batch: pred
+    validator._process_batch = lambda found, truth: {
+        "found": found["bboxes"].tolist(),
+        "truth": truth["bboxes"].tolist(),
+    }
 
+    def read() -> dict:
+        # Each tile finds one object near its left edge and one near its right.
+        return {
+            "bboxes": torch.tensor([[4.0, 4.0, 12.0, 12.0], [50.0, 4.0, 58.0, 12.0]]),
+            "conf": torch.tensor([0.9, 0.8]),
+            "cls": torch.tensor([0.0, 1.0]),
+        }
 
-@pytest.mark.parametrize(
-    "rect,short,shape",
-    [(True, False, (256, 320)), (True, True, (320, 400)), (False, False, (320, 320))],
-)
-def test_image_loader_preserves_framework_resize_modes(tmp_path, rect, short, shape):
-    dataset = _dataset(tmp_path, None)
-    pixels, original, resized = dataset.load_image(
-        0, rect_mode=rect, resize_short=short
-    )
-    assert original == (80, 100)
-    assert resized == shape
-    assert pixels.shape == (*shape, 3)
+    for tile in tiles:
+        assert not scored
+        validator.update_metrics(
+            [read()], {"tile": (tile,), "tiles": (2,), "im_file": ("frame.avif",)}
+        )
 
-
-def test_short_side_resize_is_exact_at_a_floating_point_boundary(tmp_path):
-    dataset = _dataset(tmp_path, None, size=(200, 147))
-    assert dataset.load_image(0, resize_short=True)[2] == (320, 436)
+    # The tiles meet at x 50: the left answers for its first object, the right
+    # for its second, and the frame is matched against its one whole truth.
+    [stats] = scored
+    assert validator.seen == 1
+    assert stats["found"] == [[4.0, 4.0, 12.0, 12.0], [86.0, 4.0, 94.0, 12.0]]
+    assert stats["truth"] == [[4.0, 4.0, 12.0, 12.0]]
+    assert stats["conf"].tolist() == pytest.approx([0.9, 0.8])
+    assert stats["im_name"] == "frame.avif"
+    validator._reads["half.avif"] = [read()]
+    with pytest.raises(RuntimeError, match="every tile"):
+        validator.finalize_metrics()
 
 
 @pytest.mark.parametrize("damage", ["image", "label", "extra", "corrupt", "labels"])
 def test_frozen_dataset_never_silently_drops_or_adds_samples(tmp_path, damage):
-    dataset = _dataset(tmp_path, None, mode="train")
+    dataset = _dataset(tmp_path, None, Tiling(320, 320), mode="train")
     source = Path(dataset.im_files[0])
     root = source.parents[2]
     label = root / "labels/train" / source.with_suffix(".txt").name
@@ -237,16 +326,17 @@ def test_frozen_dataset_never_silently_drops_or_adds_samples(tmp_path, damage):
             imgsz=320,
             batch_size=1,
             augment=False,
+            tiling=Tiling(320, 320),
         )
 
 
 def test_a_loader_process_started_afresh_reads_exported_images_the_same_way(tmp_path):
     handed = tmp_path / "dataset.pickle"
-    handed.write_bytes(pickle.dumps(_dataset(tmp_path, COVERAGE)))
+    handed.write_bytes(pickle.dumps(_dataset(tmp_path, COVERAGE, FRAME)))
     script = (
         "import pickle, sys\n"
         "dataset = pickle.load(open(sys.argv[1], 'rb'))\n"
-        "print(dataset.load_image(0)[1])\n"
+        "print(dataset.get_image_and_label(0)['img'].shape)\n"
         "import ultralytics.data.base as loading\n"
         "import ultralytics.data.build as building\n"
         "print(loading.imread.__module__, building.YOLODataset.__module__)\n"
@@ -260,7 +350,7 @@ def test_a_loader_process_started_afresh_reads_exported_images_the_same_way(tmp_
     )
 
     assert answer.stdout.splitlines() == [
-        "(70, 70)",
+        "(70, 70, 3)",
         "ultralytics.utils.patches ultralytics.data.dataset",
     ]
 

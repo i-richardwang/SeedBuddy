@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import nanoManifest from "../../../../configs/yolo26/yolo26n-whole-v1.recipe.json";
+import tiledManifest from "../../../../configs/yolo26/yolo26s-tiled-3072-v1.recipe.json";
 import smallManifest from "../../../../configs/yolo26/yolo26s-whole-2048-v1.recipe.json";
 import type { TrainingOverrides } from "./parameters";
 import { type TrainingRecipe, trainingRecipeSchema } from "./schema";
@@ -9,12 +10,18 @@ export const YOLO26N_WHOLE_RECIPE = trainingRecipeSchema.parse(nanoManifest);
 
 const YOLO26S_WHOLE_RECIPE = trainingRecipeSchema.parse(smallManifest);
 
+const YOLO26S_TILED_RECIPE = trainingRecipeSchema.parse(tiledManifest);
+
 /** Versioned templates. Runs carry a resolved copy of their selected recipe. */
 export const TRAINING_PRESETS = [
   { id: "yolo26n-whole-v1", recipe: YOLO26N_WHOLE_RECIPE },
   {
     id: "yolo26s-whole-2048-v1",
     recipe: YOLO26S_WHOLE_RECIPE,
+  },
+  {
+    id: "yolo26s-tiled-3072-v1",
+    recipe: YOLO26S_TILED_RECIPE,
   },
 ] as const;
 

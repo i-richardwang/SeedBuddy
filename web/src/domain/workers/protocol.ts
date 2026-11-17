@@ -6,7 +6,7 @@
  * refused. Raise it with any change a worker process of the previous revision
  * would misread.
  */
-export const WORKER_PROTOCOL = 1;
+export const WORKER_PROTOCOL = 2;
 
 /** The request header a worker process states its protocol revision in. */
 export const WORKER_PROTOCOL_HEADER = "SeedBuddy-Worker-Protocol";

@@ -75,7 +75,7 @@ def test_yolo_detector_uses_published_inference_settings(
     )
     detector = UltralyticsDetector(
         _weights(tmp_path),
-        YoloInferenceSettings(0.42, 768, 500, False, "whole_image"),
+        YoloInferenceSettings(0.42, 100, 500, False, "whole_image"),
         ("seed", "germinated"),
         device="mps",
     )
@@ -92,7 +92,7 @@ def test_yolo_detector_uses_published_inference_settings(
     assert options.pop("source").shape == (80, 100, 3)
     assert options == {
         "conf": 0.42,
-        "imgsz": 768,
+        "imgsz": 100,
         "max_det": 500,
         "end2end": False,
         "iou": 0.7,
@@ -133,7 +133,7 @@ def test_dish_version_reads_the_covered_frame_and_answers_in_image_pixels(
     )
     detector = UltralyticsDetector(
         _weights(tmp_path),
-        YoloInferenceSettings(0.42, 768, 500, False, "dish"),
+        YoloInferenceSettings(0.42, 184, 500, False, "dish"),
         ("seed", "germinated"),
         device=None,
     )
@@ -145,13 +145,14 @@ def test_dish_version_reads_the_covered_frame_and_answers_in_image_pixels(
 
     framed = detector.predict(source, "c" * 64, producer, coverage)
 
-    # The dish reaches 46px from (120, 80): x 74..166, y 34..126, rounded out.
+    # The dish reaches 46px from (120, 80): x 74..166, y 34..126, rounded out,
+    # and is read at twice its size.
     [options] = calls
-    assert options["source"].shape == (92, 92, 3)
+    assert options["source"].shape == (184, 184, 3)
     assert (framed.width, framed.height) == (200, 160)
     assert [astuple(instance.bbox) for instance in framed.instances] == [
-        pytest.approx((74.0, 36.0, 10.0, 10.0)),
-        pytest.approx((114.0, 64.0, 30.0, 20.0)),
+        pytest.approx((74.0, 35.0, 5.0, 5.0)),
+        pytest.approx((94.0, 49.0, 15.0, 10.0)),
     ]
     assert framed.to_dict()["diagnostics"] == {
         "dish": {"centerX": 120.0, "centerY": 80.0, "radius": 40.0}
@@ -160,9 +161,44 @@ def test_dish_version_reads_the_covered_frame_and_answers_in_image_pixels(
     # Without coverage the dish version reads the whole image, as the
     # snapshot it was trained on did for an image whose dish was not found.
     whole = detector.predict(source, "c" * 64, producer, None)
-    assert calls[-1]["source"].shape == (160, 200, 3)
-    assert astuple(whole.instances[0].bbox) == pytest.approx((0.0, 2.0, 10.0, 10.0))
+    assert calls[-1]["source"].shape == (148, 184, 3)
+    assert astuple(whole.instances[0].bbox) == pytest.approx(
+        (0.0, 2.0 * 160 / 148, 10.0 * 200 / 184, 10.0 * 160 / 148)
+    )
     assert "diagnostics" not in whole.to_dict()
+
+
+def test_a_tiled_version_answers_once_for_what_neighbouring_tiles_both_find(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[dict[str, Any]] = []
+    # Every tile finds one object near its left edge and one near its right.
+    monkeypatch.setattr(
+        ultralytics_module,
+        "load_yolo",
+        lambda: _fake_yolo(calls, [[4.0, 4.0, 12.0, 12.0], [50.0, 4.0, 58.0, 12.0]]),
+    )
+    detector = UltralyticsDetector(
+        _weights(tmp_path),
+        YoloInferenceSettings(0.42, 100, 500, False, "whole_image", 64),
+        ("seed", "germinated"),
+        device=None,
+    )
+    producer = DetectionProducer(
+        "set.yolo-v1", detector.artifact_digest, detector.runtime
+    )
+
+    result = detector.predict(_source(tmp_path, 100, 64), "c" * 64, producer, None)
+
+    # Tiles start at x 0 and 36 and meet at 50. The left tile's second object
+    # is centred at 54 and the right tile's first at 44: each is the other's.
+    assert [call["source"].shape for call in calls] == [(64, 64, 3)] * 2
+    assert {call["imgsz"] for call in calls} == {64}
+    assert [astuple(instance.bbox) for instance in result.instances] == [
+        (4.0, 4.0, 8.0, 8.0),
+        (86.0, 4.0, 8.0, 8.0),
+    ]
+    assert [instance.instance_id for instance in result.instances] == ["0", "1"]
 
 
 def test_whole_image_version_refuses_a_frame(
@@ -186,7 +222,7 @@ def test_whole_image_version_refuses_a_frame(
             ImageCoverage(50.0, 40.0, 30.0, 0.15),
         )
     with pytest.raises(ValueError, match="Unknown inference mode"):
-        YoloInferenceSettings(0.42, 768, 500, False, "tiled")  # type: ignore[arg-type]
+        YoloInferenceSettings(0.42, 768, 500, False, "panorama")  # type: ignore[arg-type]
 
 
 def test_yolo_detector_binds_weight_classes_to_the_model(
@@ -240,6 +276,16 @@ def test_yolo_fingerprint_covers_weights_and_inference_settings(tmp_path: Path) 
     ).hexdigest()
     assert baseline.artifact_digest == expected
     assert baseline.artifact_digest != changed.artifact_digest
+    # A version that reads its frames whole states no tile size.
+    assert "tileSize" not in baseline.settings.to_dict()
+    tiled = UltralyticsDetector(
+        weights,
+        YoloInferenceSettings(0.42, 768, 500, False, "whole_image", 384),
+        ("seed",),
+        device=None,
+    )
+    assert tiled.settings.to_dict()["tileSize"] == 384
+    assert tiled.artifact_digest != baseline.artifact_digest
     # The frame is recorded on the version, not hashed into its weights.
     assert framed.artifact_digest == baseline.artifact_digest
     assert baseline.runtime == changed.runtime

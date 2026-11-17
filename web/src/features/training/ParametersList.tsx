@@ -6,7 +6,7 @@ import { Descriptions, DescriptionsItem } from "../../ui/kit/Descriptions";
 import { SectionHeader } from "../../ui/kit/SectionHeader";
 import { Skeleton } from "../../ui/kit/Skeleton";
 import { formatNumber } from "../../ui/numbers";
-import { parameterLabel } from "./labels";
+import { parameterLabel, unsetParameterLabel } from "./labels";
 import { PARAMETER_GROUPS } from "./parameter-fields";
 
 /** The recipe's parameters by group, flowing into two columns on wider screens. */
@@ -15,7 +15,9 @@ export function ParametersList({
 }: {
   parameters: TrainingParameters;
 }) {
-  return <ParameterGroups value={(key) => formatParameter(parameters[key])} />;
+  return (
+    <ParameterGroups value={(key) => formatParameter(key, parameters[key])} />
+  );
 }
 
 /** `ParametersList` while the run loads: the labels, with a bone for each value. */
@@ -53,8 +55,11 @@ function ParameterGroups({
   );
 }
 
-function formatParameter(value: number | string | boolean | undefined): string {
-  if (value === undefined) return m.parameter_runtime_default();
+function formatParameter(
+  key: keyof TrainingParameters,
+  value: number | string | boolean | undefined,
+): string {
+  if (value === undefined) return unsetParameterLabel(key);
   if (typeof value === "boolean")
     return value ? m.parameter_on() : m.parameter_off();
   return typeof value === "number" ? formatNumber(value) : value;

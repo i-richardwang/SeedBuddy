@@ -134,6 +134,12 @@
               "maximum": 3072,
               "multipleOf": 32
             },
+            "tile": {
+              "type": "integer",
+              "minimum": 320,
+              "maximum": 3072,
+              "multipleOf": 32
+            },
             "optimizer": {
               "type": "string",
               "enum": [

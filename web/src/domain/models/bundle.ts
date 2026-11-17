@@ -13,6 +13,7 @@ import { MAX_MODEL_WEIGHTS_BYTES } from "./transfer";
 /** Executable settings supported by the Ultralytics adapter. Unsupported pipelines fail closed. */
 const bundleInferenceSchema = inferenceSettingsSchema.extend({
   imageSize: z.number().int().positive().max(8192),
+  tileSize: z.number().int().positive().max(8192).optional(),
   maxDetections: z.number().int().positive().max(10000),
   iou: z.literal(0.7),
 });

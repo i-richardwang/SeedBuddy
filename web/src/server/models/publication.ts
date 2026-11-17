@@ -57,8 +57,16 @@ function artifactDigest(weights: Uint8Array, bundle: ModelBundle): string {
     .digest("hex");
 }
 function executableSettings(bundle: ModelBundle) {
-  const { confidence, imageSize, maxDetections, endToEnd } = bundle.inference;
-  return { confidence, imageSize, maxDetections, endToEnd };
+  const { confidence, imageSize, tileSize, maxDetections, endToEnd } =
+    bundle.inference;
+  // A version that reads its frames whole states no tile size.
+  return {
+    confidence,
+    imageSize,
+    maxDetections,
+    endToEnd,
+    ...(tileSize !== undefined && { tileSize }),
+  };
 }
 
 export async function prepareModelUpload(modelId: string, bundle: ModelBundle) {
