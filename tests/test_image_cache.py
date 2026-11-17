@@ -1,11 +1,31 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
+import pytest
+
+from seedctl.worker import images
 from seedctl.worker.images import ImageCache
 
 
+@pytest.fixture(params=["fine", "coarse"])
+def clock(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """File times that tell every use apart, or none of them."""
+    if request.param == "fine":
+        return
+    replace, touch = os.replace, os.utime
+
+    def written(source: Path, target: Path) -> None:
+        replace(source, target)
+        touch(target, (0, 0))
+
+    monkeypatch.setattr(images.os, "replace", written)
+    monkeypatch.setattr(images.os, "utime", lambda path: touch(path, (0, 0)))
+
+
+@pytest.mark.usefixtures("clock")
 def test_the_cache_forgets_the_least_recently_used_image_nothing_pins(
     tmp_path: Path,
 ) -> None:
